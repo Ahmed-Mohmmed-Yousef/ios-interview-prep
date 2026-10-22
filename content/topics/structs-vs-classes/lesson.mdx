@@ -10,7 +10,10 @@ export const meta = {
     { title: "Choosing Between Structures and Classes (Swift)", url: "https://developer.apple.com/documentation/swift/choosing-between-structures-and-classes", kind: "official" },
     { title: "The Swift Programming Language: Properties", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/properties", kind: "official" },
     { title: "The Swift Programming Language: Methods", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/methods", kind: "official" },
+    { title: "The Swift Programming Language: Initialization", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/initialization", kind: "official" },
     { title: "Sendable (Swift)", url: "https://developer.apple.com/documentation/swift/sendable", kind: "official" },
+    { title: "WWDC25: Embracing Swift concurrency", url: "https://developer.apple.com/videos/play/wwdc2025/268/", kind: "official" },
+    { title: "SE-0390: Noncopyable structs and enums", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0390-noncopyable-structs-and-enums.md", kind: "official" },
     { title: "WWDC16: Understanding Swift Performance", url: "https://developer.apple.com/videos/play/wwdc2016/416/", kind: "official" },
     { title: "Swift Optimization Tips (swiftlang/swift)", url: "https://github.com/swiftlang/swift/blob/main/docs/OptimizationTips.rst", kind: "official" },
   ],
@@ -153,9 +156,9 @@ Here are all the main differences side by side:
 | Kind of type | Value type: it is copied | Reference type: it is shared |
 | Stored in a `let` constant | Nothing can change | Its `var` properties can still change |
 | Method that changes a property | Needs `mutating` | No keyword needed |
-| Free initializer that sets every property | Yes (the memberwise initializer) | No. If a property has no default value, you write `init` yourself |
+| Free initializer that sets every property | Yes (the memberwise initializer), unless you write your own `init` inside the struct | No. If a property has no default value, you write `init` yourself |
 | Inheritance from another type | No (use protocols instead) | Yes |
-| `deinit` when the instance is freed | No | Yes |
+| `deinit` when the instance is freed | No (except noncopyable structs, an advanced topic) | Yes |
 | Check if two names point to the same instance (`===`) | No | Yes |
 
 <QuickCheck>
@@ -172,7 +175,7 @@ Apple gives simple advice: **use a struct by default.** Choose a class when you 
 
 - **One shared instance with its own identity.** For example, a network connection or a database connection that many parts of the app must share.
 - **Inheritance from a class.** For example, UIKit gives you `UIViewController` as a class, and you make your own subclass of it.
-- **Work with older Apple frameworks that expect a class.**
+- **Work with Objective-C frameworks that expect a class.**
 
 <RealWorld>
 Most data in an iOS app is made of structs. A `User` or an `Order` decoded from server data is usually a struct. Its identity comes from an ID that the server owns. SwiftUI views are usually structs too. A class fits things that must be shared, like one image cache or one network client for the whole app.
@@ -181,11 +184,17 @@ Most data in an iOS app is made of structs. A `User` or an `Order` decoded from 
 ## Interview traps
 
 <Trap title="Structs always live on the stack">
-This is only partly true. Class instances live on the heap. Struct values often live on the stack, but not always. For example, a `var` that an escaping closure captures is stored on the heap. A better answer talks about copy versus share, not about memory places.
+The *stack* and the *heap* are two places in memory. The stack is very fast. The heap is for things that must live longer.
+
+This claim is only partly true. Class instances live on the heap. Struct values often live on the stack, but not always. For example, an *escaping closure* is a closure that is kept and runs later. A `var` that it captures is stored on the heap. A better answer talks about copy versus share, not about memory places.
 </Trap>
 
 <Trap title="A let class instance cannot change">
 A `let` constant fixes the reference, not the instance. You cannot point the constant to another instance, but you can still change the instance's `var` properties.
+</Trap>
+
+<Trap title="Copying a big array is slow">
+`Array`, `Dictionary` and `String` are structs, but copying them is cheap. The copies share the same storage until one of them changes. Only then does Swift make the real copy. This is called *copy-on-write*. Your code always behaves as if the copy happened at once.
 </Trap>
 
 <Trap title="A struct copy is always fully separate">
@@ -229,12 +238,14 @@ The name was copied, so `player1` still says `Sam`. The settings were shared, so
 </QuickCheck>
 
 <VersionNote since="Swift 6">
-In Swift 6 language mode, the compiler checks for data races when code runs at the same time. A struct whose properties are all `Sendable` is `Sendable` without extra work, if it is not public. A class must follow stricter rules. For example, it must be `final` and have only `let` properties of `Sendable` types. This is one more reason to start with a struct.
+In Swift 6 language mode, the compiler checks for data races when code runs at the same time. A type is `Sendable` when it is safe to share between tasks that run at the same time.
+
+A struct whose properties are all `Sendable` is `Sendable` with no extra work, if it is not public. A class needs more. It must be `final` and have only `let` properties of `Sendable` types, or it must run on one actor, such as `@MainActor`.
+
+New Xcode app projects put code on the main actor by default, so classes there are `Sendable`. In a Swift package, this is not the default. Structs work the same way in both places, which is one more reason to start with a struct.
 </VersionNote>
 
-<DeepDive title="Copy-on-write and the stack myth">
-**Copy-on-write.** `Array`, `Dictionary` and `String` are structs, but copying them is cheap. The copies share the same storage until one of them changes. Only then does Swift make the real copy. Your code always behaves as if the copy happened at once.
-
+<DeepDive title="The stack myth in detail">
 **Stack and heap.** Class instances are stored on the heap, and Swift counts the references to each instance. Struct values are often stored on the stack, which is very fast. But the compiler decides. A `var` captured by an escaping closure goes into a box on the heap. A large struct stored in a protocol-typed variable can also go on the heap. So "structs are on the stack" is a simple rule, not the full truth.
 </DeepDive>
 
@@ -249,7 +260,7 @@ The main difference is copy versus share: structs are value types and classes ar
 </InterviewAnswer>
 
 <InterviewAnswer level="senior">
-I start with structs, because value semantics make code easier to reason about and safer with concurrency. In Swift 6, structs with `Sendable` properties are `Sendable` almost for free, while classes must be `final` and immutable. I use a class only when I need shared identity, inheritance or a framework that expects one. I watch for structs that hold class references, because copies then share that object. On performance, I avoid saying "structs are always on the stack". Class instances cost heap allocation and reference counting. Struct values usually avoid that, but closures and protocol types can still put them on the heap. Standard collections use copy-on-write, so copying them is cheap until a change.
+I start with structs, because copy behavior makes code easier to understand and safer with concurrency. In Swift 6, structs with `Sendable` properties are `Sendable` with no extra work. Classes need `final` and immutable `Sendable` properties, or isolation to an actor such as `@MainActor`. I use a class only when I need shared identity, inheritance or a framework that expects one. I watch for structs that hold class references, because copies then share that object. On performance, I avoid saying "structs are always on the stack". Class instances cost heap allocation and reference counting. Struct values usually avoid that, unless they hold references. Closures and protocol types can still put them on the heap. Standard collections use copy-on-write, so copying them is cheap until a change.
 </InterviewAnswer>
 
 ## Recap
