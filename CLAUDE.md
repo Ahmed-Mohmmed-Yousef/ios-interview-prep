@@ -48,6 +48,7 @@ content/                     # data model: docs/curriculum-schema.md
 docs/                        # decisions and plans
 scripts/validate-curriculum.mjs  # run: node scripts/validate-curriculum.mjs
 scripts/curriculum-report.mjs    # rebuilds docs/topics.md — run after any curriculum change
+prototype/build.mjs              # Phase 2 prototype: real lesson.mdx (MDX + React) + diagram + exam → one HTML page (npm install in prototype/ first)
 scripts/run-swift-examples.mjs   # compiles every Swift example in a lesson and checks its output block
 scripts/build-path-page.mjs      # rebuilds docs/path-map.html — then republish the Path Map artifact (URL in PROGRESS.md)
 .claude/rules/               # always-on and path-scoped rules
