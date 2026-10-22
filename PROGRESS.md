@@ -43,7 +43,7 @@ Plan: [docs/phase-1-plan.md](docs/phase-1-plan.md)
 One topic built end to end (lesson, diagram, exam) to test the format before we write many.
 Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs Classes**
 
-- ⬜ **2.1 Lesson format** — final sections, components and the "code + output" block
+- 🟡 **2.1 Lesson format** — final sections, components and the "code + output" block → [docs/lesson-format.md](docs/lesson-format.md)
 - ⬜ **2.2 Topic research** — official sources and interview questions for Structs vs Classes
 - ⬜ **2.3 Write the lesson** — `lesson.mdx` in simple English, every code example run
 - ⬜ **2.4 Build the animation** — "copy vs shared" animation with step controls
@@ -117,12 +117,16 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-22 | Every topic must be easy to edit and improve in the future | [docs/curriculum-schema.md](docs/curriculum-schema.md) → "Editing and improving topics" |
 | 2026-10-22 | Save the project with local Git; commits use ahmed.moyousef98@gmail.com (this project only) | `.git/config` |
 | 2026-10-22 | Pilot topic is Structs vs Classes, shown as a clickable prototype page | [docs/phase-2-plan.md](docs/phase-2-plan.md) |
-| 2026-10-22 | Lesson code examples are shown with their output, plus a link to Swift Playgrounds | [docs/phase-2-plan.md](docs/phase-2-plan.md) |
+| 2026-10-22 | Lesson code examples are shown with their output, plus a link to Swift Playground | [docs/phase-2-plan.md](docs/phase-2-plan.md) |
+| 2026-10-22 | Lessons have the same core sections plus optional extras; 8–12 minutes long | [docs/lesson-format.md](docs/lesson-format.md) |
+| 2026-10-22 | Every lesson starts with a guess and has 2–3 quick checks (not scored) | [docs/lesson-format.md](docs/lesson-format.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-22** — Step 2.1 done, waiting for review: lesson format based on learning research (guess first, quick checks, diagram, code with output, traps, interview answers, recap, Swift Playground link); new template; new lesson checker in the content hook. Fixed the app name: it is "Swift Playground" now.
+- **2026-10-22** — Phase 2 plan approved. Step 2.1 started.
 - **2026-10-22** — Phase 2 planned: 9 steps, pilot topic Structs vs Classes. Code examples will be run with Swift 6.4 on this Mac.
 - **2026-10-22** — Phase 1 approved. Phase 2 planning started.
 - **2026-10-22** — Step 1.8 done, waiting for review: all checks pass on every file, every level self-check item is covered, stale docs fixed, Phase 1 summary written, project saved as the first Git commit.

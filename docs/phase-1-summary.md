@@ -38,7 +38,7 @@ Finished 2026-10-22. All 8 steps were reviewed and approved one by one. Every de
 
 | Item | When |
 |---|---|
-| How beginners try code before the Xcode topic (Swift Playgrounds link, or code shown with its output) | Phase 2 |
+| ~~How beginners try code before the Xcode topic~~ — decided: code is shown with its output, plus a Swift Playground link ([lesson-format.md](lesson-format.md)) | Phase 2 |
 | Improve the pilot topic once, to prove the edit workflow | Phase 2 |
 | How skipped topics count in the final percentage | Phase 3 |
 | What a learner sees when a passed topic is updated | Phase 3 |

@@ -10,7 +10,7 @@ Live status is in [PROGRESS.md](../PROGRESS.md).
 |---|---|
 | Pilot topic | **Structs vs Classes** (`structs-vs-classes`, fresh level) |
 | How to preview it | A **clickable prototype page** (private artifact) with the real lesson, animation and exam |
-| How learners see code results | **Code is shown with its output.** A link to Swift Playgrounds for people who want to try it |
+| How learners see code results | **Code is shown with its output.** A link to Swift Playground for people who want to try it |
 
 **Fact for this phase:** this Mac has **Swift 6.4** (Xcode 27). Every code example and every "what does this print?" question is **run with the real compiler** before you see it.
 

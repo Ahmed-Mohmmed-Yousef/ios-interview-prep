@@ -30,4 +30,4 @@ paths:
 - Write for the topic's level: fresh = no prior knowledge assumed; staff = trade-offs, scale, and decision-making.
 
 ## Structure
-Every lesson follows the template in `.claude/skills/lesson-writer/template.mdx` — same sections, same order, same `meta` export. Don't invent new top-level sections; propose them to the user instead.
+Every lesson follows `docs/lesson-format.md` and the template in `.claude/skills/lesson-writer/template.mdx`: the same core sections in the same order, optional extras only from the list in the format doc, and the same `meta` export. Don't invent new sections or components; propose them to the user instead. Every Swift example shows its real output, checked with the Swift compiler.

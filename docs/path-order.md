@@ -32,4 +32,4 @@ Then run `node scripts/validate-curriculum.mjs`, `node scripts/curriculum-report
 
 ## Open for Phase 2/3
 
-Fresh Swift lessons come before the Xcode topic. Learners need a place to try code. Decide in Phase 2 (pilot) or Phase 3 (design) how lessons let learners run small examples, for example with a link to Swift Playgrounds or code that is shown with its output.
+Fresh Swift lessons come before the Xcode topic. Learners need a place to try code. Decide in Phase 2 (pilot) or Phase 3 (design) how lessons let learners run small examples, for example with a link to Swift Playground or code that is shown with its output.

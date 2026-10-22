@@ -45,16 +45,10 @@ if [[ "$FILE" == */questions.json ]]; then
     )' "$FILE")
 
 elif [[ "$FILE" == */lesson.mdx ]]; then
-  grep -q '^export const meta' "$FILE" || errors+=("missing 'export const meta'")
-  for key in id summary lastVerified sources; do
-    grep -qE "^\s*$key:" "$FILE" || errors+=("meta is missing '$key'")
-  done
-  TOPIC_ID=$(basename "$(dirname "$FILE")")
-  grep -qE "^\s*id: \"$TOPIC_ID\"" "$FILE" || errors+=("meta.id must be \"$TOPIC_ID\" (the folder name)")
-  grep -qE 'https?://' "$FILE" || errors+=("meta.sources has no URLs")
-  for tag in InterviewHook Analogy Diagram Trap InterviewAnswer Recap; do
-    grep -q "<$tag" "$FILE" || errors+=("missing <$tag> section (see lesson-writer/template.mdx)")
-  done
+  # Structure rules: docs/lesson-format.md
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && errors+=("$line")
+  done < <(node "$(dirname "$0")/check-lesson.mjs" "$FILE" 2>&1)
 fi
 
 if [[ "$FILE" == */questions.json || "$FILE" == */lesson.mdx || "$FILE" == */topic.json || "$FILE" == */content/levels.json || "$FILE" == */content/units.json ]] && (( ${#errors[@]} == 0 )); then
