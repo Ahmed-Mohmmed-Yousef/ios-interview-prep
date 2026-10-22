@@ -26,6 +26,12 @@ else {
 // Text outside code blocks and comments, for structure checks.
 const body = src.replace(/```[\s\S]*?```/g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
+// Lesson from the pilot: a "//" line outside code and the meta export is NOT a comment in MDX; it shows as text.
+const prose = body.replace(/^export const meta[\s\S]*?^\}\s*$/m, "");
+for (const l of prose.split("\n")) {
+  if (/^\s*\/\//.test(l)) fail(`"//" line outside code shows as text in MDX — use {/* ... */}: ${l.trim().slice(0, 60)}`);
+}
+
 // Core sections, in order.
 const order = [
   ["<InterviewHook>", /<InterviewHook>/],

@@ -14,11 +14,12 @@ Check topic `$ARGUMENTS` (`content/topics/<topic-id>/lesson.mdx` and `questions.
 
 1. **List every factual claim** in the lesson and every answer/explanation/rubric item in the bank.
 2. **Verify each one now on the web** — official sources only (`.claude/rules/research.md`). Fetch the pages in `meta.sources` and question `sources` to confirm they still exist and still say this.
-3. **Check currency:** compare against the current Swift/Xcode/iOS release (check developer.apple.com/support/xcode). Flag deprecated APIs presented as current, and behavior that changed in recent versions.
+3. **Check currency:** compare against the current Swift/Xcode/iOS release (check developer.apple.com/support/xcode). Flag deprecated APIs presented as current, and behavior that changed in recent versions. **Check new Xcode project defaults too** (for example default main-actor isolation): a rule can be true in a Swift package and false in a new app project. Confirm such cases with the compiler (`swiftc -swift-version 6`, with and without `-default-isolation MainActor`).
 4. **Check code:** Swift 6 language mode compatibility; `code-reading` outputs traced step by step.
 5. **Check copyright:** flag passages that look copied from Apple documentation.
 6. **Check plain English** (`.claude/rules/plain-english.md`): sentences over 25 words, hard words, idioms, unexplained terms. Verdict `HARD-ENGLISH` with a simpler rewrite.
-7. **Check questions against rules** in `.claude/rules/questions.md` (one correct option, believable distractors, explanations, rubric sums to 100, pool size and mix).
+7. **Check exam fairness:** every tested idea is taught in a main lesson section (not only "Go deeper"); every prompt asks for what its rubric scores; option lengths are balanced.
+8. **Check questions against rules** in `.claude/rules/questions.md` (one correct option, believable distractors, explanations, rubric sums to 100, pool size and mix).
 
 ## Output
 

@@ -28,6 +28,11 @@ if [[ "$FILE" == */questions.json ]]; then
     (if has("topicId") and has("version") and has("questions") then empty
      else "top level: needs topicId, version, questions" end),
     ([.questions[].id] | group_by(.) | map(select(length > 1) | "duplicate id \(.[0])") | .[]),
+    # Lesson from the pilot: spread right answers over a-d, so the position gives nothing away.
+    ([.questions[] | select(.options and (.retired | not)) | .answer] as $ans |
+      if ($ans | length) >= 12 then
+        (["a","b","c","d"][] as $l | select(($ans | index($l)) == null) | "right answers never use option \($l); spread them over a-d")
+      else empty end),
     (.questions[] as $q |
       (["id","type","difficulty","prompt","lessonSection","sources"][] as $f | need($q; $f)),
       (if ($q.type | IN("mcq","code-reading","written","code-write")) then empty
@@ -38,7 +43,11 @@ if [[ "$FILE" == */questions.json ]]; then
          (if ([($q.options // [])[].id] | index($q.answer)) == null then "\($q.id): answer is not an option id" else empty end),
          (($q.options // [])[] | select((.explanation // "") == "") | "\($q.id): option \(.id) has no explanation"),
          (if $q.type == "code-reading" and (($q.code // "") == "") then "\($q.id): code-reading needs code" else empty end),
-         (if $q.type == "code-reading" and ($q.verify == null) then "\($q.id): code-reading needs a verify field (run scripts/run-swift-examples.mjs)" else empty end)
+         (if $q.type == "code-reading" and ($q.verify == null) then "\($q.id): code-reading needs a verify field (run scripts/run-swift-examples.mjs)" else empty end),
+         # Lesson from the pilot: the right answer must not be much longer than the wrong ones.
+         ((($q.options // [])[] | select(.id == $q.answer) | .text | length) as $c |
+          ([($q.options // [])[] | select(.id != $q.answer) | .text | length] | max // 0) as $w |
+          if $w > 0 and $c > 1.5 * $w then "\($q.id): the right option is \($c) characters, more than 1.5 times the longest wrong one (\($w)); balance the lengths" else empty end)
        else
          (if ([($q.rubric // [])[].weight] | add) != 100 then "\($q.id): rubric weights must sum to 100" else empty end),
          (if (($q.modelAnswer // "") == "") then "\($q.id): needs modelAnswer" else empty end),

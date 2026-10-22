@@ -15,6 +15,7 @@ paths:
 ## Accuracy
 - Every technical claim is verified against an official source **in this session** (see `research.md`). List those URLs in `meta.sources`.
 - Baseline: **Swift 6.4, Xcode 27, iOS 27** (verified 2026-10-22 on developer.apple.com/support/xcode). Mention when behavior differs in older versions that interviewers still ask about.
+- **Check what new Xcode project defaults change.** For example, new app projects put code on the main actor by default, which changes which classes are `Sendable`. When a fact depends on a project setting, say which setting it is.
 - Never present a deprecated API as current. If an older API is still common in interviews (e.g. GCD, `ObservableObject`), say what replaced it and when.
 - Code must compile under Swift 6 language mode (strict concurrency) unless the lesson is explicitly showing a pre-Swift-6 pattern — then label it.
 

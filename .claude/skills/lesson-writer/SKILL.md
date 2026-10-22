@@ -25,7 +25,10 @@ Write the lesson for topic `$ARGUMENTS`.
    - Every claim traceable to a URL in `meta.sources`.
    - Swift code compiles under Swift 6 language mode (or is labeled as a legacy pattern), and every `output` block is the real output — run `node scripts/run-swift-examples.mjs content/topics/<topic-id>/lesson.mdx` (Swift 6 mode, compares each output block). If you show an error in a code comment, compile that line once to confirm the error.
    - No copied Apple documentation text.
-   - Plain English pass: no sentence over 25 words, no idioms, every technical term explained on first use.
+   - Plain English pass: no sentence over 25 words, no idioms, every technical term explained on first use — including terms in traps, version notes and sample answers (the pilot missed "stack", "heap" and "escaping closure").
+   - Every idea the exam may test is taught in a main section, not only in "Go deeper" or in one line of a sample answer.
+   - No `//` lines outside code blocks and the `meta` export: in MDX they show as text. Use `{/* ... */}`.
+   - Facts that depend on Xcode project settings (for example default main-actor isolation) say which setting they mean.
    - `meta.lastVerified` set to today. Set `status` to `draft` in `topic.json` (never `published` — the user decides that).
 7. **Report** to the user: what the lesson covers, which sources were used, and anything you couldn't verify (marked `UNVERIFIED` in the file).
 

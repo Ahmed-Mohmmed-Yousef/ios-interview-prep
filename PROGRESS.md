@@ -38,7 +38,7 @@ Plan: [docs/phase-1-plan.md](docs/phase-1-plan.md)
 - ✅ **1.7 Sources** — checked official links for every topic → [docs/sources.md](docs/sources.md) (164 of 164 topics, 264 official + 61 community links)
 - ✅ **1.8 Final check** — validate and save everything → [docs/phase-1-summary.md](docs/phase-1-summary.md) (all checks pass; saved with Git)
 
-## Phase 2 — Pilot topic 🔄
+## Phase 2 — Pilot topic 🟡
 
 One topic built end to end (lesson, diagram, exam) to test the format before we write many.
 Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs Classes**
@@ -50,8 +50,8 @@ Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs 
 - ✅ **2.5 Write the exam** — 30+ questions of all 4 types, every code question run → [questions.json](content/topics/structs-vs-classes/questions.json) (31 questions)
 - ✅ **2.6 Fact-check** — official sources, simple English, copyright → [docs/pilot/fact-check.md](docs/pilot/fact-check.md)
 - ✅ **2.7 Prototype page** — lesson + animation + exam + result screen; rubrics tested with sample answers → [prototype](https://claude.ai/artifact/DTYhYTuSHnAjg1U1D5W45J), [rubric test](docs/pilot/rubric-test.md)
-- 🟡 **2.8 Improve once** — your feedback as version 2 with a `changes` entry (proves the edit workflow) → topic version 2, bank version 3, [rubric test: after](docs/pilot/rubric-test.md)
-- ⬜ **2.9 Lessons learned** — update template, rules and skills; all checks; Git commit
+- ✅ **2.8 Improve once** — your feedback as version 2 with a `changes` entry (proves the edit workflow) → topic version 2, bank version 3, [rubric test: after](docs/pilot/rubric-test.md)
+- 🟡 **2.9 Lessons learned** — update template, rules and skills; all checks; Git commit → [docs/phase-2-summary.md](docs/phase-2-summary.md), [docs/topic-workflow.md](docs/topic-workflow.md)
 
 ## Phase 3 — Design system and UX ⬜
 
@@ -64,7 +64,9 @@ Open choices for this phase:
 ## Phase 4 — Content production ⬜
 
 Write all lessons and question banks, level by level, with fact checks.
-- ⬜ A repeatable "improve a topic" workflow, used after every new iOS or Swift release
+- ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
+- ⬜ Generalize the prototype builder for every topic (before Phase 4 starts)
+- ⬜ Decide where per-topic notes live (research, fact-check, rubric test)
 
 ## Phase 5 — Web app MVP ⬜
 
@@ -128,11 +130,14 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-22 | Copy-on-write is taught as a trap in the main lesson (so q15 stays); the Sendable note explains both the Xcode main-actor default and Swift packages | [docs/pilot/fact-check.md](docs/pilot/fact-check.md) |
 | 2026-10-22 | Exam feedback right after each question; 10-question exam mix: 5 multiple choice, 3 code reading, 1 written, 1 write-code; written answers use a self-check until AI grading | [prototype](https://claude.ai/artifact/DTYhYTuSHnAjg1U1D5W45J) |
 | 2026-10-22 | Rubric scoring: met = full weight, partly met = half, not met = 0; key points cap a missed answer at 50 | [content/rules.json](content/rules.json) → `rubricScoring` |
+| 2026-10-22 | You review every topic on its own prototype page before it is published | [docs/topic-workflow.md](docs/topic-workflow.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-22** — Step 2.9 done, Phase 2 waiting for review: lessons learned turned into rules, skills and 3 new automatic checks (MDX `//` lines, option length, answer spread — the length check found and fixed 3 more pilot questions). Topic workflow and Phase 2 summary written. All checks pass.
+- **2026-10-22** — Step 2.8 approved. Step 2.9 started.
 - **2026-10-22** — Step 2.8 done, waiting for review: rubric scoring rules added to rules.json, schema, hook and validator; key points marked in all 8 rubrics; 2 borderline rubrics fixed; topic bumped to version 2 with a changes entry (edit workflow proven); prototype self-check now uses Yes/Partly/No and shows the update note.
 - **2026-10-22** — Step 2.7 approved, with both rubric proposals (half credit for "partly met"; key points cap the score). Step 2.8 started.
 - **2026-10-22** — Step 2.7 done, waiting for review: prototype page built from the real lesson.mdx with the official MDX compiler, plus the diagram and a 10-question exam with feedback, results, retakes and self-check. Tested in the browser at phone width. Fixed 5 bugs found while testing (MDX comment line, script clash, topic position, repeat questions without storage, double "Right"). Rubric test: 24 sample answers graded; 2 proposals for your decision.
