@@ -23,6 +23,8 @@ Schema: `.claude/skills/exam-writer/schema.md`. Every file must match it exactly
 - `code-reading` code must be verified **by running it**: every `code-reading` question and every `code-write` model answer has a `verify` field, checked with `node scripts/run-swift-examples.mjs <questions.json>`. Wrong options that claim "it does not compile" must really compile (or the option is the right answer).
 - Spread the correct answers across a, b, c and d, so learners cannot guess from the position.
 - Written answers ask for **2–5 sentences** (user decision, 2026-10-22). Grammar and spelling never cost points.
+- Rubric scoring (user decision, 2026-10-22): met = full weight, partly met = half, not met = 0. Every rubric marks its main-idea criteria `"key": true`; missing a key criterion caps the score at 50. See `.claude/skills/exam-writer/schema.md`.
+- Test each new rubric with a good, an average and a weak sample answer before the topic is published (method: `docs/pilot/rubric-test.md`).
 - Hard questions (about 20%) may test the traps, version notes and higher-level interview answers. Never test "Go deeper".
 - `written` and `code-write` need a `rubric` (weighted criteria that sum to 100) and a `modelAnswer`. The rubric is what the AI grader uses — make criteria concrete and checkable.
 - Every question lists at least one official `sources` URL.

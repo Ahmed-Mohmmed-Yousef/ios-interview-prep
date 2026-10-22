@@ -63,7 +63,7 @@ const diagramStyle = diagramHtml.slice(diagramHtml.indexOf("<style>") + 7, diagr
 lessonHtml = lessonHtml.replace(/<div class="diagram-slot"[^>]*><\/div>/, `<div class="diagram-host">${diagramMarkup}</div>`);
 
 const exam = {
-  passMark: rules.topicPassMark, size: rules.topicExamSize,
+  passMark: rules.topicPassMark, size: rules.topicExamSize, scoring: rules.rubricScoring,
   mix: { mcq: 5, "code-reading": 3, written: 1, "code-write": 1 },
   questions: bank.questions.filter((q) => !q.retired).map(({ sources, verify, verifyStarter, lessonSection, ...q }) => q),
 };
@@ -147,8 +147,12 @@ pre.block.output { background: var(--surface); border: 1px solid var(--line); }
 textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 textarea.code-input { font-family: var(--font-code); font-size: 14px; }
 .rubric { display: grid; gap: 8px; }
-.rubric label { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
 .rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
 .score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
 .pass { color: var(--value); } .fail { color: var(--changed); }
 .review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
@@ -161,8 +165,9 @@ textarea.code-input { font-family: var(--font-code); font-size: 14px; }
   <header>
     <p class="eyebrow">${levelTitle(topic.level)} · ${unit.title} · Topic ${position} of ${stageTopics.length} · Prototype</p>
     <h1>${topic.title}</h1>
-    <p class="meta-line"><span>About ${meta.estimatedMinutes} minutes</span><span>Then a ${rules.topicExamSize}-question exam</span><span>Pass mark ${rules.topicPassMark}%</span></p>
+    <p class="meta-line"><span>About ${meta.estimatedMinutes} minutes</span><span>Then a ${rules.topicExamSize}-question exam</span><span>Pass mark ${rules.topicPassMark}%</span><span>Version ${topic.version}</span></p>
   </header>
+  ${topic.changes?.length ? `<aside class="version-note"><p class="label">Updated ${topic.changes.at(-1).date}</p><p>${topic.changes.at(-1).note}</p></aside>` : ""}
   <div class="lesson-view" id="lessonView">
     <p class="goal"><span class="label">Goal</span><br>${topic.goal}</p>
     <article class="lesson">${lessonHtml}</article>
@@ -293,6 +298,20 @@ function answerChoice(q, picked) {
   fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
 }
 
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
 function answerOpen(q) {
   const text = $("#answer").value;
   $("#answer").readOnly = true; $("#submitOpen").remove();
@@ -300,13 +319,21 @@ function answerOpen(q) {
   fb.className = "feedback";
   fb.innerHTML = '<p class="label">Model answer</p>' +
     (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
-    '<p class="label" style="margin-top:8px">Self-check: tick what your answer covers. In the app, AI does this.</p>' +
-    '<div class="rubric">' + q.rubric.map((r, i) => '<label><input type="checkbox" data-w="' + r.weight + '" id="r' + i + '"><span>' + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></label>').join("") + '</div>';
-  const entry = { q, text, self: 0 };
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
   run.answers.push(entry);
-  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", () => {
-    entry.self = [...fb.querySelectorAll("input:checked")].reduce((s, x) => s + Number(x.dataset.w), 0);
-  }));
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
   fb.append(nextButton());
 }
 

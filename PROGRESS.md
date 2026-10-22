@@ -49,8 +49,8 @@ Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs 
 - ✅ **2.4 Build the animation** — "copy vs shared" animation with step controls → [prototype](https://claude.ai/artifact/4tptMqRDWzod93nSudGRts), [source](docs/pilot/diagram-structs-vs-classes.html)
 - ✅ **2.5 Write the exam** — 30+ questions of all 4 types, every code question run → [questions.json](content/topics/structs-vs-classes/questions.json) (31 questions)
 - ✅ **2.6 Fact-check** — official sources, simple English, copyright → [docs/pilot/fact-check.md](docs/pilot/fact-check.md)
-- 🟡 **2.7 Prototype page** — lesson + animation + exam + result screen; rubrics tested with sample answers → [prototype](https://claude.ai/artifact/DTYhYTuSHnAjg1U1D5W45J), [rubric test](docs/pilot/rubric-test.md)
-- ⬜ **2.8 Improve once** — your feedback as version 2 with a `changes` entry (proves the edit workflow)
+- ✅ **2.7 Prototype page** — lesson + animation + exam + result screen; rubrics tested with sample answers → [prototype](https://claude.ai/artifact/DTYhYTuSHnAjg1U1D5W45J), [rubric test](docs/pilot/rubric-test.md)
+- 🟡 **2.8 Improve once** — your feedback as version 2 with a `changes` entry (proves the edit workflow) → topic version 2, bank version 3, [rubric test: after](docs/pilot/rubric-test.md)
 - ⬜ **2.9 Lessons learned** — update template, rules and skills; all checks; Git commit
 
 ## Phase 3 — Design system and UX ⬜
@@ -127,11 +127,14 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-22 | Written answers are 2–5 sentences | [.claude/rules/questions.md](.claude/rules/questions.md) |
 | 2026-10-22 | Copy-on-write is taught as a trap in the main lesson (so q15 stays); the Sendable note explains both the Xcode main-actor default and Swift packages | [docs/pilot/fact-check.md](docs/pilot/fact-check.md) |
 | 2026-10-22 | Exam feedback right after each question; 10-question exam mix: 5 multiple choice, 3 code reading, 1 written, 1 write-code; written answers use a self-check until AI grading | [prototype](https://claude.ai/artifact/DTYhYTuSHnAjg1U1D5W45J) |
+| 2026-10-22 | Rubric scoring: met = full weight, partly met = half, not met = 0; key points cap a missed answer at 50 | [content/rules.json](content/rules.json) → `rubricScoring` |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-22** — Step 2.8 done, waiting for review: rubric scoring rules added to rules.json, schema, hook and validator; key points marked in all 8 rubrics; 2 borderline rubrics fixed; topic bumped to version 2 with a changes entry (edit workflow proven); prototype self-check now uses Yes/Partly/No and shows the update note.
+- **2026-10-22** — Step 2.7 approved, with both rubric proposals (half credit for "partly met"; key points cap the score). Step 2.8 started.
 - **2026-10-22** — Step 2.7 done, waiting for review: prototype page built from the real lesson.mdx with the official MDX compiler, plus the diagram and a 10-question exam with feedback, results, retakes and self-check. Tested in the browser at phone width. Fixed 5 bugs found while testing (MDX comment line, script clash, topic position, repeat questions without storage, double "Right"). Rubric test: 24 sample answers graded; 2 proposals for your decision.
 - **2026-10-22** — Step 2.6 approved. Step 2.7 started.
 - **2026-10-22** — Step 2.6 done, waiting for review: fact-check found 4 wrong or outdated facts, 1 rule issue, unclear terms and 4 weak questions or rubrics. All fixed and confirmed with Swift 6.4. Bank version 2. 4 lessons for future topics written down.

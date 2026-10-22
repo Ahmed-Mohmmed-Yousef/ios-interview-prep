@@ -44,6 +44,12 @@ if (rules) {
     if (!(rules[key] > 0 && rules[key] <= 100)) fail(`rules.json: ${key} must be 1–100`);
   }
   if (!(rules.topicExamSize > 0)) fail("rules.json: topicExamSize must be above 0");
+  const rs = rules.rubricScoring;
+  if (!rs || rs.met !== 1 || rs.notMet !== 0 || !(rs.partlyMet > 0 && rs.partlyMet < 1)) {
+    fail("rules.json: rubricScoring needs met 1, notMet 0 and partlyMet between 0 and 1");
+  } else if (!(rs.keyMissedCap < rules.topicPassMark)) {
+    fail("rules.json: rubricScoring.keyMissedCap must be below topicPassMark");
+  }
   for (const key of ["unitSkipTest", "levelSkipTest"]) {
     const t = rules[key];
     if (!t || !(t.questionsPerTopic > 0) || !(t.min > 0) || !(t.max >= t.min)) {

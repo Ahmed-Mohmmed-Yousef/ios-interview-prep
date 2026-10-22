@@ -43,3 +43,17 @@ Pass mark: 70.
 4. **The rubrics handle myths and tricks well.** The stack myth, "classes ignore let" and changing the print line all score 0 on their key criteria.
 
 Findings 1 and 2 change how all future rubrics work, so they need your decision. They fit step 2.8 ("Improve once").
+
+## After step 2.8 (both proposals accepted and applied)
+
+Scoring now follows `content/rules.json` → `rubricScoring`: met = full weight, partly met = half, not met = 0. Every rubric has at least one `"key": true` criterion. A missed key criterion caps the score at 50. The prototype self-check uses the same rule (Yes / Partly / No).
+
+| Sample | Before | After | Why |
+|---|---|---|---|
+| q25 average (vague about why a let struct is constant) | 72 (passes) | **60 (fails)** | The criteria now ask for the reason, and the instance-can-change point is separate |
+| q29 weak (uses a class) | 50 | 50, key missed | The key point "declares a struct" is missed, so it can never pass |
+| q30 forgets `mutating`, everything else perfect | 60 | **50, capped** | Missing the key point caps the score |
+| q31 average (harmless extra edit) | 70 | **85 (passes)** | The extra edit now costs 15 points instead of 30 |
+| q24 good / average | 100 / 45 | 100 / 45 | No change |
+
+The hook now rejects any rubric without a key criterion, and the validator checks the scoring numbers in `rules.json`.

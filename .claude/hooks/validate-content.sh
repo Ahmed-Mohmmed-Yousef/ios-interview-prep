@@ -41,7 +41,8 @@ if [[ "$FILE" == */questions.json ]]; then
          (if $q.type == "code-reading" and ($q.verify == null) then "\($q.id): code-reading needs a verify field (run scripts/run-swift-examples.mjs)" else empty end)
        else
          (if ([($q.rubric // [])[].weight] | add) != 100 then "\($q.id): rubric weights must sum to 100" else empty end),
-         (if (($q.modelAnswer // "") == "") then "\($q.id): needs modelAnswer" else empty end)
+         (if (($q.modelAnswer // "") == "") then "\($q.id): needs modelAnswer" else empty end),
+         (if ([($q.rubric // [])[] | select(.key == true)] | length) == 0 then "\($q.id): rubric needs at least one key criterion (\"key\": true)" else empty end)
        end)
     )' "$FILE")
 

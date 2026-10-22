@@ -49,6 +49,7 @@ if (file.endsWith("levels.json")) {
   const t = JSON.parse(raw);
   check(t.title ?? "", `${t.id} title`);
   check(t.goal ?? "", `${t.id} goal`);
+  for (const c of t.changes ?? []) check(c.note ?? "", `${t.id} change note v${c.version}`);
 } else if (file.endsWith("units.json")) {
   for (const u of JSON.parse(raw).units ?? []) {
     check(u.title ?? "", `unit ${u.id} title`);

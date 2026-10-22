@@ -81,4 +81,12 @@ Graded by AI against the rubric. `code-write` adds an optional `starterCode`.
 }
 ```
 
-Rules: rubric weights sum to 100; each criterion is concrete enough for an AI to check yes/no or partial.
+Rules: rubric weights sum to 100; each criterion is concrete enough for an AI to check met / partly met / not met.
+
+**Scoring** (user decision 2026-10-22, numbers in `content/rules.json` → `rubricScoring`):
+- Each criterion earns its full weight when **met**, **half** when **partly met**, and 0 when **not met**.
+- Mark the criteria that carry the main idea of the question with `"key": true` (at least one per rubric). If any key criterion is **not met**, the total is capped at `keyMissedCap` (50), below the pass mark. So an answer that misses the main idea can never pass.
+
+```jsonc
+{ "criterion": "Changes AppSettings from a struct to a class", "weight": 50, "key": true }
+```
