@@ -24,7 +24,7 @@ Last updated: **2026-10-22**
   - ✅ diagram-animator
 - ✅ Automatic content checks (hook): lesson sections, question rules, simple English
 
-## Phase 1 — Curriculum map 🟡
+## Phase 1 — Curriculum map ✅
 
 Plan: [docs/phase-1-plan.md](docs/phase-1-plan.md)
 
@@ -36,13 +36,22 @@ Plan: [docs/phase-1-plan.md](docs/phase-1-plan.md)
 - ✅ **1.5 Topics per level** — level and learning goal for each topic → [docs/topics.md](docs/topics.md) (164 topics: 149 main, 15 bonus)
 - ✅ **1.6 Order and prerequisites** — the path, with a visual page per level → [docs/path-order.md](docs/path-order.md), [Path Map page](https://claude.ai/artifact/LchDwuEHK6kUxbQqGJYhSM) (221 prerequisite links, 0 conflicts)
 - ✅ **1.7 Sources** — checked official links for every topic → [docs/sources.md](docs/sources.md) (164 of 164 topics, 264 official + 61 community links)
-- 🟡 **1.8 Final check** — validate and save everything → [docs/phase-1-summary.md](docs/phase-1-summary.md) (all checks pass; saved with Git)
+- ✅ **1.8 Final check** — validate and save everything → [docs/phase-1-summary.md](docs/phase-1-summary.md) (all checks pass; saved with Git)
 
-## Phase 2 — Pilot topic ⬜
+## Phase 2 — Pilot topic 🔄
 
 One topic built end to end (lesson, diagram, exam) to test the format before we write many.
-Steps are planned when Phase 1 is done. Must include:
-- ⬜ Improve the pilot topic once after it is done (edit lesson, add questions, bump version, add a `changes` entry) to prove the edit workflow works
+Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs Classes**
+
+- ⬜ **2.1 Lesson format** — final sections, components and the "code + output" block
+- ⬜ **2.2 Topic research** — official sources and interview questions for Structs vs Classes
+- ⬜ **2.3 Write the lesson** — `lesson.mdx` in simple English, every code example run
+- ⬜ **2.4 Build the animation** — "copy vs shared" animation with step controls
+- ⬜ **2.5 Write the exam** — 30+ questions of all 4 types, every code question run
+- ⬜ **2.6 Fact-check** — official sources, simple English, copyright
+- ⬜ **2.7 Prototype page** — lesson + animation + exam + result screen; rubrics tested with sample answers
+- ⬜ **2.8 Improve once** — your feedback as version 2 with a `changes` entry (proves the edit workflow)
+- ⬜ **2.9 Lessons learned** — update template, rules and skills; all checks; Git commit
 
 ## Phase 3 — Design system and UX ⬜
 
@@ -107,11 +116,15 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-22 | WWDC videos count as sources when they explain the "why" | [docs/sources.md](docs/sources.md) |
 | 2026-10-22 | Every topic must be easy to edit and improve in the future | [docs/curriculum-schema.md](docs/curriculum-schema.md) → "Editing and improving topics" |
 | 2026-10-22 | Save the project with local Git; commits use ahmed.moyousef98@gmail.com (this project only) | `.git/config` |
+| 2026-10-22 | Pilot topic is Structs vs Classes, shown as a clickable prototype page | [docs/phase-2-plan.md](docs/phase-2-plan.md) |
+| 2026-10-22 | Lesson code examples are shown with their output, plus a link to Swift Playgrounds | [docs/phase-2-plan.md](docs/phase-2-plan.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-22** — Phase 2 planned: 9 steps, pilot topic Structs vs Classes. Code examples will be run with Swift 6.4 on this Mac.
+- **2026-10-22** — Phase 1 approved. Phase 2 planning started.
 - **2026-10-22** — Step 1.8 done, waiting for review: all checks pass on every file, every level self-check item is covered, stale docs fixed, Phase 1 summary written, project saved as the first Git commit.
 - **2026-10-22** — Step 1.7 approved. Step 1.8 started.
 - **2026-10-22** — Step 1.7 done, waiting for review: 325 checked links (264 official, 61 community) on all 164 topics; source policy added to `rules.json` and enforced by the validator; sources shown on the Path Map page.
