@@ -43,8 +43,8 @@ Plan: [docs/phase-1-plan.md](docs/phase-1-plan.md)
 One topic built end to end (lesson, diagram, exam) to test the format before we write many.
 Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs Classes**
 
-- 🟡 **2.1 Lesson format** — final sections, components and the "code + output" block → [docs/lesson-format.md](docs/lesson-format.md)
-- ⬜ **2.2 Topic research** — official sources and interview questions for Structs vs Classes
+- ✅ **2.1 Lesson format** — final sections, components and the "code + output" block → [docs/lesson-format.md](docs/lesson-format.md)
+- 🟡 **2.2 Topic research** — official sources and interview questions for Structs vs Classes → [docs/pilot/research.md](docs/pilot/research.md)
 - ⬜ **2.3 Write the lesson** — `lesson.mdx` in simple English, every code example run
 - ⬜ **2.4 Build the animation** — "copy vs shared" animation with step controls
 - ⬜ **2.5 Write the exam** — 30+ questions of all 4 types, every code question run
@@ -125,6 +125,8 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-10-22** — Step 2.2 done, waiting for review: Structs vs Classes researched from the Swift book, Apple docs, WWDC16 and Swift Optimization Tips; 14 facts checked by running code with Swift 6.4; 6 common wrong ideas; interview questions by level.
+- **2026-10-22** — Step 2.1 approved. Step 2.2 started.
 - **2026-10-22** — Step 2.1 done, waiting for review: lesson format based on learning research (guess first, quick checks, diagram, code with output, traps, interview answers, recap, Swift Playground link); new template; new lesson checker in the content hook. Fixed the app name: it is "Swift Playground" now.
 - **2026-10-22** — Phase 2 plan approved. Step 2.1 started.
 - **2026-10-22** — Phase 2 planned: 9 steps, pilot topic Structs vs Classes. Code examples will be run with Swift 6.4 on this Mac.
