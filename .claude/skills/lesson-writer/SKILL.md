@@ -23,7 +23,7 @@ Write the lesson for topic `$ARGUMENTS`.
 5. **Diagrams:** for each `<Diagram>`, write a short spec in the lesson as a comment (what moves, which steps, the static fallback). Building the component is `/diagram-animator`'s job.
 6. **Self-check** before finishing:
    - Every claim traceable to a URL in `meta.sources`.
-   - Swift code compiles under Swift 6 language mode (or is labeled as a legacy pattern), and every `output` block is the real output — run each example with `swift` on this Mac.
+   - Swift code compiles under Swift 6 language mode (or is labeled as a legacy pattern), and every `output` block is the real output — run `node scripts/run-swift-examples.mjs content/topics/<topic-id>/lesson.mdx` (Swift 6 mode, compares each output block). If you show an error in a code comment, compile that line once to confirm the error.
    - No copied Apple documentation text.
    - Plain English pass: no sentence over 25 words, no idioms, every technical term explained on first use.
    - `meta.lastVerified` set to today. Set `status` to `draft` in `topic.json` (never `published` — the user decides that).

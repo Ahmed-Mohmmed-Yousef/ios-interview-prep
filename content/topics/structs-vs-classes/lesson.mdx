@@ -1,0 +1,261 @@
+// Title, level, goal and prerequisites live in topic.json. Format rules: docs/lesson-format.md.
+export const meta = {
+  id: "structs-vs-classes",
+  summary: "Explain the difference between a struct and a class, and choose the right one for your data.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-10-22",
+  sources: [
+    { title: "The Swift Programming Language: Structures and Classes", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/classesandstructures", kind: "official" },
+    { title: "Choosing Between Structures and Classes (Swift)", url: "https://developer.apple.com/documentation/swift/choosing-between-structures-and-classes", kind: "official" },
+    { title: "The Swift Programming Language: Properties", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/properties", kind: "official" },
+    { title: "The Swift Programming Language: Methods", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/methods", kind: "official" },
+    { title: "Sendable (Swift)", url: "https://developer.apple.com/documentation/swift/sendable", kind: "official" },
+    { title: "WWDC16: Understanding Swift Performance", url: "https://developer.apple.com/videos/play/wwdc2016/416/", kind: "official" },
+    { title: "Swift Optimization Tips (swiftlang/swift)", url: "https://github.com/swiftlang/swift/blob/main/docs/OptimizationTips.rst", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is the difference between a struct and a class in Swift?</Question>
+  <Guess>
+    <Option id="a">A struct is faster because it always lives on the stack.</Option>
+    <Option id="b" correct>A struct is copied when you assign it. A class is shared, so many variables can point to the same instance.</Option>
+    <Option id="c">A struct cannot have methods. Only a class can have methods.</Option>
+    <Option id="d">There is no real difference. They are two names for the same thing.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a printed page. If I give you a photocopy, you can write on your copy, and my page stays the same. Now think of one shared online document. If I send you the link and you edit the document, I see your change too. We both look at the same document.
+</Analogy>
+
+In Swift, a struct works like the photocopy. A struct is a *value type*. When you assign a struct to a new variable, or pass it to a function, Swift copies the value. Each copy changes on its own.
+
+A class works like the shared document. A class is a *reference type*. When you assign a class, Swift copies only the *reference*. A reference is like a link that points to one instance in memory. An *instance* is one real value made from a type. For example, `Point(x: 1, y: 2)` creates an instance of `Point`.
+
+**A struct is copied. A class is shared.** Almost every other difference comes from this one idea.
+
+## See it
+
+<Diagram id="structs-vs-classes-main" caption="A struct is copied. A class is shared.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: two panels side by side (stacked on small screens).
+    Left panel "struct Point": variable labels `first` and `second`, each with its own box showing x.
+    Right panel "class Counter": variable labels `first` and `second`, arrows pointing to one box showing value.
+  - Steps (one short caption each):
+    1. "Create first." Left: one box, x = 0. Right: one box, value = 0, one arrow from `first`.
+    2. "second = first" Left: a second box appears, a copy with x = 0. Right: a second arrow from `second` to the SAME box.
+    3. "Change second." Left: only the second box changes to x = 10; the first box stays 0. Right: the one box changes to value = 5; both arrows point to it.
+    4. "Result." Left caption: "Two separate values." Right caption: "One shared instance."
+  - Static version (reduced motion): the final state of step 3, with all four captions as a numbered list under it.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>You copy a struct and change the copy. What happens to the original?</Question>
+  <Option id="a">It changes too.</Option>
+  <Option id="b" correct>It stays the same.</Option>
+  <Option id="c">Swift shows an error.</Option>
+  <Explanation>A struct is a value type. The copy is a separate value, so changing the copy does not touch the original.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="A struct is copied">
+
+```swift
+struct Point {
+    var x: Int
+    var y: Int
+}
+
+var first = Point(x: 0, y: 0)
+var second = first   // second gets its own copy
+second.x = 10
+
+print(first.x, second.x)
+```
+
+```output
+0 10
+```
+
+</CodeExample>
+
+Changing `second` does not change `first`. They are two separate values.
+
+<CodeExample title="A class is shared">
+
+```swift
+class Counter {
+    var value = 0
+}
+
+let first = Counter()
+let second = first   // second points to the same instance
+second.value = 5
+
+print(first.value, second.value)
+```
+
+```output
+5 5
+```
+
+</CodeExample>
+
+There is only one `Counter` instance. Both names point to it, so both show `5`. Look closely: `first` and `second` are `let` constants, but `value` still changes. A `let` constant holds the reference, not the instance. The reference cannot change, but the instance can.
+
+<CodeExample title="Changing a struct: let and mutating">
+
+```swift
+struct Score {
+    var points = 0
+
+    // A method that changes a property must be marked mutating.
+    mutating func add(_ amount: Int) {
+        points += amount
+    }
+}
+
+var score = Score()
+score.add(3)
+print(score.points)
+
+let fixedScore = Score()
+// fixedScore.add(1)   // Error: fixedScore is a let constant.
+print(fixedScore.points)
+```
+
+```output
+3
+0
+```
+
+</CodeExample>
+
+A struct in a `let` constant cannot change at all, not even its `var` properties. Inside a struct, a method that changes a property needs the `mutating` keyword. Without it, Swift stops with an error.
+
+Here are all the main differences side by side:
+
+| | Struct | Class |
+|---|---|---|
+| Kind of type | Value type: it is copied | Reference type: it is shared |
+| Stored in a `let` constant | Nothing can change | Its `var` properties can still change |
+| Method that changes a property | Needs `mutating` | No keyword needed |
+| Free initializer that sets every property | Yes (the memberwise initializer) | No. If a property has no default value, you write `init` yourself |
+| Inheritance from another type | No (use protocols instead) | Yes |
+| `deinit` when the instance is freed | No | Yes |
+| Check if two names point to the same instance (`===`) | No | Yes |
+
+<QuickCheck>
+  <Question>`Counter` is a class. You write `let counter = Counter()`. Can you then write `counter.value = 5`?</Question>
+  <Option id="a" correct>Yes, because `let` only fixes which instance `counter` points to.</Option>
+  <Option id="b">No, because `counter` is a `let` constant.</Option>
+  <Option id="c">Only if the change happens inside a `mutating` method.</Option>
+  <Explanation>For a class, `let` fixes the reference. The instance it points to can still change its `var` properties.</Explanation>
+</QuickCheck>
+
+### Which one should you choose?
+
+Apple gives simple advice: **use a struct by default.** Choose a class when you need one of these:
+
+- **One shared instance with its own identity.** For example, a network connection or a database connection that many parts of the app must share.
+- **Inheritance from a class.** For example, UIKit gives you `UIViewController` as a class, and you make your own subclass of it.
+- **Work with older Apple frameworks that expect a class.**
+
+<RealWorld>
+Most data in an iOS app is made of structs. A `User` or an `Order` decoded from server data is usually a struct. Its identity comes from an ID that the server owns. SwiftUI views are usually structs too. A class fits things that must be shared, like one image cache or one network client for the whole app.
+</RealWorld>
+
+## Interview traps
+
+<Trap title="Structs always live on the stack">
+This is only partly true. Class instances live on the heap. Struct values often live on the stack, but not always. For example, a `var` that an escaping closure captures is stored on the heap. A better answer talks about copy versus share, not about memory places.
+</Trap>
+
+<Trap title="A let class instance cannot change">
+A `let` constant fixes the reference, not the instance. You cannot point the constant to another instance, but you can still change the instance's `var` properties.
+</Trap>
+
+<Trap title="A struct copy is always fully separate">
+A copy is separate only for the values inside it. If a struct holds a class instance, the copy holds the same reference. Both copies then share that class instance.
+
+<CodeExample title="A struct that holds a class">
+
+```swift
+class Settings {
+    var volume = 5
+}
+
+struct Player {
+    var name: String
+    let settings: Settings
+}
+
+let player1 = Player(name: "Sam", settings: Settings())
+var player2 = player1
+player2.name = "Lee"
+player2.settings.volume = 10
+
+print(player1.name, player1.settings.volume)
+```
+
+```output
+Sam 10
+```
+
+</CodeExample>
+
+The name was copied, so `player1` still says `Sam`. The settings were shared, so `player1` sees the new volume.
+</Trap>
+
+<QuickCheck>
+  <Question>A struct has a property that holds a class instance. You copy the struct, then change the class instance through the copy. What does the original see?</Question>
+  <Option id="a">The old value, because structs are always copied.</Option>
+  <Option id="b" correct>The new value, because both copies point to the same class instance.</Option>
+  <Option id="c">An error, because a struct cannot hold a class.</Option>
+  <Explanation>Copying the struct copies the reference, not the class instance. Both copies point to one shared instance.</Explanation>
+</QuickCheck>
+
+<VersionNote since="Swift 6">
+In Swift 6 language mode, the compiler checks for data races when code runs at the same time. A struct whose properties are all `Sendable` is `Sendable` without extra work, if it is not public. A class must follow stricter rules. For example, it must be `final` and have only `let` properties of `Sendable` types. This is one more reason to start with a struct.
+</VersionNote>
+
+<DeepDive title="Copy-on-write and the stack myth">
+**Copy-on-write.** `Array`, `Dictionary` and `String` are structs, but copying them is cheap. The copies share the same storage until one of them changes. Only then does Swift make the real copy. Your code always behaves as if the copy happened at once.
+
+**Stack and heap.** Class instances are stored on the heap, and Swift counts the references to each instance. Struct values are often stored on the stack, which is very fast. But the compiler decides. A `var` captured by an escaping closure goes into a box on the heap. A large struct stored in a protocol-typed variable can also go on the heap. So "structs are on the stack" is a simple rule, not the full truth.
+</DeepDive>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+A struct is a value type and a class is a reference type. When I assign a struct or pass it to a function, Swift makes a copy, so changes do not affect the original. When I assign a class, both variables point to the same instance, so a change through one is seen through the other. Classes can also use inheritance and `deinit`. Apple recommends structs by default.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+The main difference is copy versus share: structs are value types and classes are reference types. This changes how `let` works. A `let` struct cannot change at all, but a `let` class instance can still change its `var` properties. Struct methods that change data need `mutating`. Classes have identity, so I can check if two references point to the same instance with `===`. I choose a struct by default. I choose a class when I need one shared instance, like a network client, or when I subclass a UIKit class.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+I start with structs, because value semantics make code easier to reason about and safer with concurrency. In Swift 6, structs with `Sendable` properties are `Sendable` almost for free, while classes must be `final` and immutable. I use a class only when I need shared identity, inheritance or a framework that expects one. I watch for structs that hold class references, because copies then share that object. On performance, I avoid saying "structs are always on the stack". Class instances cost heap allocation and reference counting. Struct values usually avoid that, but closures and protocol types can still put them on the heap. Standard collections use copy-on-write, so copying them is cheap until a change.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- A struct is a value type, so it is copied. A class is a reference type, so it is shared.
+- A `let` struct cannot change. A `let` class instance can still change its `var` properties.
+- A struct method that changes a property needs `mutating`.
+- If a struct holds a class instance, its copies share that instance.
+- Use a struct by default. Use a class for shared identity or inheritance.
+</Recap>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac. Change the values and see what each `print` shows.
+</TryIt>

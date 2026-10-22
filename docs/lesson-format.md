@@ -55,7 +55,7 @@ These sources are about learning research, not iOS facts.
 
 ## Code with its output
 
-Every Swift example is a `swift` block followed by an `output` block. The output is what the code really prints. It is checked with the Swift compiler before the lesson is approved.
+Every Swift example is a `swift` block followed by an `output` block. The output is what the code really prints. It is checked with the Swift compiler before the lesson is approved: `node scripts/run-swift-examples.mjs content/topics/<id>/lesson.mdx`.
 
 ````mdx
 <CodeExample title="Copying a struct">
