@@ -1,0 +1,276 @@
+// HISTORY ONLY — this was the one-time input for step 1.6 (2026-10-22). Do not run it again:
+// it would overwrite later edits. From now on, edit content/units.json and topic.json directly.
+// Step 1.6 input: topic order inside each unit, and the ideal (direct) prerequisites of each topic.
+// Applied by scripts/apply-order-prereqs.mjs. Prerequisites that would break road order are NOT written
+// to topic.json; they are reported in docs/prerequisite-conflicts.md for the user to decide.
+
+export const order = {
+  "swift-language": [
+    "swift-basics", "optionals", "operators", "strings-and-characters", "collections", "control-flow",
+    "functions", "closures-basics", "enumerations", "structs-vs-classes", "properties",
+    "methods-and-initialization", "error-handling",
+    "optional-chaining", "inheritance", "type-casting", "protocols", "extensions", "generics-basics",
+    "access-control", "closures-escaping-capture", "codable",
+    "protocol-oriented-programming", "generics-associated-types", "opaque-and-boxed-types",
+    "copy-on-write", "property-wrappers",
+    "macros",
+  ],
+  "coding-interview": [
+    "big-o", "arrays-and-strings", "hash-tables",
+    "sorting-binary-search", "two-pointers-sliding-window", "stacks-and-queues", "linked-lists",
+    "recursion", "matrix-problems",
+    "trees-bfs-dfs", "graphs", "heaps", "intervals",
+  ],
+  memory: ["arc-basics", "strong-weak-unowned", "retain-cycles", "memory-graph-debugger", "memory-profiling-instruments"],
+  concurrency: [
+    "main-thread", "gcd-basics",
+    "async-await", "structured-concurrency", "task-cancellation", "async-sequences", "actors-and-main-actor",
+    "sendable-data-races", "swift-6-strict-concurrency", "approachable-concurrency",
+    "migrating-to-async-await", "concurrent-system-design",
+  ],
+  swiftui: [
+    "swiftui-views-modifiers", "swiftui-layout", "state-and-binding", "swiftui-lists", "swiftui-navigation",
+    "swiftui-observation", "observable-object", "forms-and-input", "sheets-alerts-dialogs", "swiftui-loading-data",
+    "view-identity-lifetime", "swiftui-animations", "swiftui-uikit-interop", "swiftui-performance",
+  ],
+  uikit: [
+    "uiviews-and-view-controllers", "view-controller-lifecycle", "auto-layout", "uikit-navigation",
+    "table-collection-views", "custom-views-layout-pass",
+  ],
+  "design-accessibility": ["dark-mode-dynamic-type", "accessibility", "ipad-adaptive-layout"],
+  "app-and-system": [
+    "xcode-and-git-basics", "app-lifecycle", "permissions-privacy", "signing-app-store",
+    "notifications", "background-tasks", "deep-links",
+  ],
+  "data-networking": [
+    "http-rest-basics", "urlsession", "userdefaults-and-files", "keychain-basics",
+    "swiftdata", "core-data", "caching", "pagination", "combine-basics",
+    "real-time-websockets", "offline-first-sync", "app-security",
+  ],
+  architecture: [
+    "communication-patterns", "mvc", "solid-basics",
+    "mvvm", "dependency-injection", "design-patterns", "navigation-patterns",
+    "clean-architecture", "modularization-spm",
+    "sdk-design", "platform-architecture",
+  ],
+  "testing-release": [
+    "debugging-lldb", "logging-oslog", "unit-testing",
+    "testable-code-mocks", "testing-async-code", "ui-testing", "code-review",
+    "ci-cd", "crash-reports-metrickit", "feature-flags-rollouts",
+    "test-strategy",
+  ],
+  performance: ["smooth-ui", "app-launch-time", "instruments-profiling", "battery-network-app-size"],
+  "mobile-system-design": [
+    "system-design-interview-intro",
+    "requirements-scoping", "high-level-architecture", "api-design-protocols", "storage-caching-design",
+    "offline-sync-design", "realtime-push-design", "image-loading-design", "security-privacy-design",
+    "design-a-feed", "design-a-chat-app",
+    "design-an-sdk", "org-scale-design",
+  ],
+  "behavior-leadership": [
+    "star-method", "disagreement-conflict", "mentoring", "mistakes-incidents", "prioritizing-under-pressure",
+    "influencing-other-teams",
+    "technical-vision", "design-docs-rfcs", "build-or-buy", "leading-through-influence",
+  ],
+};
+
+// Accepted by the user (2026-10-22): the topic needs something that comes later on the road.
+// The lesson explains the needed basics in a few lines and links to the full topic.
+export const briefIntro = {
+  "memory-profiling-instruments": ["instruments-profiling"],
+  "swiftui-views-modifiers": ["xcode-and-git-basics"],
+};
+
+export const prerequisites = {
+  // Swift Language
+  "swift-basics": [],
+  optionals: ["swift-basics"],
+  operators: ["optionals"],
+  "strings-and-characters": ["swift-basics"],
+  collections: ["optionals"],
+  "control-flow": ["collections"],
+  functions: ["control-flow"],
+  "closures-basics": ["functions"],
+  enumerations: ["control-flow"],
+  "structs-vs-classes": ["functions"],
+  properties: ["structs-vs-classes"],
+  "methods-and-initialization": ["properties"],
+  "error-handling": ["enumerations", "functions"],
+  "optional-chaining": ["optionals", "structs-vs-classes"],
+  inheritance: ["methods-and-initialization"],
+  "type-casting": ["inheritance"],
+  protocols: ["methods-and-initialization"],
+  extensions: ["protocols"],
+  "generics-basics": ["protocols"],
+  "access-control": ["structs-vs-classes"],
+  "closures-escaping-capture": ["closures-basics", "structs-vs-classes"],
+  codable: ["protocols", "error-handling"],
+  "protocol-oriented-programming": ["protocols", "extensions"],
+  "generics-associated-types": ["generics-basics"],
+  "opaque-and-boxed-types": ["generics-associated-types"],
+  "copy-on-write": ["structs-vs-classes", "collections"],
+  "key-paths": ["properties"],
+  "property-wrappers": ["properties", "generics-basics"],
+  "result-builders": ["closures-basics"],
+  macros: ["property-wrappers"],
+  "noncopyable-types": ["structs-vs-classes"],
+  "inlinearray-and-span": ["collections"],
+  "memory-safety": ["structs-vs-classes"],
+
+  // Coding Interview
+  "big-o": ["functions"],
+  "arrays-and-strings": ["big-o", "collections", "strings-and-characters"],
+  "hash-tables": ["arrays-and-strings"],
+  "sorting-binary-search": ["arrays-and-strings"],
+  "two-pointers-sliding-window": ["arrays-and-strings"],
+  "stacks-and-queues": ["arrays-and-strings"],
+  "linked-lists": ["structs-vs-classes", "big-o"],
+  recursion: ["functions", "big-o"],
+  "matrix-problems": ["arrays-and-strings"],
+  "trees-bfs-dfs": ["recursion", "stacks-and-queues"],
+  graphs: ["trees-bfs-dfs", "hash-tables"],
+  heaps: ["trees-bfs-dfs"],
+  tries: ["trees-bfs-dfs"],
+  intervals: ["sorting-binary-search"],
+  "dynamic-programming": ["recursion"],
+  "bits-math-geometry": ["big-o"],
+
+  // Memory
+  "arc-basics": ["structs-vs-classes"],
+  "strong-weak-unowned": ["arc-basics", "optionals"],
+  "retain-cycles": ["strong-weak-unowned", "closures-escaping-capture", "protocols"],
+  "memory-graph-debugger": ["retain-cycles", "debugging-lldb"],
+  "memory-profiling-instruments": ["memory-graph-debugger", "instruments-profiling"],
+
+  // Concurrency
+  "main-thread": ["closures-basics"],
+  "gcd-basics": ["main-thread", "closures-escaping-capture"],
+  "async-await": ["gcd-basics", "error-handling"],
+  "structured-concurrency": ["async-await"],
+  "task-cancellation": ["structured-concurrency"],
+  "async-sequences": ["async-await"],
+  "actors-and-main-actor": ["async-await"],
+  "sendable-data-races": ["actors-and-main-actor"],
+  "swift-6-strict-concurrency": ["sendable-data-races"],
+  "approachable-concurrency": ["swift-6-strict-concurrency"],
+  "migrating-to-async-await": ["gcd-basics", "approachable-concurrency"],
+  "concurrent-system-design": ["approachable-concurrency"],
+  "concurrency-swift-6-4": ["task-cancellation"],
+
+  // SwiftUI
+  "swiftui-views-modifiers": ["structs-vs-classes", "xcode-and-git-basics"],
+  "swiftui-layout": ["swiftui-views-modifiers"],
+  "state-and-binding": ["swiftui-views-modifiers", "properties"],
+  "swiftui-lists": ["state-and-binding", "collections"],
+  "swiftui-navigation": ["swiftui-lists"],
+  "swiftui-observation": ["state-and-binding"],
+  "observable-object": ["swiftui-observation", "protocols"],
+  "forms-and-input": ["state-and-binding"],
+  "sheets-alerts-dialogs": ["swiftui-navigation"],
+  "swiftui-loading-data": ["swiftui-observation", "urlsession", "async-await"],
+  "view-identity-lifetime": ["swiftui-lists", "swiftui-observation"],
+  "swiftui-animations": ["state-and-binding"],
+  "custom-layouts": ["swiftui-layout"],
+  "swiftui-uikit-interop": ["uiviews-and-view-controllers", "swiftui-views-modifiers"],
+  "swiftui-performance": ["view-identity-lifetime"],
+
+  // UIKit
+  "uiviews-and-view-controllers": ["inheritance"],
+  "view-controller-lifecycle": ["uiviews-and-view-controllers"],
+  "auto-layout": ["uiviews-and-view-controllers"],
+  "uikit-navigation": ["view-controller-lifecycle"],
+  "table-collection-views": ["auto-layout", "protocols"],
+  "custom-views-layout-pass": ["auto-layout"],
+
+  // Design and Accessibility
+  "dark-mode-dynamic-type": ["swiftui-views-modifiers"],
+  "hig-liquid-glass": ["swiftui-views-modifiers"],
+  accessibility: ["dark-mode-dynamic-type"],
+  localization: ["strings-and-characters"],
+  "ipad-adaptive-layout": ["auto-layout", "swiftui-layout"],
+
+  // App and System
+  "xcode-and-git-basics": [],
+  "app-lifecycle": ["xcode-and-git-basics"],
+  "permissions-privacy": ["app-lifecycle"],
+  "signing-app-store": ["xcode-and-git-basics"],
+  notifications: ["app-lifecycle", "permissions-privacy"],
+  "background-tasks": ["app-lifecycle", "async-await"],
+  "deep-links": ["app-lifecycle", "swiftui-navigation"],
+  "widgets-app-intents": ["swiftui-views-modifiers"],
+  "foundation-models": ["async-await"],
+
+  // Data and Networking
+  "http-rest-basics": [],
+  urlsession: ["http-rest-basics", "codable", "closures-escaping-capture"],
+  "userdefaults-and-files": ["codable"],
+  "keychain-basics": ["userdefaults-and-files"],
+  swiftdata: ["userdefaults-and-files", "swiftui-observation"],
+  "core-data": ["userdefaults-and-files"],
+  caching: ["urlsession"],
+  pagination: ["urlsession", "swiftui-lists"],
+  "combine-basics": ["closures-escaping-capture", "observable-object"],
+  "real-time-websockets": ["urlsession", "async-sequences"],
+  "offline-first-sync": ["swiftdata", "caching"],
+  "app-security": ["keychain-basics", "urlsession"],
+
+  // Architecture
+  "communication-patterns": ["protocols", "closures-escaping-capture"],
+  mvc: ["uiviews-and-view-controllers"],
+  "solid-basics": ["protocols"],
+  mvvm: ["mvc", "swiftui-observation"],
+  "dependency-injection": ["mvvm"],
+  "design-patterns": ["solid-basics"],
+  "navigation-patterns": ["uikit-navigation", "swiftui-navigation", "mvvm"],
+  "clean-architecture": ["dependency-injection"],
+  "modularization-spm": ["access-control", "clean-architecture"],
+  "unidirectional-data-flow": ["mvvm"],
+  "sdk-design": ["modularization-spm"],
+  "platform-architecture": ["modularization-spm"],
+
+  // Testing and Release
+  "debugging-lldb": ["xcode-and-git-basics"],
+  "logging-oslog": ["debugging-lldb"],
+  "unit-testing": ["functions", "xcode-and-git-basics"],
+  "testable-code-mocks": ["unit-testing", "dependency-injection"],
+  "testing-async-code": ["unit-testing", "async-await"],
+  "ui-testing": ["unit-testing"],
+  "code-review": ["solid-basics"],
+  "ci-cd": ["unit-testing", "signing-app-store"],
+  "crash-reports-metrickit": ["debugging-lldb"],
+  "feature-flags-rollouts": ["signing-app-store"],
+  "test-strategy": ["testable-code-mocks", "ui-testing"],
+
+  // Performance
+  "smooth-ui": ["main-thread", "swiftui-performance"],
+  "app-launch-time": ["app-lifecycle"],
+  "instruments-profiling": ["smooth-ui"],
+  "battery-network-app-size": ["instruments-profiling"],
+
+  // Mobile System Design
+  "system-design-interview-intro": ["mvvm"],
+  "requirements-scoping": ["system-design-interview-intro"],
+  "high-level-architecture": ["requirements-scoping", "clean-architecture"],
+  "api-design-protocols": ["high-level-architecture", "real-time-websockets"],
+  "storage-caching-design": ["api-design-protocols", "pagination", "caching"],
+  "offline-sync-design": ["storage-caching-design", "offline-first-sync"],
+  "realtime-push-design": ["api-design-protocols", "notifications"],
+  "image-loading-design": ["storage-caching-design"],
+  "security-privacy-design": ["high-level-architecture", "app-security"],
+  "design-a-feed": ["image-loading-design", "realtime-push-design"],
+  "design-a-chat-app": ["realtime-push-design", "offline-sync-design"],
+  "design-an-sdk": ["sdk-design", "image-loading-design"],
+  "org-scale-design": ["platform-architecture"],
+
+  // Behavior and Leadership
+  "star-method": [],
+  "disagreement-conflict": ["star-method"],
+  mentoring: ["star-method"],
+  "mistakes-incidents": ["star-method"],
+  "prioritizing-under-pressure": ["star-method"],
+  "influencing-other-teams": ["star-method"],
+  "technical-vision": ["influencing-other-teams"],
+  "design-docs-rfcs": ["technical-vision"],
+  "build-or-buy": ["technical-vision"],
+  "leading-through-influence": ["influencing-other-teams"],
+};
