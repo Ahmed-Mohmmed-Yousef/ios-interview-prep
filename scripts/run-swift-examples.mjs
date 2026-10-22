@@ -1,6 +1,8 @@
-// Runs every Swift example in a lesson with the real compiler (Swift 6 language mode) and checks
-// that each `output` block matches what the code prints. `swift no-output` blocks are type-checked only.
-// Usage: node scripts/run-swift-examples.mjs content/topics/<id>/lesson.mdx
+// Runs Swift code with the real compiler (Swift 6 language mode) and checks the expected result.
+// - lesson.mdx: each `swift` block must print exactly its `output` block; `swift no-output` blocks are type-checked.
+// - questions.json: for each question with `verify`, runs `code` (code-reading) or `modelAnswer` (code-write);
+//   `verifyStarter` runs `starterCode`. `verify` is { "output": "..." } or { "compileError": "text in the error" }.
+// Usage: node scripts/run-swift-examples.mjs content/topics/<id>/lesson.mdx | questions.json
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,7 +29,31 @@ function compile(code, typecheckOnly) {
   }
 }
 
+function checkExpectation(where, code, expect) {
+  const built = compile(code, false);
+  if (expect.compileError) {
+    const ok = !built.ok && built.log.includes(expect.compileError);
+    ok ? passed++ : failed++;
+    console.log(ok ? `ok   ${where} (compile error as expected)` : `FAIL ${where} — expected a compile error containing "${expect.compileError}"\n${built.log.trim()}\n`);
+    return;
+  }
+  if (!built.ok) { failed++; console.log(`FAIL ${where} — does not compile:\n${built.log.trim()}\n`); return; }
+  const actual = execFileSync(join(dir, "main"), { encoding: "utf8" }).replace(/\s+$/, "");
+  const expected = String(expect.output).replace(/\s+$/, "");
+  if (actual === expected) { passed++; console.log(`ok   ${where}`); }
+  else { failed++; console.log(`FAIL ${where} — output differs\n  expected: ${JSON.stringify(expected)}\n  actual:   ${JSON.stringify(actual)}\n`); }
+}
+
+if (file.endsWith(".json")) {
+  for (const q of JSON.parse(src).questions ?? []) {
+    if (q.verify) checkExpectation(`${q.id} (${q.type === "code-write" ? "modelAnswer" : "code"})`, q.type === "code-write" ? q.modelAnswer : q.code, q.verify);
+    if (q.verifyStarter) checkExpectation(`${q.id} (starterCode)`, q.starterCode, q.verifyStarter);
+    if (q.type === "code-reading" && !q.verify) { failed++; console.log(`FAIL ${q.id} — code-reading question needs a verify field`); }
+  }
+}
+
 fences.forEach((f, i) => {
+  if (file.endsWith(".json")) return;
   if (f.lang !== "swift") return;
   const where = `${file}:${line(f.start)}`;
   const noOutput = /\bno-output\b/.test(f.info);

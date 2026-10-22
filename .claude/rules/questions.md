@@ -20,6 +20,9 @@ Schema: `.claude/skills/exam-writer/schema.md`. Every file must match it exactly
 - No "all of the above" / "none of the above". Avoid trick wording.
 - **Plain English** (`.claude/rules/plain-english.md`) for prompts, options, explanations and model answers. A question must test iOS knowledge, not English skill — no double negatives, no "Which is NOT…" unless the word NOT is bold and there is no simpler way.
 - The AI grader must judge ideas, not English quality. Every rubric criterion is about technical content; grammar and spelling never cost points.
-- `code-reading` code must be verified: reason about the output step by step; if unsure, say so and flag the question `needsReview: true`.
+- `code-reading` code must be verified **by running it**: every `code-reading` question and every `code-write` model answer has a `verify` field, checked with `node scripts/run-swift-examples.mjs <questions.json>`. Wrong options that claim "it does not compile" must really compile (or the option is the right answer).
+- Spread the correct answers across a, b, c and d, so learners cannot guess from the position.
+- Written answers ask for **2–5 sentences** (user decision, 2026-10-22). Grammar and spelling never cost points.
+- Hard questions (about 20%) may test the traps, version notes and higher-level interview answers. Never test "Go deeper".
 - `written` and `code-write` need a `rubric` (weighted criteria that sum to 100) and a `modelAnswer`. The rubric is what the AI grader uses — make criteria concrete and checkable.
 - Every question lists at least one official `sources` URL.

@@ -194,6 +194,9 @@ for (const [id, t] of topics) {
     for (const file of ["lesson.mdx", "questions.json"]) {
       if (!existsSync(join(t.folder, file))) fail(`${where}: published topic needs ${file}`);
     }
+    const bank = existsSync(join(t.folder, "questions.json")) ? readJson(join(t.folder, "questions.json")) : null;
+    const active = (bank?.questions ?? []).filter((q) => !q.retired).length;
+    if (bank && active < 30) fail(`${where}: published topic needs at least 30 non-retired questions (has ${active})`);
     if ((t.sources ?? []).length === 0) fail(`${where}: published topic needs at least one source`);
   }
 }

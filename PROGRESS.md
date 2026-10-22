@@ -46,8 +46,8 @@ Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs 
 - ✅ **2.1 Lesson format** — final sections, components and the "code + output" block → [docs/lesson-format.md](docs/lesson-format.md)
 - ✅ **2.2 Topic research** — official sources and interview questions for Structs vs Classes → [docs/pilot/research.md](docs/pilot/research.md)
 - ✅ **2.3 Write the lesson** — `lesson.mdx` in simple English, every code example run → [lesson.mdx](content/topics/structs-vs-classes/lesson.mdx)
-- 🟡 **2.4 Build the animation** — "copy vs shared" animation with step controls → [prototype](https://claude.ai/artifact/4tptMqRDWzod93nSudGRts), [source](docs/pilot/diagram-structs-vs-classes.html)
-- ⬜ **2.5 Write the exam** — 30+ questions of all 4 types, every code question run
+- ✅ **2.4 Build the animation** — "copy vs shared" animation with step controls → [prototype](https://claude.ai/artifact/4tptMqRDWzod93nSudGRts), [source](docs/pilot/diagram-structs-vs-classes.html)
+- 🟡 **2.5 Write the exam** — 30+ questions of all 4 types, every code question run → [questions.json](content/topics/structs-vs-classes/questions.json) (31 questions)
 - ⬜ **2.6 Fact-check** — official sources, simple English, copyright
 - ⬜ **2.7 Prototype page** — lesson + animation + exam + result screen; rubrics tested with sample answers
 - ⬜ **2.8 Improve once** — your feedback as version 2 with a `changes` entry (proves the edit workflow)
@@ -59,6 +59,7 @@ Path map, lesson page, exam screen, results screens.
 Open choices for this phase:
 - How skipped topics count in the final percentage
 - What a learner sees when a topic they passed gets updated (the "This topic was updated" message)
+- Shuffle answer options in exams? (The bank already spreads correct answers across a–d.)
 
 ## Phase 4 — Content production ⬜
 
@@ -122,11 +123,15 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-22 | Every lesson starts with a guess and has 2–3 quick checks (not scored) | [docs/lesson-format.md](docs/lesson-format.md) |
 | 2026-10-22 | Pilot lesson: photocopy vs shared document analogy; sample answers for fresh, junior and senior; all four extras | [lesson.mdx](content/topics/structs-vs-classes/lesson.mdx) |
 | 2026-10-22 | Diagrams use a friendly illustrated style; every step shows the code line that causes it | [diagram-animator skill](.claude/skills/diagram-animator/SKILL.md) |
+| 2026-10-22 | About 20% hard questions may test traps, version notes and higher-level answers; "Go deeper" is never tested | [.claude/rules/questions.md](.claude/rules/questions.md) |
+| 2026-10-22 | Written answers are 2–5 sentences | [.claude/rules/questions.md](.claude/rules/questions.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-22** — Step 2.5 done, waiting for review: 31 questions (15 multiple choice, 8 read-the-code, 5 written, 3 write-code; 12 easy, 12 medium, 7 hard). All 12 code checks pass with Swift 6.4. Fixed a starter code bug found while checking. New: `verify` field, the runner checks questions, the hook requires `verify`, publishing needs 30+ questions.
+- **2026-10-22** — Step 2.4 approved. Step 2.5 started.
 - **2026-10-22** — Step 2.4 done, waiting for review: illustrated "copy vs shared" diagram prototype with 4 steps, code line per step, Back/Next/Replay, keyboard keys, screen reader text and a reduced-motion list. Checked at phone width (384px).
 - **2026-10-22** — Step 2.3 approved, including the "Which one should you choose?" heading (now an allowed extra). Step 2.4 started.
 - **2026-10-22** — Step 2.3 done, waiting for review: pilot lesson written (status draft). 4 code examples pass with Swift 6.4; lesson checks and simple-English check pass. New tool: `scripts/run-swift-examples.mjs`.

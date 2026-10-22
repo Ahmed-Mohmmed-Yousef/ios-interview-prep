@@ -37,7 +37,8 @@ if [[ "$FILE" == */questions.json ]]; then
          (if (($q.options // []) | length) != 4 then "\($q.id): needs exactly 4 options" else empty end),
          (if ([($q.options // [])[].id] | index($q.answer)) == null then "\($q.id): answer is not an option id" else empty end),
          (($q.options // [])[] | select((.explanation // "") == "") | "\($q.id): option \(.id) has no explanation"),
-         (if $q.type == "code-reading" and (($q.code // "") == "") then "\($q.id): code-reading needs code" else empty end)
+         (if $q.type == "code-reading" and (($q.code // "") == "") then "\($q.id): code-reading needs code" else empty end),
+         (if $q.type == "code-reading" and ($q.verify == null) then "\($q.id): code-reading needs a verify field (run scripts/run-swift-examples.mjs)" else empty end)
        else
          (if ([($q.rubric // [])[].weight] | add) != 100 then "\($q.id): rubric weights must sum to 100" else empty end),
          (if (($q.modelAnswer // "") == "") then "\($q.id): needs modelAnswer" else empty end)

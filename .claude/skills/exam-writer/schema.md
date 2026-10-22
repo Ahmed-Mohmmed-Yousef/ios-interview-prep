@@ -49,6 +49,16 @@ Graded in the browser. `code-reading` adds a `code` field ("what prints?", "find
 
 Rules: exactly 4 options, `answer` is one option id.
 
+**`verify` (required for `code-reading`, and for `code-write` model answers):** what the compiler must show, checked by `node scripts/run-swift-examples.mjs <questions.json>` with Swift 6 language mode.
+
+```jsonc
+"verify": { "output": "3 7" }               // the code prints exactly this
+"verify": { "compileError": "mutating" }    // the code must NOT compile; the error contains this text
+"verifyStarter": { "output": "false" }      // optional, code-write: what the starter code does today
+```
+
+For `code-reading`, `verify` runs `code`. For `code-write`, it runs `modelAnswer` (which is then pure Swift code).
+
 ## `written` and `code-write`
 
 Graded by AI against the rubric. `code-write` adds an optional `starterCode`.
