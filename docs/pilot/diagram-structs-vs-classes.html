@@ -1,0 +1,259 @@
+<title>Copy or Share Diagram</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one figure with two illustrated panels (struct left, class right; stacked on phones), a shared step bar below, and a list of all steps for reduced motion. */
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --value: #0f7f63; --value-soft: #dcf2ea;       /* struct: a copy you own */
+  --shared: #6447d1; --shared-soft: #ebe6fb;     /* class: one shared instance */
+  --changed: #a76a12; --changed-soft: #fcefd6;   /* what just changed */
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 20px; }
+.eyebrow { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
+h1 { font-size: clamp(24px, 4.4vw, 34px); line-height: 1.15; margin: 4px 0 6px; text-wrap: balance; font-weight: 700; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 17px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
+.panel h2 code { font-family: var(--font-code); font-size: 15px; }
+.kind { font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; }
+.struct .kind { background: var(--value-soft); color: var(--value); }
+.class .kind { background: var(--shared-soft); color: var(--shared); }
+svg { width: 100%; height: auto; display: block; }
+.code {
+  font: 14px/1.5 var(--font-code); background: var(--code-bg); border-radius: 10px; padding: 8px 12px;
+  min-height: 3.2em; overflow-x: auto; white-space: pre;
+}
+.code .out { color: var(--muted); }
+.caption { margin: 0; font-weight: 500; min-height: 1.6em; }
+
+/* SVG parts */
+.tag path { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+.tag circle { fill: var(--bg); stroke: var(--ink); stroke-width: 1.2; }
+.tag text, .page text { font-family: var(--font-code); fill: var(--ink); }
+.tag text { font-size: 14px; font-weight: 600; }
+.page .sheet { stroke-width: 1.6; }
+.struct .page .sheet { fill: var(--value-soft); stroke: var(--value); }
+.class .page .sheet { fill: var(--shared-soft); stroke: var(--shared); }
+.page .fold { fill: none; stroke-width: 1.6; }
+.struct .page .fold { stroke: var(--value); } .class .page .fold { stroke: var(--shared); }
+.page .type { font-size: 12px; font-weight: 600; fill: var(--muted); }
+.page .val { font-size: 19px; font-weight: 600; }
+.page .rule { stroke: var(--line); stroke-width: 2; stroke-linecap: round; }
+.page .stamp { font-family: var(--font-body); font-size: 11px; font-weight: 600; fill: var(--value); }
+.people circle, .people path { fill: var(--shared); }
+.link { fill: none; stroke: var(--muted); stroke-width: 2; }
+.struct .link { stroke: var(--value); } .class .link { stroke: var(--shared); }
+.page.changed .sheet { fill: var(--changed-soft); stroke: var(--changed); }
+.page.changed .val { fill: var(--changed); }
+
+.hidden-start { opacity: 0; }
+.copy { transform: translateY(-120px); }
+.copy.on { transform: none; }
+.on { opacity: 1; }
+.draw { stroke-dasharray: 140; stroke-dashoffset: 140; }
+.draw.on { stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .copy, .hidden-start, .draw, .page .sheet, .page .val { transition: transform .6s cubic-bezier(.2,.8,.2,1), opacity .45s ease, stroke-dashoffset .6s ease, fill .35s ease, stroke .35s ease; }
+}
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.bar button {
+  font: 600 15px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 18px; cursor: pointer; min-height: 44px;
+}
+.bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.bar button:disabled { opacity: .4; cursor: default; }
+.bar button:focus-visible, .dots button:focus-visible, summary:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.dots { display: flex; gap: 8px; }
+.dots button { width: 14px; height: 14px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: transparent; }
+.dots button[aria-current="step"] { background: var(--ink); }
+.count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: center; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+summary { cursor: pointer; font-weight: 600; }
+details ol { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 10px; }
+details li p { margin: 0; }
+details code { font-family: var(--font-code); font-size: 14px; background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Pilot lesson · Structs vs Classes · Diagram prototype</p>
+    <h1>A struct is copied. A class is shared.</h1>
+    <p class="lede">Step through the same code twice: once with a struct, once with a class. Watch what happens when we change <code>second</code>.</p>
+  </header>
+
+  <figure class="panels" id="figure" role="img" aria-label="Two panels. Left: a struct is copied, so changing the copy leaves the original at 0. Right: a class is shared, so both names point to one Counter and both see the change to 5." style="margin:0">
+    <section class="panel struct" aria-hidden="true">
+      <h2><code>struct Point</code> <span class="kind">value type</span></h2>
+      <svg viewBox="0 0 340 250">
+        <defs>
+          <marker id="arrow-v" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill: var(--value)"/></marker>
+        </defs>
+        <!-- first -->
+        <g class="tag" transform="translate(12 40)"><path d="M14 0 H96 a8 8 0 0 1 8 8 V30 a8 8 0 0 1 -8 8 H14 L0 19 Z"/><circle cx="16" cy="19" r="4"/><text x="60" y="24" text-anchor="middle">first</text></g>
+        <path class="link" d="M120 59 H186" marker-end="url(#arrow-v)"/>
+        <g class="page" id="s-page1" transform="translate(194 10)">
+          <path class="sheet" d="M0 6 a6 6 0 0 1 6 -6 H96 L120 24 V94 a6 6 0 0 1 -6 6 H6 a6 6 0 0 1 -6 -6 Z"/>
+          <path class="fold" d="M96 0 V24 H120"/>
+          <text class="type" x="12" y="26">Point</text>
+          <text class="val" x="12" y="58" id="s-val1">x: 0</text>
+          <line class="rule" x1="12" y1="76" x2="80" y2="76"/><line class="rule" x1="12" y1="86" x2="56" y2="86"/>
+        </g>
+        <!-- second -->
+        <g class="tag hidden-start" id="s-tag2" transform="translate(12 160)"><path d="M14 0 H96 a8 8 0 0 1 8 8 V30 a8 8 0 0 1 -8 8 H14 L0 19 Z"/><circle cx="16" cy="19" r="4"/><text x="60" y="24" text-anchor="middle">second</text></g>
+        <path class="link draw" id="s-link2" d="M120 179 H186" marker-end="url(#arrow-v)"/>
+        <g transform="translate(194 130)">
+          <g class="page copy hidden-start" id="s-page2">
+            <path class="sheet" d="M0 6 a6 6 0 0 1 6 -6 H96 L120 24 V94 a6 6 0 0 1 -6 6 H6 a6 6 0 0 1 -6 -6 Z"/>
+            <path class="fold" d="M96 0 V24 H120"/>
+            <text class="type" x="12" y="26">Point</text>
+            <text class="stamp" x="66" y="18">copy</text>
+            <text class="val" x="12" y="58" id="s-val2">x: 0</text>
+            <line class="rule" x1="12" y1="76" x2="80" y2="76"/><line class="rule" x1="12" y1="86" x2="56" y2="86"/>
+          </g>
+        </g>
+      </svg>
+      <div class="code" id="s-code"></div>
+      <p class="caption" id="s-cap"></p>
+    </section>
+
+    <section class="panel class" aria-hidden="true">
+      <h2><code>class Counter</code> <span class="kind">reference type</span></h2>
+      <svg viewBox="0 0 340 250">
+        <defs>
+          <marker id="arrow-s" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill: var(--shared)"/></marker>
+        </defs>
+        <g class="tag" transform="translate(12 30)"><path d="M14 0 H96 a8 8 0 0 1 8 8 V30 a8 8 0 0 1 -8 8 H14 L0 19 Z"/><circle cx="16" cy="19" r="4"/><text x="60" y="24" text-anchor="middle">first</text></g>
+        <path class="link" d="M120 49 C158 49 160 96 186 104" marker-end="url(#arrow-s)"/>
+        <g class="tag hidden-start" id="c-tag2" transform="translate(12 172)"><path d="M14 0 H96 a8 8 0 0 1 8 8 V30 a8 8 0 0 1 -8 8 H14 L0 19 Z"/><circle cx="16" cy="19" r="4"/><text x="60" y="24" text-anchor="middle">second</text></g>
+        <path class="link draw" id="c-link2" d="M120 191 C158 191 160 152 186 146" marker-end="url(#arrow-s)"/>
+        <g class="page" id="c-page" transform="translate(194 72)">
+          <path class="sheet" d="M0 6 a6 6 0 0 1 6 -6 H96 L120 24 V100 a6 6 0 0 1 -6 6 H6 a6 6 0 0 1 -6 -6 Z"/>
+          <path class="fold" d="M96 0 V24 H120"/>
+          <text class="type" x="12" y="26">Counter</text>
+          <g class="people" transform="translate(70 10)"><circle cx="6" cy="5" r="4"/><path d="M0 16 a6 6 0 0 1 12 0 Z"/><circle cx="18" cy="5" r="4" opacity=".6"/><path d="M12 16 a6 6 0 0 1 12 0 Z" opacity=".6"/></g>
+          <text class="val" x="12" y="60" id="c-val">value: 0</text>
+          <line class="rule" x1="12" y1="80" x2="88" y2="80"/><line class="rule" x1="12" y1="90" x2="60" y2="90"/>
+        </g>
+      </svg>
+      <div class="code" id="c-code"></div>
+      <p class="caption" id="c-cap"></p>
+    </section>
+  </figure>
+
+  <p class="sr-only" id="live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
+
+  <nav class="bar" aria-label="Diagram steps">
+    <button type="button" id="back">Back</button>
+    <div class="dots" id="dots"></div>
+    <span class="count" id="count"></span>
+    <button type="button" id="next" class="primary">Next</button>
+    <button type="button" id="replay">Replay</button>
+  </nav>
+
+  <details id="all">
+    <summary>All steps as a list</summary>
+    <ol id="list"></ol>
+  </details>
+  <p class="note">Prototype for review (Phase 2, step 2.4). In the app this diagram is built with Motion and shown inside the lesson. Use the arrow keys to move between steps.</p>
+</div>
+
+<script>
+const STEPS = [
+  { s: { code: "var first = Point(x: 0, y: 0)", cap: "Create first. It holds its own Point." },
+    c: { code: "let first = Counter()", cap: "Create first. It points to one Counter." } },
+  { s: { code: "var second = first", cap: "second gets its own copy." },
+    c: { code: "let second = first", cap: "second points to the same Counter." } },
+  { s: { code: "second.x = 10", cap: "Only the copy changes. first stays 0." },
+    c: { code: "second.value = 5", cap: "The one Counter changes. Both names see 5." } },
+  { s: { code: "print(first.x, second.x)", out: "0 10", cap: "Two separate values." },
+    c: { code: "print(first.value, second.value)", out: "5 5", cap: "One shared instance." } },
+];
+const $ = (id) => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let step = 0;
+
+function code(el, part) {
+  el.replaceChildren(document.createTextNode(part.code));
+  if (part.out) {
+    const o = document.createElement("span");
+    o.className = "out";
+    o.textContent = "\n// prints: " + part.out;
+    el.append(o);
+  }
+}
+
+function render() {
+  const n = step + 1;
+  for (const id of ["s-tag2", "s-page2", "s-link2", "c-tag2", "c-link2"]) $(id).classList.toggle("on", n >= 2);
+  $("s-val2").textContent = n >= 3 ? "x: 10" : "x: 0";
+  $("c-val").textContent = n >= 3 ? "value: 5" : "value: 0";
+  $("s-page2").classList.toggle("changed", n === 3);
+  $("c-page").classList.toggle("changed", n === 3);
+  const st = STEPS[step];
+  code($("s-code"), st.s); code($("c-code"), st.c);
+  $("s-cap").textContent = st.s.cap; $("c-cap").textContent = st.c.cap;
+  $("count").textContent = "Step " + n + " of " + STEPS.length;
+  $("live").textContent = "Step " + n + ". Struct: " + st.s.cap + " Class: " + st.c.cap;
+  $("back").disabled = step === 0;
+  $("next").disabled = step === STEPS.length - 1;
+  [...$("dots").children].forEach((d, i) => i === step ? d.setAttribute("aria-current", "step") : d.removeAttribute("aria-current"));
+}
+
+function go(i) { step = Math.max(0, Math.min(STEPS.length - 1, i)); render(); }
+
+STEPS.forEach((st, i) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.setAttribute("aria-label", "Go to step " + (i + 1));
+  b.addEventListener("click", () => go(i));
+  $("dots").append(b);
+  const li = document.createElement("li");
+  li.innerHTML = "<p><b>Struct:</b> <code></code> — <span></span></p><p><b>Class:</b> <code></code> — <span></span></p>";
+  const [c1, c2] = li.querySelectorAll("code"), [t1, t2] = li.querySelectorAll("span");
+  c1.textContent = st.s.code + (st.s.out ? "  // " + st.s.out : ""); t1.textContent = st.s.cap;
+  c2.textContent = st.c.code + (st.c.out ? "  // " + st.c.out : ""); t2.textContent = st.c.cap;
+  $("list").append(li);
+});
+$("back").addEventListener("click", () => go(step - 1));
+$("next").addEventListener("click", () => go(step + 1));
+$("replay").addEventListener("click", () => {
+  go(0);
+  if (reduce.matches) return;
+  let i = 0;
+  const t = setInterval(() => { i++; go(i); if (i >= 2) clearInterval(t); }, 1100);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") go(step + 1);
+  if (e.key === "ArrowLeft") go(step - 1);
+});
+
+// Reduced motion: show the result (step 3) and open the list of all steps.
+if (reduce.matches) { step = 2; $("all").open = true; }
+render();
+</script>

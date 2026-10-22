@@ -52,6 +52,7 @@ These sources are about learning research, not iOS facts.
 | Real-world example | `<RealWorld>` | How the idea shows up in a real app |
 | Version note | `<VersionNote since="iOS 27">` | Behavior that changed in a recent Swift or iOS version |
 | Extra diagram | another `<Diagram>` | Only if one diagram is not enough |
+| Choosing guide | `### Which one should you choose?` (a sub-heading inside a core section) | Topics that compare options. Added 2026-10-22, approved in step 2.3 |
 
 ## Code with its output
 

@@ -13,6 +13,7 @@ paths:
 - Use design tokens (Tailwind v4 `@theme` variables) — no hard-coded colors, sizes or shadows in components.
 - Light and dark mode both supported from day one.
 - Accessibility: WCAG AA contrast, full keyboard navigation, visible focus, semantic HTML, alt text and captions for every diagram.
+- Diagrams use a friendly illustrated style, and every animation step shows the code line that causes it (see the diagram-animator skill).
 - Motion: honor `prefers-reduced-motion` — every animation has a static fallback that still explains the idea.
 - Mobile first: the path map, lessons and exams must work at 375px wide.
 - Never block a learner on network: lessons, MCQ and code-reading exams work without the AI service.
