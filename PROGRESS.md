@@ -58,8 +58,8 @@ Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs 
 Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
 
 - ✅ **3.1 Screens and flows** — every screen and how learners move between them → [docs/ux/flows.md](docs/ux/flows.md), [Flow Map page](https://claude.ai/artifact/5cQDao3KDygBCQ7dGYWmv6)
-- 🟡 **3.2 Name and brand** — name options (checked), voice, logo idea, color and type directions → **Prep Stops**, Calm Trail · [docs/brand/brand.md](docs/brand/brand.md), [Brand Board](https://claude.ai/artifact/Ai3rDph8YXX39ycWy7qZdv), `config/brand.json`
-- ⬜ **3.3 Design system** — tokens (light and dark) and core components; name and colors in one place
+- ✅ **3.2 Name and brand** — name options (checked), voice, logo idea, color and type directions → **Prep Stops**, Calm Trail · [docs/brand/brand.md](docs/brand/brand.md), [Brand Board](https://claude.ai/artifact/Ai3rDph8YXX39ycWy7qZdv), `config/brand.json`
+- 🟡 **3.3 Design system** — tokens (light and dark) and core components; name and colors in one place → [Design System page](https://claude.ai/artifact/9uwRqVKPFEt5qTVsjbV2Ao), [docs/design/design-system.md](docs/design/design-system.md), `config/generated/tokens.css`
 - ⬜ **3.4 Path map** — the winding road with stages, stops, bonus side roads, skip-test points
 - ⬜ **3.5 Lesson page** — the pilot lesson layout improved with the design system
 - ⬜ **3.6 Exam and results** — exam, feedback, topic result, path total, "topic updated" message
@@ -151,11 +151,16 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-23 | Name style: journey words; tagline "Interview prep for iOS developers" under the name; voice: friendly coach | [docs/brand/brand.md](docs/brand/brand.md) |
 | 2026-10-23 | App name **Prep Stops**, direction **A · Calm Trail**; both live only in `config/brand.json` | [config/brand.json](config/brand.json) |
 | 2026-10-23 | Before Phase 6, run the claude-code-setup recommender on the app code and add only approved hooks, skills and rules | [PROGRESS.md](PROGRESS.md) → Phase 6 |
+| 2026-10-23 | Design system page is built from our token files (one source of truth) | [docs/design/design-system.md](docs/design/design-system.md) |
+| 2026-10-23 | Theme follows the device, with a Light / Dark / Device switch | [docs/design/design-system.md](docs/design/design-system.md) |
+| 2026-10-23 | Passing a topic gets a small, calm celebration (no confetti, no sound) | [docs/design/design-system.md](docs/design/design-system.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-23** — Step 3.3 done, waiting for review: design tokens and 11 component groups, built from `config/brand.json` + `config/design-tokens.json` into `config/generated/tokens.css` (Tailwind v4 + shadcn/ui names) and the Design System page. The contrast check found and fixed 4 AA failures (light amber now `#9c6210`). Checked at 375px and in dark mode.
+- **2026-10-23** — Step 3.2 approved. Step 3.3 started.
 - **2026-10-23** — Added a step before Phase 6: run the claude-code-setup recommender on the app code (your request).
 - **2026-10-23** — Step 3.2 done, waiting for review: Apple trademark rules checked; 16 names checked on the App Store, domains and the web; 7 shown; you picked Prep Stops and Calm Trail. Brand saved in `config/brand.json` with a check script.
 - **2026-10-23** — Step 3.1 approved. Step 3.2 started.
