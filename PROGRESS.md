@@ -84,6 +84,7 @@ Level picker, path, lessons, browser-graded exams, saved progress, results.
 ## Phase 6 — AI grading ⬜
 
 Written answers and code answers graded by AI, with limits against abuse.
+- ⬜ **Before Phase 6 starts:** run the Claude Code setup recommender (`claude-code-setup` plugin, read-only) on the Phase 5 app code. Review its suggested hooks, skills, subagents, MCP servers and rules with you, and add only the ones you approve
 
 ## Phase 7 — Launch ⬜
 
@@ -149,11 +150,13 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-23 | First visit: a short welcome, then the level picker | [docs/ux/flows.md](docs/ux/flows.md) |
 | 2026-10-23 | Name style: journey words; tagline "Interview prep for iOS developers" under the name; voice: friendly coach | [docs/brand/brand.md](docs/brand/brand.md) |
 | 2026-10-23 | App name **Prep Stops**, direction **A · Calm Trail**; both live only in `config/brand.json` | [config/brand.json](config/brand.json) |
+| 2026-10-23 | Before Phase 6, run the claude-code-setup recommender on the app code and add only approved hooks, skills and rules | [PROGRESS.md](PROGRESS.md) → Phase 6 |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-23** — Added a step before Phase 6: run the claude-code-setup recommender on the app code (your request).
 - **2026-10-23** — Step 3.2 done, waiting for review: Apple trademark rules checked; 16 names checked on the App Store, domains and the web; 7 shown; you picked Prep Stops and Calm Trail. Brand saved in `config/brand.json` with a check script.
 - **2026-10-23** — Step 3.1 approved. Step 3.2 started.
 - **2026-10-23** — Step 3.1 done, waiting for review: 12 screens, 8 flows, and clear definitions of topic score, progress and path score. The 3 open choices from Phase 2 are decided. Flow Map page published.
