@@ -1,6 +1,6 @@
 # Project Progress
 
-Last updated: **2026-10-22**
+Last updated: **2026-10-23**
 
 **Status marks:** ✅ done · 🟡 done, waiting for your review · 🔄 in progress · ⬜ not started · ⏸️ paused · ❌ dropped
 
@@ -38,7 +38,7 @@ Plan: [docs/phase-1-plan.md](docs/phase-1-plan.md)
 - ✅ **1.7 Sources** — checked official links for every topic → [docs/sources.md](docs/sources.md) (164 of 164 topics, 264 official + 61 community links)
 - ✅ **1.8 Final check** — validate and save everything → [docs/phase-1-summary.md](docs/phase-1-summary.md) (all checks pass; saved with Git)
 
-## Phase 2 — Pilot topic 🟡
+## Phase 2 — Pilot topic ✅
 
 One topic built end to end (lesson, diagram, exam) to test the format before we write many.
 Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs Classes**
@@ -51,12 +51,23 @@ Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs 
 - ✅ **2.6 Fact-check** — official sources, simple English, copyright → [docs/pilot/fact-check.md](docs/pilot/fact-check.md)
 - ✅ **2.7 Prototype page** — lesson + animation + exam + result screen; rubrics tested with sample answers → [prototype](https://claude.ai/artifact/DTYhYTuSHnAjg1U1D5W45J), [rubric test](docs/pilot/rubric-test.md)
 - ✅ **2.8 Improve once** — your feedback as version 2 with a `changes` entry (proves the edit workflow) → topic version 2, bank version 3, [rubric test: after](docs/pilot/rubric-test.md)
-- 🟡 **2.9 Lessons learned** — update template, rules and skills; all checks; Git commit → [docs/phase-2-summary.md](docs/phase-2-summary.md), [docs/topic-workflow.md](docs/topic-workflow.md)
+- ✅ **2.9 Lessons learned** — update template, rules and skills; all checks; Git commit → [docs/phase-2-summary.md](docs/phase-2-summary.md), [docs/topic-workflow.md](docs/topic-workflow.md)
 
-## Phase 3 — Design system and UX ⬜
+## Phase 3 — Design system and UX 🔄
 
-Path map, lesson page, exam screen, results screens.
-Open choices for this phase:
+Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
+
+- ⬜ **3.1 Screens and flows** — every screen and how learners move between them
+- ⬜ **3.2 Name and brand** — name options (checked), voice, logo idea, color and type directions
+- ⬜ **3.3 Design system** — tokens (light and dark) and core components; name and colors in one place
+- ⬜ **3.4 Path map** — the winding road with stages, stops, bonus side roads, skip-test points
+- ⬜ **3.5 Lesson page** — the pilot lesson layout improved with the design system
+- ⬜ **3.6 Exam and results** — exam, feedback, topic result, path total, "topic updated" message
+- ⬜ **3.7 Start and progress** — first visit, level picker, skip tests, saving, export and import
+- ⬜ **3.8 Usability and accessibility check** — contrast, keyboard, screen reader, motion, 375px, reading time
+- ⬜ **3.9 Final check** — one clickable walk-through, design summary, Git commit
+
+Open choices for this phase (answered in step 3.1):
 - How skipped topics count in the final percentage
 - What a learner sees when a topic they passed gets updated (the "This topic was updated" message)
 - Shuffle answer options in exams? (The bank already spreads correct answers across a–d.)
@@ -131,11 +142,15 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-22 | Exam feedback right after each question; 10-question exam mix: 5 multiple choice, 3 code reading, 1 written, 1 write-code; written answers use a self-check until AI grading | [prototype](https://claude.ai/artifact/DTYhYTuSHnAjg1U1D5W45J) |
 | 2026-10-22 | Rubric scoring: met = full weight, partly met = half, not met = 0; key points cap a missed answer at 50 | [content/rules.json](content/rules.json) → `rubricScoring` |
 | 2026-10-22 | You review every topic on its own prototype page before it is published | [docs/topic-workflow.md](docs/topic-workflow.md) |
+| 2026-10-23 | App name: Claude suggests checked options, you pick; the name must stay easy to change (one config file) | [docs/phase-3-plan.md](docs/phase-3-plan.md) |
+| 2026-10-23 | Designs are clickable web prototypes; calm and friendly feel; the path is a winding road | [docs/phase-3-plan.md](docs/phase-3-plan.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-23** — Phase 3 planned: 9 steps, from screens and flows to one clickable walk-through.
+- **2026-10-23** — Phase 2 approved. Phase 3 planning started.
 - **2026-10-22** — Step 2.9 done, Phase 2 waiting for review: lessons learned turned into rules, skills and 3 new automatic checks (MDX `//` lines, option length, answer spread — the length check found and fixed 3 more pilot questions). Topic workflow and Phase 2 summary written. All checks pass.
 - **2026-10-22** — Step 2.8 approved. Step 2.9 started.
 - **2026-10-22** — Step 2.8 done, waiting for review: rubric scoring rules added to rules.json, schema, hook and validator; key points marked in all 8 rubrics; 2 borderline rubrics fixed; topic bumped to version 2 with a changes entry (edit workflow proven); prototype self-check now uses Yes/Partly/No and shows the update note.
