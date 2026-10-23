@@ -61,8 +61,8 @@ Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
 - ✅ **3.2 Name and brand** — name options (checked), voice, logo idea, color and type directions → **Prep Stops**, Calm Trail · [docs/brand/brand.md](docs/brand/brand.md), [Brand Board](https://claude.ai/artifact/Ai3rDph8YXX39ycWy7qZdv), `config/brand.json`
 - ✅ **3.3 Design system** — tokens (light and dark) and core components; name and colors in one place → [Design System page](https://claude.ai/artifact/9uwRqVKPFEt5qTVsjbV2Ao), [docs/design/design-system.md](docs/design/design-system.md), `config/generated/tokens.css`
 - ✅ **3.4 Path map** — the winding road with stages, stops, bonus side roads, skip-test points → [Path Map Prototype](https://claude.ai/artifact/KnAK3X8Tj4FxQopL1Mnrx6), [docs/design/path-map.md](docs/design/path-map.md)
-- 🟡 **3.5 Lesson page** — the pilot lesson layout improved with the design system → [Lesson Page Prototype](https://claude.ai/artifact/PVy3so2N1oD2SrhoSVSLwz), [docs/design/lesson-page.md](docs/design/lesson-page.md)
-- ⬜ **3.6 Exam and results** — exam, feedback, topic result, path total, "topic updated" message
+- ✅ **3.5 Lesson page** — the pilot lesson layout improved with the design system → [Lesson Page Prototype](https://claude.ai/artifact/PVy3so2N1oD2SrhoSVSLwz), [docs/design/lesson-page.md](docs/design/lesson-page.md)
+- 🟡 **3.6 Exam and results** — exam, feedback, topic result, path total, "topic updated" message → [Exam and Results Prototype](https://claude.ai/artifact/P41sZga3jfPNXuz6ZVQNLw), [docs/design/exam-results.md](docs/design/exam-results.md)
 - ⬜ **3.7 Start and progress** — first visit, level picker, skip tests, saving, export and import
 - ⬜ **3.8 Usability and accessibility check** — contrast, keyboard, screen reader, motion, 375px, reading time
 - ⬜ **3.9 Final check** — one clickable walk-through, design summary, Git commit
@@ -156,11 +156,14 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-23 | Passing a topic gets a small, calm celebration (no confetti, no sound) | [docs/design/design-system.md](docs/design/design-system.md) |
 | 2026-10-23 | Path: zig-zag road; finished stages fold; units as small signposts; tapping a stop opens a small card first | [docs/design/path-map.md](docs/design/path-map.md) |
 | 2026-10-23 | Lessons: one section at a time; Normal / Large / Larger text; sources shown at the end | [docs/design/lesson-page.md](docs/design/lesson-page.md) |
+| 2026-10-23 | Exams: saved if you leave; no timer; results show mistakes first; path total has a readiness label (85% ready, 70% almost) | [docs/design/exam-results.md](docs/design/exam-results.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-23** — Step 3.6 done, waiting for review: exam, topic result, skip test and path complete screens with the real pilot questions. Options shuffle, save-and-continue, scoring and readiness checked at 375px. Readiness numbers added to `rules.json`.
+- **2026-10-23** — Step 3.5 approved. Step 3.6 started.
 - **2026-10-23** — Step 3.5 done, waiting for review: lesson page prototype with 8 steps built from the real lesson.mdx, text size control, sources list, copy buttons and the diagram in design-system colors. Tested at 375px with normal and largest text. Fixed 6 bugs (one was an old diagram bug from step 2.4).
 - **2026-10-23** — Step 3.4 approved. Step 3.5 started.
 - **2026-10-23** — Step 3.4 done, waiting for review: clickable winding-road prototype with all 164 real topics, stage signs, unit signposts, 6 stop states, stop cards, skip tests, folding and example progress. Tested at 375px. Fixed: a folded stage hid the Updated badge.

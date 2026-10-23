@@ -50,6 +50,10 @@ if (rules) {
   } else if (!(rs.keyMissedCap < rules.topicPassMark)) {
     fail("rules.json: rubricScoring.keyMissedCap must be below topicPassMark");
   }
+  const rd = rules.readiness;
+  if (!rd || !(rd.ready > rd.almost && rd.almost >= rules.topicPassMark && rd.ready <= 100)) {
+    fail("rules.json: readiness needs topicPassMark <= almost < ready <= 100");
+  }
   for (const key of ["unitSkipTest", "levelSkipTest"]) {
     const t = rules[key];
     if (!t || !(t.questionsPerTopic > 0) || !(t.min > 0) || !(t.max >= t.min)) {
