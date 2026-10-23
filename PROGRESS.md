@@ -57,8 +57,8 @@ Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs 
 
 Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
 
-- 🟡 **3.1 Screens and flows** — every screen and how learners move between them → [docs/ux/flows.md](docs/ux/flows.md), [Flow Map page](https://claude.ai/artifact/5cQDao3KDygBCQ7dGYWmv6)
-- ⬜ **3.2 Name and brand** — name options (checked), voice, logo idea, color and type directions
+- ✅ **3.1 Screens and flows** — every screen and how learners move between them → [docs/ux/flows.md](docs/ux/flows.md), [Flow Map page](https://claude.ai/artifact/5cQDao3KDygBCQ7dGYWmv6)
+- 🟡 **3.2 Name and brand** — name options (checked), voice, logo idea, color and type directions → **Prep Stops**, Calm Trail · [docs/brand/brand.md](docs/brand/brand.md), [Brand Board](https://claude.ai/artifact/Ai3rDph8YXX39ycWy7qZdv), `config/brand.json`
 - ⬜ **3.3 Design system** — tokens (light and dark) and core components; name and colors in one place
 - ⬜ **3.4 Path map** — the winding road with stages, stops, bonus side roads, skip-test points
 - ⬜ **3.5 Lesson page** — the pilot lesson layout improved with the design system
@@ -147,11 +147,15 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-23 | Locked topics are fully locked | [docs/ux/flows.md](docs/ux/flows.md) |
 | 2026-10-23 | Level can change any time; progress is kept | [docs/ux/flows.md](docs/ux/flows.md) |
 | 2026-10-23 | First visit: a short welcome, then the level picker | [docs/ux/flows.md](docs/ux/flows.md) |
+| 2026-10-23 | Name style: journey words; tagline "Interview prep for iOS developers" under the name; voice: friendly coach | [docs/brand/brand.md](docs/brand/brand.md) |
+| 2026-10-23 | App name **Prep Stops**, direction **A · Calm Trail**; both live only in `config/brand.json` | [config/brand.json](config/brand.json) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-23** — Step 3.2 done, waiting for review: Apple trademark rules checked; 16 names checked on the App Store, domains and the web; 7 shown; you picked Prep Stops and Calm Trail. Brand saved in `config/brand.json` with a check script.
+- **2026-10-23** — Step 3.1 approved. Step 3.2 started.
 - **2026-10-23** — Step 3.1 done, waiting for review: 12 screens, 8 flows, and clear definitions of topic score, progress and path score. The 3 open choices from Phase 2 are decided. Flow Map page published.
 - **2026-10-23** — Phase 3 plan approved. Step 3.1 started.
 - **2026-10-23** — Phase 3 planned: 9 steps, from screens and flows to one clickable walk-through.

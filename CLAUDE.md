@@ -1,5 +1,7 @@
 # iOS Interview Prep
 
+App name: **see `config/brand.json`** (currently "Prep Stops"). The name may change, so never hard-code it — `node scripts/check-brand.mjs` checks this.
+
 A free, public web app that prepares iOS developers for technical interviews at five levels: **fresh, junior, mid, senior, staff**.
 
 Each level is a path of topics. Each topic has a friendly lesson (analogies, animated diagrams, code) followed by an exam. Results are shown per topic and for the whole path. Progress is saved in the browser (login comes later).
@@ -54,6 +56,8 @@ scripts/validate-curriculum.mjs  # run: node scripts/validate-curriculum.mjs
 scripts/curriculum-report.mjs    # rebuilds docs/topics.md — run after any curriculum change
 prototype/build.mjs              # Phase 2 prototype: real lesson.mdx (MDX + React) + diagram + exam → one HTML page (npm install in prototype/ first)
 scripts/run-swift-examples.mjs   # compiles every Swift example in a lesson and checks its output block
+config/brand.json                # the ONLY place for app name, tagline, fonts and brand colors
+scripts/check-brand.mjs          # checks brand.json (no Apple marks, WCAG AA) and that no code hard-codes the name
 scripts/build-path-page.mjs      # rebuilds docs/path-map.html — then republish the Path Map artifact (URL in PROGRESS.md)
 .claude/rules/               # always-on and path-scoped rules
 .claude/skills/              # lesson-writer, exam-writer, content-fact-checker, diagram-animator
