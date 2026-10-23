@@ -59,8 +59,8 @@ Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
 
 - ✅ **3.1 Screens and flows** — every screen and how learners move between them → [docs/ux/flows.md](docs/ux/flows.md), [Flow Map page](https://claude.ai/artifact/5cQDao3KDygBCQ7dGYWmv6)
 - ✅ **3.2 Name and brand** — name options (checked), voice, logo idea, color and type directions → **Prep Stops**, Calm Trail · [docs/brand/brand.md](docs/brand/brand.md), [Brand Board](https://claude.ai/artifact/Ai3rDph8YXX39ycWy7qZdv), `config/brand.json`
-- 🟡 **3.3 Design system** — tokens (light and dark) and core components; name and colors in one place → [Design System page](https://claude.ai/artifact/9uwRqVKPFEt5qTVsjbV2Ao), [docs/design/design-system.md](docs/design/design-system.md), `config/generated/tokens.css`
-- ⬜ **3.4 Path map** — the winding road with stages, stops, bonus side roads, skip-test points
+- ✅ **3.3 Design system** — tokens (light and dark) and core components; name and colors in one place → [Design System page](https://claude.ai/artifact/9uwRqVKPFEt5qTVsjbV2Ao), [docs/design/design-system.md](docs/design/design-system.md), `config/generated/tokens.css`
+- 🟡 **3.4 Path map** — the winding road with stages, stops, bonus side roads, skip-test points → [Path Map Prototype](https://claude.ai/artifact/KnAK3X8Tj4FxQopL1Mnrx6), [docs/design/path-map.md](docs/design/path-map.md)
 - ⬜ **3.5 Lesson page** — the pilot lesson layout improved with the design system
 - ⬜ **3.6 Exam and results** — exam, feedback, topic result, path total, "topic updated" message
 - ⬜ **3.7 Start and progress** — first visit, level picker, skip tests, saving, export and import
@@ -154,11 +154,14 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-23 | Design system page is built from our token files (one source of truth) | [docs/design/design-system.md](docs/design/design-system.md) |
 | 2026-10-23 | Theme follows the device, with a Light / Dark / Device switch | [docs/design/design-system.md](docs/design/design-system.md) |
 | 2026-10-23 | Passing a topic gets a small, calm celebration (no confetti, no sound) | [docs/design/design-system.md](docs/design/design-system.md) |
+| 2026-10-23 | Path: zig-zag road; finished stages fold; units as small signposts; tapping a stop opens a small card first | [docs/design/path-map.md](docs/design/path-map.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-23** — Step 3.4 done, waiting for review: clickable winding-road prototype with all 164 real topics, stage signs, unit signposts, 6 stop states, stop cards, skip tests, folding and example progress. Tested at 375px. Fixed: a folded stage hid the Updated badge.
+- **2026-10-23** — Step 3.3 approved. Step 3.4 started.
 - **2026-10-23** — Step 3.3 done, waiting for review: design tokens and 11 component groups, built from `config/brand.json` + `config/design-tokens.json` into `config/generated/tokens.css` (Tailwind v4 + shadcn/ui names) and the Design System page. The contrast check found and fixed 4 AA failures (light amber now `#9c6210`). Checked at 375px and in dark mode.
 - **2026-10-23** — Step 3.2 approved. Step 3.3 started.
 - **2026-10-23** — Added a step before Phase 6: run the claude-code-setup recommender on the app code (your request).
