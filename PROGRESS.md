@@ -57,7 +57,7 @@ Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs 
 
 Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
 
-- ⬜ **3.1 Screens and flows** — every screen and how learners move between them
+- 🟡 **3.1 Screens and flows** — every screen and how learners move between them → [docs/ux/flows.md](docs/ux/flows.md), [Flow Map page](https://claude.ai/artifact/5cQDao3KDygBCQ7dGYWmv6)
 - ⬜ **3.2 Name and brand** — name options (checked), voice, logo idea, color and type directions
 - ⬜ **3.3 Design system** — tokens (light and dark) and core components; name and colors in one place
 - ⬜ **3.4 Path map** — the winding road with stages, stops, bonus side roads, skip-test points
@@ -67,10 +67,7 @@ Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
 - ⬜ **3.8 Usability and accessibility check** — contrast, keyboard, screen reader, motion, 375px, reading time
 - ⬜ **3.9 Final check** — one clickable walk-through, design summary, Git commit
 
-Open choices for this phase (answered in step 3.1):
-- How skipped topics count in the final percentage
-- What a learner sees when a topic they passed gets updated (the "This topic was updated" message)
-- Shuffle answer options in exams? (The bank already spreads correct answers across a–d.)
+Open choices from Phase 2 — all decided in step 3.1 (see the requirements table).
 
 ## Phase 4 — Content production ⬜
 
@@ -144,11 +141,19 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-22 | You review every topic on its own prototype page before it is published | [docs/topic-workflow.md](docs/topic-workflow.md) |
 | 2026-10-23 | App name: Claude suggests checked options, you pick; the name must stay easy to change (one config file) | [docs/phase-3-plan.md](docs/phase-3-plan.md) |
 | 2026-10-23 | Designs are clickable web prototypes; calm and friendly feel; the path is a winding road | [docs/phase-3-plan.md](docs/phase-3-plan.md) |
+| 2026-10-23 | Skipped topics count with the skip-test score; skip tests only for stages below your level | [docs/ux/flows.md](docs/ux/flows.md) |
+| 2026-10-23 | Answer options are shuffled in every exam | [docs/ux/flows.md](docs/ux/flows.md) |
+| 2026-10-23 | An updated topic shows a badge and a note; the pass stays | [docs/ux/flows.md](docs/ux/flows.md) |
+| 2026-10-23 | Locked topics are fully locked | [docs/ux/flows.md](docs/ux/flows.md) |
+| 2026-10-23 | Level can change any time; progress is kept | [docs/ux/flows.md](docs/ux/flows.md) |
+| 2026-10-23 | First visit: a short welcome, then the level picker | [docs/ux/flows.md](docs/ux/flows.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-23** — Step 3.1 done, waiting for review: 12 screens, 8 flows, and clear definitions of topic score, progress and path score. The 3 open choices from Phase 2 are decided. Flow Map page published.
+- **2026-10-23** — Phase 3 plan approved. Step 3.1 started.
 - **2026-10-23** — Phase 3 planned: 9 steps, from screens and flows to one clickable walk-through.
 - **2026-10-23** — Phase 2 approved. Phase 3 planning started.
 - **2026-10-22** — Step 2.9 done, Phase 2 waiting for review: lessons learned turned into rules, skills and 3 new automatic checks (MDX `//` lines, option length, answer spread — the length check found and fixed 3 more pilot questions). Topic workflow and Phase 2 summary written. All checks pass.

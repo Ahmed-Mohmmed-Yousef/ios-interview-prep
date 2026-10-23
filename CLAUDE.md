@@ -24,7 +24,11 @@ Update it in the same turn as the work, every time:
 - Levels are **cumulative**: a senior path includes fresh, junior and mid topics. Earlier-level topics can be skipped by passing a short placement test.
 - A topic passes at **70%**. Passing unlocks the next topic. Retakes are unlimited and draw new questions.
 - The path goes **by level, then by unit**. Order inside a unit is fixed. Bonus topics sit on a side branch and never block.
-- Skip tests exist **per unit** and **per level**; they reuse topic questions and pass at **80%**.
+- Skip tests exist **per unit** and **per level**, only for stages **below** the learner's level; they reuse topic questions and pass at **80%**. Skipped topics count with the skip-test score.
+- Locked topics are **fully locked** until the topic before is passed or skipped. Answer options are **shuffled** in every exam.
+- **Topic score** = best exam score. **Progress** = done ÷ main topics. **Path score** = average of done main topics; at the end it is the total result. Bonus topics count in neither.
+- A learner can **change level any time**; progress is kept. When a passed topic is updated, it shows an "Updated" badge and note; the pass stays.
+- Screens and flows: `docs/ux/flows.md`.
 - One path teaches both SwiftUI and UIKit. No Objective-C. iPhone and iPad only. Apple tools; third-party libraries are only mentioned.
 - Every topic cites 1–3+ checked sources marked `official` or `community`; the policy is in `content/rules.json` (`sources`).
 - Question types: `mcq`, `code-reading`, `written`, `code-write`. The first two are graded in the browser; the last two are graded by AI with a rubric.

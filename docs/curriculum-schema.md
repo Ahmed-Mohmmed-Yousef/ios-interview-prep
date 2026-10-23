@@ -198,5 +198,5 @@ Unlocking:
 
 ## Still open (decide in later phases)
 
-- How skipped topics count in the final percentage (Phase 3, results design).
-- What the learner sees when a passed topic gets a new `version` (Phase 3).
+- ~~How skipped topics count in the final percentage~~ — decided 2026-10-23: with the skip-test score. See `docs/ux/flows.md`.
+- ~~What the learner sees when a passed topic gets a new `version`~~ — decided 2026-10-23: an "Updated" badge and the `changes` note; the pass stays.
