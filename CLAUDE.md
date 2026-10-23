@@ -54,6 +54,7 @@ content/                     # data model: docs/curriculum-schema.md
 docs/                        # decisions and plans
 scripts/validate-curriculum.mjs  # run: node scripts/validate-curriculum.mjs
 scripts/curriculum-report.mjs    # rebuilds docs/topics.md — run after any curriculum change
+prototype/build-lesson.mjs       # Phase 3 lesson page (one section at a time) → docs/design/lesson-prototype.html
 prototype/build.mjs              # Phase 2 prototype: real lesson.mdx (MDX + React) + diagram + exam → one HTML page (npm install in prototype/ first)
 scripts/run-swift-examples.mjs   # compiles every Swift example in a lesson and checks its output block
 config/brand.json                # the ONLY place for app name, tagline, fonts and brand colors
