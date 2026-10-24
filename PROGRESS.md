@@ -63,8 +63,8 @@ Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
 - ✅ **3.4 Path map** — the winding road with stages, stops, bonus side roads, skip-test points → [Path Map Prototype](https://claude.ai/artifact/KnAK3X8Tj4FxQopL1Mnrx6), [docs/design/path-map.md](docs/design/path-map.md)
 - ✅ **3.5 Lesson page** — the pilot lesson layout improved with the design system → [Lesson Page Prototype](https://claude.ai/artifact/PVy3so2N1oD2SrhoSVSLwz), [docs/design/lesson-page.md](docs/design/lesson-page.md)
 - ✅ **3.6 Exam and results** — exam, feedback, topic result, path total, "topic updated" message → [Exam and Results Prototype](https://claude.ai/artifact/P41sZga3jfPNXuz6ZVQNLw), [docs/design/exam-results.md](docs/design/exam-results.md)
-- 🟡 **3.7 Start and progress** — first visit, level picker, skip tests, saving, export and import → [Start and Progress Prototype](https://claude.ai/artifact/XgfSvzH9Xt7vgZ8Sk1J4uT), [docs/design/start-progress.md](docs/design/start-progress.md)
-- ⬜ **3.8 Usability and accessibility check** — contrast, keyboard, screen reader, motion, 375px, reading time
+- ✅ **3.7 Start and progress** — first visit, level picker, skip tests, saving, export and import → [Start and Progress Prototype](https://claude.ai/artifact/XgfSvzH9Xt7vgZ8Sk1J4uT), [docs/design/start-progress.md](docs/design/start-progress.md)
+- 🔄 **3.8 Usability and accessibility check** — contrast, keyboard, screen reader, motion, 375px, reading time → [docs/design/a11y-check.md](docs/design/a11y-check.md). Tool checks and fixes done; **waiting for you:** read the pilot lesson with the timer, and one short VoiceOver test
 - ⬜ **3.9 Final check** — one clickable walk-through, design summary, Git commit
 
 Open choices from Phase 2 — all decided in step 3.1 (see the requirements table).
@@ -158,11 +158,14 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-23 | Lessons: one section at a time; Normal / Large / Larger text; sources shown at the end | [docs/design/lesson-page.md](docs/design/lesson-page.md) |
 | 2026-10-23 | Exams: saved if you leave; no timer; results show mistakes first; path total has a readiness label (85% ready, 70% almost) | [docs/design/exam-results.md](docs/design/exam-results.md) |
 | 2026-10-24 | Level picker: a self-check checklist suggests a level, the learner still chooses. Progress export is a JSON file; import replaces after a preview; reset needs RESET typed | [docs/design/start-progress.md](docs/design/start-progress.md) |
+| 2026-10-24 | Accessibility check covers all 5 prototypes; reading time is measured by you reading the pilot lesson with a timer; you try one VoiceOver flow | [docs/design/a11y-check.md](docs/design/a11y-check.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-10-24** — Step 3.8 tool checks done: axe-core 4.14.0 on all 5 prototypes (light and dark) found 13 kinds of problems, all fixed. Light green and amber are slightly darker for contrast. Found and fixed a duplicate button id that broke the lesson's Continue button. All 8 pages republished to the same links. Waiting for the reading-time and VoiceOver tests.
+- **2026-10-24** — Step 3.7 approved, including the half-ticked self-check rule. Step 3.8 started.
 - **2026-10-24** — Step 3.7 built and waiting for review: welcome, level picker with self-check suggestion, progress and settings, export / import / reset of a JSON progress file, about, and the empty, loading and error states.
 - **2026-10-24** — Step 3.6 approved, including tap-then-Check for answers. Step 3.7 started.
 - **2026-10-23** — Step 3.6 done, waiting for review: exam, topic result, skip test and path complete screens with the real pilot questions. Options shuffle, save-and-continue, scoring and readiness checked at 375px. Readiness numbers added to `rules.json`.

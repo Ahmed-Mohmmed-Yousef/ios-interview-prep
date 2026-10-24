@@ -25,6 +25,7 @@ const data = JSON.stringify({
 }).replace(/</g, "\\u003c");
 
 const page = `<title>Exam and Results Prototype</title>
+<script>document.documentElement.lang = "en";</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${brand.fonts.body.replace(/ /g, "+")}:wght@400;600;700&family=${brand.fonts.code.replace(/ /g, "+")}:wght@400;600&display=swap">
@@ -44,7 +45,7 @@ h1 { font-size: 1.875rem; line-height: 2.375rem; margin: 0; text-wrap: balance; 
 h2 { font-size: 1.3125rem; line-height: 1.875rem; margin: 0; text-wrap: balance; }
 p { margin: 0; max-width: var(--reading-width); }
 .small { font-size: .875rem; line-height: 1.375rem; color: var(--muted-foreground); }
-.eyebrow { font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+.eyebrow { font-size: .75rem; line-height: 1.25rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
 .num { font-variant-numeric: tabular-nums; }
 code { font-family: var(--font-code); font-size: .9em; background: var(--code); padding: 1px 5px; border-radius: 6px; }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); box-shadow: var(--shadow-card); }
@@ -65,7 +66,7 @@ code { font-family: var(--font-code); font-size: .9em; background: var(--code); 
 .ex-top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 4; background: var(--card); border-bottom: 1px solid var(--border); padding-block: 8px 10px; }
 .ex-top .inner { gap: 8px; }
 .ex-head { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
-.ex-title { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-title { font-size: 1rem; line-height: 1.5rem; margin: 0; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .leave { font: 600 .875rem var(--font-body); color: var(--foreground); background: transparent; border: 1.5px solid var(--border); border-radius: 999px; padding: 6px 12px; min-height: 36px; cursor: pointer; flex: none; }
 .bar { height: 8px; background: var(--muted); border-radius: 999px; overflow: hidden; }
 .bar > span { display: block; height: 100%; background: var(--primary); transition: width var(--duration-normal) var(--ease-calm); }
@@ -119,19 +120,19 @@ textarea.code-in { font-family: var(--font-code); font-size: .875rem; }
 .banner { background: var(--secondary); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; }
 </style>
 
-<div class="switcher wrap"><div class="inner">
+<aside class="switcher wrap" aria-label="Prototype controls"><div class="inner">
   <span class="small"><b>Prototype.</b> Pick a screen. Exams use the real pilot questions. Path results use example scores.</span>
   <div class="chips" id="screens"></div>
-</div></div>
+</div></aside>
 
 <!-- S6 Exam (start, questions) -->
-<section id="examTop" class="ex-top wrap" hidden><div class="inner">
-  <div class="ex-head"><span class="ex-title" id="exTitle"></span><button class="leave" type="button" id="leave">Save and leave</button></div>
+<header id="examTop" class="ex-top wrap" hidden><div class="inner">
+  <div class="ex-head"><h1 class="ex-title" id="exTitle"></h1><button class="leave" type="button" id="leave">Save and leave</button></div>
   <div class="bar" aria-hidden="true"><span id="exBar" style="width:0"></span></div>
   <div class="ex-meta small"><span id="exCount" class="num"></span><span id="exType"></span></div>
-</div></section>
+</div></header>
 <main class="wrap"><div class="inner" id="screen"></div></main>
-<div class="actionbar wrap" id="actionbar" hidden><div class="inner" id="actions"></div></div>
+<section class="actionbar wrap" id="actionbar" aria-label="Next step" hidden><div class="inner" id="actions"></div></section>
 
 <script>
 const D = ${data};
@@ -189,7 +190,7 @@ function showQuestion() {
   $("exCount").textContent = "Question " + (run.i + 1) + " of " + n;
   $("exType").textContent = KIND[q.type];
   const s = $("screen");
-  s.innerHTML = '<p class="q-text">' + md(q.prompt) + '</p>' + (q.code ? '<pre class="code">' + esc(q.code) + '</pre>' : '') +
+  s.innerHTML = '<h2 class="q-text">' + md(q.prompt) + '</h2>' + (q.code ? '<pre class="code" tabindex="0">' + esc(q.code) + '</pre>' : '') +
     (q.options
       ? '<div class="opts" role="radiogroup" aria-label="Answer options">' + q.shown.map((o, k) => '<button type="button" class="opt" role="radio" aria-checked="false" data-id="' + o.id + '"><span class="id">' + "ABCD"[k] + '</span><span>' + md(o.text) + '</span><span class="mark"></span></button>').join("") + '</div>'
       : '<label class="small" for="answer">' + (q.type === "written" ? "Your answer, in 2 to 5 sentences. Simple English is fine; grammar does not cost points." : "Your code") + '</label>' +
@@ -209,7 +210,8 @@ function showQuestion() {
     $("check").addEventListener("click", checkOpen);
   }
   window.scrollTo(0, 0);
-  (s.querySelector(".opt") || s.querySelector("textarea"))?.focus({ preventScroll: true });
+  // Focus the question, so a screen reader reads it before the options.
+  const qh = s.querySelector(".q-text"); qh.tabIndex = -1; qh.focus({ preventScroll: true });
 }
 function nextBtn() {
   const last = run.i === run.questions.length - 1;
@@ -237,7 +239,7 @@ function checkOpen() {
   $("answer").readOnly = true; run.checked = true;
   const entry = { id: q.id, self: 0, capped: false, text: $("answer").value };
   run.answers.push(entry); saveRun();
-  $("fb").innerHTML = '<div class="fb neutral"><p class="eyebrow">Model answer</p>' + (q.type === "code-write" ? '<pre class="code model">' + esc(q.modelAnswer) + '</pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+  $("fb").innerHTML = '<div class="fb neutral"><p class="eyebrow">Model answer</p>' + (q.type === "code-write" ? '<pre class="code model" tabindex="0">' + esc(q.modelAnswer) + '</pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
     '<p class="eyebrow" style="margin-top:6px">Check yourself: how well does your answer cover each point?</p>' +
     q.rubric.map((r, i) => '<fieldset class="crit"><legend><span>' + (r.key ? '<span class="key">Key point</span> ' : '') + md(r.criterion) + '</span><span class="small num">' + r.weight + '</span></legend>' +
       [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="c' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") + '</fieldset>').join("") +
@@ -266,7 +268,7 @@ function finish() {
   const wrong = auto.filter((a) => !a.right), rest = run.answers.filter((a) => a.picked === undefined || a.right);
   $("screen").innerHTML =
     '<div class="resulthead">' + (pass ? '<svg class="celebrate" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="28"/><path class="tick" d="M20 33 l8 8 l16 -18"/></svg>' : '') +
-    '<p class="eyebrow">Your result · ' + esc(D.topic.title) + '</p><p class="score ' + (pass ? "pass" : "notyet") + ' num">' + pct + '%</p>' +
+    '<h1 class="eyebrow">Your result · ' + esc(D.topic.title) + '</h1><p class="score ' + (pass ? "pass" : "notyet") + ' num">' + pct + '%</p>' +
     '<p role="status"><b>' + (pass ? "You passed! The next stop is open." : "Not passed yet. You need " + D.rules.pass + "%. You can try again with new questions.") + '</b></p></div>' +
     '<div class="stats"><div class="stat"><span class="small">Right answers</span><b class="num">' + right + ' of ' + auto.length + '</b></div><div class="stat"><span class="small">Best score</span><b class="num">' + best + '%</b></div><div class="stat"><span class="small">Time</span><b class="num">' + minutes + ' min</b></div></div>' +
     open.map((a) => '<p class="small">Self-check on your ' + (byId[a.id].type === "written" ? "written" : "code") + ' answer: <b>' + a.self + '/100</b>. Not counted yet; AI grading comes in Phase 6.</p>').join("") +
@@ -321,7 +323,7 @@ function pathComplete() {
   const sorted = [...flat].sort((a, b) => b.avg - a.avg), strong = sorted.slice(0, 2), weak = sorted.slice(-2).reverse();
   const R = D.rules.readiness, label = total >= R.ready ? ["r1", "Interview ready", "Great work. You know the " + stages.at(-1).title.toLowerCase() + " topics well."] : ["r2", "Almost ready", "Review your weakest units, then take their exams again to raise your score."];
   $("screen").innerHTML = '<p class="small"><b>Example.</b> Scores below are example data for a junior path.</p>' +
-    '<div class="resulthead"><p class="eyebrow">Path complete · Junior</p><p class="score pass num">' + total + '%</p><p><b>Your total result for ' + all.length + ' topics.</b></p></div>' +
+    '<div class="resulthead"><h1 class="eyebrow">Path complete · Junior</h1><p class="score pass num">' + total + '%</p><p><b>Your total result for ' + all.length + ' topics.</b></p></div>' +
     '<div class="ready ' + label[0] + '"><p class="eyebrow">Readiness</p><p style="font-size:1.3rem;font-weight:700">' + label[1] + '</p><p>' + label[2] + '</p><p class="small">' + R.ready + '% or more: Interview ready. ' + R.almost + '–' + (R.ready - 1) + '%: Almost ready.</p></div>' +
     '<div class="stats"><div class="stat"><span class="small">Strongest</span><b>' + strong.map((s) => esc(s.title)).join(", ") + '</b></div><div class="stat"><span class="small">To review</span><b>' + weak.map((s) => esc(s.title) + " (" + s.stage + ")").join(", ") + '</b></div></div>' +
     '<h2>By stage and unit</h2><div class="card breakdown">' + rows.map((r) => '<p class="stage-h">' + r.st.title + '</p>' + r.us.map((u) => '<div class="brow"><span>' + esc(u.title) + ' <span class="small">· ' + u.n + ' topics</span></span><b class="num" style="text-align:right">' + u.avg + '%</b><div class="bar"><span style="width:' + u.avg + '%"></span></div></div>').join("")).join("") + '</div>' +

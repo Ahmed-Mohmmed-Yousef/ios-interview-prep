@@ -23,7 +23,11 @@ const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
 for (const mode of ["light", "dark"]) {
   const c = brand.colors?.[mode];
   if (!c) { problems.push(`brand.json: missing colors.${mode}`); continue; }
-  for (const [fg, bg] of [["ink", "bg"], ["ink", "surface"], ["muted", "surface"], ["onPrimary", "primary"], ["primary", "surface"]]) {
+  for (const [fg, bg] of [
+    ["ink", "bg"], ["ink", "surface"], ["muted", "surface"], ["muted", "bg"], ["onPrimary", "primary"], ["primary", "surface"], ["primary", "bg"],
+    ["primary", "primarySoft"], ["success", "surface"], ["success", "successSoft"], ["warn", "surface"], ["warn", "warnSoft"],
+    ["ink", "successSoft"], ["ink", "warnSoft"], ["ink", "code"], ["onDanger", "danger"], ["danger", "surface"],
+  ]) {
     const r = ratio(c[fg], c[bg]);
     if (r < 4.5) problems.push(`brand.json: ${mode} ${fg} on ${bg} is ${r.toFixed(2)}:1, below WCAG AA 4.5:1`);
   }

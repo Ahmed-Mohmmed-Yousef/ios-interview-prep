@@ -40,3 +40,4 @@ After any change: `node scripts/build-design-system.mjs` and `node scripts/check
 Every text pair passes **WCAG AA (4.5:1)** in light and dark mode, including the stage colors used as text. The first build found 4 failures, and all were fixed:
 - The light amber (`warn`) went from `#a76a12` (4.46:1) to `#9c6210` (5.04:1).
 - Text on green and amber in dark mode now uses near-black instead of white.
+- Step 3.8 (2026-10-24): light `success` went from `#0f7f63` to `#0c765c`, and light `warn` from `#9c6210` to `#915b0e`, so both pass 4.5:1 on their soft backgrounds. Stage signs use the new `--level-<id>-foreground` tokens. `check-brand.mjs` now checks 17 pairs per mode. See [a11y-check.md](a11y-check.md).

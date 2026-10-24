@@ -26,3 +26,9 @@ paths:
 - Mobile first: the path map, lessons and exams must work at 375px wide.
 - Never block a learner on network: lessons, MCQ and code-reading exams work without the AI service.
 - Progress state lives in one store with a versioned schema (`persist` `version` + `migrate`) so it can move to an account later.
+- Every page sets `lang="en"`, has one `h1`, and keeps all content inside landmarks (`header`, `main`, `nav`, `aside`, named `section`) — found in step 3.8.
+- After a screen or step change, move focus to the new heading. In an exam, focus the question, not the first option.
+- While a sheet or dialog is open, the page behind it is `inert` (or use a native `<dialog>` with `showModal()`).
+- Ids must be unique on the page, also when components are combined (the lesson and the diagram both had `next`).
+- Scrolling boxes (code, tables) get `tabindex="0"` so keyboard users can scroll them.
+- Text on a level color uses `--level-<id>-foreground`, never a fixed white.

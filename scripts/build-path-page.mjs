@@ -21,6 +21,7 @@ const data = JSON.stringify({ levels, units, topics, built: new Date().toISOStri
   .replace(/</g, "\\u003c");
 
 const html = `<title>iOS Interview Path Map</title>
+<script>document.documentElement.lang = "en";</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">

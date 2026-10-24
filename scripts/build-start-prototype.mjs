@@ -28,6 +28,7 @@ const data = JSON.stringify({
 }).replace(/</g, "\\u003c");
 
 const page = `<title>Start and Progress Prototype</title>
+<script>document.documentElement.lang = "en";</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${brand.fonts.body.replace(/ /g, "+")}:wght@400;600;700&family=${brand.fonts.code.replace(/ /g, "+")}:wght@400;600&display=swap">
@@ -49,7 +50,7 @@ h3 { font-size: 1.0625rem; line-height: 1.5rem; margin: 0; }
 p { margin: 0; max-width: var(--reading-width); }
 ul, ol { margin: 0; padding-left: 1.25em; }
 .small { font-size: .875rem; line-height: 1.375rem; color: var(--muted-foreground); }
-.eyebrow { font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+.eyebrow { font-size: .75rem; line-height: 1.25rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
 .num { font-variant-numeric: tabular-nums; }
 code { font-family: var(--font-code); font-size: .9em; background: var(--code); padding: 1px 5px; border-radius: 6px; }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); box-shadow: var(--shadow-card); }
@@ -157,18 +158,18 @@ pre.file { margin: 0; font: .8125rem/1.25rem var(--font-code); background: var(-
 .big-icon { width: 56px; height: 56px; }
 </style>
 
-<div class="switcher wrap"><div class="inner">
+<aside class="switcher wrap" aria-label="Prototype controls"><div class="inner">
   <span class="small"><b>Prototype.</b> Pick a screen. Progress uses example data for a junior learner. Everything is saved in this browser.</span>
   <div class="chips" id="screens"></div>
   <label class="sim"><input type="checkbox" id="simBlocked"> Pretend the browser blocks saving</label>
-</div></div>
+</div></aside>
 <div class="wrap blocked" id="blockedBar" hidden><div class="inner"><div class="notice notice-warn" role="status">
   <b class="t">Your progress is not being saved</b>
   <p>This browser blocks saving. This often happens in a private window. When you close this page, your progress is lost. Export a file to keep it.</p>
   <div class="row"><button class="btn btn-ghost" type="button" data-act="export">Export progress</button></div>
 </div></div></div>
 <main class="wrap"><div class="inner" id="screen"></div></main>
-<div class="actionbar wrap" id="actionbar" hidden><div class="inner" id="actions"></div></div>
+<section class="actionbar wrap" id="actionbar" aria-label="Next step" hidden><div class="inner" id="actions"></div></section>
 
 <dialog id="dlg" aria-labelledby="dlgTitle"><div class="inner" id="dlgBody"></div></dialog>
 <input type="file" id="filePick" accept=".json,application/json" hidden>
@@ -176,6 +177,7 @@ pre.file { margin: 0; font: .8125rem/1.25rem var(--font-code); background: var(-
 <script>
 const D = ${data};
 const $ = (id) => document.getElementById(id);
+const smooth = () => (matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const LVL = Object.fromEntries(D.levels.map((l, i) => [l.id, { ...l, i }]));
 
@@ -222,7 +224,10 @@ function applyTheme() {
 }
 
 // ---------- shell ----------
+let booted = false;
 function chrome(bar) {
+  // After a screen change, move focus to its heading so keyboard and screen reader users start at the top.
+  if (booted) queueMicrotask(() => { const h = $("screen").querySelector("h1"); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } });
   $("blockedBar").hidden = storageWorks();
   $("actionbar").hidden = !bar;
   if (bar) $("actions").innerHTML = bar;
@@ -273,7 +278,7 @@ function picker(fromSettings) {
         '<details class="can"><summary>You are here if you can…</summary><ul>' + l.selfCheck.map((s) => '<li>' + esc(s) + '</li>').join("") + '</ul></details></label>';
     }).join("") + '</fieldset>';
   $("back")?.addEventListener("click", () => progress());
-  $("openCheck").addEventListener("click", () => { $("selfcheck").hidden = false; updateSuggestion(); $("scTitle").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("openCheck").addEventListener("click", () => { $("selfcheck").hidden = false; updateSuggestion(); $("scTitle").scrollIntoView({ behavior: smooth(), block: "start" }); });
   $("selfcheck").addEventListener("change", updateSuggestion);
   document.querySelectorAll('input[name="lvl"]').forEach((r) => r.addEventListener("change", () => {
     $("usePick").disabled = false;
@@ -301,7 +306,7 @@ function updateSuggestion() {
     : '<p>Tick at least one thing to see a suggestion.</p>';
   $("useSug")?.addEventListener("click", () => {
     const r = document.querySelector('input[name="lvl"][value="' + s + '"]'); r.checked = true; r.dispatchEvent(new Event("change"));
-    r.closest(".lvl").scrollIntoView({ behavior: "smooth", block: "center" }); r.focus({ preventScroll: true });
+    r.closest(".lvl").scrollIntoView({ behavior: smooth(), block: "center" }); r.focus({ preventScroll: true });
   });
 }
 
@@ -370,7 +375,7 @@ async function exportProgress() {
     try { await downloads.save({ filename: name, data: text }); } catch (e) { saved = false; if (e?.code === "declined") { toast("Nothing was saved."); return; } }
   } else {
     try {
-      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = name;
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = name; a.hidden = true; a.hidden = true;
       document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     } catch { saved = false; }
   }
@@ -378,7 +383,7 @@ async function exportProgress() {
   openDialog('<h2 id="dlgTitle">' + (saved ? "Your progress file is ready" : "We could not save the file") + '</h2>' +
     '<p>' + (saved ? 'We saved <b>' + esc(name) + '</b> to your downloads. ' : 'Copy the file below instead. ') + 'It has ' + s.done + ' topics done' + (P.level ? ' on the ' + esc(LVL[P.level].title.toLowerCase()) + ' path' : '') + '.</p>' +
     '<p class="small">To use it in another browser: open this app there, go to Progress and settings, and choose Import progress.</p>' +
-    '<details><summary class="small" style="cursor:pointer;min-height:36px;display:flex;align-items:center">Did the download not start? Show the file</summary><pre class="file">' + esc(text) + '</pre><p class="small">Copy all of this into a file named ' + esc(name) + '.</p></details>' +
+    '<details><summary class="small" style="cursor:pointer;min-height:36px;display:flex;align-items:center">Did the download not start? Show the file</summary><pre class="file" tabindex="0">' + esc(text) + '</pre><p class="small">Copy all of this into a file named ' + esc(name) + '.</p></details>' +
     '<div class="row"><button class="btn btn-primary" type="button" data-close>Done</button></div>');
 }
 
@@ -502,6 +507,7 @@ SCREENS.forEach(([name]) => {
 $("simBlocked").addEventListener("change", (e) => { simBlocked = e.target.checked; $("blockedBar").hidden = storageWorks(); });
 applyTheme();
 select(P.level ? "Progress and settings" : "First visit");
+booted = true;
 </script>
 `;
 writeFileSync("docs/design/start-prototype.html", page);

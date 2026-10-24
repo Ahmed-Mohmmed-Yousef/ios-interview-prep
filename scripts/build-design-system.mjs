@@ -40,6 +40,7 @@ function vars(mode) {
     warn: c.warn, "warn-foreground": onColor(c.warn, c.ink), "warn-soft": c.warnSoft,
     code: c.code,
     "level-fresh": L.fresh, "level-junior": L.junior, "level-mid": L.mid, "level-senior": L.senior, "level-staff": L.staff,
+    ...Object.fromEntries(Object.entries(L).map(([id, col]) => [`level-${id}-foreground`, onColor(col)])),
     "shadow-card": s.card, "shadow-raised": s.raised,
   };
   return Object.entries(v).map(([k, val]) => `  --${k}: ${val};`).join("\n") + `\n  color-scheme: ${mode};`;
@@ -61,7 +62,7 @@ const themeInline = [
     "secondary", "secondary-foreground", "muted", "muted-foreground", "accent", "accent-foreground", "destructive", "destructive-foreground",
     "border", "input", "ring", "chart-1", "chart-2", "chart-3", "chart-4", "chart-5",
     "success", "success-foreground", "success-soft", "warn", "warn-foreground", "warn-soft", "code",
-    "level-fresh", "level-junior", "level-mid", "level-senior", "level-staff"].map((n) => `  --color-${n}: var(--${n});`),
+    ...["fresh", "junior", "mid", "senior", "staff"].flatMap((l) => [`level-${l}`, `level-${l}-foreground`])].map((n) => `  --color-${n}: var(--${n});`),
   "  --font-sans: var(--font-body);",
   "  --font-mono: var(--font-code);",
   ...Object.entries(dt.type.scale).flatMap(([k, t]) => [`  --text-${k}: ${t.size};`, `  --text-${k}--line-height: ${t.line};`]),
@@ -128,6 +129,7 @@ const tableRows = (mode) => report[mode].map((x) => `<tr><td>${x.label}</td><td>
 const typeRows = Object.entries(dt.type.scale).reverse().map(([k, t]) => `<div class="type-row"><code>text-${k}</code><span class="small">${t.size} / ${t.line}</span><span style="font-size:${t.size};line-height:${t.line}">A struct is copied. A class is shared.</span></div>`).join("");
 
 const page = `<title>${esc(brand.name)} Design System</title>
+<script>document.documentElement.lang = "en";</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${brand.fonts.body.replace(/ /g, "+")}:wght@400;600;700&family=${brand.fonts.code.replace(/ /g, "+")}:wght@400;600&display=swap">
@@ -157,6 +159,7 @@ code { font-family: var(--font-code); font-size: .9em; }
 .sw { display: flex; gap: 10px; align-items: center; }
 .chip { width: 40px; height: 40px; border-radius: calc(var(--radius) * .6); border: 1px solid var(--border); flex: none; }
 .dot { display: inline-block; width: .8em; height: .8em; border-radius: 50%; margin-right: 4px; vertical-align: -1px; border: 1px solid var(--border); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
 table { border-collapse: collapse; width: 100%; font-size: .875rem; }
 th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
@@ -229,6 +232,7 @@ textarea { width: 100%; min-height: 6em; font: 1rem/1.5rem var(--font-body); col
       <button type="button" data-mode="light">Light</button><button type="button" data-mode="dark">Dark</button><button type="button" data-mode="device">Device</button>
     </div>
   </header>
+<main>
 
   <section>
     <p class="eyebrow">Phase 3 · Step 3.3</p>
@@ -252,8 +256,8 @@ textarea { width: 100%; min-height: 6em; font: 1rem/1.5rem var(--font-body); col
     <h2>Contrast (WCAG AA = 4.5:1 for text)</h2>
     <p class="small" style="margin-bottom:10px">${failures.length ? `<b class="failtxt">${failures.length} pair(s) below AA.</b>` : "Every text pair passes AA in light and dark mode."} The border row is a decoration, so it only needs to be visible.</p>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
-      <div><h3>Light</h3><div class="table-wrap"><table><thead><tr><th>Pair</th><th>Colors</th><th>Ratio</th><th></th></tr></thead><tbody>${tableRows("light")}</tbody></table></div></div>
-      <div><h3>Dark</h3><div class="table-wrap"><table><thead><tr><th>Pair</th><th>Colors</th><th>Ratio</th><th></th></tr></thead><tbody>${tableRows("dark")}</tbody></table></div></div>
+      <div><h3>Light</h3><div class="table-wrap" tabindex="0" role="region" aria-label="Light contrast pairs"><table><thead><tr><th>Pair</th><th>Colors</th><th>Ratio</th><th><span class="sr-only">Result</span></th></tr></thead><tbody>${tableRows("light")}</tbody></table></div></div>
+      <div><h3>Dark</h3><div class="table-wrap" tabindex="0" role="region" aria-label="Dark contrast pairs"><table><thead><tr><th>Pair</th><th>Colors</th><th>Ratio</th><th><span class="sr-only">Result</span></th></tr></thead><tbody>${tableRows("dark")}</tbody></table></div></div>
     </div>
   </section>
 
@@ -343,6 +347,7 @@ print(first.x, second.x)</pre><pre class="out">0 10</pre>
     </div>
   </section>
   <p class="small">The name and colors on this page come from <code>config/brand.json</code>. To rename the app, change it there and run the build again.</p>
+</main>
 </div>
 
 <script>

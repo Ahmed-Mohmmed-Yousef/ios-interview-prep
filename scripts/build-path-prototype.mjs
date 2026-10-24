@@ -22,6 +22,7 @@ const data = JSON.stringify({
 }).replace(/</g, "\\u003c");
 
 const page = `<title>Path Map Prototype</title>
+<script>document.documentElement.lang = "en";</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${brand.fonts.body.replace(/ /g, "+")}:wght@400;600;700&display=swap">
@@ -54,10 +55,11 @@ button { font-family: inherit; }
 .chip { font: 600 .8125rem var(--font-body); color: var(--foreground); background: var(--card); border: 1.5px solid var(--border); border-radius: 999px; padding: 5px 11px; min-height: 34px; cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
 
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* Road */
 .road { padding-block: 10px 120px; display: grid; gap: 8px; }
 .stage { display: grid; gap: 6px; }
-.sign { border-radius: calc(var(--radius) * 1.4); padding: 14px 16px; color: #fff; display: grid; gap: 6px; position: relative; }
+.sign { border-radius: calc(var(--radius) * 1.4); padding: 14px 16px; display: grid; gap: 6px; position: relative; }
 .sign h2 { margin: 0; font-size: 1.3125rem; line-height: 1.75rem; }
 .sign p { margin: 0; color: inherit; opacity: .95; font-size: .875rem; line-height: 1.375rem; }
 .sign .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
@@ -91,7 +93,7 @@ ol.rows { list-style: none; margin: 0; padding: 0; display: grid; position: rela
 .lab .t { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 .lab .m { font-size: .8125rem; color: var(--muted-foreground); }
 .current-lab .t { font-weight: 700; }
-.fold { justify-self: start; font: 600 .875rem var(--font-body); color: inherit; background: rgb(255 255 255 / .22); border: 1.5px solid rgb(255 255 255 / .7); border-radius: 999px; padding: 6px 12px; min-height: 36px; cursor: pointer; }
+.fold { justify-self: start; font: 600 .875rem var(--font-body); color: inherit; background: transparent; border: 1.5px solid currentColor; border-radius: 999px; padding: 6px 12px; min-height: 36px; cursor: pointer; }
 .end { text-align: center; background: var(--card); border: 2px solid var(--success); border-radius: calc(var(--radius) * 1.4); padding: 18px; display: grid; gap: 6px; justify-items: center; }
 .tip { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; }
 
@@ -134,6 +136,7 @@ ol.rows { list-style: none; margin: 0; padding: 0; display: grid; position: rela
 </header>
 
 <main class="wrap"><div class="inner">
+  <h1 class="sr-only">Your path</h1>
   <section class="demo" aria-label="Example progress">
     <span class="small"><b>Prototype.</b> Switch the example progress to see every state of the road. These are example results, not real ones.</span>
     <div class="chips" id="presets"></div>
@@ -247,7 +250,7 @@ function render(celebrateId) {
     const stage = document.createElement("section");
     stage.className = "stage"; stage.setAttribute("aria-label", st.level.title + " stage");
     const sign = document.createElement("div");
-    sign.className = "sign"; sign.style.background = "var(--level-" + st.level.id + ")";
+    sign.className = "sign"; sign.style.background = "var(--level-" + st.level.id + ")"; sign.style.color = "var(--level-" + st.level.id + "-foreground)";
     const updatedHere = stIds.filter((id) => state.done[id]?.status === "passed" && state.done[id].version < T[id].version).length;
     sign.innerHTML = '<div class="row"><h2>Stage ' + (si + 1) + ': ' + st.level.title + '</h2><span class="num">' + stDone.length + ' / ' + stIds.length + (stDone.length ? ' · ' + stAvg + '%' : '') + '</span></div>' +
       '<p>' + (finished ? "Done. Average score " + stAvg + "%." : st.level.summary) + '</p>' +
@@ -325,10 +328,12 @@ function drawRoads() {
 let lastFocus = null;
 function openSheet(html) {
   lastFocus = document.activeElement;
-  $("sheet").innerHTML = html; $("scrim").hidden = false;
+  $("sheet").innerHTML = html; $("scrim").hidden = false; setBehind(true);
   ($("sheet").querySelector("button, a") || $("sheet")).focus();
 }
-function closeSheet() { $("scrim").hidden = true; lastFocus?.focus?.(); }
+// While the card is open, the page behind it cannot be reached with Tab or a screen reader.
+const setBehind = (on) => document.querySelectorAll("body > header, body > main").forEach((el) => el.inert = on);
+function closeSheet() { $("scrim").hidden = true; setBehind(false); lastFocus?.focus?.(); }
 $("scrim").addEventListener("click", (e) => { if (e.target === $("scrim")) closeSheet(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("scrim").hidden) closeSheet(); });
 

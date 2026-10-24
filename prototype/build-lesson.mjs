@@ -81,10 +81,11 @@ steps.at(-1).html += sourcesHtml;
 // Add the diagram only after splitting, so its own panel headings do not become steps.
 for (const s of steps) s.html = s.html.replace(/<div class="diagram-slot"[^>]*><\/div>/, diagramMarkup ? `<div class="diagram-host">${diagramMarkup}</div>` : "");
 
-const data = JSON.stringify({ id, steps: steps.map((s) => s.title), change: topic.changes?.at(-1) ?? null, version: topic.version }).replace(/</g, "\\u003c");
+const data = JSON.stringify({ id, title: topic.title, steps: steps.map((s) => s.title), change: topic.changes?.at(-1) ?? null, version: topic.version }).replace(/</g, "\\u003c");
 const stepsHtml = steps.map((s, i) => `<section class="step" data-step="${i}" ${i ? "hidden" : ""} aria-label="${s.title}">${s.html}</section>`).join("\n");
 
 const page = `<title>Lesson Page Prototype</title>
+<script>document.documentElement.lang = "en";</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${brand.fonts.body.replace(/ /g, "+")}:wght@400;600;700&family=${brand.fonts.code.replace(/ /g, "+")}:wght@400;600&display=swap">
@@ -196,6 +197,10 @@ details p { margin: 0; }
 .btn:disabled { opacity: .4; cursor: default; }
 .demo { margin-top: 26px; background: var(--secondary); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 6px; }
 .demo button { justify-self: start; font: 600 .8125rem var(--font-body); color: var(--foreground); background: var(--card); border: 1.5px solid var(--border); border-radius: 999px; padding: 6px 12px; min-height: 34px; cursor: pointer; }
+.timer { display: grid; gap: 6px; border-top: 1px solid var(--border); padding-top: 8px; }
+.timer > div { display: grid; gap: 6px; }
+.timer > div[hidden] { display: none; }
+.timer-out { margin: 0; font: .8125rem/1.25rem var(--font-code); background: var(--card); border-radius: 10px; padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>
 
 <header class="top wrap">
@@ -223,13 +228,21 @@ details p { margin: 0; }
   <section class="demo" aria-label="Prototype controls">
     <span class="small"><b>Prototype.</b> Example states for review only.</span>
     <button type="button" id="demoUpdated">Example: I passed an older version (show the Updated note)</button>
+    <div class="timer" id="timer">
+      <p class="small"><b>Reading timer (step 3.8).</b> It counts the time on each step. It pauses when you leave this tab or do nothing for 2 minutes. For a fair result, read from step 1 to the end in one go.</p>
+      <button type="button" id="timerRestart">Start again from step 1</button>
+      <div id="timerResult" hidden>
+        <pre class="timer-out" id="timerOut" tabindex="0"></pre>
+        <button type="button" id="timerCopy">Copy the result</button>
+      </div>
+    </div>
   </section>
 </div></main>
 
 <nav class="nav wrap" aria-label="Lesson steps">
   <div class="inner">
-    <button class="btn btn-ghost" type="button" id="prev">Back</button>
-    <button class="btn btn-primary" type="button" id="next">Continue</button>
+    <button class="btn btn-ghost" type="button" id="lessonPrev">Back</button>
+    <button class="btn btn-primary" type="button" id="lessonNext">Continue</button>
   </div>
 </nav>
 
@@ -255,16 +268,17 @@ function show(i, focus) {
   [...bar.children].forEach((b, k) => { b.className = k < at ? "done" : k === at ? "now" : ""; });
   q("#stepName").textContent = L.steps[at];
   q("#stepCount").textContent = "Step " + (at + 1) + " of " + steps.length;
-  q("#prev").disabled = at === 0;
+  q("#lessonPrev").disabled = at === 0;
   const last = at === steps.length - 1;
-  q("#next").textContent = last ? "Start the exam" : "Continue";
+  q("#lessonNext").textContent = last ? "Start the exam" : "Continue";
   store.set("lesson:" + L.id + ":step", at);
+  if (last) showTimer();
   window.scrollTo(0, 0);
   if (focus) (steps[at].querySelector(".step-title") || steps[at]).focus?.();
 }
 steps.forEach((s) => { const t = s.querySelector(".step-title"); if (t) t.tabIndex = -1; });
-q("#prev").addEventListener("click", () => show(at - 1, true));
-q("#next").addEventListener("click", () => {
+q("#lessonPrev").addEventListener("click", () => show(at - 1, true));
+q("#lessonNext").addEventListener("click", () => {
   if (at === steps.length - 1) { window.open("https://claude.ai/artifact/DTYhYTuSHnAjg1U1D5W45J", "_blank", "noopener"); return; }
   show(at + 1, true);
 });
@@ -310,6 +324,27 @@ q("#demoUpdated").addEventListener("click", () => {
   n.hidden = !n.hidden;
   if (L.change) n.innerHTML = "<b>Updated " + L.change.date + ".</b> " + L.change.note + " Your pass stays. Taking the exam again is optional.";
   show(0);
+});
+// Reading timer (prototype only, step 3.8): one tick per second on the visible step, while the learner is active.
+const IDLE_MS = 120000, timeOn = steps.map(() => 0);
+let lastActive = Date.now();
+["pointerdown", "keydown", "scroll", "wheel", "touchstart"].forEach((t) => addEventListener(t, () => (lastActive = Date.now()), { passive: true }));
+setInterval(() => { if (document.visibilityState === "visible" && Date.now() - lastActive < IDLE_MS) timeOn[at] += 1; if (!q("#timerResult").hidden) showTimer(); }, 1000);
+const words = steps.map((s) => (s.textContent.match(/[A-Za-z0-9'’]+/g) || []).length);
+const mmss = (s) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+function showTimer() {
+  const total = timeOn.reduce((a, b) => a + b, 0), w = words.reduce((a, b) => a + b, 0);
+  const size = { "1": "Normal", "1.15": "Large", "1.3": "Larger" }[String(store.get("textScale") ?? "1")] + " text";
+  q("#timerOut").textContent = "Reading time: " + L.title + " (" + size + ")\\n" +
+    L.steps.map((n, i) => (i + 1) + ". " + n + ": " + mmss(timeOn[i]) + " (" + words[i] + " words)").join("\\n") +
+    "\\nTotal: " + mmss(total) + " · " + w + " words · " + (total ? Math.round(w / (total / 60)) : 0) + " words per minute";
+  q("#timerResult").hidden = false;
+}
+q("#timerRestart").addEventListener("click", () => { timeOn.fill(0); lastActive = Date.now(); q("#timerResult").hidden = true; show(0, true); });
+q("#timerCopy").addEventListener("click", async () => {
+  const b = q("#timerCopy");
+  try { await navigator.clipboard.writeText(q("#timerOut").textContent); b.textContent = "Copied"; }
+  catch { const r = document.createRange(); r.selectNodeContents(q("#timerOut")); getSelection().removeAllRanges(); getSelection().addRange(r); b.textContent = "Selected. Copy it now."; }
 });
 show(at);
 </script>
