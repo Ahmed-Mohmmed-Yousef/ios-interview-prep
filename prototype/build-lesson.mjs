@@ -233,7 +233,9 @@ details p { margin: 0; }
       <button type="button" id="timerRestart">Start again from step 1</button>
       <div id="timerResult" hidden>
         <pre class="timer-out" id="timerOut" tabindex="0"></pre>
+        <button type="button" id="timerDownload">Download the result</button>
         <button type="button" id="timerCopy">Copy the result</button>
+        <p class="small" id="timerMsg" role="status"></p>
       </div>
     </div>
   </section>
@@ -341,6 +343,19 @@ function showTimer() {
   q("#timerResult").hidden = false;
 }
 q("#timerRestart").addEventListener("click", () => { timeOn.fill(0); lastActive = Date.now(); q("#timerResult").hidden = true; show(0, true); });
+// Download: the artifact viewer allows it only through its "downloads" capability; a normal page uses a link.
+q("#timerDownload").addEventListener("click", async () => {
+  showTimer();
+  const text = q("#timerOut").textContent, name = "reading-time-" + L.id + ".txt";
+  const downloads = window.claude?.use ? await window.claude.use("downloads").catch(() => null) : null;
+  try {
+    if (downloads) await downloads.save({ filename: name, data: text });
+    else { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" })); a.download = name; a.hidden = true; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+    q("#timerMsg").textContent = "Saved as " + name + " in your Downloads folder.";
+  } catch (e) {
+    q("#timerMsg").textContent = e?.code === "declined" ? "Nothing was saved." : "The download did not work. Use Copy the result instead.";
+  }
+});
 q("#timerCopy").addEventListener("click", async () => {
   const b = q("#timerCopy");
   try { await navigator.clipboard.writeText(q("#timerOut").textContent); b.textContent = "Copied"; }
