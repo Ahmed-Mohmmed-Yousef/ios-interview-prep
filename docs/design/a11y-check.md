@@ -55,7 +55,9 @@ Open the [Lesson Page Prototype](https://claude.ai/artifact/PVy3so2N1oD2SrhoSVSL
 - "Start again from step 1" resets it.
 - The lesson has **1,996 words** (all text, with code). The lesson says "about 10 minutes", which means about 200 words per minute.
 
-### 2. One VoiceOver test (about 5 minutes)
+### 2. One VoiceOver test (about 5 minutes) — moved to Phase 5
+On 2026-10-29 you chose to skip this test for now. It moves to Phase 5, on the real app.
+
 Use Safari on your Mac. Open the [Exam and Results Prototype](https://claude.ai/artifact/P41sZga3jfPNXuz6ZVQNLw).
 
 1. Turn on VoiceOver with **Command-F5** (on some keyboards, Command-Fn-F5).
