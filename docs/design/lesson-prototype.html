@@ -577,6 +577,7 @@ print(player1.name, player1.settings.volume)
       <button type="button" id="timerRestart">Start again from step 1</button>
       <div id="timerResult" hidden>
         <pre class="timer-out" id="timerOut" tabindex="0"></pre>
+        <button type="button" id="timerSend">Send the result to Claude</button>
         <button type="button" id="timerDownload">Download the result</button>
         <button type="button" id="timerCopy">Copy the result</button>
         <p class="small" id="timerMsg" role="status"></p>
@@ -760,6 +761,18 @@ function showTimer() {
   q("#timerResult").hidden = false;
 }
 q("#timerRestart").addEventListener("click", () => { timeOn.fill(0); lastActive = Date.now(); q("#timerResult").hidden = true; show(0, true); });
+// Send: saves the result in the artifact's database, where Claude can read it (prototype only).
+q("#timerSend").addEventListener("click", async () => {
+  showTimer();
+  const db = window.claude?.use ? await window.claude.use("db").catch(() => null) : null;
+  if (!db) { q("#timerMsg").textContent = "Sending does not work here. Use Copy the result instead."; return; }
+  try {
+    await db.collection("readings").add({ lesson: L.id, text: q("#timerOut").textContent, seconds: [...timeOn], words, scale: String(store.get("textScale") ?? "1"), sentAt: new Date().toISOString() });
+    q("#timerMsg").textContent = "Sent. Now tell Claude: done.";
+  } catch (e) {
+    q("#timerMsg").textContent = "Sending did not work (" + (e?.code ?? "error") + "). Use Copy the result instead.";
+  }
+});
 // Download: the artifact viewer allows it only through its "downloads" capability; a normal page uses a link.
 q("#timerDownload").addEventListener("click", async () => {
   showTimer();
