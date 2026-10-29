@@ -46,9 +46,11 @@ Small improvement: the diagram's step dots now say "Diagram step 2 of 4" instead
 - Reduced motion: design tokens set every duration to 0. The diagram animates only with `prefers-reduced-motion: no-preference` and shows all steps as a list otherwise. The celebration and loading blocks stand still.
 - The diagram's arrow keys work only when focus is inside the diagram.
 
-## Waiting for you
+## Tests moved to Phase 5
 
-### 1. Reading time of the pilot lesson
+### 1. Reading time of the pilot lesson — moved to Phase 5
+On 2026-10-29 you chose to skip this test. Three ways to get the result to me (copy, download, send) did not work, so the reading time is measured later with real learners in the app. Until then, the lesson keeps its estimate of about 10 minutes (1,996 words).
+
 Open the [Lesson Page Prototype](https://claude.ai/artifact/PVy3so2N1oD2SrhoSVSLwz) and read it from step 1 to the end in one go, as a learner would. Do the quick checks and look at the diagram. A **Reading timer** box at the bottom of each step shows the time per section on the last step. Press "Copy the result" and paste it to me.
 
 - The timer pauses when you leave the tab or do nothing for 2 minutes.

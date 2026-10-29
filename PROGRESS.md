@@ -64,7 +64,7 @@ Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
 - ✅ **3.5 Lesson page** — the pilot lesson layout improved with the design system → [Lesson Page Prototype](https://claude.ai/artifact/PVy3so2N1oD2SrhoSVSLwz), [docs/design/lesson-page.md](docs/design/lesson-page.md)
 - ✅ **3.6 Exam and results** — exam, feedback, topic result, path total, "topic updated" message → [Exam and Results Prototype](https://claude.ai/artifact/P41sZga3jfPNXuz6ZVQNLw), [docs/design/exam-results.md](docs/design/exam-results.md)
 - ✅ **3.7 Start and progress** — first visit, level picker, skip tests, saving, export and import → [Start and Progress Prototype](https://claude.ai/artifact/XgfSvzH9Xt7vgZ8Sk1J4uT), [docs/design/start-progress.md](docs/design/start-progress.md)
-- 🔄 **3.8 Usability and accessibility check** — contrast, keyboard, screen reader, motion, 375px, reading time → [docs/design/a11y-check.md](docs/design/a11y-check.md). Tool checks and fixes done; **waiting for you:** read the pilot lesson with the timer (the VoiceOver test moved to Phase 5)
+- 🟡 **3.8 Usability and accessibility check** — contrast, keyboard, screen reader, motion, 375px, reading time → [docs/design/a11y-check.md](docs/design/a11y-check.md). 13 kinds of problems found and fixed; the reading-time and VoiceOver tests moved to Phase 5
 - ⬜ **3.9 Final check** — one clickable walk-through, design summary, Git commit
 
 Open choices from Phase 2 — all decided in step 3.1 (see the requirements table).
@@ -81,6 +81,7 @@ Write all lessons and question banks, level by level, with fact checks.
 Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ⬜ Progress keeps working when a topic is edited, moved, retired or gets a new version (tested)
 - ⬜ **VoiceOver test by you** — one short flow on the real app (moved from step 3.8 on 2026-10-29); steps in [docs/design/a11y-check.md](docs/design/a11y-check.md)
+- ⬜ **Measure the real reading time** of lessons with real learners in the app (moved from step 3.8 on 2026-10-29). Lessons say "about 10 minutes" until then
 
 ## Phase 6 — AI grading ⬜
 
@@ -165,6 +166,7 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-10-29** — Step 3.8 finished and waiting for review. You chose to skip the reading-time test: copy, download and send did not reach me, so it moves to Phase 5 with real learners.
 - **2026-10-29** — Step 3.8: the VoiceOver person test moves to Phase 5 (your choice). The reading-time test is still waiting: the downloaded file did not reach this Mac, so you will try again.
 - **2026-10-24** — Step 3.8 tool checks done: axe-core 4.14.0 on all 5 prototypes (light and dark) found 13 kinds of problems, all fixed. Light green and amber are slightly darker for contrast. Found and fixed a duplicate button id that broke the lesson's Continue button. All 8 pages republished to the same links. Waiting for the reading-time and VoiceOver tests.
 - **2026-10-24** — Step 3.7 approved, including the half-ticked self-check rule. Step 3.8 started.
