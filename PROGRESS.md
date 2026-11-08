@@ -1,6 +1,6 @@
 # Project Progress
 
-Last updated: **2026-10-29**
+Last updated: **2026-11-08**
 
 **Status marks:** ✅ done · 🟡 done, waiting for your review · 🔄 in progress · ⬜ not started · ⏸️ paused · ❌ dropped
 
@@ -82,11 +82,12 @@ Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ⬜ Progress keeps working when a topic is edited, moved, retired or gets a new version (tested)
 - ⬜ **VoiceOver test by you** — one short flow on the real app (moved from step 3.8 on 2026-10-29); steps in [docs/design/a11y-check.md](docs/design/a11y-check.md)
 - ⬜ **Measure the real reading time** of lessons with real learners in the app (moved from step 3.8 on 2026-10-29). Lessons say "about 10 minutes" until then
+- ⬜ **Install context7** (live docs for Next.js, Tailwind, shadcn and Motion) when the app is scaffolded. Command to verify again then: `claude mcp add context7 -- npx -y @upstash/context7-mcp`
 
 ## Phase 6 — AI grading ⬜
 
 Written answers and code answers graded by AI, with limits against abuse.
-- ⬜ **Before Phase 6 starts:** run the Claude Code setup recommender (`claude-code-setup` plugin, read-only) on the Phase 5 app code. Review its suggested hooks, skills, subagents, MCP servers and rules with you, and add only the ones you approve
+- ⬜ **Before Phase 6 starts:** run the Claude Code setup recommender (`claude-code-setup` plugin, read-only) on the Phase 5 app code. Review its suggested hooks, skills, subagents, MCP servers and rules with you, and add only the ones you approve. (A first run on the planning files was done early on 2026-11-08, at your request; run it again on the app code)
 
 ## Phase 7 — Launch ⬜
 
@@ -161,11 +162,13 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-23 | Exams: saved if you leave; no timer; results show mistakes first; path total has a readiness label (85% ready, 70% almost) | [docs/design/exam-results.md](docs/design/exam-results.md) |
 | 2026-10-24 | Level picker: a self-check checklist suggests a level, the learner still chooses. Progress export is a JSON file; import replaces after a preview; reset needs RESET typed | [docs/design/start-progress.md](docs/design/start-progress.md) |
 | 2026-10-24 | Accessibility check covers all 5 prototypes; reading time is measured by you reading the pilot lesson with a timer; you try one VoiceOver flow | [docs/design/a11y-check.md](docs/design/a11y-check.md) |
+| 2026-11-08 | All main AI coding agents follow the same rules: one shared `AGENTS.md` (Claude Code imports it). Added from the setup recommender: protect generated files, brand check hook, `/new-topic` skill, plain-English reviewer agent; context7 planned for Phase 5 | [AGENTS.md](AGENTS.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-11-08** — Ran the claude-code-setup recommender early, at your request (the plan said before Phase 6; it will run again then on the app code). Added `AGENTS.md` as the single instruction file for all agents (Codex, Cursor, Copilot, Gemini CLI, Windsurf; Claude Code imports it), `.gemini/settings.json`, a hook that blocks hand edits to generated files, a brand-check hook, the `/new-topic` skill and the `plain-english-reviewer` agent. context7 is planned for Phase 5.
 - **2026-10-29** — Step 3.8 finished and waiting for review. You chose to skip the reading-time test: copy, download and send did not reach me, so it moves to Phase 5 with real learners.
 - **2026-10-29** — Step 3.8: the VoiceOver person test moves to Phase 5 (your choice). The reading-time test is still waiting: the downloaded file did not reach this Mac, so you will try again.
 - **2026-10-24** — Step 3.8 tool checks done: axe-core 4.14.0 on all 5 prototypes (light and dark) found 13 kinds of problems, all fixed. Light green and amber are slightly darker for contrast. Found and fixed a duplicate button id that broke the lesson's Continue button. All 8 pages republished to the same links. Waiting for the reading-time and VoiceOver tests.

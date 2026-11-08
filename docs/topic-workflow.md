@@ -2,6 +2,8 @@
 
 How one topic goes from `planned` to `published`. It is based on the pilot (Phase 2, Structs vs Classes). Phase 4 uses it for every topic. You review every topic on its own prototype page before it is published (user decision, 2026-10-22).
 
+Run all the steps for one topic with `/new-topic <topic-id>` (Claude Code), or follow `.claude/skills/new-topic/SKILL.md` with any other agent.
+
 ## The steps
 
 | # | Step | Tool | Done when |
