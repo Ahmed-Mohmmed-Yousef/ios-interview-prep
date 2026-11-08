@@ -148,6 +148,9 @@ const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { co
 const KIND = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" };
 
 // ---------- scoring (rules.json) ----------
+const isLocal = location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const pathLink = isLocal ? "path-map-prototype.html" : D.links.path;
+const lessonLink = isLocal ? "lesson-prototype.html" : D.links.lesson;
 function rubricScore(rubric, marks) {
   const s = D.rules.scoring; let total = 0, keyMissed = false;
   rubric.forEach((r, i) => { const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet; total += r.weight * m; if (r.key && m === s.notMet) keyMissed = true; });
@@ -274,8 +277,8 @@ function finish() {
     open.map((a) => '<p class="small">Self-check on your ' + (byId[a.id].type === "written" ? "written" : "code") + ' answer: <b>' + a.self + '/100</b>. Not counted yet; AI grading comes in Phase 6.</p>').join("") +
     (wrong.length ? '<h2>Your mistakes</h2><ol class="review">' + wrong.map(item).join("") + '</ol>' : '<p><b>No mistakes. Well done.</b></p>') +
     '<details><summary class="btn btn-ghost" style="display:inline-flex">Show all questions</summary><ol class="review" style="margin-top:10px">' + rest.map(item).join("") + '</ol></details>' +
-    '<div class="row">' + (pass ? '<a class="btn btn-primary" href="' + D.links.path + '" target="_blank" rel="noopener">Next topic: ' + esc(D.topic.nextTitle) + '</a>' : '<button class="btn btn-primary" type="button" id="again">Try again with new questions</button>') +
-    (pass ? '<button class="btn btn-ghost" type="button" id="again">Take it again</button>' : '') + '<a class="btn btn-ghost" href="' + D.links.lesson + '" target="_blank" rel="noopener">Read the lesson again</a></div>';
+    '<div class="row">' + (pass ? '<a class="btn btn-primary" href="' + pathLink + '" target="_blank" rel="noopener">Next topic: ' + esc(D.topic.nextTitle) + '</a>' : '<button class="btn btn-primary" type="button" id="again">Try again with new questions</button>') +
+    (pass ? '<button class="btn btn-ghost" type="button" id="again">Take it again</button>' : '') + '<a class="btn btn-ghost" href="' + lessonLink + '" target="_blank" rel="noopener">Read the lesson again</a></div>';
   $("again").addEventListener("click", () => startRun("topic"));
   window.scrollTo(0, 0);
 }
@@ -285,7 +288,7 @@ function skipResult(pct, n, right, minutes) {
   $("screen").innerHTML = '<div class="resulthead"><p class="eyebrow">Skip test result · Swift Language (Fresh)</p><p class="score ' + (pass ? "pass" : "notyet") + ' num">' + pct + '%</p>' +
     '<p role="status"><b>' + (pass ? "Skipped! These " + count + " topics now count as done, each with " + pct + "%." : "Not passed. You need " + D.rules.skip + "%. Nothing changed.") + '</b></p>' +
     '<p class="small">' + right + ' of ' + n + ' right · ' + minutes + ' min. ' + (pass ? "You can still open any of these lessons." : "Try again later, or take the topics one by one.") + '</p></div>' +
-    '<div class="row"><a class="btn btn-primary" href="' + D.links.path + '" target="_blank" rel="noopener">Back to the path</a>' + (pass ? '' : '<button class="btn btn-ghost" type="button" id="again">Try the skip test again</button>') + '</div>';
+    '<div class="row"><a class="btn btn-primary" href="' + pathLink + '" target="_blank" rel="noopener">Back to the path</a>' + (pass ? '' : '<button class="btn btn-ghost" type="button" id="again">Try the skip test again</button>') + '</div>';
   $("again")?.addEventListener("click", () => startRun("skip"));
   window.scrollTo(0, 0);
 }

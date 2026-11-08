@@ -53,9 +53,9 @@ Plan: [docs/phase-2-plan.md](docs/phase-2-plan.md) · Pilot topic: **Structs vs 
 - ✅ **2.8 Improve once** — your feedback as version 2 with a `changes` entry (proves the edit workflow) → topic version 2, bank version 3, [rubric test: after](docs/pilot/rubric-test.md)
 - ✅ **2.9 Lessons learned** — update template, rules and skills; all checks; Git commit → [docs/phase-2-summary.md](docs/phase-2-summary.md), [docs/topic-workflow.md](docs/topic-workflow.md)
 
-## Phase 3 — Design system and UX 🔄
+## Phase 3 — Design system and UX ✅
 
-Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
+Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md) · Summary: [docs/phase-3-summary.md](docs/phase-3-summary.md)
 
 - ✅ **3.1 Screens and flows** — every screen and how learners move between them → [docs/ux/flows.md](docs/ux/flows.md), [Flow Map page](https://claude.ai/artifact/5cQDao3KDygBCQ7dGYWmv6)
 - ✅ **3.2 Name and brand** — name options (checked), voice, logo idea, color and type directions → **Prep Stops**, Calm Trail · [docs/brand/brand.md](docs/brand/brand.md), [Brand Board](https://claude.ai/artifact/Ai3rDph8YXX39ycWy7qZdv), `config/brand.json`
@@ -64,8 +64,8 @@ Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md)
 - ✅ **3.5 Lesson page** — the pilot lesson layout improved with the design system → [Lesson Page Prototype](https://claude.ai/artifact/PVy3so2N1oD2SrhoSVSLwz), [docs/design/lesson-page.md](docs/design/lesson-page.md)
 - ✅ **3.6 Exam and results** — exam, feedback, topic result, path total, "topic updated" message → [Exam and Results Prototype](https://claude.ai/artifact/P41sZga3jfPNXuz6ZVQNLw), [docs/design/exam-results.md](docs/design/exam-results.md)
 - ✅ **3.7 Start and progress** — first visit, level picker, skip tests, saving, export and import → [Start and Progress Prototype](https://claude.ai/artifact/XgfSvzH9Xt7vgZ8Sk1J4uT), [docs/design/start-progress.md](docs/design/start-progress.md)
-- 🟡 **3.8 Usability and accessibility check** — contrast, keyboard, screen reader, motion, 375px, reading time → [docs/design/a11y-check.md](docs/design/a11y-check.md). 13 kinds of problems found and fixed; the reading-time and VoiceOver tests moved to Phase 5
-- ⬜ **3.9 Final check** — one clickable walk-through, design summary, Git commit
+- ✅ **3.8 Usability and accessibility check** — contrast, keyboard, screen reader, motion, 375px, reading time → [docs/design/a11y-check.md](docs/design/a11y-check.md). 13 kinds of problems found and fixed; reading-time and VoiceOver tests moved to Phase 5
+- ✅ **3.9 Final check** — one clickable walk-through, design summary, Git commit → [docs/design/walkthrough.html](docs/design/walkthrough.html), [docs/phase-3-summary.md](docs/phase-3-summary.md)
 
 Open choices from Phase 2 — all decided in step 3.1 (see the requirements table).
 
@@ -168,6 +168,7 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-08** — Phase 3 approved and finished. Step 3.9 approved: built interactive walk-through hub (`docs/design/walkthrough.html`), verified local/hosted prototype navigation across all 5 prototypes, authored Phase 3 summary (`docs/phase-3-summary.md`), and committed to Git.
 - **2026-11-08** — Ran the claude-code-setup recommender early, at your request (the plan said before Phase 6; it will run again then on the app code). Added `AGENTS.md` as the single instruction file for all agents (Codex, Cursor, Copilot, Gemini CLI, Windsurf; Claude Code imports it), `.gemini/settings.json`, a hook that blocks hand edits to generated files, a brand-check hook, the `/new-topic` skill and the `plain-english-reviewer` agent. context7 is planned for Phase 5.
 - **2026-10-29** — Step 3.8 finished and waiting for review. You chose to skip the reading-time test: copy, download and send did not reach me, so it moves to Phase 5 with real learners.
 - **2026-10-29** — Step 3.8: the VoiceOver person test moves to Phase 5 (your choice). The reading-time test is still waiting: the downloaded file did not reach this Mac, so you will try again.

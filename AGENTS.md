@@ -71,6 +71,7 @@ Claude Code runs some of these automatically through hooks (`.claude/settings.js
 | `docs/design/exam-prototype.html` | `node scripts/build-exam-prototype.mjs` |
 | `docs/design/start-prototype.html` | `node scripts/build-start-prototype.mjs` |
 | `docs/design/lesson-prototype.html` | `cd prototype && node build-lesson.mjs <topic-id>` |
+| `docs/design/walkthrough.html` | `node scripts/build-walkthrough.mjs` |
 | `docs/pilot/prototype-<id>.html` | `cd prototype && node build.mjs <topic-id>` |
 
 ## Product rules

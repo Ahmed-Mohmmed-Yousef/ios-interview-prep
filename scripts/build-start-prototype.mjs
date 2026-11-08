@@ -195,6 +195,8 @@ function load() {
 function save(p) { mem[KEY] = p; if (storageWorks()) try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {} }
 function wipe() { delete mem[KEY]; try { localStorage.removeItem(KEY); } catch {} }
 const blank = () => ({ schema: D.file.schema, level: null, topics: {}, settings: { theme: "device" } });
+const isLocal = location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const pathLink = isLocal ? "path-map-prototype.html" : D.links.path;
 let P = load();
 if (!P || P.damaged) P = blank();
 
@@ -313,7 +315,7 @@ function updateSuggestion() {
 // ---------- after picking: the path is ready (the real path map is the step 3.4 prototype) ----------
 function ready() {
   const l = LVL[P.level], s = summary(P);
-  chrome('<button class="btn btn-ghost" type="button" id="toSettings">Progress and settings</button><a class="btn btn-primary" href="' + D.links.path + '" target="_blank" rel="noopener">Open my path</a>');
+  chrome('<button class="btn btn-ghost" type="button" id="toSettings">Progress and settings</button><a class="btn btn-primary" href="' + pathLink + '" target="_blank" rel="noopener">Open my path</a>');
   $("screen").innerHTML =
     '<div class="hero"><p class="eyebrow">Your path</p><h1>Your ' + esc(l.title.toLowerCase()) + ' path is ready.</h1>' +
     '<p>' + s.total + ' topics in ' + stagesFor(l.id).length + (stagesFor(l.id).length === 1 ? " stage" : " stages") + ': ' + stagesFor(l.id).map((x) => x.title).join(", ") + '. Your first stop is open.</p></div>' +
@@ -341,7 +343,7 @@ function progress() {
     '<div class="hero"><p class="eyebrow">Progress and settings</p><h1>Your progress</h1></div>' +
     '<div class="card"><div class="row" style="justify-content:space-between"><span><span class="small">Level</span><br><b style="font-size:1.25rem">' + esc(lvl.title) + '</b></span><button class="btn btn-ghost" type="button" id="chg">Change level</button></div></div>' +
     (s.done === 0
-      ? '<div class="card" style="text-align:center;justify-items:center"><svg class="big-icon" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="26" fill="var(--secondary)"/><path d="M16 38 C 22 38, 22 20, 28 20 S 34 32, 40 18" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 6"/><circle cx="16" cy="38" r="4" fill="var(--primary)"/></svg><h2>No topics done yet</h2><p>Your first stop is waiting. Read the lesson, then take the exam.</p><a class="btn btn-primary" href="' + D.links.path + '" target="_blank" rel="noopener">Go to my path</a></div>'
+      ? '<div class="card" style="text-align:center;justify-items:center"><svg class="big-icon" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="26" fill="var(--secondary)"/><path d="M16 38 C 22 38, 22 20, 28 20 S 34 32, 40 18" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 6"/><circle cx="16" cy="38" r="4" fill="var(--primary)"/></svg><h2>No topics done yet</h2><p>Your first stop is waiting. Read the lesson, then take the exam.</p><a class="btn btn-primary" href="' + pathLink + '" target="_blank" rel="noopener">Go to my path</a></div>'
       : '<div class="stats"><div class="stat"><span class="small">Progress</span><b class="num">' + s.pct + '%</b></div><div class="stat"><span class="small">Path score</span><b class="num">' + s.score + '%</b></div><div class="stat"><span class="small">Topics done</span><b class="num">' + s.done + '<span class="small">/' + s.total + '</span></b></div></div>' +
         '<p class="small">Progress = topics done ÷ all main topics. Path score = the average of your done topics. Bonus topics count in neither.</p>' +
         '<div class="card"><h2>By stage</h2>' + stagesFor(P.level).map(stageBlock).join("") + '</div>') +
@@ -481,7 +483,7 @@ function states() {
     '<h2 class="state-h">Saved progress cannot be read</h2><div class="notice notice-warn" role="alert"><b class="t">We could not read your saved progress</b><p>Something changed your saved data. If you have a progress file, import it. If not, you can start again.</p><div class="row"><button class="btn btn-primary" type="button" data-act="import">Import a file</button><button class="btn btn-ghost" type="button">Start again</button></div></div>' +
     '<h2 class="state-h">Import errors</h2><p class="small">Try a sample file. Each one opens the real import check.</p><div class="row">' +
     '<button class="btn btn-ghost" type="button" data-sample="good">A good file</button><button class="btn btn-ghost" type="button" data-sample="broken">A broken file</button><button class="btn btn-ghost" type="button" data-sample="other">A file from another app</button><button class="btn btn-ghost" type="button" data-sample="newer">A file from a newer version</button><button class="btn btn-ghost" type="button" data-sample="old">A file with removed topics</button></div>' +
-    '<h2 class="state-h">Page not found</h2><div class="card" style="text-align:center;justify-items:center"><svg class="big-icon" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="26" fill="var(--secondary)"/><path d="M14 36 C 20 36, 20 22, 26 22" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round"/><path d="M32 22 h10" stroke="var(--muted-foreground)" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 5"/><circle cx="14" cy="36" r="4" fill="var(--primary)"/></svg><h2>This page is not on the path</h2><p>The link may be old, or the topic may have moved. Your progress is safe.</p><a class="btn btn-primary" href="' + D.links.path + '" target="_blank" rel="noopener">Go to my path</a></div>';
+    '<h2 class="state-h">Page not found</h2><div class="card" style="text-align:center;justify-items:center"><svg class="big-icon" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="26" fill="var(--secondary)"/><path d="M14 36 C 20 36, 20 22, 26 22" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round"/><path d="M32 22 h10" stroke="var(--muted-foreground)" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 5"/><circle cx="14" cy="36" r="4" fill="var(--primary)"/></svg><h2>This page is not on the path</h2><p>The link may be old, or the topic may have moved. Your progress is safe.</p><a class="btn btn-primary" href="' + pathLink + '" target="_blank" rel="noopener">Go to my path</a></div>';
   document.querySelectorAll("[data-sample]").forEach((b) => b.addEventListener("click", () => {
     const ex = exampleProgress(), f = fileFor(ex), k = b.dataset.sample;
     let text = JSON.stringify(f);
