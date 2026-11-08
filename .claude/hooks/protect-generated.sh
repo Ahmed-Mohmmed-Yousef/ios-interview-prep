@@ -14,7 +14,7 @@ case "$FILE" in
   */docs/design/start-prototype.html) SRC="scripts/build-start-prototype.mjs, then run it" ;;
   */docs/design/lesson-prototype.html) SRC="prototype/build-lesson.mjs, then run: cd prototype && node build-lesson.mjs <topic-id>" ;;
   */docs/design/walkthrough.html) SRC="scripts/build-walkthrough.mjs, then run: node scripts/build-walkthrough.mjs" ;;
-  */docs/pilot/prototype-*.html) SRC="prototype/build.mjs, then run: cd prototype && node build.mjs <topic-id>" ;;
+  */docs/topics/*/review.html|*/docs/pilot/prototype-*.html) SRC="prototype/build.mjs, then run: cd prototype && node build.mjs <topic-id>" ;;
   *) exit 0 ;;
 esac
 

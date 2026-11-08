@@ -1,7 +1,7 @@
-// Phase 2 prototype: builds one self-contained HTML page from a real topic
-// (topic.json + lesson.mdx compiled with MDX + questions.json + the diagram prototype).
-// Usage (from prototype/): node build.mjs <topic-id>   → ../docs/pilot/prototype-<topic-id>.html
-import { readFileSync, writeFileSync } from "node:fs";
+// Phase 2/4 prototype: builds one self-contained HTML review page from a real topic
+// (topic.json + lesson.mdx compiled with MDX + questions.json + optional diagram).
+// Usage (from prototype/): node build.mjs <topic-id>   → ../docs/topics/<topic-id>/review.html
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { evaluate } from "@mdx-js/mdx";
 import remarkGfm from "remark-gfm";
@@ -10,6 +10,10 @@ import { createElement as h, Children } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const id = process.argv[2];
+if (!id) {
+  console.error("Usage: node build.mjs <topic-id>");
+  process.exit(1);
+}
 const root = fileURLToPath(new URL("../", import.meta.url));
 const read = (p) => readFileSync(root + p, "utf8");
 const topic = JSON.parse(read(`content/topics/${id}/topic.json`));
@@ -17,8 +21,14 @@ const bank = JSON.parse(read(`content/topics/${id}/questions.json`));
 const rules = JSON.parse(read("content/rules.json"));
 const levels = JSON.parse(read("content/levels.json")).levels;
 const units = JSON.parse(read("content/units.json")).units;
-const unit = units.find((u) => u.topics.includes(id));
-const diagramHtml = read(`docs/pilot/diagram-${id}.html`);
+const unit = units.find((u) => u.topics.includes(id) || u.bonus?.some((b) => b.topic === id));
+
+let diagramHtml = null;
+if (existsSync(`${root}docs/topics/${id}/diagram.html`)) {
+  diagramHtml = read(`docs/topics/${id}/diagram.html`);
+} else if (existsSync(`${root}docs/pilot/diagram-${id}.html`)) {
+  diagramHtml = read(`docs/pilot/diagram-${id}.html`);
+}
 
 // --- Lesson components (the contract from docs/lesson-format.md) ---
 const levelTitle = (l) => levels.find((x) => x.id === l)?.title ?? l;
@@ -54,13 +64,19 @@ const components = {
 const { default: Lesson, meta } = await evaluate(read(`content/topics/${id}/lesson.mdx`), { ...runtime, remarkPlugins: [remarkGfm] });
 let lessonHtml = renderToStaticMarkup(h(Lesson, { components }));
 
-// --- Diagram: reuse the step 2.4 prototype (figure, step bar, list, script, styles) ---
-const between = (s, a, b) => s.slice(s.indexOf(a), s.indexOf(b) + b.length);
-const diagramMarkup = between(diagramHtml, '<figure class="panels"', "</details>");
-const diagramScript = diagramHtml.slice(diagramHtml.indexOf("<script>") + 8, diagramHtml.indexOf("</script>"))
-  .replace('document.addEventListener("keydown", (e) => {', 'document.addEventListener("keydown", (e) => {\n  if (!e.target.closest || !e.target.closest(".diagram-host")) return;');
-const diagramStyle = diagramHtml.slice(diagramHtml.indexOf("<style>") + 7, diagramHtml.indexOf("</style>"));
-lessonHtml = lessonHtml.replace(/<div class="diagram-slot"[^>]*><\/div>/, `<div class="diagram-host">${diagramMarkup}</div>`);
+// --- Diagram: reuse the prototype if present ---
+let diagramScript = "";
+let diagramStyle = "";
+if (diagramHtml) {
+  const between = (s, a, b) => s.slice(s.indexOf(a), s.indexOf(b) + b.length);
+  const diagramMarkup = diagramHtml.includes('<figure class="panels"') ? between(diagramHtml, '<figure class="panels"', "</details>") : "";
+  diagramScript = diagramHtml.includes("<script>") ? diagramHtml.slice(diagramHtml.indexOf("<script>") + 8, diagramHtml.indexOf("</script>"))
+    .replace('document.addEventListener("keydown", (e) => {', 'document.addEventListener("keydown", (e) => {\n  if (!e.target.closest || !e.target.closest(".diagram-host")) return;') : "";
+  diagramStyle = diagramHtml.includes("<style>") ? diagramHtml.slice(diagramHtml.indexOf("<style>") + 7, diagramHtml.indexOf("</style>")) : "";
+  lessonHtml = lessonHtml.replace(/<div class="diagram-slot"[^>]*><\/div>/, `<div class="diagram-host">${diagramMarkup}</div>`);
+} else {
+  lessonHtml = lessonHtml.replace(/<div class="diagram-slot"[^>]*><\/div>/, "");
+}
 
 const exam = {
   passMark: rules.topicPassMark, size: rules.topicExamSize, scoring: rules.rubricScoring,
@@ -68,8 +84,9 @@ const exam = {
   questions: bank.questions.filter((q) => !q.retired).map(({ sources, verify, verifyStarter, lessonSection, ...q }) => q),
 };
 // Place in this unit's part of the topic's stage (for example "Topic 10 of 13" in the fresh stage).
-const stageTopics = unit.topics.filter((t) => JSON.parse(read(`content/topics/${t}/topic.json`)).level === topic.level);
-const position = stageTopics.indexOf(id) + 1;
+const allTopics = [...(unit.topics ?? []), ...(unit.bonus?.map((b) => b.topic) ?? [])];
+const stageTopics = allTopics.filter((t) => JSON.parse(read(`content/topics/${t}/topic.json`)).level === topic.level);
+const position = Math.max(1, stageTopics.indexOf(id) + 1);
 const data = JSON.stringify({ topicId: id, exam }).replace(/</g, "\\u003c");
 
 const page = `<title>${topic.title} Lesson</title>
@@ -361,6 +378,10 @@ function showResults() {
 </script>
 `;
 
-const out = root + `docs/pilot/prototype-${id}.html`;
+mkdirSync(`${root}docs/topics/${id}`, { recursive: true });
+const out = `${root}docs/topics/${id}/review.html`;
 writeFileSync(out, page);
+if (id === "structs-vs-classes") {
+  writeFileSync(`${root}docs/pilot/prototype-${id}.html`, page);
+}
 console.log(`${out}: ${(page.length / 1024).toFixed(0)} KB, lesson HTML ${(lessonHtml.length / 1024).toFixed(0)} KB, ${exam.questions.length} questions`);

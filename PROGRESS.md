@@ -69,12 +69,31 @@ Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md) · Summary: [docs/phase-3-sum
 
 Open choices from Phase 2 — all decided in step 3.1 (see the requirements table).
 
-## Phase 4 — Content production ⬜
+## Phase 4 — Content production 🔄
+
+Plan: [docs/phase-4-plan.md](docs/phase-4-plan.md)
 
 Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
-- ⬜ Generalize the prototype builder for every topic (before Phase 4 starts)
-- ⬜ Decide where per-topic notes live (research, fact-check, rubric test)
+- ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
+- ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 20 remaining topics (2 published: `structs-vs-classes`, `swift-basics`)
+  - 🔄 Batch 1A: Swift Language Core (7 topics: `swift-basics` → `functions`)
+    - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
+    - 🔄 **optionals** (Optionals) — started research and draft
+    - ⬜ **operators**
+    - ⬜ **strings-and-characters**
+    - ⬜ **collections**
+    - ⬜ **control-flow**
+    - ⬜ **functions**
+  - ⬜ Batch 1B: Intermediate Types & Logic (6 topics: `closures-basics` → `optional-chaining`)
+  - ⬜ Batch 1C: Object-Oriented & Protocols (5 topics: `inheritance` → `access-control`)
+  - ⬜ Batch 1D: Platform & UI Basics (3 topics: `xcode-and-git-basics`, `view-controller-lifecycle`, `swiftui-views-modifiers`)
+- ⬜ **4.2 Junior level topics (Wave 2)** — 44 main + 1 bonus
+- ⬜ **4.3 Mid level topics (Wave 3)** — 44 main + 9 bonus
+- ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
+- ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
+- ⬜ **4.6 Phase 4 summary and final verification**
 
 ## Phase 5 — Web app MVP ⬜
 
@@ -163,11 +182,17 @@ New rules and changes you ask for are added here, with the date.
 | 2026-10-24 | Level picker: a self-check checklist suggests a level, the learner still chooses. Progress export is a JSON file; import replaces after a preview; reset needs RESET typed | [docs/design/start-progress.md](docs/design/start-progress.md) |
 | 2026-10-24 | Accessibility check covers all 5 prototypes; reading time is measured by you reading the pilot lesson with a timer; you try one VoiceOver flow | [docs/design/a11y-check.md](docs/design/a11y-check.md) |
 | 2026-11-08 | All main AI coding agents follow the same rules: one shared `AGENTS.md` (Claude Code imports it). Added from the setup recommender: protect generated files, brand check hook, `/new-topic` skill, plain-English reviewer agent; context7 planned for Phase 5 | [AGENTS.md](AGENTS.md) |
+| 2026-11-08 | Per-topic research, fact checks and rubric test notes live in `docs/topics/<topic-id>/` | [docs/phase-4-plan.md](docs/phase-4-plan.md) |
+| 2026-11-08 | Content production runs level by level, starting with Fresh level (21 remaining topics) | [docs/phase-4-plan.md](docs/phase-4-plan.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-11-08** — swift-basics approved and published by user. Started topic optionals: researching official documentation and Swift 6 compiler behavior.
+- **2026-11-08** — Built topic swift-basics (Constants, Variables and Types): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swift-basics/review.html`). Status: review, waiting for your approval.
+- **2026-11-08** — Step 4.0 finished: generalized prototype review builder (`prototype/build.mjs`) to handle any topic with or without diagrams, writing to `docs/topics/<topic-id>/review.html`; pilot notes moved to `docs/topics/structs-vs-classes/`; hooked in `protect-generated.sh`. Starting Batch 1A (`swift-basics`).
+- **2026-11-08** — Planned Phase 4: content production level by level (`docs/phase-4-plan.md`). Decided per-topic notes live in `docs/topics/<topic-id>/`. Step 4.0 started: generalizing prototype review builder for all topics.
 - **2026-11-08** — Phase 3 approved and finished. Step 3.9 approved: built interactive walk-through hub (`docs/design/walkthrough.html`), verified local/hosted prototype navigation across all 5 prototypes, authored Phase 3 summary (`docs/phase-3-summary.md`), and committed to Git.
 - **2026-11-08** — Ran the claude-code-setup recommender early, at your request (the plan said before Phase 6; it will run again then on the app code). Added `AGENTS.md` as the single instruction file for all agents (Codex, Cursor, Copilot, Gemini CLI, Windsurf; Claude Code imports it), `.gemini/settings.json`, a hook that blocks hand edits to generated files, a brand-check hook, the `/new-topic` skill and the `plain-english-reviewer` agent. context7 is planned for Phase 5.
 - **2026-10-29** — Step 3.8 finished and waiting for review. You chose to skip the reading-time test: copy, download and send did not reach me, so it moves to Phase 5 with real learners.
