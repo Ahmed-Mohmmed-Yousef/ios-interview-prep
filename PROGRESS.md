@@ -104,7 +104,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **swiftui-navigation** (Navigation) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-navigation/review.html](docs/topics/swiftui-navigation/review.html)
   - ✅ **Batch 1E: App and System (1 topic: `xcode-and-git-basics`)** — Complete
     - ✅ **xcode-and-git-basics** (Xcode, Projects and Git) — published (lesson, diagram, 31 questions) → [docs/topics/xcode-and-git-basics/review.html](docs/topics/xcode-and-git-basics/review.html)
-- 🔄 **4.2 Junior level topics (Wave 2)** — 45 topics (44 main + 1 bonus), Batch 2A complete
+- ✅ **4.2 Junior level topics (Wave 2)** — Complete (all 45 topics published: 44 main + 1 bonus)
   - ✅ **Batch 2A: Swift Language Advanced (9 topics)** — Complete
     - ✅ **optional-chaining** (Optional Chaining) — published (lesson, diagram, 31 questions) → [docs/topics/optional-chaining/review.html](docs/topics/optional-chaining/review.html)
     - ✅ **inheritance** (Inheritance) — published (lesson, diagram, 31 questions) → [docs/topics/inheritance/review.html](docs/topics/inheritance/review.html)
@@ -149,16 +149,13 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **urlsession** (URLSession) — published (lesson, diagram, 31 questions) → [docs/topics/urlsession/review.html](docs/topics/urlsession/review.html)
     - ✅ **userdefaults-and-files** (UserDefaults and Files) — published (lesson, diagram, 31 questions) → [docs/topics/userdefaults-and-files/review.html](docs/topics/userdefaults-and-files/review.html)
     - ✅ **keychain-basics** (Keychain Basics) — published (lesson, diagram, 31 questions) → [docs/topics/keychain-basics/review.html](docs/topics/keychain-basics/review.html)
-  - 🔄 **Batch 2F: Architecture & Testing (6 topics, 5/6 published)**
+  - ✅ **Batch 2F: Architecture & Testing (6 topics)** — Complete (all 6 topics published)
     - ✅ **communication-patterns** (Delegates, Closures and Notifications) — published (lesson, diagram, 31 questions) → [docs/topics/communication-patterns/review.html](docs/topics/communication-patterns/review.html)
     - ✅ **mvc** (MVC and Its Problems) — published (lesson, diagram, 31 questions) → [docs/topics/mvc/review.html](docs/topics/mvc/review.html)
     - ✅ **solid-basics** (SOLID Basics) — published (lesson, diagram, 31 questions) → [docs/topics/solid-basics/review.html](docs/topics/solid-basics/review.html)
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
-    - 🔄 **unit-testing** (Unit Tests) — starting research
-    - ⬜ **debugging-lldb** (Debugging with Breakpoints and LLDB)
-    - ⬜ **logging-oslog** (Logging with OSLog)
-    - ⬜ **unit-testing** (Unit Tests)
+    - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
 - ⬜ **4.3 Mid level topics (Wave 3)** — 44 main + 9 bonus
 - ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
 - ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
@@ -309,6 +306,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Completed Junior Level Wave 2: all 45 junior topics (44 main + 1 bonus) across Batches 2A–2F are now 100% published and committed! Built and published the final topic unit-testing (Unit Tests): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/unit-testing/review.html`). All checks passed. Total published topics across curriculum: 67 (22 Fresh + 45 Junior).
 
 - **2026-11-09** — Pushed the project to a public GitHub repo with MIT (code) and CC BY-NC-SA 4.0 (content) licenses, and added CI. The first CI run passed. Added `/main` (a stray compiled Swift file) to `.gitignore`.
 - **2026-11-09** — Built and published topic logging-oslog (Logging with OSLog): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/logging-oslog/review.html`). All checks passed. Starting unit-testing.

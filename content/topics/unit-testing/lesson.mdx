@@ -1,0 +1,251 @@
+export const meta = {
+  id: "unit-testing",
+  summary: "Write fast, isolated unit tests using the Arrange-Act-Assert pattern with Swift Testing and XCTest.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Swift Testing", url: "https://developer.apple.com/documentation/testing", kind: "official" },
+    { title: "XCTest", url: "https://developer.apple.com/documentation/xctest", kind: "official" },
+    { title: "Migrating a test from XCTest (Swift Testing)", url: "https://developer.apple.com/documentation/testing/migratingfromxctest", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is the difference between `#expect` and `try #require` in the Swift Testing framework?</Question>
+  <Guess>
+    <Option id="a">`#expect` is for integer math, while `#require` only compares strings.</Option>
+    <Option id="b" correct>`#expect` records a failure and continues, while `#require` halts the test immediately on failure.</Option>
+    <Option id="c">`#require` is deprecated in favor of legacy XCTest assertions.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a watchmaker assembling an expensive mechanical wristwatch.
+
+The watch contains tiny gears, springs, and levers.
+If the watchmaker builds the entire watch and closes the steel casing, finding a broken gear is frustrating.
+The watchmaker would have to take the entire watch apart to locate the flaw.
+
+Instead, the watchmaker tests each individual brass gear on a testing rig before assembly.
+The watchmaker checks teeth dimensions and spins each gear independently.
+If a gear wobbles, the watchmaker fixes it immediately.
+Testing individual parts before assembling the full machine is the exact purpose of **unit testing**.
+</Analogy>
+
+In iOS development, **unit tests** check small, isolated units of code, like functions, models, and view models.
+Good unit tests follow the **AAA pattern**:
+
+1. **Arrange**: Set up test data, input parameters, and mock objects.
+2. **Act**: Call the function or method you want to test.
+3. **Assert**: Verify that the actual result matches your expected output.
+
+Apple provides two testing frameworks:
+
+- **XCTest**: The traditional framework. Tests inherit from `XCTestCase`, methods begin with `test`, and use assertions like `XCTAssertEqual`.
+- **Swift Testing**: The modern pure-Swift framework. Uses the `@Test` and `@Suite` macros, runs tests in parallel, and checks values with `#expect`.
+
+## See it
+
+<Diagram id="unit-testing-diagram">
+{/*
+  Interactive 4-step diagram of iOS unit testing architecture:
+  1. Arrange-Act-Assert: The 3 phases of a structured unit test.
+  2. Framework Comparison: XCTestCase classes vs Swift Testing @Suite structs.
+  3. Assertions & Halting: #expect (non-halting) vs try #require (halting).
+  4. Test Doubles & Mocks: Decoupling networks and dependencies with test spies.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why must unit tests avoid making live network requests to real server endpoints?</Question>
+  <Option id="a">Because live requests consume too much screen rendering power.</Option>
+  <Option id="b" correct>Because network requests are slow, non-deterministic, and fail when offline.</Option>
+  <Option id="c">Because Xcode automatically disables internet access during compilation.</Option>
+  <Explanation>Unit tests must be fast and reliable. Live networks introduce latency, rate limits, and external server dependencies.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is the **Arrange-Act-Assert** pattern in action.
+We test a shopping cart discount calculation without any UIKit dependencies.
+
+<CodeExample title="The Arrange-Act-Assert pattern for business logic">
+
+```swift
+import Foundation
+
+struct ShoppingCart {
+    private(set) var items: [Int] = []
+
+    mutating func add(price: Int) {
+        items.append(price)
+    }
+
+    func total(discountPercent: Int) -> Int {
+        let sum = items.reduce(0, +)
+        let discount = (sum * discountPercent) / 100
+        return sum - discount
+    }
+}
+
+final class CartTestRunner {
+    func testCartTotalCalculation() {
+        // Arrange
+        var cart = ShoppingCart()
+        cart.add(price: 100)
+        cart.add(price: 50)
+
+        // Act
+        let total = cart.total(discountPercent: 10)
+
+        // Assert
+        assert(total == 135, "Expected 135 after 10% discount")
+        print("Test passed: cart total is $\(total)")
+    }
+}
+
+let runner = CartTestRunner()
+runner.testCartTotalCalculation()
+```
+
+```output
+Test passed: cart total is $135
+```
+
+</CodeExample>
+
+Now look at isolating code using a test double.
+By injecting a `MockAuthAPI`, we test the `LoginCoordinator` without hitting a real backend.
+
+<CodeExample title="Using a mock spy to verify method calls and parameters">
+
+```swift
+import Foundation
+
+protocol AuthAPI {
+    func signIn(token: String) -> Bool
+}
+
+final class MockAuthAPI: AuthAPI {
+    var wasCalled = false
+    var lastToken: String?
+
+    func signIn(token: String) -> Bool {
+        wasCalled = true
+        lastToken = token
+        return true
+    }
+}
+
+final class LoginCoordinator {
+    private let api: AuthAPI
+
+    init(api: AuthAPI) {
+        self.api = api
+    }
+
+    func authenticate(token: String) -> Bool {
+        return api.signIn(token: token)
+    }
+}
+
+// Arrange
+let mock = MockAuthAPI()
+let coordinator = LoginCoordinator(api: mock)
+
+// Act
+let success = coordinator.authenticate(token: "secret_token_123")
+
+// Assert
+assert(success == true)
+assert(mock.wasCalled == true)
+assert(mock.lastToken == "secret_token_123")
+print("Mock verified: authentication succeeded with token")
+```
+
+```output
+Mock verified: authentication succeeded with token
+```
+
+</CodeExample>
+
+<TryIt>
+Open an Xcode project. Press Command-U to run unit tests. Create a new test case using Swift Testing with `@Test` and `#expect`.
+</TryIt>
+
+<QuickCheck>
+  <Question>When should you use try #require instead of #expect in Swift Testing?</Question>
+  <Option id="a">When testing mathematical multiplication operations.</Option>
+  <Option id="b" correct>When unwrapping an optional value that subsequent test lines depend upon.</Option>
+  <Option id="c">Only when writing UI automation tests.</Option>
+  <Explanation>try #require halts the test immediately if the value is nil or false, preventing crashes on subsequent lines.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Using #expect when unwrapping optionals">
+In Swift Testing, `#expect` records a failure but continues executing.
+If you check an optional with `#expect(user != nil)` and then force-unwrap `user!`, the test crashes at runtime.
+Always use `let user = try #require(optionalUser)` to halt safely when unwrapping fails.
+</Trap>
+
+<Trap title="Sharing mutable global state between tests">
+Swift Testing runs test functions concurrently in parallel by default.
+If multiple tests read and write to a shared singleton, race conditions occur.
+Tests will fail intermittently.
+Always use local state or inject fresh instances for each test.
+</Trap>
+
+<Trap title="Testing implementation details instead of behavior">
+Asserting on private variable states makes tests brittle.
+When you refactor internal code, tests break even though user behavior remains correct.
+Test public inputs and outputs rather than private implementation details.
+</Trap>
+
+<Trap title="Writing slow integration tests as unit tests">
+Calling real disk files, live network endpoints, or hardware sensors belongs in integration tests.
+Unit tests should execute in memory in milliseconds.
+Decouple dependencies with protocols and inject mocks.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Unit tests verify that functions and models work correctly in isolation.
+We follow the Arrange-Act-Assert pattern: set up data, run the method, and assert results.
+Apple provides XCTest and the new Swift Testing framework.
+XCTest uses classes with `test` method prefixes.
+Swift Testing uses `@Test` and `@Suite` macros with `#expect`.
+Tests must run fast in memory and never touch live network endpoints.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+I write unit tests using the Arrange-Act-Assert pattern to verify business logic.
+In legacy code, I use XCTest with `XCTestCase` and `XCTAssertEqual`.
+In modern Swift code, I use Swift Testing with `@Test` and `@Suite`.
+Swift Testing lets us use structs instead of classes and runs tests in parallel.
+I use `#expect` for regular assertions and `try #require` when unwrapping optionals that must halt on failure.
+I decouple external systems with protocols so I can inject fast in-memory mocks.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Unit testability is an architectural requirement.
+I apply the Dependency Inversion Principle to isolate view models and business engines from UIKit, Core Data, and URLSession.
+With Swift Testing in Swift 6, tests execute concurrently across actors by default, enforcing thread safety and exposing singleton leaks.
+I use parameterized testing with `@Test(arguments:)` to test edge cases declaratively.
+We maintain test suites that run in seconds, enabling continuous integration pipelines to catch regressions on every pull request.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- **Unit tests** verify isolated units of code like functions, models, and view models.
+- Follow the **Arrange-Act-Assert** (AAA) pattern for clear, readable tests.
+- **XCTest** uses class inheritance, `test` function prefixes, and `XCTAssert` methods.
+- **Swift Testing** uses modern `@Test` and `@Suite` macros with pure Swift syntax.
+- Use **#expect** for continuing checks and **try #require** to halt on fatal unwrap failures.
+- Decouple networking and storage using protocols to inject fast in-memory mocks.
+</Recap>

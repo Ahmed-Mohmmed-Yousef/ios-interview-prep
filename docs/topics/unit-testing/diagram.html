@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Unit Testing: Swift Testing and XCTest Architecture</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #16a34a; --step2-soft: #dcfce7;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #7c3aed; --step4-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #4ade80; --step2-soft: #052e16;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #a78bfa; --step4-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 12px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Interactive Unit Testing Architecture Stepper">
+  <div class="panels">
+    <div class="panel">
+      <h3>
+        <span class="kind s1" id="badge">Step 1</span>
+        <span id="title">Arrange — Act — Assert</span>
+      </h3>
+      <p class="caption" id="desc">
+        The AAA pattern separates test data preparation, method execution, and outcome verification.
+      </p>
+      <div class="code" id="codeSnippet">// Arrange: setup test data
+// Act: execute target method
+// Assert: verify expected output</div>
+    </div>
+    <div class="panel">
+      <svg viewBox="0 0 320 200" aria-hidden="true">
+        <rect x="0" y="0" width="320" height="200" class="device-frame" />
+        <g id="visualScene"></g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="stepper">
+    <div class="step-indicators" role="tablist">
+      <div class="step-dot active" role="tab" aria-selected="true" tabindex="0">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" tabindex="0">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" tabindex="0">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" tabindex="0">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled>Back</button>
+      <button id="nextBtn">Next</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "Arrange — Act — Assert (AAA)",
+    desc: "The AAA pattern structures unit tests into three distinct phases: prepare inputs, call code, and verify results.",
+    code: `// 1. Arrange\nlet cart = ShoppingCart(items: [100, 50])\n// 2. Act\nlet total = cart.total(discount: 10)\n// 3. Assert\n#expect(total == 135)`,
+    svg: `
+      <rect x="25" y="35" width="270" height="36" rx="6" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="1.5" />
+      <text x="38" y="57" font-size="11" font-weight="700" fill="var(--step1-color)">1. Arrange</text>
+      <text x="120" y="57" font-size="9" fill="var(--ink)">Setup models, inputs & mocks</text>
+
+      <rect x="25" y="80" width="270" height="36" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="38" y="102" font-size="11" font-weight="700" fill="var(--ink)">2. Act</text>
+      <text x="120" y="102" font-size="9" fill="var(--ink)">Execute the function under test</text>
+
+      <rect x="25" y="125" width="270" height="36" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="38" y="147" font-size="11" font-weight="700" fill="var(--ink)">3. Assert</text>
+      <text x="120" y="147" font-size="9" fill="var(--ink)">Verify expected outcome with #expect</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Clear, repeatable test structure</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "XCTest vs Swift Testing",
+    desc: "XCTest requires class inheritance and test prefixes. Swift Testing uses modern macros, structs, and parallel execution.",
+    code: `// Legacy XCTest\nclass CartTests: XCTestCase { ... }\n// Modern Swift Testing\n@Suite struct CartTests {\n  @Test func total() { ... }\n}`,
+    svg: `
+      <rect x="25" y="35" width="130" height="110" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="90" y="58" text-anchor="middle" font-size="10" font-weight="700" fill="var(--muted)">XCTest</text>
+      <text x="90" y="80" text-anchor="middle" font-size="8" fill="var(--ink)">class: XCTestCase</text>
+      <text x="90" y="100" text-anchor="middle" font-size="8" fill="var(--ink)">func testName()</text>
+      <text x="90" y="120" text-anchor="middle" font-size="8" fill="var(--muted)">Sequential runs</text>
+
+      <rect x="165" y="35" width="130" height="110" rx="6" fill="var(--step2-soft)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="230" y="58" text-anchor="middle" font-size="10" font-weight="700" fill="var(--step2-color)">Swift Testing</text>
+      <text x="230" y="80" text-anchor="middle" font-size="8" font-weight="600" fill="var(--step2-color)">@Suite struct</text>
+      <text x="230" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="var(--step2-color)">@Test("Title")</text>
+      <text x="230" y="120" text-anchor="middle" font-size="8" fill="var(--ink)">Parallel by default</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Modern pure-Swift test framework</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "#expect vs try #require",
+    desc: "#expect records a failure and continues. try #require halts the test immediately to prevent unwrapping crashes.",
+    code: `// Non-halting: logs failure, continues\n#expect(score == 100)\n\n// Halting: aborts test if nil\nlet user = try #require(optionalUser)`,
+    svg: `
+      <rect x="25" y="35" width="130" height="110" rx="6" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="1.5" />
+      <text x="90" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">#expect</text>
+      <text x="90" y="80" text-anchor="middle" font-size="9" fill="var(--muted)">Non-Halting</text>
+      <text x="90" y="105" text-anchor="middle" font-size="8" fill="var(--ink)">Records failure</text>
+      <text x="90" y="125" text-anchor="middle" font-size="8" fill="var(--ink)">Continues test</text>
+
+      <rect x="165" y="35" width="130" height="110" rx="6" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="230" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">try #require</text>
+      <text x="230" y="80" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step3-color)">Halting</text>
+      <text x="230" y="105" text-anchor="middle" font-size="8" fill="var(--ink)">Safe optional unwrap</text>
+      <text x="230" y="125" text-anchor="middle" font-size="8" font-weight="600" fill="var(--step3-color)">Aborts on nil!</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Choose the right assertion strategy</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Test Doubles & Isolation",
+    desc: "Injecting in-memory mocks through protocols eliminates network latency and avoids fragile external server dependencies.",
+    code: `protocol APIClient { func fetch() }\nstruct MockAPI: APIClient { ... }\nlet viewModel = ViewModel(api: MockAPI())`,
+    svg: `
+      <rect x="25" y="40" width="115" height="100" rx="6" fill="var(--surface)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="82" y="65" text-anchor="middle" font-size="10" font-weight="700" fill="var(--step4-color)">LoginCoordinator</text>
+      <text x="82" y="90" text-anchor="middle" font-size="8" fill="var(--muted)">Depends on</text>
+      <text x="82" y="110" text-anchor="middle" font-size="8" font-weight="600" fill="var(--ink)">&laquo;AuthAPI Protocol&raquo;</text>
+
+      <line x1="140" y1="90" x2="180" y2="90" stroke="var(--step4-color)" stroke-width="2" stroke-dasharray="3,3" />
+
+      <rect x="180" y="40" width="115" height="100" rx="6" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="237" y="65" text-anchor="middle" font-size="10" font-weight="700" fill="var(--step4-color)">MockAuthAPI</text>
+      <text x="237" y="90" text-anchor="middle" font-size="8" fill="var(--ink)">In-memory spy</text>
+      <text x="237" y="115" text-anchor="middle" font-size="8" font-weight="600" fill="var(--step4-color)">Zero network calls</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Fast, deterministic, isolated tests</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+</script>
+</body>
+</html>
