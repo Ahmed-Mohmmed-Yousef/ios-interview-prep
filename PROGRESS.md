@@ -123,8 +123,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **recursion** (Recursion) — published (lesson, diagram, 31 questions) → [docs/topics/recursion/review.html](docs/topics/recursion/review.html)
     - ✅ **matrix-problems** (Matrix Problems) — published (lesson, diagram, 31 questions) → [docs/topics/matrix-problems/review.html](docs/topics/matrix-problems/review.html)
   - 🔄 **Batch 2C: Memory & Concurrency (6 topics)**
-    - 🔄 **arc-basics** (How ARC Works) — starting research
-    - ⬜ **strong-weak-unowned** (Strong, Weak and Unowned)
+    - ✅ **arc-basics** (How ARC Works) — published (lesson, diagram, 31 questions) → [docs/topics/arc-basics/review.html](docs/topics/arc-basics/review.html)
+    - 🔄 **strong-weak-unowned** (Strong, Weak and Unowned) — starting research
     - ⬜ **retain-cycles** (Retain Cycles)
     - ⬜ **main-thread** (The Main Thread)
     - ⬜ **gcd-basics** (GCD Basics)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic arc-basics (How ARC Works): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/arc-basics/review.html`). All checks passed. Starting strong-weak-unowned.
 
 - **2026-11-09** — Completed Batch 2B (Coding Interview Algorithms: 6 topics published and committed). Launching dedicated autonomous subagent for Batch 2C (Memory & Concurrency: 6 topics, `arc-basics` through `async-await`).
 

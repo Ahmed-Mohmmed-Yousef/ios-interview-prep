@@ -1,0 +1,244 @@
+export const meta = {
+  id: "arc-basics",
+  summary: "Learn how Automatic Reference Counting (ARC) manages memory in Swift by tracking strong references to class instances.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Automatic Reference Counting", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting", kind: "official" },
+    { title: "WWDC21: ARC in Swift: Basics and beyond", url: "https://developer.apple.com/videos/play/wwdc2021/10216/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>When does Swift free the memory used by a class instance?</Question>
+  <Guess>
+    <Option id="a">A background garbage collector scans memory every few seconds.</Option>
+    <Option id="b" correct>ARC frees the instance immediately when its strong reference count drops to zero.</Option>
+    <Option id="c">Memory stays allocated until the whole application closes.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a shared coat rack with numbered tags.
+
+When you hang your coat, the attendant notes one active ticket for it.
+
+If a friend shares the same ticket, the count increases to two.
+
+When you both return your tickets, the count drops to zero.
+
+At zero tickets, the attendant clears the hook immediately.
+</Analogy>
+
+**Automatic Reference Counting (ARC)** is how Swift manages memory for reference types.
+
+Reference types include classes and actors. Value types like structs and enums do not use reference counts.
+
+1. **Count goes up on assignment**:
+   - When you create an object, ARC sets its reference count to 1.
+   - Every time you assign that object to another variable or property, the count increases by 1.
+2. **Count goes down when references disappear**:
+   - When a variable goes out of scope, the count drops by 1.
+   - When you set a reference variable to `nil`, the count drops by 1.
+3. **Immediate cleanup at zero**:
+   - When the strong reference count reaches 0, Swift calls `deinit`.
+   - Swift reclaims the memory immediately.
+
+ARC is deterministic. Swift does not use a background garbage collector.
+
+## See it
+
+<Diagram id="arc-basics-stepper" caption="Step-by-step lifecycle of strong reference counting on a class instance">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Person object in heap memory box with reference count counter.
+    2. Variable ref1 on the stack pointing to the object.
+    3. Variable ref2 on the stack pointing to the object.
+  - Steps:
+    Step 1: Allocation. ref1 points to Person("Taylor"). Reference count = 1.
+    Step 2: Assignment. ref2 = ref1. Both variables point to Person. Reference count = 2.
+    Step 3: Release ref1. ref1 = nil. Only ref2 points to Person. Reference count = 1.
+    Step 4: Release ref2. ref2 = nil. Count drops to 0. deinit runs and heap memory is freed.
+  - Static version (reduced motion):
+    A 4-step sequence showing reference count moving from 1 to 2 to 1 to 0 (freed).
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which Swift types use Automatic Reference Counting?</Question>
+  <Option id="a">All Swift types, including Int, Double, and custom structs.</Option>
+  <Option id="b" correct>Only reference types such as classes, actors, and closures.</Option>
+  <Option id="c">Only structures marked with the mutating keyword.</Option>
+  <Explanation>ARC only tracks reference types. Value types copy their data and do not need reference counts.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Tracking reference counts with variables and deinit">
+
+```swift
+class Person {
+    let name: String
+    init(name: String) {
+        self.name = name
+        print("\(name) is initialized")
+    }
+    deinit {
+        print("\(name) is deinitialized")
+    }
+}
+
+var ref1: Person? = Person(name: "Taylor")
+var ref2: Person? = ref1
+
+print("Setting ref1 to nil")
+ref1 = nil
+
+print("Setting ref2 to nil")
+ref2 = nil
+```
+
+```output
+Taylor is initialized
+Setting ref1 to nil
+Setting ref2 to nil
+Taylor is deinitialized
+```
+
+</CodeExample>
+
+In this example, creating `Person` sets the reference count to 1.
+
+Assigning `ref2 = ref1` increases the reference count to 2.
+
+Setting `ref1 = nil` reduces the count to 1, so the object stays alive.
+
+Setting `ref2 = nil` drops the count to 0.
+
+Swift runs `deinit` right away and reclaims the heap memory.
+
+<CodeExample title="Local scope releases references automatically">
+
+```swift
+class Document {
+    let title: String
+    init(title: String) {
+        self.title = title
+        print("Opened \(title)")
+    }
+    deinit {
+        print("Closed \(title)")
+    }
+}
+
+func processDocument() {
+    print("Function start")
+    let doc = Document(title: "Report")
+    print("Working on \(doc.title)")
+    print("Function end")
+}
+
+processDocument()
+print("After function call")
+```
+
+```output
+Function start
+Opened Report
+Working on Report
+Function end
+Closed Report
+After function call
+```
+
+</CodeExample>
+
+In this second example, `doc` exists only inside `processDocument`.
+
+When the function finishes, the local variable scope ends.
+
+The strong reference count drops to 0.
+
+Swift deallocates the document before the next line runs.
+
+<QuickCheck>
+  <Question>When does Swift call the deinit method of a class?</Question>
+  <Option id="a">When the CPU enters an idle state in the background.</Option>
+  <Option id="b" correct>Immediately when the strong reference count drops to zero.</Option>
+  <Option id="c">When the application receives a low memory warning from iOS.</Option>
+  <Explanation>Swift calls deinit immediately as soon as the last strong reference to the object goes away.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming ARC is a garbage collector">
+Many candidates say Swift has a garbage collector.
+
+A garbage collector runs in the background and scans memory at intervals.
+
+ARC works at compile time. The compiler inserts retain and release calls into your code.
+
+Deallocation happens immediately when the count reaches zero.
+</Trap>
+
+<Trap title="Believing structs use ARC">
+Structs are value types, not reference types.
+
+A struct is copied when passed around, so it has no reference count.
+
+If a struct contains a class property, ARC tracks that class reference, not the struct itself.
+</Trap>
+
+<Trap title="Expecting ARC to fix retain cycles automatically">
+ARC only frees memory when the reference count drops to zero.
+
+If two objects hold strong references to each other, the count never reaches zero.
+
+Both objects stay in memory forever. You must break the cycle with weak or unowned references.
+</Trap>
+
+<Trap title="Assuming deinit runs on a background thread">
+Swift executes `deinit` synchronously on whichever thread drops the final strong reference.
+
+If the main thread releases the last reference, `deinit` runs on the main thread.
+
+Keep `deinit` lightweight to avoid blocking user interface animations.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"ARC stands for Automatic Reference Counting. It manages memory for reference types like classes. When an object is created, its count is one. Each new strong reference increases the count. When references are set to nil or go out of scope, the count decreases. When the count drops to zero, Swift calls deinit and frees the memory."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"Swift uses compile-time reference counting rather than a runtime garbage collector. The compiler inserts retain and release calls into the binary. Memory deallocation is deterministic and happens immediately when the reference count reaches zero. ARC only applies to reference types, while value types copy their data."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"ARC differs from tracing garbage collection because it has no collection pauses. The Swift compiler optimizes retain and release pairs and follows lexical lifetimes. In multithreaded apps, reference count mutations use atomic operations, which introduce small synchronization overhead. To optimize performance in critical code, we can pass parameters with borrowing or consuming conventions."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- ARC tracks strong references to class and actor instances.
+- Reference counts increase on assignment and decrease when references disappear.
+- Memory is freed immediately when the strong reference count reaches zero.
+- ARC is deterministic and does not use a background garbage collector.
+- Value types like structs do not have reference counts.
+- Retain cycles prevent reference counts from reaching zero, causing memory leaks.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Automatic Reference Counting](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting) — Official guide on ARC behavior, strong references, and deallocation.
+- [WWDC21: ARC in Swift: Basics and beyond](https://developer.apple.com/videos/play/wwdc2021/10216/) — Deep dive into object lifetimes and compiler optimizations.

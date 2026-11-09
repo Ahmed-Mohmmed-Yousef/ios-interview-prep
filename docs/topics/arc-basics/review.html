@@ -1,0 +1,600 @@
+<title>How ARC Works Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --stack-color: #6366f1; --stack-soft: #eef2ff;
+  --heap-color: #0284c7; --heap-soft: #e0f2fe;
+  --alive-color: #16a34a; --alive-soft: #dcfce7;
+  --freed-color: #dc2626; --freed-soft: #fee2e2;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --stack-color: #818cf8; --stack-soft: #1e1b4b;
+  --heap-color: #38bdf8; --heap-soft: #082f49;
+  --alive-color: #4ade80; --alive-soft: #14532d;
+  --freed-color: #f87171; --freed-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.stack { background: var(--stack-soft); color: var(--stack-color); }
+.kind.heap { background: var(--heap-soft); color: var(--heap-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 10px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.stack { fill: var(--stack-soft); stroke: var(--stack-color); }
+.box-rect.heap { fill: var(--heap-soft); stroke: var(--heap-color); }
+.box-rect.freed { fill: var(--freed-soft); stroke: var(--freed-color); stroke-dasharray: 4 4; }
+
+.text-title { font-family: var(--font-body); font-size: 14px; font-weight: 700; fill: var(--ink); }
+.text-val { font-family: var(--font-code); font-size: 13px; font-weight: 600; fill: var(--ink); }
+.text-muted { font-family: var(--font-body); font-size: 12px; fill: var(--muted); }
+
+.count-badge { font-family: var(--font-code); font-size: 16px; font-weight: 700; }
+.count-badge.alive { fill: var(--alive-color); }
+.count-badge.freed { fill: var(--freed-color); }
+
+.arrow { stroke-width: 2.5; marker-end: url(#arrowhead); transition: opacity 0.3s, stroke 0.3s; }
+.arrow.active { stroke: var(--stack-color); opacity: 1; }
+.arrow.inactive { stroke: var(--muted); opacity: 0.15; stroke-dasharray: 4 4; }
+
+.controls {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 16px;
+}
+.btn {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  font: 600 13px var(--font-body); padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 999px; background: var(--line);
+  cursor: pointer; border: none; padding: 0;
+}
+.dot.active { background: var(--stack-color); transform: scale(1.2); }
+
+.reduced-static { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-stepper { display: none; }
+  .reduced-static { display: grid; gap: 12px; }
+  .static-step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .static-step h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--stack-color); }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Memory · Topic 1 of 3 · Prototype</p>
+    <h1>How ARC Works</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain how ARC decides when to free an object.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">When does Swift free the memory used by a class instance?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A background garbage collector scans memory every few seconds.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">ARC frees the instance immediately when its strong reference count drops to zero.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Memory stays allocated until the whole application closes.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine a shared coat rack with numbered tags.</p><p>When you hang your coat, the attendant notes one active ticket for it.</p><p>If a friend shares the same ticket, the count increases to two.</p><p>When you both return your tickets, the count drops to zero.</p><p>At zero tickets, the attendant clears the hook immediately.</p></aside>
+<p><strong>Automatic Reference Counting (ARC)</strong> is how Swift manages memory for reference types.</p>
+<p>Reference types include classes and actors. Value types like structs and enums do not use reference counts.</p>
+<ol>
+<li><strong>Count goes up on assignment</strong>:
+<ul>
+<li>When you create an object, ARC sets its reference count to 1.</li>
+<li>Every time you assign that object to another variable or property, the count increases by 1.</li>
+</ul>
+</li>
+<li><strong>Count goes down when references disappear</strong>:
+<ul>
+<li>When a variable goes out of scope, the count drops by 1.</li>
+<li>When you set a reference variable to <code>nil</code>, the count drops by 1.</li>
+</ul>
+</li>
+<li><strong>Immediate cleanup at zero</strong>:
+<ul>
+<li>When the strong reference count reaches 0, Swift calls <code>deinit</code>.</li>
+<li>Swift reclaims the memory immediately.</li>
+</ul>
+</li>
+</ol>
+<p>ARC is deterministic. Swift does not use a background garbage collector.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which Swift types use Automatic Reference Counting?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">All Swift types, including Int, Double, and custom structs.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Only reference types such as classes, actors, and closures.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Only structures marked with the mutating keyword.</span></button><p class="qc-explain" hidden="">ARC only tracks reference types. Value types copy their data and do not need reference counts.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Tracking reference counts with variables and deinit</figcaption><pre class="block swift"><code class="language-swift">class Person {
+    let name: String
+    init(name: String) {
+        self.name = name
+        print(&quot;\(name) is initialized&quot;)
+    }
+    deinit {
+        print(&quot;\(name) is deinitialized&quot;)
+    }
+}
+
+var ref1: Person? = Person(name: &quot;Taylor&quot;)
+var ref2: Person? = ref1
+
+print(&quot;Setting ref1 to nil&quot;)
+ref1 = nil
+
+print(&quot;Setting ref2 to nil&quot;)
+ref2 = nil
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Taylor is initialized
+Setting ref1 to nil
+Setting ref2 to nil
+Taylor is deinitialized
+</code></pre></figure>
+<p>In this example, creating <code>Person</code> sets the reference count to 1.</p>
+<p>Assigning <code>ref2 = ref1</code> increases the reference count to 2.</p>
+<p>Setting <code>ref1 = nil</code> reduces the count to 1, so the object stays alive.</p>
+<p>Setting <code>ref2 = nil</code> drops the count to 0.</p>
+<p>Swift runs <code>deinit</code> right away and reclaims the heap memory.</p>
+<figure class="code-example"><figcaption>Local scope releases references automatically</figcaption><pre class="block swift"><code class="language-swift">class Document {
+    let title: String
+    init(title: String) {
+        self.title = title
+        print(&quot;Opened \(title)&quot;)
+    }
+    deinit {
+        print(&quot;Closed \(title)&quot;)
+    }
+}
+
+func processDocument() {
+    print(&quot;Function start&quot;)
+    let doc = Document(title: &quot;Report&quot;)
+    print(&quot;Working on \(doc.title)&quot;)
+    print(&quot;Function end&quot;)
+}
+
+processDocument()
+print(&quot;After function call&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Function start
+Opened Report
+Working on Report
+Function end
+Closed Report
+After function call
+</code></pre></figure>
+<p>In this second example, <code>doc</code> exists only inside <code>processDocument</code>.</p>
+<p>When the function finishes, the local variable scope ends.</p>
+<p>The strong reference count drops to 0.</p>
+<p>Swift deallocates the document before the next line runs.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">When does Swift call the deinit method of a class?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">When the CPU enters an idle state in the background.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Immediately when the strong reference count drops to zero.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">When the application receives a low memory warning from iOS.</span></button><p class="qc-explain" hidden="">Swift calls deinit immediately as soon as the last strong reference to the object goes away.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming ARC is a garbage collector</p><p>Many candidates say Swift has a garbage collector.</p><p>A garbage collector runs in the background and scans memory at intervals.</p><p>ARC works at compile time. The compiler inserts retain and release calls into your code.</p><p>Deallocation happens immediately when the count reaches zero.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Believing structs use ARC</p><p>Structs are value types, not reference types.</p><p>A struct is copied when passed around, so it has no reference count.</p><p>If a struct contains a class property, ARC tracks that class reference, not the struct itself.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Expecting ARC to fix retain cycles automatically</p><p>ARC only frees memory when the reference count drops to zero.</p><p>If two objects hold strong references to each other, the count never reaches zero.</p><p>Both objects stay in memory forever. You must break the cycle with weak or unowned references.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming deinit runs on a background thread</p><p>Swift executes <code>deinit</code> synchronously on whichever thread drops the final strong reference.</p><p>If the main thread releases the last reference, <code>deinit</code> runs on the main thread.</p><p>Keep <code>deinit</code> lightweight to avoid blocking user interface animations.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;ARC stands for Automatic Reference Counting. It manages memory for reference types like classes. When an object is created, its count is one. Each new strong reference increases the count. When references are set to nil or go out of scope, the count decreases. When the count drops to zero, Swift calls deinit and frees the memory.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;Swift uses compile-time reference counting rather than a runtime garbage collector. The compiler inserts retain and release calls into the binary. Memory deallocation is deterministic and happens immediately when the reference count reaches zero. ARC only applies to reference types, while value types copy their data.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;ARC differs from tracing garbage collection because it has no collection pauses. The Swift compiler optimizes retain and release pairs and follows lexical lifetimes. In multithreaded apps, reference count mutations use atomic operations, which introduce small synchronization overhead. To optimize performance in critical code, we can pass parameters with borrowing or consuming conventions.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>ARC tracks strong references to class and actor instances.</li>
+<li>Reference counts increase on assignment and decrease when references disappear.</li>
+<li>Memory is freed immediately when the strong reference count reaches zero.</li>
+<li>ARC is deterministic and does not use a background garbage collector.</li>
+<li>Value types like structs do not have reference counts.</li>
+<li>Retain cycles prevent reference counts from reaching zero, causing memory leaks.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting">The Swift Programming Language: Automatic Reference Counting</a> — Official guide on ARC behavior, strong references, and deallocation.</li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2021/10216/">WWDC21: ARC in Swift: Basics and beyond</a> — Deep dive into object lifetimes and compiler optimizations.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    code: 'var ref1: Person? = Person(name: "Taylor")',
+    caption: 'Step 1: Memory is allocated on the heap for Person. ref1 holds a strong reference. Strong count is 1.',
+    val1: '0x100',
+    val2: 'nil',
+    arrow1: true,
+    arrow2: false,
+    heapTitle: 'Person("Taylor")',
+    heapAddr: 'Heap Address: 0x100',
+    count: '1',
+    freed: false
+  },
+  {
+    code: 'var ref2: Person? = ref1',
+    caption: 'Step 2: Assigning ref2 = ref1 adds a second strong reference. Count increases to 2.',
+    val1: '0x100',
+    val2: '0x100',
+    arrow1: true,
+    arrow2: true,
+    heapTitle: 'Person("Taylor")',
+    heapAddr: 'Heap Address: 0x100',
+    count: '2',
+    freed: false
+  },
+  {
+    code: 'ref1 = nil',
+    caption: 'Step 3: Setting ref1 to nil drops its reference. Only ref2 remains. Count is 1, so the object stays alive.',
+    val1: 'nil',
+    val2: '0x100',
+    arrow1: false,
+    arrow2: true,
+    heapTitle: 'Person("Taylor")',
+    heapAddr: 'Heap Address: 0x100',
+    count: '1',
+    freed: false
+  },
+  {
+    code: 'ref2 = nil',
+    caption: 'Step 4: Setting ref2 to nil drops the count to 0. Swift immediately calls deinit and frees the memory.',
+    val1: 'nil',
+    val2: 'nil',
+    arrow1: false,
+    arrow2: false,
+    heapTitle: 'Person (Deallocated)',
+    heapAddr: 'Memory Freed by ARC',
+    count: '0 (Freed)',
+    freed: true
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+
+  document.getElementById("val-ref1").textContent = s.val1;
+  document.getElementById("val-ref2").textContent = s.val2;
+
+  const a1 = document.getElementById("arrow1");
+  const a2 = document.getElementById("arrow2");
+  a1.className.baseVal = "arrow " + (s.arrow1 ? "active" : "inactive");
+  a2.className.baseVal = "arrow " + (s.arrow2 ? "active" : "inactive");
+
+  document.getElementById("heap-title").textContent = s.heapTitle;
+  document.getElementById("heap-addr").textContent = s.heapAddr;
+
+  const countBadge = document.getElementById("heap-count");
+  countBadge.textContent = s.count;
+  countBadge.className.baseVal = "count-badge " + (s.freed ? "freed" : "alive");
+
+  const heapRect = document.getElementById("heap-rect");
+  heapRect.className.baseVal = "box-rect " + (s.freed ? "freed" : "heap");
+
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"arc-basics","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"arc-basics-q1","type":"mcq","difficulty":1,"prompt":"What does the acronym ARC stand for in Swift?","options":[{"id":"a","text":"Automatic Reference Counting.","explanation":"Right. ARC stands for Automatic Reference Counting."},{"id":"b","text":"Asynchronous Resource Control.","explanation":"ARC is not about asynchronous resource control."},{"id":"c","text":"Automated Runtime Collector.","explanation":"Swift does not have a runtime garbage collector."},{"id":"d","text":"Allocated Retention Counter.","explanation":"This is an incorrect expansion of the acronym."}],"answer":"a"},{"id":"arc-basics-q2","type":"mcq","difficulty":1,"prompt":"Which Swift types are managed by Automatic Reference Counting?","options":[{"id":"a","text":"Only standard integer numbers, floating point numbers, and strings.","explanation":"Integers and floating point numbers are value types on the stack."},{"id":"b","text":"Reference types like classes, actors, and closures.","explanation":"Right. ARC only tracks reference types."},{"id":"c","text":"All Swift data types including custom structs and enumerations.","explanation":"Value types like structs and enums do not use reference counts."},{"id":"d","text":"Only Swift structs that conform to the Identifiable protocol.","explanation":"Conforming to Identifiable does not turn a struct into a reference type."}],"answer":"b"},{"id":"arc-basics-q3","type":"mcq","difficulty":1,"prompt":"When is the memory of a class instance freed in Swift?","options":[{"id":"a","text":"When the operating system sends a low memory alert to the app.","explanation":"ARC frees memory immediately, not only on low memory warnings."},{"id":"b","text":"When the iOS application is terminated by the user.","explanation":"Objects are deallocated during runtime as soon as references drop to zero."},{"id":"c","text":"Immediately when its strong reference count drops to zero.","explanation":"Right. ARC reclaims memory as soon as the strong count reaches zero."},{"id":"d","text":"During periodic background passes run by a garbage collector thread.","explanation":"Swift does not use a background garbage collector."}],"answer":"c"},{"id":"arc-basics-q4","type":"mcq","difficulty":1,"prompt":"What method does Swift call right before freeing a class instance from memory?","options":[{"id":"a","text":"free()","explanation":"free is a C standard library function, not a Swift deinitializer."},{"id":"b","text":"release()","explanation":"release is an internal Objective-C method, not the Swift syntax."},{"id":"c","text":"dispose()","explanation":"dispose is used in other languages like C# and Dart."},{"id":"d","text":"deinit","explanation":"Right. Swift calls deinit immediately before deallocating the instance."}],"answer":"d"},{"id":"arc-basics-q5","type":"mcq","difficulty":2,"prompt":"How does Swift ARC differ from a tracing garbage collector like Java or Go?","options":[{"id":"a","text":"ARC inserts retain and release calls at compile time without runtime pauses.","explanation":"Right. ARC is deterministic and has no stop-the-world pauses."},{"id":"b","text":"ARC runs a background daemon thread that scans all heap pointers periodically.","explanation":"Tracing garbage collectors use background threads, not ARC."},{"id":"c","text":"ARC requires the developer to call retain and release manually in Swift code.","explanation":"Swift does this automatically; manual calls were used in legacy Objective-C."},{"id":"d","text":"ARC only runs when compiling Swift apps in Debug build configurations.","explanation":"ARC runs in both Debug and Release configurations."}],"answer":"a"},{"id":"arc-basics-q6","type":"mcq","difficulty":1,"prompt":"What is the initial strong reference count of a newly created class instance?","options":[{"id":"a","text":"Zero, until it is assigned to a second variable.","explanation":"If the count were zero, the instance would be freed immediately."},{"id":"b","text":"One, held by the variable or property that receives it.","explanation":"Right. Initializing an instance and assigning it creates one strong reference."},{"id":"c","text":"Two, one for the instance and one for its type metadata.","explanation":"Type metadata is not counted as a strong reference to the instance."},{"id":"d","text":"Unlimited, until ARC determines its lifetime scope.","explanation":"Reference counts are precise integers starting at 1."}],"answer":"b"},{"id":"arc-basics-q7","type":"mcq","difficulty":2,"prompt":"What happens to the reference count when a reference variable is assigned to another variable?","options":[{"id":"a","text":"The reference count stays unchanged because the object is not copied.","explanation":"Each new strong reference increments the reference count."},{"id":"b","text":"The reference count resets to one for both variables.","explanation":"The reference count belongs to the instance and increases to two."},{"id":"c","text":"The strong reference count increases by one.","explanation":"Right. Both variables now point to the same object, so count is 2."},{"id":"d","text":"The instance creates a second independent copy on the heap.","explanation":"Classes are reference types; assigning them does not copy the instance."}],"answer":"c"},{"id":"arc-basics-q8","type":"mcq","difficulty":2,"prompt":"On which thread does Swift execute the deinit method of an object?","options":[{"id":"a","text":"Always on a dedicated background garbage collection thread.","explanation":"Swift does not have a dedicated garbage collection thread."},{"id":"b","text":"Always on the main thread, regardless of where the object lived.","explanation":"Deinit does not automatically switch to the main thread."},{"id":"c","text":"On an arbitrary background thread chosen by Grand Central Dispatch.","explanation":"Deinit is synchronous and does not dispatch to a random thread."},{"id":"d","text":"On the thread that releases the final strong reference.","explanation":"Right. Deinit runs synchronously on the thread that drops the count to zero."}],"answer":"d"},{"id":"arc-basics-q9","type":"mcq","difficulty":2,"prompt":"What happens when a struct contains a property of class type?","options":[{"id":"a","text":"ARC tracks the class property while the struct itself remains a value type.","explanation":"Right. The struct copies its values, and ARC retains the class instance."},{"id":"b","text":"The struct automatically converts into a reference type on the heap.","explanation":"Structs always remain value types regardless of their properties."},{"id":"c","text":"The Swift compiler produces a compile-time error forbidding class properties.","explanation":"Structs can freely hold class properties."},{"id":"d","text":"ARC ignores the class property, causing an immediate memory leak.","explanation":"ARC properly retains and releases the class property."}],"answer":"a"},{"id":"arc-basics-q10","type":"mcq","difficulty":2,"prompt":"What happens if two class instances hold strong references to each other?","options":[{"id":"a","text":"ARC detects the loop and deallocates both instances automatically.","explanation":"ARC cannot detect retain cycles automatically."},{"id":"b","text":"Their counts never drop to zero, creating a retain cycle and memory leak.","explanation":"Right. Both instances stay alive in memory because counts stay above zero."},{"id":"c","text":"The Swift compiler throws a compile-time circular reference error.","explanation":"Retain cycles are runtime occurrences, not compile-time errors."},{"id":"d","text":"The app crashes immediately with an out-of-memory exception.","explanation":"The app does not crash right away; it silently leaks memory."}],"answer":"b"},{"id":"arc-basics-q11","type":"mcq","difficulty":2,"prompt":"What role does the Swift compiler play in Automatic Reference Counting?","options":[{"id":"a","text":"It deletes all classes and replaces them with stack-allocated structs.","explanation":"The compiler does not convert class types to structs."},{"id":"b","text":"It runs the app inside a virtual machine to intercept pointer calls.","explanation":"Swift compiles directly to native code without a virtual machine."},{"id":"c","text":"It analyzes scopes and inserts retain and release calls into the binary.","explanation":"Right. The compiler inserts retain and release calls at compile time."},{"id":"d","text":"It measures CPU temperature to decide when to release memory.","explanation":"Memory release depends on reference counts, not hardware temperature."}],"answer":"c"},{"id":"arc-basics-q12","type":"mcq","difficulty":3,"prompt":"What are lexical lifetimes in modern Swift?","options":[{"id":"a","text":"Lifetimes that keep variables alive until the application terminates.","explanation":"Lexical lifetimes do not extend beyond the enclosing lexical block."},{"id":"b","text":"Lifetimes that restrict class instances to the global main thread only.","explanation":"Lexical lifetimes apply to all threads and local scopes."},{"id":"c","text":"Lifetimes determined randomly by runtime memory pressure.","explanation":"Lexical lifetimes are deterministic based on code structure."},{"id":"d","text":"A rule keeping local variables alive until the end of their enclosing scope.","explanation":"Right. Modern Swift keeps objects alive to the end of their lexical scope."}],"answer":"d"},{"id":"arc-basics-q13","type":"mcq","difficulty":2,"prompt":"What happens when a local variable holding a class instance goes out of scope?","options":[{"id":"a","text":"Its reference count decrements by one.","explanation":"Right. Exiting the scope releases the reference held by the local variable."},{"id":"b","text":"Its reference count is immediately set to zero.","explanation":"Other variables may still hold strong references to the instance."},{"id":"c","text":"The instance is moved to the global scope.","explanation":"Objects are not moved to global scope on exit."},{"id":"d","text":"The instance converts into an optional value.","explanation":"Going out of scope releases the reference, not changes its type."}],"answer":"a"},{"id":"arc-basics-q14","type":"mcq","difficulty":2,"prompt":"Why is keeping deinit methods lightweight recommended in iOS apps?","options":[{"id":"a","text":"Because Swift terminates the process if deinit takes longer than 1 millisecond.","explanation":"iOS does not terminate apps for slow deinit unless the watchdog triggers."},{"id":"b","text":"Because deinit runs synchronously and can block UI rendering or animations.","explanation":"Right. Synchronous deinit on the main thread can cause user interface hitching."},{"id":"c","text":"Because ARC ignores deinit methods that contain more than two statements.","explanation":"ARC always calls deinit regardless of how many statements it contains."},{"id":"d","text":"Because deinit can only execute arithmetic operations.","explanation":"Deinit can execute standard clean-up code."}],"answer":"b"},{"id":"arc-basics-q15","type":"mcq","difficulty":3,"prompt":"In multithreaded Swift code, what overhead do reference count updates introduce?","options":[{"id":"a","text":"They cause deadlocks whenever two background threads run simultaneously.","explanation":"Atomic increments do not cause deadlocks on their own."},{"id":"b","text":"They pause all worker threads until the main thread approves the allocation.","explanation":"Worker threads allocate and release memory independently."},{"id":"c","text":"They use atomic operations, which add minor CPU synchronization cost.","explanation":"Right. Atomic instructions maintain thread safety at small performance cost."},{"id":"d","text":"They force all class instances to be copied to every core.","explanation":"Instances are shared on the heap; they are not copied across cores."}],"answer":"c"},{"id":"arc-basics-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"class Tracker {\n    let name: String\n    init(_ name: String) { self.name = name }\n    deinit { print(\"\\(name) deallocated\") }\n}\n\nvar a: Tracker? = Tracker(\"Item\")\nvar b: Tracker? = a\na = nil\nprint(\"After nil\")\nb = nil","options":[{"id":"a","text":"Item deallocated\nAfter nil","explanation":"The object is not deallocated when a is nil because b still holds it."},{"id":"b","text":"After nil","explanation":"Item is deallocated when b is set to nil, printing its deinit message."},{"id":"c","text":"Item deallocated\nItem deallocated","explanation":"There is only one object instance, so deinit runs only once."},{"id":"d","text":"After nil\nItem deallocated","explanation":"Right. After a = nil, b keeps count at 1. When b = nil, deinit runs."}],"answer":"d"},{"id":"arc-basics-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"class Device {\n    let id: Int\n    init(id: Int) { self.id = id }\n    deinit { print(\"Device \\(id) released\") }\n}\n\nfunc test() {\n    let dev = Device(id: 42)\n    print(\"Using device \\(dev.id)\")\n}\n\ntest()\nprint(\"Scope exited\")","options":[{"id":"a","text":"Using device 42\nDevice 42 released\nScope exited","explanation":"Right. The local instance is deallocated as soon as test() completes."},{"id":"b","text":"Using device 42\nScope exited\nDevice 42 released","explanation":"Deallocation happens at the end of the test function, not after the program."},{"id":"c","text":"Device 42 released\nUsing device 42\nScope exited","explanation":"Deinit does not execute before using the device."},{"id":"d","text":"Using device 42\nScope exited","explanation":"The deinit method is called and prints its output."}],"answer":"a"},{"id":"arc-basics-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"struct Box {\n    var title: String\n}\n\nvar box1 = Box(title: \"First\")\nvar box2 = box1\nbox2.title = \"Second\"\nprint(\"\\(box1.title) and \\(box2.title)\")","options":[{"id":"a","text":"Second and Second","explanation":"Box is a struct, not a class, so assigning it copies the value."},{"id":"b","text":"First and Second","explanation":"Right. Structs have value semantics. Mutating box2 does not affect box1."},{"id":"c","text":"First and First","explanation":"box2.title was mutated to Second."},{"id":"d","text":"Second and First","explanation":"box1 remains First and box2 is Second."}],"answer":"b"},{"id":"arc-basics-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Counter {\n    var count = 0\n    deinit { print(\"Freed\") }\n}\n\nvar list = [Counter()]\nlist.append(list[0])\nlist.removeAll()","options":[{"id":"a","text":"Freed\nFreed","explanation":"Both elements in list referenced the same single Counter instance."},{"id":"b","text":"Nothing is printed because list was emptied.","explanation":"Removing elements from the list drops the count to zero, calling deinit."},{"id":"c","text":"Freed","explanation":"Right. One instance had two references in the array. Clearing it drops count to 0."},{"id":"d","text":"Compile-time error: Counter does not conform to Equatable.","explanation":"Arrays of class instances do not require Equatable for append or removeAll."}],"answer":"c"},{"id":"arc-basics-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Node {\n    let value: Int\n    init(value: Int) { self.value = value }\n    deinit { print(\"Node \\(value) dead\") }\n}\n\nvar n1: Node? = Node(value: 10)\nvar n2: Node? = Node(value: 20)\nn1 = n2\nn2 = nil\nprint(\"Assigned\")\nn1 = nil","options":[{"id":"a","text":"Node 20 dead\nAssigned\nNode 10 dead","explanation":"Node 10 loses its only reference when n1 is reassigned, dying first."},{"id":"b","text":"Assigned\nNode 10 dead\nNode 20 dead","explanation":"Node 10 dies before Assigned is printed."},{"id":"c","text":"Node 10 dead\nNode 20 dead\nAssigned","explanation":"Node 20 dies when n1 is set to nil, which happens after Assigned."},{"id":"d","text":"Node 10 dead\nAssigned\nNode 20 dead","explanation":"Right. Node 10 dies when overwritten. Node 20 dies when n1 becomes nil."}],"answer":"d"},{"id":"arc-basics-q21","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"class Vehicle {\n    let speed: Int\n    init(speed: Int) { self.speed = speed }\n    deinit { print(\"Vehicle stopped\") }\n}\n\ndo {\n    let car = Vehicle(speed: 100)\n    print(\"Driving at \\(car.speed)\")\n}\nprint(\"Outside block\")","options":[{"id":"a","text":"Driving at 100\nVehicle stopped\nOutside block","explanation":"Right. Exiting the do block releases car, calling deinit immediately."},{"id":"b","text":"Driving at 100\nOutside block\nVehicle stopped","explanation":"The vehicle is freed at the end of the block, not after outside block."},{"id":"c","text":"Vehicle stopped\nDriving at 100\nOutside block","explanation":"Deinit is not called before the vehicle is used."},{"id":"d","text":"Driving at 100\nOutside block","explanation":"The deinit method executes and produces its message."}],"answer":"a"},{"id":"arc-basics-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Resource {\n    let id: String\n    init(id: String) { self.id = id }\n    deinit { print(\"Resource \\(id) closed\") }\n}\n\nvar r: Resource? = Resource(id: \"ResA\")\nvar copy = r\nr = Resource(id: \"ResB\")\nprint(\"Swapped\")\ncopy = nil\nr = nil","options":[{"id":"a","text":"Resource ResA closed\nSwapped\nResource ResB closed","explanation":"ResA is still held by copy when r is reassigned, so it does not close yet."},{"id":"b","text":"Swapped\nResource ResA closed\nResource ResB closed","explanation":"Right. Setting copy to nil releases ResA. Setting r to nil releases ResB."},{"id":"c","text":"Resource ResB closed\nSwapped\nResource ResA closed","explanation":"ResB was just created and is held by r until the final line."},{"id":"d","text":"Swapped\nResource ResB closed\nResource ResA closed","explanation":"copy is set to nil before r is set to nil, so ResA closes first."}],"answer":"b"},{"id":"arc-basics-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Account {\n    var balance: Int\n    init(balance: Int) { self.balance = balance }\n    deinit { print(\"Account closed\") }\n}\n\nfunc update(_ account: Account) {\n    account.balance += 50\n}\n\nvar acc: Account? = Account(balance: 100)\nupdate(acc!)\nprint(\"Balance: \\(acc?.balance ?? 0)\")\nacc = nil","options":[{"id":"a","text":"Account closed\nBalance: 100","explanation":"Account is not closed until acc is set to nil at the end."},{"id":"b","text":"Balance: 100\nAccount closed","explanation":"Account is a reference type, so mutating balance modifies the instance to 150."},{"id":"c","text":"Balance: 150\nAccount closed","explanation":"Right. Reference type mutations persist, and deinit runs when acc becomes nil."},{"id":"d","text":"Account closed\nBalance: 150","explanation":"Deinit runs on the last line after printing the balance."}],"answer":"c"},{"id":"arc-basics-q24","type":"written","difficulty":1,"prompt":"Explain what Automatic Reference Counting (ARC) is in Swift and what types it manages. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that ARC tracks reference counts to determine when to free memory.","weight":50,"key":true},{"criterion":"Identifies that ARC manages reference types like classes and actors, not value types.","weight":30,"key":true},{"criterion":"Mentions that deallocation happens immediately when the strong count drops to zero.","weight":20}],"modelAnswer":"Automatic Reference Counting (ARC) manages memory in Swift by tracking active strong references to instances. It only applies to reference types, such as classes, actors, and closures. When an instance has zero strong references remaining, ARC immediately frees its heap memory."},{"id":"arc-basics-q25","type":"written","difficulty":2,"prompt":"Compare Swift Automatic Reference Counting with a runtime tracing garbage collector like the one in Java or Go. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that ARC operates deterministically by inserting retain/release calls at compile time.","weight":50,"key":true},{"criterion":"Contrasts ARC with tracing garbage collection which runs background scans with potential runtime pauses.","weight":30,"key":true},{"criterion":"Notes that ARC cannot automatically detect or resolve strong reference cycles.","weight":20}],"modelAnswer":"Swift ARC inserts retain and release calls at compile time, freeing objects immediately when their count reaches zero without runtime pauses. In contrast, tracing garbage collectors run background threads that periodically scan the heap, which can cause unpredictable latency. However, ARC cannot resolve cyclic references automatically, while tracing garbage collectors can detect disconnected cycles."},{"id":"arc-basics-q26","type":"written","difficulty":2,"prompt":"Explain what causes an object reference count to increase and decrease during execution. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Identifies actions that increase reference count, such as initialization, variable assignment, or property storage.","weight":50,"key":true},{"criterion":"Identifies actions that decrease reference count, such as setting a variable to nil or leaving scope.","weight":30,"key":true},{"criterion":"States that the count tracks strong references specifically.","weight":20}],"modelAnswer":"An object strong reference count increases when it is initialized, assigned to another variable, or stored in a property. The count decreases when a referring variable is set to nil, reassigned, or exits its scope. ARC specifically monitors these strong references to determine object lifetime."},{"id":"arc-basics-q27","type":"written","difficulty":2,"prompt":"Describe what occurs when a class instance strong reference count reaches zero. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that Swift immediately executes the instance deinit deinitializer.","weight":50,"key":true},{"criterion":"States that the instance heap memory is immediately returned to the system.","weight":30,"key":true},{"criterion":"Mentions that deinit executes synchronously on the thread releasing the final reference.","weight":20}],"modelAnswer":"When an instance strong reference count drops to zero, Swift immediately calls its deinit deinitializer. This runs synchronously on whichever thread dropped the final reference. Once deinit completes, Swift reclaims the heap memory allocated for that object."},{"id":"arc-basics-q28","type":"written","difficulty":2,"prompt":"Why do Swift structs not use reference counting, and what happens when a struct contains a class property? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that structs are value types copied on assignment and therefore have no reference count of their own.","weight":50,"key":true},{"criterion":"Explains that ARC tracks the reference count of any embedded class property when the struct is copied or destroyed.","weight":30,"key":true},{"criterion":"Notes that copying the struct retains the underlying class instance.","weight":20}],"modelAnswer":"Structs are value types copied upon assignment, so they have no reference count of their own. When a struct holds a property of class type, ARC manages that class instance reference count. Copying the struct adds a strong reference to the underlying class, and destroying the struct releases it."},{"id":"arc-basics-q29","type":"code-write","difficulty":2,"prompt":"Write a class named `Logger` with a property `tag: String`. Implement `init(tag: String)` printing `\"Start: \\(tag)\"` and `deinit` printing `\"End: \\(tag)\"`. In a `do` block, create an instance with tag `\"Network\"` and print `\"Working with \\(logger.tag)\"`. Print `\"Done\"` outside the block.","starterCode":null,"modelAnswer":"class Logger {\n    let tag: String\n    init(tag: String) {\n        self.tag = tag\n        print(\"Start: \\(tag)\")\n    }\n    deinit {\n        print(\"End: \\(tag)\")\n    }\n}\n\ndo {\n    let logger = Logger(tag: \"Network\")\n    print(\"Working with \\(logger.tag)\")\n}\nprint(\"Done\")","rubric":[{"criterion":"Defines class Logger with stored property tag and initializer.","weight":30,"key":true},{"criterion":"Implements deinit printing \"End: \\(tag)\".","weight":40,"key":true},{"criterion":"Instantiates Logger inside a do block, demonstrating scope-based deallocation.","weight":30}]},{"id":"arc-basics-q30","type":"code-write","difficulty":2,"prompt":"Write a class named `Session` with a property `name: String`. Implement `init(name: String)` and `deinit` printing `\"Session \\(name) expired\"`. In `runSession()`, create optional `s1` and `s2` for one instance. Print `\"Session active: \\(s2?.name ?? \"\")\"`. Set `s1 = nil`, print `\"s1 cleared\"`, set `s2 = nil`, and print `\"s2 cleared\"`.","starterCode":null,"modelAnswer":"class Session {\n    let name: String\n    init(name: String) {\n        self.name = name\n    }\n    deinit {\n        print(\"Session \\(name) expired\")\n    }\n}\n\nfunc runSession() {\n    var s1: Session? = Session(name: \"Guest\")\n    var s2: Session? = s1\n    print(\"Session active: \\(s2?.name ?? \"\")\")\n    s1 = nil\n    print(\"s1 cleared\")\n    s2 = nil\n    print(\"s2 cleared\")\n}\n\nrunSession()","rubric":[{"criterion":"Defines class Session with name property and deinitializer.","weight":30,"key":true},{"criterion":"Demonstrates multiple strong references to the same instance using s1 and s2.","weight":40,"key":true},{"criterion":"Sets both references to nil in sequence, showing deinit runs only when s2 is nil.","weight":30}]},{"id":"arc-basics-q31","type":"code-write","difficulty":2,"prompt":"Write a class named `FileHandler` with a property `path: String`. In `init(path: String)`, print `\"Opened \\(path)\"`. In `deinit`, print `\"Closed \\(path)\"`. In a `do` block, create an instance with path `\"/tmp/data.txt\"` and print `\"Reading \\(file.path)\"`. Print `\"Finished file operation\"` outside the block.","starterCode":null,"modelAnswer":"class FileHandler {\n    let path: String\n    init(path: String) {\n        self.path = path\n        print(\"Opened \\(path)\")\n    }\n    deinit {\n        print(\"Closed \\(path)\")\n    }\n}\n\ndo {\n    let file = FileHandler(path: \"/tmp/data.txt\")\n    print(\"Reading \\(file.path)\")\n}\nprint(\"Finished file operation\")","rubric":[{"criterion":"Defines class FileHandler with path property and initializer.","weight":30,"key":true},{"criterion":"Implements deinit printing \"Closed \\(path)\".","weight":40,"key":true},{"criterion":"Shows immediate cleanup upon exiting the do block before printing the final line.","weight":30}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

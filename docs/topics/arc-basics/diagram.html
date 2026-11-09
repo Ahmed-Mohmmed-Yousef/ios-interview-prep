@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Automatic Reference Counting: Object Lifetime</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --stack-color: #6366f1; --stack-soft: #eef2ff;
+  --heap-color: #0284c7; --heap-soft: #e0f2fe;
+  --alive-color: #16a34a; --alive-soft: #dcfce7;
+  --freed-color: #dc2626; --freed-soft: #fee2e2;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --stack-color: #818cf8; --stack-soft: #1e1b4b;
+  --heap-color: #38bdf8; --heap-soft: #082f49;
+  --alive-color: #4ade80; --alive-soft: #14532d;
+  --freed-color: #f87171; --freed-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.stack { background: var(--stack-soft); color: var(--stack-color); }
+.kind.heap { background: var(--heap-soft); color: var(--heap-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 10px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.stack { fill: var(--stack-soft); stroke: var(--stack-color); }
+.box-rect.heap { fill: var(--heap-soft); stroke: var(--heap-color); }
+.box-rect.freed { fill: var(--freed-soft); stroke: var(--freed-color); stroke-dasharray: 4 4; }
+
+.text-title { font-family: var(--font-body); font-size: 14px; font-weight: 700; fill: var(--ink); }
+.text-val { font-family: var(--font-code); font-size: 13px; font-weight: 600; fill: var(--ink); }
+.text-muted { font-family: var(--font-body); font-size: 12px; fill: var(--muted); }
+
+.count-badge { font-family: var(--font-code); font-size: 16px; font-weight: 700; }
+.count-badge.alive { fill: var(--alive-color); }
+.count-badge.freed { fill: var(--freed-color); }
+
+.arrow { stroke-width: 2.5; marker-end: url(#arrowhead); transition: opacity 0.3s, stroke 0.3s; }
+.arrow.active { stroke: var(--stack-color); opacity: 1; }
+.arrow.inactive { stroke: var(--muted); opacity: 0.15; stroke-dasharray: 4 4; }
+
+.controls {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 16px;
+}
+.btn {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  font: 600 13px var(--font-body); padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 999px; background: var(--line);
+  cursor: pointer; border: none; padding: 0;
+}
+.dot.active { background: var(--stack-color); transform: scale(1.2); }
+
+.reduced-static { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-stepper { display: none; }
+  .reduced-static { display: grid; gap: 12px; }
+  .static-step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .static-step h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--stack-color); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Interactive ARC Object Lifetime Diagram">
+
+  <div class="interactive-stepper">
+    <div class="panels">
+      <div class="panel">
+        <h3><span class="kind stack">Stack</span> Local Variables</h3>
+        <svg viewBox="0 0 340 180" id="svg-stack" aria-hidden="true">
+          <!-- ref1 -->
+          <g id="box-ref1">
+            <rect x="20" y="20" width="130" height="60" class="box-rect stack"></rect>
+            <text x="35" y="45" class="text-title">ref1</text>
+            <text x="35" y="65" class="text-val" id="val-ref1">0x100</text>
+          </g>
+          <!-- ref2 -->
+          <g id="box-ref2">
+            <rect x="20" y="100" width="130" height="60" class="box-rect stack"></rect>
+            <text x="35" y="125" class="text-title">ref2</text>
+            <text x="35" y="145" class="text-val" id="val-ref2">nil</text>
+          </g>
+          <!-- Arrows -->
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+              <polygon points="0 0, 8 4, 0 8" fill="var(--stack-color)"></polygon>
+            </marker>
+          </defs>
+          <line id="arrow1" x1="150" y1="50" x2="310" y2="50" class="arrow active"></line>
+          <line id="arrow2" x1="150" y1="130" x2="310" y2="100" class="arrow inactive"></line>
+        </svg>
+      </div>
+
+      <div class="panel">
+        <h3><span class="kind heap">Heap</span> Managed Object</h3>
+        <svg viewBox="0 0 340 180" id="svg-heap" aria-hidden="true">
+          <g id="heap-obj">
+            <rect x="20" y="20" width="300" height="140" class="box-rect heap" id="heap-rect"></rect>
+            <text x="40" y="55" class="text-title" id="heap-title">Person("Taylor")</text>
+            <text x="40" y="80" class="text-muted" id="heap-addr">Heap Address: 0x100</text>
+            <rect x="40" y="100" width="260" height="40" rx="8" fill="var(--code-bg)" stroke="var(--line)"></rect>
+            <text x="55" y="125" class="text-val">Strong Count:</text>
+            <text x="180" y="126" class="count-badge alive" id="heap-count">1</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 16px;">
+      <div class="code" id="step-code">var ref1: Person? = Person(name: "Taylor")</div>
+      <p class="caption" id="step-caption" aria-live="polite">Step 1: Memory is allocated on the heap for Person. ref1 holds a strong reference. Strong reference count is 1.</p>
+      
+      <div class="controls">
+        <button class="btn" id="btn-prev" onclick="prevStep()" disabled>← Previous</button>
+        <div class="dots" role="tablist">
+          <button class="dot active" onclick="setStep(0)" aria-label="Step 1" role="tab" aria-selected="true"></button>
+          <button class="dot" onclick="setStep(1)" aria-label="Step 2" role="tab" aria-selected="false"></button>
+          <button class="dot" onclick="setStep(2)" aria-label="Step 3" role="tab" aria-selected="false"></button>
+          <button class="dot" onclick="setStep(3)" aria-label="Step 4" role="tab" aria-selected="false"></button>
+        </div>
+        <button class="btn" id="btn-next" onclick="nextStep()">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced motion static fallback -->
+  <div class="reduced-static">
+    <div class="static-step">
+      <h4>Step 1: Initialization (Count = 1)</h4>
+      <code>var ref1: Person? = Person(name: "Taylor")</code>
+      <p>Memory is allocated on the heap. ref1 holds a strong reference. Count is 1.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 2: Second Reference (Count = 2)</h4>
+      <code>var ref2: Person? = ref1</code>
+      <p>ref2 is assigned the same reference. Two active strong references point to the heap object. Count is 2.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 3: Release One Reference (Count = 1)</h4>
+      <code>ref1 = nil</code>
+      <p>ref1 is set to nil. ref2 still holds a strong reference. Object stays alive. Count is 1.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 4: Count Reaches Zero (Deallocated)</h4>
+      <code>ref2 = nil</code>
+      <p>ref2 is set to nil. Strong count drops to 0. Swift calls deinit immediately and reclaims heap memory.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    code: 'var ref1: Person? = Person(name: "Taylor")',
+    caption: 'Step 1: Memory is allocated on the heap for Person. ref1 holds a strong reference. Strong count is 1.',
+    val1: '0x100',
+    val2: 'nil',
+    arrow1: true,
+    arrow2: false,
+    heapTitle: 'Person("Taylor")',
+    heapAddr: 'Heap Address: 0x100',
+    count: '1',
+    freed: false
+  },
+  {
+    code: 'var ref2: Person? = ref1',
+    caption: 'Step 2: Assigning ref2 = ref1 adds a second strong reference. Count increases to 2.',
+    val1: '0x100',
+    val2: '0x100',
+    arrow1: true,
+    arrow2: true,
+    heapTitle: 'Person("Taylor")',
+    heapAddr: 'Heap Address: 0x100',
+    count: '2',
+    freed: false
+  },
+  {
+    code: 'ref1 = nil',
+    caption: 'Step 3: Setting ref1 to nil drops its reference. Only ref2 remains. Count is 1, so the object stays alive.',
+    val1: 'nil',
+    val2: '0x100',
+    arrow1: false,
+    arrow2: true,
+    heapTitle: 'Person("Taylor")',
+    heapAddr: 'Heap Address: 0x100',
+    count: '1',
+    freed: false
+  },
+  {
+    code: 'ref2 = nil',
+    caption: 'Step 4: Setting ref2 to nil drops the count to 0. Swift immediately calls deinit and frees the memory.',
+    val1: 'nil',
+    val2: 'nil',
+    arrow1: false,
+    arrow2: false,
+    heapTitle: 'Person (Deallocated)',
+    heapAddr: 'Memory Freed by ARC',
+    count: '0 (Freed)',
+    freed: true
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+
+  document.getElementById("val-ref1").textContent = s.val1;
+  document.getElementById("val-ref2").textContent = s.val2;
+
+  const a1 = document.getElementById("arrow1");
+  const a2 = document.getElementById("arrow2");
+  a1.className.baseVal = "arrow " + (s.arrow1 ? "active" : "inactive");
+  a2.className.baseVal = "arrow " + (s.arrow2 ? "active" : "inactive");
+
+  document.getElementById("heap-title").textContent = s.heapTitle;
+  document.getElementById("heap-addr").textContent = s.heapAddr;
+
+  const countBadge = document.getElementById("heap-count");
+  countBadge.textContent = s.count;
+  countBadge.className.baseVal = "count-badge " + (s.freed ? "freed" : "alive");
+
+  const heapRect = document.getElementById("heap-rect");
+  heapRect.className.baseVal = "box-rect " + (s.freed ? "freed" : "heap");
+
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+</script>
+
+</body>
+</html>
