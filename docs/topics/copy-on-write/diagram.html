@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Copy-on-Write and Value Semantics in Swift</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --stack-color: #0284c7; --stack-soft: #e0f2fe;
+  --heap-color: #7c3aed; --heap-soft: #ede9fe;
+  --mutate-color: #ef4444; --mutate-soft: #fee2e2;
+  --ok-color: #059669; --ok-soft: #d1fae5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --stack-color: #38bdf8; --stack-soft: #082f49;
+  --heap-color: #a78bfa; --heap-soft: #2e1065;
+  --mutate-color: #f87171; --mutate-soft: #450a0a;
+  --ok-color: #34d399; --ok-soft: #064e3b;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--stack-soft); color: var(--stack-color); }
+.p-right .kind { background: var(--heap-soft); color: var(--heap-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-stack { stroke: var(--stack-color); stroke-width: 2.5; fill: var(--stack-soft); }
+.node-box.active-heap { stroke: var(--heap-color); stroke-width: 2.5; fill: var(--heap-soft); }
+.node-box.active-mutate { stroke: var(--mutate-color); stroke-width: 2.5; fill: var(--mutate-soft); }
+.node-box.active-ok { stroke: var(--ok-color); stroke-width: 2.5; fill: var(--ok-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--stack-color); color: var(--stack-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+  <div class="interactive-view">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span>Stack Variables</span> <span class="kind">Value Types</span></h3>
+        <svg viewBox="0 0 320 220" aria-label="Stack variables diagram">
+          <!-- Variable A -->
+          <rect id="varABox" x="20" y="25" width="280" height="65" rx="8" class="node-box active-stack" />
+          <text x="40" y="52" font-family="Lexend" font-size="13" font-weight="600" fill="currentColor">var a = [10, 20, 30]</text>
+          <text id="varAPtr" x="40" y="73" font-family="JetBrains Mono" font-size="11" fill="var(--stack-color)">pointer -> Buffer 1</text>
+
+          <!-- Variable B -->
+          <rect id="varBBox" x="20" y="125" width="280" height="65" rx="8" class="node-box" />
+          <text id="varBTitle" x="40" y="152" font-family="Lexend" font-size="13" font-weight="600" fill="currentColor">var b</text>
+          <text id="varBPtr" x="40" y="173" font-family="JetBrains Mono" font-size="11" fill="var(--muted)">unassigned</text>
+        </svg>
+        <div class="code" id="leftCode">var a = [10, 20, 30]</div>
+        <p class="caption" id="leftCaption">Array variable 'a' holds a pointer to its backing storage buffer.</p>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span>Heap Storage Buffers</span> <span class="kind">Shared Memory</span></h3>
+        <svg viewBox="0 0 320 220" aria-label="Heap storage buffers diagram">
+          <!-- Buffer 1 -->
+          <rect id="buf1Box" x="20" y="25" width="280" height="65" rx="8" class="node-box active-heap" />
+          <text x="40" y="52" font-family="Lexend" font-size="13" font-weight="600" fill="currentColor">Buffer 1 (Heap Storage)</text>
+          <text id="buf1Content" x="40" y="73" font-family="JetBrains Mono" font-size="11" fill="var(--heap-color)">[10, 20, 30] | RefCount: 1</text>
+
+          <!-- Buffer 2 (Appears on split) -->
+          <rect id="buf2Box" x="20" y="125" width="280" height="65" rx="8" class="node-box" />
+          <text id="buf2Title" x="40" y="152" font-family="Lexend" font-size="13" font-weight="600" fill="currentColor">Buffer 2 (New Allocation)</text>
+          <text id="buf2Content" x="40" y="173" font-family="JetBrains Mono" font-size="11" fill="var(--muted)">inactive</text>
+        </svg>
+        <div class="code" id="rightCode">// Buffer 1 allocated with [10, 20, 30]
+// Reference count = 1</div>
+        <p class="caption" id="rightCaption">Single heap buffer holds array elements with reference count 1.</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+      <div class="btn-group">
+        <button id="btnBack" disabled aria-label="Previous step">Back</button>
+        <button id="btnNext" aria-label="Next step">Next</button>
+        <button id="btnReplay" aria-label="Replay animation">Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="static-summary" role="region" aria-label="Summary of Copy-on-Write">
+    <h3>Summary: Copy-on-Write (COW)</h3>
+    <ul>
+      <li><strong>Step 1: Initial Allocation</strong> — Variable 'a' holds a lightweight stack struct pointing to a heap storage buffer (ref count = 1).</li>
+      <li><strong>Step 2: Shallow Copy</strong> — Assigning 'var b = a' copies only the pointer. Both variables share Buffer 1 (ref count = 2). No memory copy occurs.</li>
+      <li><strong>Step 3: Uniqueness Check</strong> — Before mutating, variable 'b' checks <code>isKnownUniquelyReferenced</code>. It detects that the buffer is shared.</li>
+      <li><strong>Step 4: Buffer Duplication</strong> — 'b' allocates Buffer 2, copies the elements, and appends the new value. 'a' remains unchanged with Buffer 1.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    leftCode: "var a = [10, 20, 30]",
+    leftCaption: "Variable 'a' points to Buffer 1. Single reference.",
+    rightCode: "// Buffer 1 in heap memory\n// Reference count = 1",
+    rightCaption: "Buffer 1 stores the elements [10, 20, 30].",
+    activeBoxes: ["varABox", "buf1Box"],
+    varBTitle: "var b",
+    varBPtr: "unassigned",
+    buf1Content: "[10, 20, 30] | RefCount: 1",
+    buf2Title: "Buffer 2 (New Allocation)",
+    buf2Content: "inactive"
+  },
+  {
+    step: 2,
+    leftCode: "var b = a // Shallow copy (O(1))",
+    leftCaption: "Assignment copies the pointer. Zero element copying occurs.",
+    rightCode: "// Buffer 1 reference count incremented\n// RefCount: 2",
+    rightCaption: "Both 'a' and 'b' safely share Buffer 1 in read-only mode.",
+    activeBoxes: ["varABox", "varBBox", "buf1Box"],
+    varBTitle: "var b = a",
+    varBPtr: "pointer -> Buffer 1 (shared)",
+    buf1Content: "[10, 20, 30] | RefCount: 2",
+    buf2Title: "Buffer 2 (New Allocation)",
+    buf2Content: "inactive"
+  },
+  {
+    step: 3,
+    leftCode: "b.append(40) // Mutation requested\n// Checking uniqueness...",
+    leftCaption: "'b' checks isKnownUniquelyReferenced. Ref count is 2 (shared!).",
+    rightCode: "if !isKnownUniquelyReferenced(&storage) {\n    // Must make a deep copy before mutating!\n}",
+    rightCaption: "Shared state triggers Copy-on-Write allocation before writing.",
+    activeBoxes: ["varBBox", "buf1Box"],
+    varBTitle: "var b (mutating)",
+    varBPtr: "triggering COW allocation...",
+    buf1Content: "[10, 20, 30] | RefCount: 2 (shared)",
+    buf2Title: "Buffer 2 (Allocating...)",
+    buf2Content: "copying elements [10, 20, 30]"
+  },
+  {
+    step: 4,
+    leftCode: "// Mutation complete:\nprint(a) // [10, 20, 30]\nprint(b) // [10, 20, 30, 40]",
+    leftCaption: "'b' mutates its own Buffer 2. 'a' is untouched. Value semantics intact!",
+    rightCode: "// Buffer 1 RefCount: 1\n// Buffer 2 RefCount: 1 [10, 20, 30, 40]",
+    rightCaption: "Now both buffers are independent with RefCount = 1.",
+    activeBoxes: ["varABox", "varBBox", "buf1Box", "buf2Box"],
+    varBTitle: "var b (independent)",
+    varBPtr: "pointer -> Buffer 2",
+    buf1Content: "[10, 20, 30] | RefCount: 1",
+    buf2Title: "Buffer 2 (Heap Storage)",
+    buf2Content: "[10, 20, 30, 40] | RefCount: 1"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+
+  document.getElementById("varBTitle").textContent = s.varBTitle;
+  document.getElementById("varBPtr").textContent = s.varBPtr;
+  document.getElementById("buf1Content").textContent = s.buf1Content;
+  document.getElementById("buf2Title").textContent = s.buf2Title;
+  document.getElementById("buf2Content").textContent = s.buf2Content;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.querySelectorAll(".node-box").forEach(el => {
+    el.classList.remove("active-stack", "active-heap", "active-mutate", "active-ok");
+  });
+
+  if (idx === 0) {
+    document.getElementById("varABox").classList.add("active-stack");
+    document.getElementById("buf1Box").classList.add("active-heap");
+  } else if (idx === 1) {
+    document.getElementById("varABox").classList.add("active-stack");
+    document.getElementById("varBBox").classList.add("active-stack");
+    document.getElementById("buf1Box").classList.add("active-heap");
+  } else if (idx === 2) {
+    document.getElementById("varBBox").classList.add("active-mutate");
+    document.getElementById("buf1Box").classList.add("active-mutate");
+  } else if (idx === 3) {
+    document.getElementById("varABox").classList.add("active-ok");
+    document.getElementById("varBBox").classList.add("active-ok");
+    document.getElementById("buf1Box").classList.add("active-heap");
+    document.getElementById("buf2Box").classList.add("active-heap");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>

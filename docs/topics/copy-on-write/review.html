@@ -1,0 +1,578 @@
+<title>Copy-on-Write and Value Semantics Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --stack-color: #0284c7; --stack-soft: #e0f2fe;
+  --heap-color: #7c3aed; --heap-soft: #ede9fe;
+  --mutate-color: #ef4444; --mutate-soft: #fee2e2;
+  --ok-color: #059669; --ok-soft: #d1fae5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --stack-color: #38bdf8; --stack-soft: #082f49;
+  --heap-color: #a78bfa; --heap-soft: #2e1065;
+  --mutate-color: #f87171; --mutate-soft: #450a0a;
+  --ok-color: #34d399; --ok-soft: #064e3b;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--stack-soft); color: var(--stack-color); }
+.p-right .kind { background: var(--heap-soft); color: var(--heap-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-stack { stroke: var(--stack-color); stroke-width: 2.5; fill: var(--stack-soft); }
+.node-box.active-heap { stroke: var(--heap-color); stroke-width: 2.5; fill: var(--heap-soft); }
+.node-box.active-mutate { stroke: var(--mutate-color); stroke-width: 2.5; fill: var(--mutate-soft); }
+.node-box.active-ok { stroke: var(--ok-color); stroke-width: 2.5; fill: var(--ok-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--stack-color); color: var(--stack-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Swift Language · Topic 4 of 7 · Prototype</p>
+    <h1>Copy-on-Write and Value Semantics</h1>
+    <p class="meta-line"><span>About 12 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain how Swift collections avoid extra copies and when copies happen.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">When you assign an array with one million items to a new variable in Swift, does it duplicate the memory immediately?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, Swift value types always perform a full memory copy immediately upon assignment.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, Swift shares the memory buffer until one of the variables modifies it.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">No, Swift converts the array into an Objective-C NSArray pointer permanently.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of sharing a document blueprint with a teammate. You both look at the exact same printed sheet of paper. As long as you only read it, nobody needs another copy. But the moment your teammate wants to sketch new notes, they make a photocopy first. They draw on their copy, leaving your original sheet unchanged.</p></aside>
+<p>In Swift, structs are value types. Value types have <strong>value semantics</strong>, meaning each instance keeps its own independent state. Mutating one variable never alters another.</p>
+<p>However, copying a huge array with thousands of items on every assignment would be very slow. It would waste memory and CPU time.</p>
+<p>To solve this, Swift uses an optimization called <strong>Copy-on-Write (COW)</strong>.</p>
+<p>When you copy a collection, Swift does not duplicate the underlying data in memory. Instead, both variables share the same storage buffer behind the scenes.</p>
+<p>The actual duplicate copy happens only when one variable modifies the data. If neither variable mutates the collection, no memory copy ever happens.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">When does an array actually copy its elements into a new heap buffer?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">At the exact moment you assign it to a second variable.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">At the moment a shared variable performs a mutation.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">When the application enters the background.</span></button><p class="qc-explain" hidden="">Copy-on-write delays copying until a shared instance mutates its data.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Standard library collection sharing buffer until mutation</figcaption><pre class="block swift"><code class="language-swift">var original = [10, 20, 30]
+var duplicate = original // Storage is shared; no deep copy occurs yet
+
+print(&quot;Original count: \(original.count)&quot;)
+print(&quot;Duplicate count: \(duplicate.count)&quot;)
+
+// Mutating duplicate triggers Copy-on-Write
+duplicate.append(40)
+
+print(&quot;After mutation:&quot;)
+print(&quot;Original items: \(original)&quot;)
+print(&quot;Duplicate items: \(duplicate)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Original count: 3
+Duplicate count: 3
+After mutation:
+Original items: [10, 20, 30]
+Duplicate items: [10, 20, 30, 40]
+</code></pre></figure>
+<p>This example shows copy-on-write in action:</p>
+<ul>
+<li><strong>Assignment</strong>: <code>duplicate</code> shares the same underlying buffer with <code>original</code>.</li>
+<li><strong>Mutation</strong>: When calling <code>append(40)</code>, <code>duplicate</code> copies the buffer first. <code>original</code> remains completely unaffected.</li>
+</ul>
+<figure class="code-example"><figcaption>Implementing custom copy-on-write with isKnownUniquelyReferenced</figcaption><pre class="block swift"><code class="language-swift">final class RawDataStorage {
+    var numbers: [Int]
+    init(numbers: [Int]) { self.numbers = numbers }
+}
+
+struct CustomDataList {
+    private var storage: RawDataStorage
+    
+    init(numbers: [Int]) {
+        self.storage = RawDataStorage(numbers: numbers)
+    }
+    
+    var values: [Int] { storage.numbers }
+    
+    mutating func append(_ number: Int) {
+        // Check if storage is shared by multiple references
+        if !isKnownUniquelyReferenced(&amp;storage) {
+            // Allocate fresh storage copy before mutating
+            storage = RawDataStorage(numbers: storage.numbers)
+        }
+        storage.numbers.append(number)
+    }
+}
+
+var listA = CustomDataList(numbers: [1, 2])
+var listB = listA // Storage is shared
+
+listB.append(99) // Triggers custom COW logic
+
+print(&quot;List A: \(listA.values)&quot;)
+print(&quot;List B: \(listB.values)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">List A: [1, 2]
+List B: [1, 2, 99]
+</code></pre></figure>
+<p>This example demonstrates how to build custom COW types:</p>
+<ul>
+<li><strong>Private class storage</strong>: The struct wraps a reference type that lives on the heap.</li>
+<li><strong><code>isKnownUniquelyReferenced</code></strong>: Checks if the reference count is exactly one. If greater than one, it creates a new storage copy before modifying it.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Do custom Swift structs have copy-on-write behavior automatically?</p><button type="button" class="opt" data-id="a" data-correct=""><span class="opt-id">A</span><span class="opt-text">No, only standard library collections have COW built in. Custom structs need manual implementation.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Yes, all structs in Swift have COW automatically synthesized by the compiler.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Yes, but only if they conform to Codable.</span></button><p class="qc-explain" hidden="">Only standard collections like Array, Dictionary, and Set have COW built in. Custom structs must implement COW manually.</p></div>
+<p class="try-it"><p>Experiment with arrays, value semantics, and copy-on-write in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming custom structs have Copy-on-Write by default</p><p>A common interview mistake is believing that all Swift structs have copy-on-write. They do not. When you assign a custom struct, Swift copies all its stored properties immediately. Only standard collections like <code>Array</code>, <code>Dictionary</code>, <code>Set</code>, and <code>String</code> have COW built in.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Wrapping reference types inside structs without COW logic</p><p>If a struct contains a class property and you do not implement COW, assigning the struct copies only the class pointer. Both struct copies will point to the same class instance. Mutating the class will mutate both structs, accidentally breaking value semantics!</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>Copy-on-write is an optimization in Swift where collections share the same memory buffer after an assignment. The data is only copied when one of the variables modifies it. This saves memory while keeping value semantics.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Copy-on-write gives value types the performance of reference types while keeping value semantics. Standard library collections like Array and Dictionary use COW. When you assign an array, only the pointer is copied. When you mutate the array, Swift checks if the buffer is uniquely referenced. If shared, it copies the buffer first. Custom structs do not get COW automatically.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Copy-on-write combines value semantics with reference-counted heap buffers for performance. Standard collections manage a private storage class behind a struct wrapper. During mutation, isKnownUniquelyReferenced checks the reference count. If the reference count is one, the mutation occurs in place in O(1) time. Otherwise, a deep copy is allocated. When designing large custom value types, we wrap a private class and use isKnownUniquelyReferenced to prevent unnecessary allocations.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Copy-on-write delays deep memory copying until a shared value type mutates.</li>
+<li>Value semantics are preserved: modifying one variable never affects another.</li>
+<li>Standard collections like <code>Array</code>, <code>Dictionary</code>, <code>Set</code>, and <code>String</code> use COW.</li>
+<li>Custom structs do not have COW automatically.</li>
+<li>Custom COW is built by wrapping a private class and checking <code>isKnownUniquelyReferenced</code>.</li>
+<li>Passing collections as <code>inout</code> parameters avoids triggering COW copies during function calls.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/classesandstructures">The Swift Programming Language: Structures and Classes</a></li>
+<li><a href="https://github.com/swiftlang/swift/blob/main/docs/OptimizationTips.rst">Swift Optimization Tips: Use copy-on-write semantics for large value types</a></li>
+<li><a href="https://developer.apple.com/documentation/swift/isknownuniquelyreferenced(_:)">Apple Developer Documentation: isKnownUniquelyReferenced</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    leftCode: "var a = [10, 20, 30]",
+    leftCaption: "Variable 'a' points to Buffer 1. Single reference.",
+    rightCode: "// Buffer 1 in heap memory\n// Reference count = 1",
+    rightCaption: "Buffer 1 stores the elements [10, 20, 30].",
+    activeBoxes: ["varABox", "buf1Box"],
+    varBTitle: "var b",
+    varBPtr: "unassigned",
+    buf1Content: "[10, 20, 30] | RefCount: 1",
+    buf2Title: "Buffer 2 (New Allocation)",
+    buf2Content: "inactive"
+  },
+  {
+    step: 2,
+    leftCode: "var b = a // Shallow copy (O(1))",
+    leftCaption: "Assignment copies the pointer. Zero element copying occurs.",
+    rightCode: "// Buffer 1 reference count incremented\n// RefCount: 2",
+    rightCaption: "Both 'a' and 'b' safely share Buffer 1 in read-only mode.",
+    activeBoxes: ["varABox", "varBBox", "buf1Box"],
+    varBTitle: "var b = a",
+    varBPtr: "pointer -> Buffer 1 (shared)",
+    buf1Content: "[10, 20, 30] | RefCount: 2",
+    buf2Title: "Buffer 2 (New Allocation)",
+    buf2Content: "inactive"
+  },
+  {
+    step: 3,
+    leftCode: "b.append(40) // Mutation requested\n// Checking uniqueness...",
+    leftCaption: "'b' checks isKnownUniquelyReferenced. Ref count is 2 (shared!).",
+    rightCode: "if !isKnownUniquelyReferenced(&storage) {\n    // Must make a deep copy before mutating!\n}",
+    rightCaption: "Shared state triggers Copy-on-Write allocation before writing.",
+    activeBoxes: ["varBBox", "buf1Box"],
+    varBTitle: "var b (mutating)",
+    varBPtr: "triggering COW allocation...",
+    buf1Content: "[10, 20, 30] | RefCount: 2 (shared)",
+    buf2Title: "Buffer 2 (Allocating...)",
+    buf2Content: "copying elements [10, 20, 30]"
+  },
+  {
+    step: 4,
+    leftCode: "// Mutation complete:\nprint(a) // [10, 20, 30]\nprint(b) // [10, 20, 30, 40]",
+    leftCaption: "'b' mutates its own Buffer 2. 'a' is untouched. Value semantics intact!",
+    rightCode: "// Buffer 1 RefCount: 1\n// Buffer 2 RefCount: 1 [10, 20, 30, 40]",
+    rightCaption: "Now both buffers are independent with RefCount = 1.",
+    activeBoxes: ["varABox", "varBBox", "buf1Box", "buf2Box"],
+    varBTitle: "var b (independent)",
+    varBPtr: "pointer -> Buffer 2",
+    buf1Content: "[10, 20, 30] | RefCount: 1",
+    buf2Title: "Buffer 2 (Heap Storage)",
+    buf2Content: "[10, 20, 30, 40] | RefCount: 1"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+
+  document.getElementById("varBTitle").textContent = s.varBTitle;
+  document.getElementById("varBPtr").textContent = s.varBPtr;
+  document.getElementById("buf1Content").textContent = s.buf1Content;
+  document.getElementById("buf2Title").textContent = s.buf2Title;
+  document.getElementById("buf2Content").textContent = s.buf2Content;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.querySelectorAll(".node-box").forEach(el => {
+    el.classList.remove("active-stack", "active-heap", "active-mutate", "active-ok");
+  });
+
+  if (idx === 0) {
+    document.getElementById("varABox").classList.add("active-stack");
+    document.getElementById("buf1Box").classList.add("active-heap");
+  } else if (idx === 1) {
+    document.getElementById("varABox").classList.add("active-stack");
+    document.getElementById("varBBox").classList.add("active-stack");
+    document.getElementById("buf1Box").classList.add("active-heap");
+  } else if (idx === 2) {
+    document.getElementById("varBBox").classList.add("active-mutate");
+    document.getElementById("buf1Box").classList.add("active-mutate");
+  } else if (idx === 3) {
+    document.getElementById("varABox").classList.add("active-ok");
+    document.getElementById("varBBox").classList.add("active-ok");
+    document.getElementById("buf1Box").classList.add("active-heap");
+    document.getElementById("buf2Box").classList.add("active-heap");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"copy-on-write","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"cow-q1","type":"mcq","difficulty":1,"prompt":"What is the primary purpose of Copy-on-Write in Swift?","options":[{"id":"a","text":"To prevent expensive memory copying until a shared value type is mutated.","explanation":"Copy-on-write delays deep memory allocation until a shared instance actually modifies its data."},{"id":"b","text":"To convert reference classes into lightweight stack structs automatically.","explanation":"COW does not convert classes into structs."},{"id":"c","text":"To force all variables to use disk storage instead of system RAM.","explanation":"COW operates on in-memory buffers in RAM."},{"id":"d","text":"To eliminate the need for memory management in Swift programs.","explanation":"Swift still uses Automatic Reference Counting (ARC) to manage memory."}],"answer":"a"},{"id":"cow-q2","type":"mcq","difficulty":1,"prompt":"Which types in Swift have copy-on-write behavior built-in by default?","options":[{"id":"a","text":"All custom structs created by iOS application developers.","explanation":"Custom structs do not receive automatic COW behavior from the compiler."},{"id":"b","text":"Standard library collections like Array, Dictionary, Set, and String.","explanation":"Swift standard library collections implement COW internally to optimize performance."},{"id":"c","text":"Only subclasses of standard UIKit UIViewController classes.","explanation":"UIViewController is an Objective-C reference class, not a COW value type."},{"id":"d","text":"Every class annotated with the final access control keyword.","explanation":"Classes use reference semantics, not copy-on-write."}],"answer":"b"},{"id":"cow-q3","type":"mcq","difficulty":1,"prompt":"What happens when you write 'var b = a' where 'a' is an array with 100,000 items?","options":[{"id":"a","text":"Swift allocates a brand new 100,000 item buffer on the heap immediately.","explanation":"Deep copying on assignment is avoided by COW."},{"id":"b","text":"The compiler throws a memory overflow warning error.","explanation":"Assigning arrays is a standard O(1) operation."},{"id":"c","text":"Swift copies only the buffer pointer, sharing the memory between a and b.","explanation":"The assignment is an O(1) shallow copy that increments the buffer reference count."},{"id":"d","text":"The array elements are compressed into a temporary disk cache file.","explanation":"Arrays remain in RAM memory."}],"answer":"c"},{"id":"cow-q4","type":"mcq","difficulty":2,"prompt":"What function checks if a reference type is uniquely referenced when writing custom COW?","options":[{"id":"a","text":"isUniquePointer(&storage)","explanation":"isUniquePointer is not a valid Swift standard library function."},{"id":"b","text":"checkReferenceCount(&storage)","explanation":"checkReferenceCount is not a Swift function."},{"id":"c","text":"isSingleInstance(&storage)","explanation":"isSingleInstance is not an official Swift function."},{"id":"d","text":"isKnownUniquelyReferenced(&storage)","explanation":"isKnownUniquelyReferenced returns true if the given object reference has a reference count of one."}],"answer":"d"},{"id":"cow-q5","type":"mcq","difficulty":2,"prompt":"What happens if a custom struct wraps a class instance without implementing custom COW?","options":[{"id":"a","text":"Both struct copies share the same class, breaking value semantics.","explanation":"Copying the struct copies only the class pointer, causing both structs to point to the same mutable object."},{"id":"b","text":"The compiler automatically generates deep copy methods for the class.","explanation":"Swift does not automatically synthesize deep copy methods for class references."},{"id":"c","text":"The code causes an instant runtime segmentation fault when copied.","explanation":"Pointer copying is valid code, but it leads to shared state bugs."},{"id":"d","text":"The class instance is automatically placed in read-only static memory.","explanation":"The class remains a standard mutable heap object."}],"answer":"a"},{"id":"cow-q6","type":"mcq","difficulty":2,"prompt":"What is the time complexity of copying an array when COW is active and no mutation occurs?","options":[{"id":"a","text":"O(n) where n is the total number of items.","explanation":"O(n) would mean copying every element immediately, which COW prevents."},{"id":"b","text":"O(1) constant time, because only the reference pointer is copied.","explanation":"Assigning a COW collection copies only a reference pointer and increments a reference count."},{"id":"c","text":"O(log n) logarithmic time based on binary search trees.","explanation":"Array assignments do not use tree operations."},{"id":"d","text":"O(n^2) quadratic time due to nested loops.","explanation":"Assignment is an O(1) operation."}],"answer":"b"},{"id":"cow-q7","type":"mcq","difficulty":2,"prompt":"How does passing a collection as an 'inout' parameter affect copy-on-write performance?","options":[{"id":"a","text":"It forces an immediate deep copy on entry into the function body.","explanation":"inout avoids extra copies; it does not force them."},{"id":"b","text":"It converts the collection into an unmanaged raw memory pointer.","explanation":"inout is safe Swift syntax and does not produce unmanaged pointers."},{"id":"c","text":"It keeps the reference count at 1, allowing in-place mutations without copies.","explanation":"Because no second copy exists, isKnownUniquelyReferenced returns true and mutations happen in place."},{"id":"d","text":"It causes the function to execute on a background queue automatically.","explanation":"inout parameter passing has no effect on thread scheduling."}],"answer":"c"},{"id":"cow-q8","type":"mcq","difficulty":3,"prompt":"What does isKnownUniquelyReferenced return if the reference count of the object is greater than 1?","options":[{"id":"a","text":"It returns true and logs a warning to the console.","explanation":"It returns false when reference count is greater than one."},{"id":"b","text":"It throws an UnhandledReferenceException error.","explanation":"The function does not throw errors; it returns a Bool."},{"id":"c","text":"It terminates the process with an assertion failure.","explanation":"Multiple references are completely normal and return false."},{"id":"d","text":"It returns false, signaling that storage must be copied before mutation.","explanation":"Returning false signals to the mutating method that the buffer is shared and must be duplicated."}],"answer":"d"},{"id":"cow-q9","type":"mcq","difficulty":2,"prompt":"What is the relationship between Copy-on-Write and value semantics in Swift?","options":[{"id":"a","text":"COW is an internal performance optimization that preserves value semantics.","explanation":"COW allows value types to behave like independent values while sharing storage behind the scenes."},{"id":"b","text":"COW breaks value semantics by turning value types into shared references.","explanation":"COW strictly maintains value semantics from the caller's perspective."},{"id":"c","text":"Value semantics only exist in languages that do not use COW.","explanation":"Swift uses COW specifically to make value semantics fast for large collections."},{"id":"d","text":"COW requires developers to use manual pointer arithmetic.","explanation":"COW is handled safely without manual pointer arithmetic."}],"answer":"a"},{"id":"cow-q10","type":"mcq","difficulty":3,"prompt":"What parameter requirement must be met when calling isKnownUniquelyReferenced?","options":[{"id":"a","text":"The argument must be an optional class reference passed by value.","explanation":"The argument must be passed inout with the ampersand operator."},{"id":"b","text":"The argument must be passed as an inout reference to a class instance.","explanation":"The function takes inout to inspect the reference count directly without creating temporary references."},{"id":"c","text":"The argument must conform to the Sendable and Identifiable protocols.","explanation":"These protocol conformances are not required."},{"id":"d","text":"The argument must be a weak reference variable.","explanation":"The reference must be a strong, non-weak reference."}],"answer":"b"},{"id":"cow-q11","type":"mcq","difficulty":3,"prompt":"Why does isKnownUniquelyReferenced return false if an object has weak references pointing to it?","options":[{"id":"a","text":"Because weak references permanently disable memory deallocation.","explanation":"Weak references allow deallocation when strong references reach zero."},{"id":"b","text":"Because weak references require dynamic Objective-C swizzling.","explanation":"Weak references are part of the Swift runtime."},{"id":"c","text":"Because weak references create side tables, preventing guaranteed uniqueness.","explanation":"Weak references introduce side table entries, preventing the function from confirming uniqueness."},{"id":"d","text":"Because Swift forbids weak references on any class used by structs.","explanation":"Classes can have weak references, but it affects uniqueness checks."}],"answer":"c"},{"id":"cow-q12","type":"mcq","difficulty":2,"prompt":"What happens when you read elements from two arrays sharing a COW buffer?","options":[{"id":"a","text":"Each read triggers a full deep memory allocation on the heap.","explanation":"Reads never trigger memory allocations."},{"id":"b","text":"The compiler locks the thread to prevent concurrent read operations.","explanation":"Concurrent reads do not cause thread locks in standard arrays."},{"id":"c","text":"The array is converted to an immutable Objective-C NSArray.","explanation":"Native Swift arrays remain native types."},{"id":"d","text":"Both reads access the shared buffer directly with zero copying overhead.","explanation":"Read operations never trigger a copy; they read from the shared storage buffer safely."}],"answer":"d"},{"id":"cow-q13","type":"mcq","difficulty":1,"prompt":"Why is Copy-on-Write especially important for String in Swift?","options":[{"id":"a","text":"Because strings can contain large text payloads that would be slow to copy repeatedly.","explanation":"Passing long strings around without COW would duplicate large UTF-8 text buffers unnecessarily."},{"id":"b","text":"Because strings cannot be represented as UTF-8 without COW.","explanation":"UTF-8 encoding is independent of copy-on-write."},{"id":"c","text":"Because Swift strings are secretly C++ classes on Linux.","explanation":"Swift String is a native Swift struct across all platforms."},{"id":"d","text":"Because strings do not support value semantics without COW.","explanation":"A naive string struct could have value semantics, but copying would be slow."}],"answer":"a"},{"id":"cow-q14","type":"mcq","difficulty":2,"prompt":"If a custom struct has ten Int properties, should you implement Copy-on-Write for it?","options":[{"id":"a","text":"Yes, every struct in an iOS app should implement custom COW.","explanation":"Small structs should not use COW because heap allocation adds overhead."},{"id":"b","text":"No, small value types are cheap to copy directly on the stack.","explanation":"Ten integers fit in 80 bytes on the stack. Wrapping them in a heap class would add unnecessary overhead."},{"id":"c","text":"Yes, but only if the struct is passed into SwiftUI views.","explanation":"SwiftUI handles small value structs efficiently on the stack."},{"id":"d","text":"No, because structs with Int properties cannot compile COW logic.","explanation":"Any struct can implement COW, but doing so for small types is poor practice."}],"answer":"b"},{"id":"cow-q15","type":"mcq","difficulty":3,"prompt":"In what scenario could an unnecessary COW copy be triggered inside a loop?","options":[{"id":"a","text":"When using a standard for-in loop over a constant array.","explanation":"Iterating over a constant array does not mutate it, so no copy occurs."},{"id":"b","text":"When using the enumerated() method on an array.","explanation":"enumerated() creates an iterator and does not trigger COW copies."},{"id":"c","text":"When modifying an array while another variable or closure retains a reference to it.","explanation":"If a second reference exists during the mutation, isKnownUniquelyReferenced returns false and copies."},{"id":"d","text":"When running code in release mode with optimizations enabled.","explanation":"Optimizations reduce unnecessary copies, not increase them."}],"answer":"c"},{"id":"cow-q16","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"var numbers1 = [1, 2, 3]\nvar numbers2 = numbers1\n\nnumbers2.append(4)\n\nprint(\"numbers1: \\(numbers1.count)\")\nprint(\"numbers2: \\(numbers2.count)\")","options":[{"id":"a","text":"numbers1: 4\\nnumbers2: 4","explanation":"Arrays have value semantics; mutating numbers2 does not alter numbers1."},{"id":"b","text":"numbers1: 3\\nnumbers2: 3","explanation":"numbers2 had 4 appended to it, so its count is 4."},{"id":"c","text":"numbers1: 0\\nnumbers2: 4","explanation":"numbers1 is not cleared."},{"id":"d","text":"numbers1: 3\\nnumbers2: 4","explanation":"COW separates the storage when numbers2 appends 4. numbers1 remains at 3 items, numbers2 has 4."}],"answer":"d"},{"id":"cow-q17","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"class Storage {\n    var value: Int = 10\n}\n\nstruct Wrapper {\n    var storage = Storage()\n    var value: Int {\n        get { storage.value }\n        set { storage.value = newValue }\n    }\n}\n\nvar w1 = Wrapper()\nvar w2 = w1\nw2.value = 99\n\nprint(\"w1: \\(w1.value), w2: \\(w2.value)\")","options":[{"id":"a","text":"w1: 99, w2: 99","explanation":"Because Wrapper does not implement COW, both structs share the same Storage instance. Mutating w2 changes w1!"},{"id":"b","text":"w1: 10, w2: 99","explanation":"Without COW logic, the class reference is shared, breaking value semantics."},{"id":"c","text":"w1: 10, w2: 10","explanation":"w2.value was updated to 99."},{"id":"d","text":"It causes a compiler error because structs cannot hold class instances.","explanation":"Structs can hold class instances, but developers must manage COW to preserve value semantics."}],"answer":"a"},{"id":"cow-q18","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"class Buffer {\n    var count: Int\n    init(count: Int) { self.count = count }\n}\n\nvar buf1: Buffer? = Buffer(count: 5)\nprint(isKnownUniquelyReferenced(&buf1))","options":[{"id":"a","text":"false","explanation":"There is only one reference to buf1, so it is uniquely referenced."},{"id":"b","text":"true","explanation":"buf1 is the only strong reference to the Buffer object, so isKnownUniquelyReferenced returns true."},{"id":"c","text":"nil","explanation":"isKnownUniquelyReferenced returns a Bool, never nil."},{"id":"d","text":"5","explanation":"The function returns a boolean uniqueness check, not the count property."}],"answer":"b"},{"id":"cow-q19","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"class Buffer {\n    var count: Int\n    init(count: Int) { self.count = count }\n}\n\nvar b1: Buffer? = Buffer(count: 5)\nlet b2 = b1\nprint(isKnownUniquelyReferenced(&b1))","options":[{"id":"a","text":"true","explanation":"Both b1 and b2 reference the buffer, so reference count is 2 (not unique)."},{"id":"b","text":"5","explanation":"The output is a boolean."},{"id":"c","text":"false","explanation":"Because b2 also references the same Buffer instance, b1 is not uniquely referenced, returning false."},{"id":"d","text":"It causes a compiler warning that b2 is unused.","explanation":"b2 is used implicitly by increasing the reference count."}],"answer":"c"},{"id":"cow-q20","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"final class Box {\n    var tag: String\n    init(tag: String) { self.tag = tag }\n}\n\nstruct SafeBox {\n    private var box: Box\n    init(tag: String) { self.box = Box(tag: tag) }\n    \n    var tag: String {\n        get { box.tag }\n        set {\n            if !isKnownUniquelyReferenced(&box) {\n                box = Box(tag: box.tag)\n            }\n            box.tag = newValue\n        }\n    }\n}\n\nvar boxA = SafeBox(tag: \"Alpha\")\nvar boxB = boxA\nboxB.tag = \"Beta\"\n\nprint(\"\\(boxA.tag) & \\(boxB.tag)\")","options":[{"id":"a","text":"Beta & Beta","explanation":"Because SafeBox implements COW, modifying boxB does not mutate boxA."},{"id":"b","text":"Alpha & Alpha","explanation":"boxB.tag was updated to 'Beta'."},{"id":"c","text":"Box & Box","explanation":"The tags are 'Alpha' and 'Beta'."},{"id":"d","text":"Alpha & Beta","explanation":"COW detects the shared box, allocates a new Box for boxB, and keeps boxA with tag 'Alpha'."}],"answer":"d"},{"id":"cow-q21","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"func modifyArray(_ arr: inout [Int]) {\n    arr.append(100)\n}\n\nvar list = [1, 2, 3]\nmodifyArray(&list)\nprint(list)","options":[{"id":"a","text":"[1, 2, 3, 100]","explanation":"Passing inout mutates list in place without triggering an unnecessary COW buffer duplication."},{"id":"b","text":"[1, 2, 3]","explanation":"inout allows the function to modify the caller's array directly."},{"id":"c","text":"[100]","explanation":"The original elements 1, 2, 3 are preserved."},{"id":"d","text":"It fails to compile because arrays cannot be passed as inout.","explanation":"Arrays can be passed as inout parameters in Swift."}],"answer":"a"},{"id":"cow-q22","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"var dictA = [\"key\": \"initial\"]\nvar dictB = dictA\n\ndictB[\"key\"] = \"modified\"\n\nprint(\"dictA: \\(dictA[\"key\"] ?? \"\"), dictB: \\(dictB[\"key\"] ?? \"\")\")","options":[{"id":"a","text":"dictA: modified, dictB: modified","explanation":"Dictionary uses copy-on-write, preserving value semantics."},{"id":"b","text":"dictA: initial, dictB: modified","explanation":"Dictionary implements COW. Mutating dictB duplicates storage, keeping dictA untouched."},{"id":"c","text":"dictA: initial, dictB: initial","explanation":"dictB was mutated to 'modified'."},{"id":"d","text":"dictA: nil, dictB: nil","explanation":"Both keys exist and unwrap cleanly."}],"answer":"b"},{"id":"cow-q23","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"final class Counter {\n    var count: Int = 0\n}\n\nvar c1: Counter? = Counter()\nvar c2: Counter? = c1\n\nc2 = nil // Release second reference\nprint(isKnownUniquelyReferenced(&c1))","options":[{"id":"a","text":"0","explanation":"The output is a boolean."},{"id":"b","text":"false","explanation":"Setting c2 to nil decremented the reference count back to 1."},{"id":"c","text":"true","explanation":"After setting c2 to nil, c1 becomes the sole reference again, so isKnownUniquelyReferenced returns true."},{"id":"d","text":"nil","explanation":"isKnownUniquelyReferenced returns a non-optional Bool."}],"answer":"c"},{"id":"cow-q24","type":"written","difficulty":1,"prompt":"Explain what Copy-on-Write (COW) is in Swift. In 2 to 5 sentences, describe how it balances performance with value semantics.","rubric":[{"criterion":"Explains that COW is an optimization where value types share underlying heap storage until mutation","weight":50,"key":true},{"criterion":"Notes that it preserves value semantics by copying the buffer only when one variable modifies the data","weight":50,"key":true}],"modelAnswer":"Copy-on-write is an optimization in Swift where multiple value types share the same underlying storage buffer after an assignment. No memory is duplicated while the data is only read, which makes copying O(1) in time and memory. When one of the variables mutates the data, Swift duplicates the buffer first. This provides the performance of reference types while preserving strict value semantics."},{"id":"cow-q25","type":"written","difficulty":2,"prompt":"Do custom Swift structs have Copy-on-Write behavior automatically? In 2 to 5 sentences, explain what happens when a custom struct is copied.","rubric":[{"criterion":"Clarifies that custom Swift structs do not have copy-on-write automatically","weight":50,"key":true},{"criterion":"Explains that copying a custom struct copies all stored properties directly on the stack","weight":50,"key":true}],"modelAnswer":"Custom Swift structs do not have copy-on-write behavior automatically. When you assign or copy a custom struct, Swift immediately copies all of its stored properties. Only standard library collections like Array, Dictionary, Set, and String have built-in COW. If developers want copy-on-write behavior in a custom struct, they must implement it manually."},{"id":"cow-q26","type":"written","difficulty":2,"prompt":"How do you implement custom Copy-on-Write in a Swift struct? In 2 to 5 sentences, describe the role of isKnownUniquelyReferenced.","rubric":[{"criterion":"Explains that the struct wraps a private reference class holding the actual data buffer","weight":50,"key":true},{"criterion":"Explains that mutating methods call isKnownUniquelyReferenced to check reference count and copy the buffer if shared","weight":50,"key":true}],"modelAnswer":"To implement custom copy-on-write, a struct wraps a private class instance that holds the underlying data on the heap. Before any mutating operation, the struct calls isKnownUniquelyReferenced passing its private storage. If the function returns true, the mutation happens in place because no other instance shares it. If it returns false, the struct allocates a new class instance with duplicated data before writing."},{"id":"cow-q27","type":"written","difficulty":3,"prompt":"Why can holding a reference in a closure cause unexpected Copy-on-Write duplication during collection mutations? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that capturing a collection in a closure creates an additional reference to the underlying storage buffer","weight":50,"key":true},{"criterion":"Notes that isKnownUniquelyReferenced detects a reference count greater than 1, forcing a deep copy on mutation","weight":50,"key":true}],"modelAnswer":"When a collection is captured in a closure or stored in another variable, its underlying storage buffer reference count increases to two or more. If code then mutates the collection while the closure is still alive, the collection's uniqueness check detects multiple references. Because the buffer is shared, Swift forces a full memory copy before the mutation occurs. This can cause unexpected performance drops in tight loops."},{"id":"cow-q28","type":"written","difficulty":3,"prompt":"How does passing a collection as an inout parameter optimize memory performance compared to passing and returning a value? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that inout passes a reference to the existing variable without incrementing storage reference count","weight":50,"key":true},{"criterion":"Notes that isKnownUniquelyReferenced remains true, allowing in-place O(1) mutations without COW allocations","weight":50,"key":true}],"modelAnswer":"Passing a collection as an inout parameter passes the existing storage reference without creating an additional copy. Because no second reference exists, the underlying storage remains uniquely referenced with a count of one. Any mutations performed inside the function happen in place without triggering a COW duplication. In contrast, passing by value and re-assigning can create temporary references that trigger redundant deep copies."},{"id":"cow-q29","type":"code-write","difficulty":1,"prompt":"Create an array named original with elements [10, 20]. Assign it to a variable named copy. Append 30 to copy. Print the count of original followed by the count of copy on separate lines.","starterCode":"// Create original array [10, 20]\n\n// Assign to copy\n\n// Append 30 to copy\n\n// Print counts","rubric":[{"criterion":"Creates original array with [10, 20] and assigns to copy","weight":40,"key":true},{"criterion":"Appends 30 to copy","weight":30,"key":true},{"criterion":"Prints counts 2 and 3 on separate lines","weight":30,"key":true}],"modelAnswer":"var original = [10, 20]\nvar copy = original\ncopy.append(30)\nprint(original.count)\nprint(copy.count)"},{"id":"cow-q30","type":"code-write","difficulty":2,"prompt":"Write a function named isUnique that takes an inout optional class instance of type RawClass? and returns the result of isKnownUniquelyReferenced. Declare a class RawClass with var id: Int = 1, instantiate it, pass it to isUnique, and print the boolean result.","starterCode":"final class RawClass {\n    var id: Int = 1\n}\n\n// Write isUnique function\n\n// Instantiate and call isUnique, printing result","rubric":[{"criterion":"Declares class RawClass","weight":25,"key":true},{"criterion":"Declares isUnique function accepting inout RawClass? and calls isKnownUniquelyReferenced","weight":45,"key":true},{"criterion":"Instantiates RawClass, invokes isUnique(&instance), and prints true","weight":30,"key":true}],"modelAnswer":"final class RawClass {\n    var id: Int = 1\n}\n\nfunc isUnique(_ object: inout RawClass?) -> Bool {\n    return isKnownUniquelyReferenced(&object)\n}\n\nvar instance: RawClass? = RawClass()\nprint(isUnique(&instance))"},{"id":"cow-q31","type":"code-write","difficulty":3,"prompt":"Implement a custom COW struct named SmartArray wrapping a private class DataStorage. DataStorage holds a property 'var items: [Int]'. SmartArray has an append method that checks isKnownUniquelyReferenced(&storage) and creates a new DataStorage if shared before appending. Create an instance a with [1], assign to b, call b.append(2), and print 'a: \\(a.items.count), b: \\(b.items.count)'.","starterCode":"final class DataStorage {\n    var items: [Int]\n    init(items: [Int]) { self.items = items }\n}\n\n// Implement SmartArray struct with COW append\n\n// Instantiate a, assign to b, append 2 to b, and print counts","rubric":[{"criterion":"Declares final class DataStorage with items array","weight":25,"key":true},{"criterion":"Declares struct SmartArray wrapping DataStorage with isKnownUniquelyReferenced check in append","weight":50,"key":true},{"criterion":"Verifies COW by creating a, copying to b, appending to b, and printing 'a: 1, b: 2'","weight":25,"key":true}],"modelAnswer":"final class DataStorage {\n    var items: [Int]\n    init(items: [Int]) { self.items = items }\n}\n\nstruct SmartArray {\n    private var storage: DataStorage\n    init(items: [Int]) { self.storage = DataStorage(items: items) }\n    var items: [Int] { storage.items }\n    \n    mutating func append(_ item: Int) {\n        if !isKnownUniquelyReferenced(&storage) {\n            storage = DataStorage(items: storage.items)\n        }\n        storage.items.append(item)\n    }\n}\n\nvar a = SmartArray(items: [1])\nvar b = a\nb.append(2)\nprint(\"a: \\(a.items.count), b: \\(b.items.count)\")"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

@@ -1,0 +1,198 @@
+export const meta = {
+  id: "copy-on-write",
+  summary: "Explain how Swift collections avoid unnecessary memory copies using copy-on-write and value semantics.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Structures and Classes", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/classesandstructures", kind: "official" },
+    { title: "Swift Optimization Tips: Use copy-on-write semantics for large value types", url: "https://github.com/swiftlang/swift/blob/main/docs/OptimizationTips.rst", kind: "official" },
+    { title: "Apple Developer Documentation: isKnownUniquelyReferenced", url: "https://developer.apple.com/documentation/swift/isknownuniquelyreferenced(_:)", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>When you assign an array with one million items to a new variable in Swift, does it duplicate the memory immediately?</Question>
+  <Guess>
+    <Option id="a">Yes, Swift value types always perform a full memory copy immediately upon assignment.</Option>
+    <Option id="b" correct>No, Swift shares the memory buffer until one of the variables modifies it.</Option>
+    <Option id="c">No, Swift converts the array into an Objective-C NSArray pointer permanently.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of sharing a document blueprint with a teammate. You both look at the exact same printed sheet of paper. As long as you only read it, nobody needs another copy. But the moment your teammate wants to sketch new notes, they make a photocopy first. They draw on their copy, leaving your original sheet unchanged.
+</Analogy>
+
+In Swift, structs are value types. Value types have **value semantics**, meaning each instance keeps its own independent state. Mutating one variable never alters another.
+
+However, copying a huge array with thousands of items on every assignment would be very slow. It would waste memory and CPU time.
+
+To solve this, Swift uses an optimization called **Copy-on-Write (COW)**.
+
+When you copy a collection, Swift does not duplicate the underlying data in memory. Instead, both variables share the same storage buffer behind the scenes.
+
+The actual duplicate copy happens only when one variable modifies the data. If neither variable mutates the collection, no memory copy ever happens.
+
+## See it
+
+<Diagram id="copy-on-write-main" caption="How Copy-on-Write shares storage until a mutation triggers a memory copy">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Array Variable A: Stack variable pointing to Storage Buffer on Heap.
+    2. Array Variable B: Second stack variable assigned from A, sharing the exact same heap buffer (Ref Count = 2).
+    3. Mutation Event: B appends an element.
+    4. Storage Split: B detects shared reference, allocates new Buffer, copies data, and updates its pointer.
+  - Steps:
+    Step 1: Array A holds a reference to a heap storage buffer with reference count 1.
+    Step 2: Assigning 'var B = A' performs a shallow copy. Both point to the same buffer (ref count 2).
+    Step 3: B initiates an append mutation. It checks if the buffer is uniquely referenced.
+    Step 4: Because the buffer is shared, B duplicates the buffer before mutating it. A remains unchanged.
+  - Static version (reduced motion):
+    Diagram showing shared buffer state transitioning into two independent buffers after mutation.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>When does an array actually copy its elements into a new heap buffer?</Question>
+  <Option id="a">At the exact moment you assign it to a second variable.</Option>
+  <Option id="b" correct>At the moment a shared variable performs a mutation.</Option>
+  <Option id="c">When the application enters the background.</Option>
+  <Explanation>Copy-on-write delays copying until a shared instance mutates its data.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Standard library collection sharing buffer until mutation">
+
+```swift
+var original = [10, 20, 30]
+var duplicate = original // Storage is shared; no deep copy occurs yet
+
+print("Original count: \(original.count)")
+print("Duplicate count: \(duplicate.count)")
+
+// Mutating duplicate triggers Copy-on-Write
+duplicate.append(40)
+
+print("After mutation:")
+print("Original items: \(original)")
+print("Duplicate items: \(duplicate)")
+```
+
+```output
+Original count: 3
+Duplicate count: 3
+After mutation:
+Original items: [10, 20, 30]
+Duplicate items: [10, 20, 30, 40]
+```
+
+</CodeExample>
+
+This example shows copy-on-write in action:
+- **Assignment**: `duplicate` shares the same underlying buffer with `original`.
+- **Mutation**: When calling `append(40)`, `duplicate` copies the buffer first. `original` remains completely unaffected.
+
+<CodeExample title="Implementing custom copy-on-write with isKnownUniquelyReferenced">
+
+```swift
+final class RawDataStorage {
+    var numbers: [Int]
+    init(numbers: [Int]) { self.numbers = numbers }
+}
+
+struct CustomDataList {
+    private var storage: RawDataStorage
+    
+    init(numbers: [Int]) {
+        self.storage = RawDataStorage(numbers: numbers)
+    }
+    
+    var values: [Int] { storage.numbers }
+    
+    mutating func append(_ number: Int) {
+        // Check if storage is shared by multiple references
+        if !isKnownUniquelyReferenced(&storage) {
+            // Allocate fresh storage copy before mutating
+            storage = RawDataStorage(numbers: storage.numbers)
+        }
+        storage.numbers.append(number)
+    }
+}
+
+var listA = CustomDataList(numbers: [1, 2])
+var listB = listA // Storage is shared
+
+listB.append(99) // Triggers custom COW logic
+
+print("List A: \(listA.values)")
+print("List B: \(listB.values)")
+```
+
+```output
+List A: [1, 2]
+List B: [1, 2, 99]
+```
+
+</CodeExample>
+
+This example demonstrates how to build custom COW types:
+- **Private class storage**: The struct wraps a reference type that lives on the heap.
+- **`isKnownUniquelyReferenced`**: Checks if the reference count is exactly one. If greater than one, it creates a new storage copy before modifying it.
+
+<QuickCheck>
+  <Question>Do custom Swift structs have copy-on-write behavior automatically?</Question>
+  <Option id="a" correct>No, only standard library collections have COW built in. Custom structs need manual implementation.</Option>
+  <Option id="b">Yes, all structs in Swift have COW automatically synthesized by the compiler.</Option>
+  <Option id="c">Yes, but only if they conform to Codable.</Option>
+  <Explanation>Only standard collections like Array, Dictionary, and Set have COW built in. Custom structs must implement COW manually.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Experiment with arrays, value semantics, and copy-on-write in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming custom structs have Copy-on-Write by default">
+A common interview mistake is believing that all Swift structs have copy-on-write. They do not. When you assign a custom struct, Swift copies all its stored properties immediately. Only standard collections like `Array`, `Dictionary`, `Set`, and `String` have COW built in.
+</Trap>
+
+<Trap title="Wrapping reference types inside structs without COW logic">
+If a struct contains a class property and you do not implement COW, assigning the struct copies only the class pointer. Both struct copies will point to the same class instance. Mutating the class will mutate both structs, accidentally breaking value semantics!
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Copy-on-write is an optimization in Swift where collections share the same memory buffer after an assignment. The data is only copied when one of the variables modifies it. This saves memory while keeping value semantics.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Copy-on-write gives value types the performance of reference types while keeping value semantics. Standard library collections like Array and Dictionary use COW. When you assign an array, only the pointer is copied. When you mutate the array, Swift checks if the buffer is uniquely referenced. If shared, it copies the buffer first. Custom structs do not get COW automatically.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Copy-on-write combines value semantics with reference-counted heap buffers for performance. Standard collections manage a private storage class behind a struct wrapper. During mutation, isKnownUniquelyReferenced checks the reference count. If the reference count is one, the mutation occurs in place in O(1) time. Otherwise, a deep copy is allocated. When designing large custom value types, we wrap a private class and use isKnownUniquelyReferenced to prevent unnecessary allocations.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Copy-on-write delays deep memory copying until a shared value type mutates.
+- Value semantics are preserved: modifying one variable never affects another.
+- Standard collections like `Array`, `Dictionary`, `Set`, and `String` use COW.
+- Custom structs do not have COW automatically.
+- Custom COW is built by wrapping a private class and checking `isKnownUniquelyReferenced`.
+- Passing collections as `inout` parameters avoids triggering COW copies during function calls.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Structures and Classes](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/classesandstructures)
+- [Swift Optimization Tips: Use copy-on-write semantics for large value types](https://github.com/swiftlang/swift/blob/main/docs/OptimizationTips.rst)
+- [Apple Developer Documentation: isKnownUniquelyReferenced](https://developer.apple.com/documentation/swift/isknownuniquelyreferenced(_:))

@@ -156,14 +156,13 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (3 of 53 published: 44 main + 9 bonus)
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (4 of 53 published: 44 main + 9 bonus)
   - 🔄 **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)**
     - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
     - ✅ **generics-associated-types** (Generics: Associated Types and Where Clauses) — published (lesson, diagram, 31 questions) → [docs/topics/generics-associated-types/review.html](docs/topics/generics-associated-types/review.html)
     - ✅ **opaque-and-boxed-types** (Opaque and Boxed Types: some vs any) — published (lesson, diagram, 31 questions) → [docs/topics/opaque-and-boxed-types/review.html](docs/topics/opaque-and-boxed-types/review.html)
-    - 🔄 **copy-on-write** (Copy-on-Write and Value Semantics) — starting research
-    - ⬜ **copy-on-write** (Copy-on-Write and Value Semantics)
-    - ⬜ **key-paths** (Key Paths) [bonus]
+    - ✅ **copy-on-write** (Copy-on-Write and Value Semantics) — published (lesson, diagram, 31 questions) → [docs/topics/copy-on-write/review.html](docs/topics/copy-on-write/review.html)
+    - 🔄 **key-paths** (Key Paths) [bonus] — starting research
     - ⬜ **property-wrappers** (Property Wrappers)
     - ⬜ **result-builders** (Result Builders) [bonus]
   - ⬜ **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)**
@@ -322,6 +321,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic copy-on-write (Copy-on-Write and Value Semantics): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/copy-on-write/review.html`). All checks passed. Starting key-paths.
 
 - **2026-11-09** — Built and published topic opaque-and-boxed-types (Opaque and Boxed Types: some vs any): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/opaque-and-boxed-types/review.html`). All checks passed. Starting copy-on-write.
 
