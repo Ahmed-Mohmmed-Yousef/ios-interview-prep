@@ -156,7 +156,22 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- ⬜ **4.3 Mid level topics (Wave 3)** — 44 main + 9 bonus
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (0 of 53 published: 44 main + 9 bonus)
+  - 🔄 **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)**
+    - 🔄 **protocol-oriented-programming** (Protocol-Oriented Programming) — starting research
+    - ⬜ **generics-associated-types** (Generics: Associated Types and Where Clauses)
+    - ⬜ **opaque-and-boxed-types** (Opaque and Boxed Types: some vs any)
+    - ⬜ **copy-on-write** (Copy-on-Write and Value Semantics)
+    - ⬜ **key-paths** (Key Paths) [bonus]
+    - ⬜ **property-wrappers** (Property Wrappers)
+    - ⬜ **result-builders** (Result Builders) [bonus]
+  - ⬜ **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)**
+  - ⬜ **Batch 3C: Memory Profiling & Swift Concurrency (8 topics: 1 memory + 7 concurrency)**
+  - ⬜ **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)**
+  - ⬜ **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
+  - ⬜ **Batch 3F: Data Persistence & Networking (5 topics)**
+  - ⬜ **Batch 3G: Architecture & Testing Strategy (8 topics)**
+  - ⬜ **Batch 3H: Performance & System Design Foundations (3 topics)**
 - ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
 - ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
 - ⬜ **4.6 Phase 4 summary and final verification**
@@ -306,6 +321,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Step 4.3 started: Mid level topics (Wave 3, 53 topics across 8 batches). Launching dedicated autonomous subagent for Batch 3A (Swift Language Deep Dive: `protocol-oriented-programming` through `result-builders`).
 
 - **2026-11-09** — Completed Junior Level Wave 2: all 45 junior topics (44 main + 1 bonus) across Batches 2A–2F are now 100% published and committed! Built and published the final topic unit-testing (Unit Tests): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/unit-testing/review.html`). All checks passed. Total published topics across curriculum: 67 (22 Fresh + 45 Junior).
 
