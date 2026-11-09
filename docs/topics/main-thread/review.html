@@ -1,0 +1,568 @@
+<title>The Main Thread Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --main-color: #0284c7; --main-soft: #e0f2fe;
+  --bg-color: #6366f1; --bg-soft: #eef2ff;
+  --active-color: #16a34a; --active-soft: #dcfce7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --main-color: #38bdf8; --main-soft: #082f49;
+  --bg-color: #818cf8; --bg-soft: #1e1b4b;
+  --active-color: #4ade80; --active-soft: #14532d;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.main { background: var(--main-soft); color: var(--main-color); }
+.kind.bg { background: var(--bg-soft); color: var(--bg-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 10px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.main-lane { fill: var(--main-soft); stroke: var(--main-color); }
+.box-rect.bg-lane { fill: var(--bg-soft); stroke: var(--bg-color); }
+.box-rect.busy { fill: var(--active-soft); stroke: var(--active-color); stroke-width: 3; }
+
+.text-title { font-family: var(--font-body); font-size: 14px; font-weight: 700; fill: var(--ink); }
+.text-val { font-family: var(--font-code); font-size: 13px; font-weight: 600; fill: var(--ink); }
+.text-muted { font-family: var(--font-body); font-size: 12px; fill: var(--muted); }
+
+.badge { font-family: var(--font-code); font-size: 14px; font-weight: 700; }
+.badge.ok { fill: var(--main-color); }
+.badge.active { fill: var(--active-color); }
+
+.pulse-bar { rx: 4px; transition: fill 0.3s, width 0.3s; }
+.pulse-bar.frame { fill: var(--main-color); opacity: 0.8; }
+.pulse-bar.work { fill: var(--bg-color); opacity: 0.9; }
+
+.controls {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 16px;
+}
+.btn {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  font: 600 13px var(--font-body); padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 999px; background: var(--line);
+  cursor: pointer; border: none; padding: 0;
+}
+.dot.active { background: var(--main-color); transform: scale(1.2); }
+
+.reduced-static { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-stepper { display: none; }
+  .reduced-static { display: grid; gap: 12px; }
+  .static-step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .static-step h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--main-color); }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Concurrency · Topic 1 of 3 · Prototype</p>
+    <h1>The Main Thread</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain why UI work must run on the main thread.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Why does iOS crash your app if the main thread is blocked for too long?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The battery sensor triggers an automatic shutdown to save power.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The system watchdog kills unresponsive apps when user touches and screen frames are blocked.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">iOS restarts the operating system kernel when CPU usage drops to zero.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine a busy restaurant kitchen with one front counter cashier.</p><p>The cashier takes customer orders and hands them food.</p><p>If the cashier leaves the counter to chop vegetables in the back room for ten minutes, the line stops.</p><p>Customers cannot order, and the restaurant freezes.</p><p>A helper in the back should chop the vegetables, so the cashier never leaves the front counter.</p></aside>
+<p>In iOS, the <strong>main thread</strong> is the front counter of your app.</p>
+<p>It is created when your application launches and runs the main run loop.</p>
+<ol>
+<li><strong>What runs on the main thread</strong>:
+<ul>
+<li>Screen drawing, layout passes, and animations.</li>
+<li>User touch events, button taps, and gestures.</li>
+<li>UIKit view modifications and SwiftUI state updates.</li>
+</ul>
+</li>
+<li><strong>Why UI work must run on the main thread</strong>:
+<ul>
+<li>UI frameworks like UIKit are not thread-safe.</li>
+<li>Adding locks to every button and label would slow down rendering and waste battery.</li>
+<li>The screen refreshes 60 or 120 times every second. All layout must synchronize on that clock.</li>
+</ul>
+</li>
+<li><strong>Keep the main thread free</strong>:
+<ul>
+<li>Heavy work like file storage, network requests, and image filters belongs on background threads.</li>
+<li>Dispatch the final result back to the main thread before updating any label or screen view.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens when you run a heavy synchronous loop on the main thread?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The loop runs faster because the main thread has higher CPU priority.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The user interface freezes and cannot respond to taps or animations.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">iOS automatically moves the loop to a background thread.</span></button><p class="qc-explain" hidden="">Running heavy work synchronously on the main thread blocks the run loop, freezing touch handling and animations.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Enforcing main thread execution using @MainActor in Swift</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+@MainActor
+class ProfileViewModel {
+    var username: String = &quot;Guest&quot;
+    
+    func updateUsername(to newName: String) {
+        username = newName
+        print(&quot;Updated on main thread: \(Thread.isMainThread)&quot;)
+    }
+}
+
+let vm = ProfileViewModel()
+vm.updateUsername(to: &quot;Taylor&quot;)
+print(&quot;Current user: \(vm.username)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Updated on main thread: true
+Current user: Taylor
+</code></pre></figure>
+<p>In this example, <code>@MainActor</code> guarantees that <code>ProfileViewModel</code> runs exclusively on the main thread.</p>
+<p>Swift verifies this at compile time, eliminating data races on user interface state.</p>
+<p><code>Thread.isMainThread</code> confirms that the property update happened on the main thread.</p>
+<figure class="code-example"><figcaption>Asserting main thread safety before updating UI state</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+struct UserDisplayState {
+    var title: String
+    var isLoading: Bool
+}
+
+@MainActor
+class ScreenPresenter {
+    var state = UserDisplayState(title: &quot;Welcome&quot;, isLoading: false)
+    
+    func apply(title: String) {
+        assert(Thread.isMainThread, &quot;UI mutations must run on the main thread!&quot;)
+        state.title = title
+        state.isLoading = false
+        print(&quot;UI State: title = \(state.title), main = \(Thread.isMainThread)&quot;)
+    }
+}
+
+let presenter = ScreenPresenter()
+presenter.apply(title: &quot;Dashboard&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">UI State: title = Dashboard, main = true
+</code></pre></figure>
+<p>In this second example, <code>apply(title:)</code> guards UI state updates.</p>
+<p>The assertion verifies that the function runs on the main thread.</p>
+<p>Using <code>@MainActor</code> ensures that all state mutations happen safely before the next screen redraw.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens if you call DispatchQueue.main.sync from the main thread?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The closure executes with high priority without blocking.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The app deadlocks immediately and permanently freezes.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Swift prints a warning and runs the closure in the background.</span></button><p class="qc-explain" hidden="">Calling sync on the main queue while already on the main thread causes an unrecoverable deadlock.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Calling DispatchQueue.main.sync from the main thread</p><p>Calling <code>DispatchQueue.main.sync</code> from the main thread creates an instant deadlock.</p><p>The main thread waits for the block to complete before continuing.</p><p>However, the block cannot start because the main thread is blocked waiting for it. The app freezes permanently.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Updating UI from background network callbacks</p><p>URLSession data tasks return their results on background threads.</p><p>Assigning those results directly to labels, image views, or published properties causes background UI mutation warnings.</p><p>Always dispatch back to the main thread using <code>@MainActor</code> or <code>DispatchQueue.main.async</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming the watchdog only runs during app launch</p><p>The iOS watchdog monitors your app during its entire lifecycle, not just at launch.</p><p>If the main thread is blocked for more than roughly 10 seconds during normal use, the operating system kills your process.</p><p>The crash report will display the exception code <code>0x8badf00d</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Parsing large JSON files on the main thread</p><p>Decoding large JSON payloads or database queries can take tens or hundreds of milliseconds.</p><p>Doing this work on the main thread drops frames and creates visible user interface hitches.</p><p>Decode your models on background tasks and pass only the finished state to the main thread.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;The main thread handles all user interaction and screen rendering in iOS. If we do heavy work on the main thread, the app freezes. UI frameworks like UIKit are not thread-safe, so all UI updates must happen on the main thread. We run long tasks in the background and send results to the main thread.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;UIKit is not thread-safe to avoid the performance cost of internal locks. Screen rendering must synchronize with display refreshes at 60 or 120 hertz. If we block the main thread for too long, the iOS watchdog kills the app with exception 0x8badf00d. In modern Swift, I use @MainActor to guarantee main thread isolation for view models and UI code.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;On iOS, every display frame has a strict render budget: 16.6 milliseconds at 60Hz or 8.3 milliseconds on ProMotion displays. During that window, the main thread must handle events, run layout passes, and commit Core Animation transactions to the render server. Blocking the main thread causes dropped frames known as hitches. In Xcode, I catch background UI violations using the Main Thread Checker and diagnose hitches using the Instruments Animation Hitches template.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>The main thread processes touch events, animations, and view drawing.</li>
+<li>UI frameworks are not thread-safe; all UI updates must run on the main thread.</li>
+<li>Heavy work like networking, image filtering, and file I/O must run on background threads.</li>
+<li>Calling <code>DispatchQueue.main.sync</code> from the main thread causes an immediate deadlock.</li>
+<li>The iOS watchdog terminates apps that block the main thread for too long with code <code>0x8badf00d</code>.</li>
+<li>In modern Swift, annotate UI classes and methods with <code>@MainActor</code> for compile-time safety.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/swift/mainactor">Apple Developer Documentation: MainActor</a> — Global actor representing the main execution thread.</li>
+<li><a href="https://developer.apple.com/documentation/dispatch/dispatchqueue/main">Apple Developer Documentation: DispatchQueue.main</a> — Managing asynchronous tasks on the main serial dispatch queue.</li>
+<li><a href="https://developer.apple.com/documentation/xcode/diagnosing-memory-thread-and-crash-issues-early">Apple Developer Documentation: Diagnosing memory, thread, and crash issues early</a> — Using the Main Thread Checker and sanitizers in Xcode.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    code: '@IBAction func buttonTapped()',
+    caption: 'Step 1: User taps a button. The main thread receives the touch event and stays responsive at 60fps.',
+    mainActivity: 'Handling: Touch Event',
+    bgActivity: 'State: Idle',
+    bgStatus: 'Waiting for work',
+    progressWidth: '0',
+    rectMainClass: 'box-rect busy',
+    rectBgClass: 'box-rect bg-lane'
+  },
+  {
+    code: 'Task.detached { let data = fetchJSON() }',
+    caption: 'Step 2: Heavy network download and JSON parsing runs on a background worker queue. Main thread stays free.',
+    mainActivity: 'Drawing UI (16.6ms / frame)',
+    bgActivity: 'Downloading & Parsing JSON',
+    bgStatus: 'Active: CPU Core 2',
+    progressWidth: '180',
+    rectMainClass: 'box-rect main-lane',
+    rectBgClass: 'box-rect busy'
+  },
+  {
+    code: 'await MainActor.run { presenter.apply(data) }',
+    caption: 'Step 3: Background processing completes. Execution dispatches back to the MainActor for safe UI mutation.',
+    mainActivity: 'Receiving MainActor payload',
+    bgActivity: 'Task completed',
+    bgStatus: 'Idle: Core freed',
+    progressWidth: '260',
+    rectMainClass: 'box-rect busy',
+    rectBgClass: 'box-rect bg-lane'
+  },
+  {
+    code: 'view.title = data.title // Smooth UI Commit',
+    caption: 'Step 4: The main thread assigns state to the view before the next screen redraw. Zero hitches, zero freezing.',
+    mainActivity: 'Committed to Display Server',
+    bgActivity: 'State: Idle',
+    bgStatus: 'Waiting for tasks',
+    progressWidth: '0',
+    rectMainClass: 'box-rect main-lane',
+    rectBgClass: 'box-rect bg-lane'
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+  document.getElementById("main-activity").textContent = s.mainActivity;
+  document.getElementById("bg-activity").textContent = s.bgActivity;
+  document.getElementById("bg-status").textContent = s.bgStatus;
+  document.getElementById("bg-progress").setAttribute("width", s.progressWidth);
+
+  document.getElementById("rect-main").className.baseVal = s.rectMainClass;
+  document.getElementById("rect-bg").className.baseVal = s.rectBgClass;
+
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"main-thread","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"main-thread-q1","type":"mcq","difficulty":1,"prompt":"What is the primary responsibility of the main thread in an iOS app?","options":[{"id":"a","text":"Handling touch inputs, screen drawing, layout passes, and animations.","explanation":"Right. The main thread processes UI rendering, layout, and user events."},{"id":"b","text":"Managing background database indexing and disk cache garbage collection.","explanation":"Database queries and disk operations belong on background threads."},{"id":"c","text":"Executing cryptographic hashing for network security connections.","explanation":"Cryptographic computations should run on background queues."},{"id":"d","text":"Compressing video streams before uploading them to cloud servers.","explanation":"Video compression is heavy work that belongs in the background."}],"answer":"a"},{"id":"main-thread-q2","type":"mcq","difficulty":1,"prompt":"Why are UI frameworks like UIKit not designed to be internally thread-safe?","options":[{"id":"a","text":"Because Objective-C lacks support for multithreading primitives.","explanation":"Objective-C supports locks and multithreading primitives."},{"id":"b","text":"Adding locks to every view property would degrade performance and waste battery.","explanation":"Right. Locking all view properties creates heavy synchronization overhead."},{"id":"c","text":"Because Apple chips only have a single physical CPU core.","explanation":"Apple silicon chips feature multiple performance and efficiency cores."},{"id":"d","text":"Because iOS apps are restricted from creating background threads.","explanation":"iOS apps freely create and manage background threads."}],"answer":"b"},{"id":"main-thread-q3","type":"mcq","difficulty":2,"prompt":"What happens if you execute a synchronous network request on the main thread?","options":[{"id":"a","text":"The request finishes instantly because the main thread has highest network priority.","explanation":"Network latency depends on servers, not thread priority."},{"id":"b","text":"Swift automatically converts the request into an async function.","explanation":"Synchronous functions remain synchronous on the calling thread."},{"id":"c","text":"The run loop halts, freezing the screen until the response arrives or times out.","explanation":"Right. Blocking the main thread prevents touches and frame updates."},{"id":"d","text":"The request is routed through the cellular radio rather than Wi-Fi.","explanation":"Thread selection has no impact on physical radio routing."}],"answer":"c"},{"id":"main-thread-q4","type":"mcq","difficulty":2,"prompt":"What is the crash exception code produced by the iOS watchdog when an app freezes?","options":[{"id":"a","text":"0xdeadbeef","explanation":"0xdeadbeef is a debug fill pattern, not the watchdog crash code."},{"id":"b","text":"0xcafebabe","explanation":"0xcafebabe is a Mach-O universal binary magic number."},{"id":"c","text":"0xbaadd00d","explanation":"This is a misspelled variant of the real exception code."},{"id":"d","text":"0x8badf00d","explanation":"Right. 0x8badf00d (ate bad food) indicates a watchdog timeout crash."}],"answer":"d"},{"id":"main-thread-q5","type":"mcq","difficulty":2,"prompt":"What occurs when you call `DispatchQueue.main.sync` from the main thread?","options":[{"id":"a","text":"An immediate deadlock occurs, freezing the application permanently.","explanation":"Right. The thread waits for the block, but the block cannot start."},{"id":"b","text":"The block is queued with highest priority and executes right away.","explanation":"Calling sync while already on the main thread causes a deadlock."},{"id":"c","text":"The operating system dispatches the block to a background thread pool.","explanation":"The main queue cannot re-route blocks to background threads."},{"id":"d","text":"Swift converts the sync call into an async call with a compiler warning.","explanation":"The runtime attempts to execute sync and deadlocks immediately."}],"answer":"a"},{"id":"main-thread-q6","type":"mcq","difficulty":1,"prompt":"Which Swift attribute guarantees that a class or method runs on the main thread?","options":[{"id":"a","text":"@MainThreadOnly","explanation":"@MainThreadOnly is not a valid Swift language attribute."},{"id":"b","text":"@MainActor","explanation":"Right. @MainActor enforces compile-time isolation to the main thread."},{"id":"c","text":"@UIThread","explanation":"@UIThread is used in Android development, not Swift."},{"id":"d","text":"@Synchronized","explanation":"@Synchronized is an Objective-C directive, not a Swift attribute."}],"answer":"b"},{"id":"main-thread-q7","type":"mcq","difficulty":2,"prompt":"What target frame budget must the main thread meet for smooth 60fps rendering?","options":[{"id":"a","text":"About 100 milliseconds per frame.","explanation":"100ms corresponds to 10 frames per second, causing severe hitches."},{"id":"b","text":"About 33.3 milliseconds per frame.","explanation":"33.3ms corresponds to 30 frames per second."},{"id":"c","text":"About 16.6 milliseconds per frame.","explanation":"Right. 1000ms / 60 frames equals roughly 16.6ms per frame."},{"id":"d","text":"About 1.0 millisecond per frame.","explanation":"1.0ms corresponds to 1000 frames per second, which displays do not support."}],"answer":"c"},{"id":"main-thread-q8","type":"mcq","difficulty":2,"prompt":"What built-in Xcode diagnostic tool detects UI updates made from background threads?","options":[{"id":"a","text":"Undefined Behavior Sanitizer.","explanation":"This tool detects C-level undefined behavior like integer overflow."},{"id":"b","text":"Address Sanitizer.","explanation":"Address Sanitizer detects buffer overflows and use-after-free bugs."},{"id":"c","text":"Thread Performance Checker.","explanation":"This tool warns about priority inversions and thread pool starvation."},{"id":"d","text":"Main Thread Checker.","explanation":"Right. Main Thread Checker flags background UIKit calls with purple warnings."}],"answer":"d"},{"id":"main-thread-q9","type":"mcq","difficulty":2,"prompt":"Where should intensive JSON decoding of large server responses be executed?","options":[{"id":"a","text":"On a background thread or asynchronous task off the main thread.","explanation":"Right. Background parsing prevents frame drops and UI hitches."},{"id":"b","text":"Directly inside the main thread view layoutSubviews pass.","explanation":"Parsing in layoutSubviews freezes UI layout rendering."},{"id":"c","text":"Inside the application didFinishLaunchingWithOptions delegate method.","explanation":"Heavy work at launch risks exceeding the 5-second launch watchdog."},{"id":"d","text":"Inside the viewWillAppear lifecycle method of the root view controller.","explanation":"Parsing inside viewWillAppear delays screen appearance and animations."}],"answer":"a"},{"id":"main-thread-q10","type":"mcq","difficulty":2,"prompt":"What is an animation hitch in iOS?","options":[{"id":"a","text":"A screen rotation animation that changes aspect ratio incorrectly.","explanation":"An aspect ratio glitch is a layout bug, not an animation hitch."},{"id":"b","text":"A frame that appears later than expected because the main thread was blocked.","explanation":"Right. When the main thread misses its deadline, a hitch occurs."},{"id":"c","text":"A SwiftUI transition that repeats twice due to state mutation loops.","explanation":"Repeating transitions are state bugs, not dropped render frames."},{"id":"d","text":"A Core Animation layer that has an opaque background color.","explanation":"Opaque backgrounds improve rendering performance rather than drop frames."}],"answer":"b"},{"id":"main-thread-q11","type":"mcq","difficulty":2,"prompt":"How does `Thread.isMainThread` help during debugging?","options":[{"id":"a","text":"It automatically transfers the current function to the main thread.","explanation":"Thread.isMainThread is a read-only boolean check; it does not transfer work."},{"id":"b","text":"It boosts the clock speed of the active processor core.","explanation":"It cannot alter hardware processor clock speeds."},{"id":"c","text":"It returns a boolean indicating whether the current code runs on the main thread.","explanation":"Right. It allows asserting or checking thread context at runtime."},{"id":"d","text":"It pauses background tasks until the user touches the screen.","explanation":"It has no control over task scheduling or touch events."}],"answer":"c"},{"id":"main-thread-q12","type":"mcq","difficulty":3,"prompt":"What frame duration budget is required on Apple ProMotion 120Hz displays?","options":[{"id":"a","text":"Approximately 16.6 milliseconds.","explanation":"16.6ms is the frame budget for standard 60Hz displays."},{"id":"b","text":"Approximately 33.3 milliseconds.","explanation":"33.3ms corresponds to 30Hz displays."},{"id":"c","text":"Approximately 25.0 milliseconds.","explanation":"25ms corresponds to 40Hz displays."},{"id":"d","text":"Approximately 8.3 milliseconds.","explanation":"Right. 1000ms / 120 frames equals approximately 8.33 milliseconds."}],"answer":"d"},{"id":"main-thread-q13","type":"mcq","difficulty":2,"prompt":"What is the recommended modern Swift pattern to safely update UI state from async tasks?","options":[{"id":"a","text":"Isolate the view model to @MainActor or call MainActor.run.","explanation":"Right. @MainActor guarantees compile-time main thread isolation."},{"id":"b","text":"Wrap all view model properties in NSLock instances.","explanation":"Manual locks do not satisfy UI framework main thread requirements."},{"id":"c","text":"Call performSelectorInBackground on the target view.","explanation":"UI updates must never run on background threads."},{"id":"d","text":"Dispatch all view model state mutations to a custom serial queue.","explanation":"Custom queues are not the main thread where rendering occurs."}],"answer":"a"},{"id":"main-thread-q14","type":"mcq","difficulty":2,"prompt":"Why can mutating a UILabel text property from a background thread cause a crash?","options":[{"id":"a","text":"UILabel deletes its internal string buffer when read off the main thread.","explanation":"UILabel does not intentionally delete its string buffer."},{"id":"b","text":"It creates a data race with the render server drawing the view hierarchy.","explanation":"Right. Concurrent access without synchronization causes memory corruption."},{"id":"c","text":"UILabel instances are allocated in CPU read-only memory.","explanation":"View instances live in standard mutable heap memory."},{"id":"d","text":"Because Core Graphics rejects fonts with background thread attributes.","explanation":"Core Graphics can render fonts on any thread when using isolated contexts."}],"answer":"b"},{"id":"main-thread-q15","type":"mcq","difficulty":3,"prompt":"In an app launch watchdog timeout, how much time does iOS typically allow before killing the app?","options":[{"id":"a","text":"About 60 seconds.","explanation":"60 seconds is far too long; users expect apps to open in under 2 seconds."},{"id":"b","text":"About 30 seconds.","explanation":"30 seconds is much longer than the launch threshold."},{"id":"c","text":"About 5 seconds.","explanation":"Right. The watchdog allows roughly 5 seconds during launch before killing."},{"id":"d","text":"About 200 milliseconds.","explanation":"200ms is too short for process initialization and dynamic linking."}],"answer":"c"},{"id":"main-thread-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"import Foundation\n\nfunc checkThread() {\n    print(\"Is main: \\(Thread.isMainThread)\")\n}\n\ncheckThread()","options":[{"id":"a","text":"Is main: false","explanation":"Top-level code in this environment executes on the main thread."},{"id":"b","text":"Is main: nil","explanation":"Thread.isMainThread returns a non-optional boolean value."},{"id":"c","text":"Fatal error: Thread not attached","explanation":"The main thread is always attached to the running process."},{"id":"d","text":"Is main: true","explanation":"Right. The function is invoked on the main thread, printing true."}],"answer":"d"},{"id":"main-thread-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"import Foundation\n\n@MainActor\nclass CounterModel {\n    var count = 0\n    func increment() {\n        count += 1\n        print(\"Count is \\(count)\")\n    }\n}\n\nlet model = CounterModel()\nmodel.increment()","options":[{"id":"a","text":"Count is 1","explanation":"Right. increment increases count to 1 and prints the message."},{"id":"b","text":"Count is 0","explanation":"count was incremented from 0 to 1 before printing."},{"id":"c","text":"Count is 2","explanation":"increment was called once, not twice."},{"id":"d","text":"Fatal error: Actor violation","explanation":"Calling MainActor code from top-level main thread context succeeds."}],"answer":"a"},{"id":"main-thread-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"import Foundation\n\nstruct DisplayConfig {\n    let fps: Int\n    var isSmooth: Bool { fps >= 60 }\n}\n\nlet config = DisplayConfig(fps: 120)\nprint(\"Display smooth: \\(config.isSmooth)\")","options":[{"id":"a","text":"Display smooth: false","explanation":"120 is greater than or equal to 60, so isSmooth is true."},{"id":"b","text":"Display smooth: true","explanation":"Right. 120fps satisfies the smooth rendering condition."},{"id":"c","text":"Display smooth: 120","explanation":"isSmooth returns a boolean, not the integer fps value."},{"id":"d","text":"Display smooth: nil","explanation":"isSmooth is a non-optional boolean property."}],"answer":"b"},{"id":"main-thread-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"import Foundation\n\n@MainActor\nclass AlertPresenter {\n    var message: String?\n    func show(_ text: String) {\n        message = text\n        print(\"Alert: \\(message ?? \"none\")\")\n    }\n}\n\nlet alert = AlertPresenter()\nalert.show(\"Download Complete\")","options":[{"id":"a","text":"Alert: none","explanation":"message was assigned the value Download Complete."},{"id":"b","text":"Alert: nil","explanation":"The nil-coalescing operator provides none if nil, but message is not nil."},{"id":"c","text":"Alert: Download Complete","explanation":"Right. show sets message and prints Alert: Download Complete."},{"id":"d","text":"Download Complete","explanation":"The print statement prefixes the output with Alert: ."}],"answer":"c"},{"id":"main-thread-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"import Foundation\n\n@MainActor\nclass BadgeController {\n    var badgeCount = 5\n    func clear() {\n        badgeCount = 0\n        print(\"Badge cleared on main: \\(Thread.isMainThread)\")\n    }\n}\n\nlet controller = BadgeController()\ncontroller.clear()","options":[{"id":"a","text":"Badge cleared on main: false","explanation":"The controller is marked @MainActor and executes on the main thread."},{"id":"b","text":"Badge cleared: 5","explanation":"The badge was reset to 0 and the print statement outputs thread status."},{"id":"c","text":"Badge cleared: 0","explanation":"The print statement explicitly prints Badge cleared on main: true."},{"id":"d","text":"Badge cleared on main: true","explanation":"Right. MainActor execution confirms Thread.isMainThread is true."}],"answer":"d"},{"id":"main-thread-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"import Foundation\n\n@MainActor\nstruct HeaderState {\n    var title = \"Home\"\n    mutating func update(to newTitle: String) {\n        title = newTitle\n    }\n}\n\nvar header = HeaderState()\nheader.update(to: \"Settings\")\nprint(\"Header: \\(header.title)\")","options":[{"id":"a","text":"Header: Settings","explanation":"Right. update mutates title to Settings, printing Header: Settings."},{"id":"b","text":"Header: Home","explanation":"title was mutated from Home to Settings."},{"id":"c","text":"Header: nil","explanation":"title is a non-optional string."},{"id":"d","text":"Settings","explanation":"The print statement prefixes output with Header: ."}],"answer":"a"},{"id":"main-thread-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"import Foundation\n\n@MainActor\nclass UserCard {\n    let name: String\n    init(name: String) {\n        self.name = name\n    }\n    func render() {\n        print(\"Rendering user \\(name) on main: \\(Thread.isMainThread)\")\n    }\n}\n\nlet card = UserCard(name: \"Sam\")\ncard.render()","options":[{"id":"a","text":"Rendering user Sam on main: false","explanation":"The render method is isolated to @MainActor and executes on main."},{"id":"b","text":"Rendering user Sam on main: true","explanation":"Right. Thread.isMainThread evaluates to true on the main actor."},{"id":"c","text":"Rendering user Sam","explanation":"The print statement includes on main: true."},{"id":"d","text":"UserCard rendered","explanation":"The string prints the specific user name Sam."}],"answer":"b"},{"id":"main-thread-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"import Foundation\n\n@MainActor\nclass ListState {\n    var items = [\"A\", \"B\"]\n    func addItem(_ item: String) {\n        items.append(item)\n    }\n}\n\nlet state = ListState()\nstate.addItem(\"C\")\nprint(\"Items count: \\(state.items.count)\")","options":[{"id":"a","text":"Items count: 2","explanation":"addItem appended C to the array, bringing count to 3."},{"id":"b","text":"Items count: 1","explanation":"The array initially had two items and gained one more."},{"id":"c","text":"Items count: 3","explanation":"Right. Appending item C increases array count from 2 to 3."},{"id":"d","text":"Items count: [A, B, C]","explanation":"The print statement prints count, an integer, not array contents."}],"answer":"c"},{"id":"main-thread-q24","type":"written","difficulty":1,"prompt":"Why must all user interface updates run on the main thread in iOS? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that UI frameworks like UIKit are not thread-safe to avoid synchronization overhead.","weight":50,"key":true},{"criterion":"Mentions that screen redraws must synchronize with hardware refresh rates (60Hz or 120Hz).","weight":30,"key":true},{"criterion":"Notes that modifying views from background threads causes data races and corrupted layouts.","weight":20}],"modelAnswer":"UI updates must run on the main thread because UI frameworks like UIKit are intentionally not thread-safe. Adding locks to every view property would hurt rendering performance and drain battery. In addition, view layouts and Core Animation commits must synchronize with the display refresh rate of 60 or 120 hertz."},{"id":"main-thread-q25","type":"written","difficulty":2,"prompt":"What happens when the main thread is blocked by heavy synchronous work, and what user experience issues result? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that blocking the main thread prevents the run loop from processing touches and drawing frames.","weight":50,"key":true},{"criterion":"Describes user-facing issues like frozen interfaces, dropped frames (hitches), and stuttering animations.","weight":30,"key":true},{"criterion":"Mentions that prolonged blocking leads to an OS watchdog crash.","weight":20}],"modelAnswer":"When heavy synchronous work runs on the main thread, the main run loop cannot process user touch events or draw new display frames. This causes the user interface to freeze, creating dropped frames and stuttering animations known as hitches. If the main thread stays unresponsive for too long, the operating system kills the app."},{"id":"main-thread-q26","type":"written","difficulty":2,"prompt":"Describe the iOS watchdog timer and identify the exception code generated when it terminates an app. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that the iOS watchdog monitors app responsiveness and kills processes that block the main thread.","weight":50,"key":true},{"criterion":"Identifies the crash exception code 0x8badf00d.","weight":30,"key":true},{"criterion":"Notes that timeouts are typically ~5 seconds at launch and ~10 seconds during runtime.","weight":20}],"modelAnswer":"The iOS watchdog is an operating system process that monitors application responsiveness. If an app blocks its main thread for roughly ten seconds during runtime or five seconds at launch, the watchdog terminates the process. The crash log records the exception code `0x8badf00d`, which indicates that the application failed to keep its main thread responsive."},{"id":"main-thread-q27","type":"written","difficulty":2,"prompt":"Why does calling `DispatchQueue.main.sync` from the main thread cause an immediate deadlock? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that calling sync pauses the current thread until the submitted closure completes.","weight":50,"key":true},{"criterion":"Explains that the submitted closure cannot execute because the main thread is blocked waiting.","weight":30,"key":true},{"criterion":"States that the mutual wait creates an unrecoverable freeze.","weight":20}],"modelAnswer":"Calling `DispatchQueue.main.sync` from the main thread causes an immediate deadlock because `sync` pauses the main thread until the closure completes. However, because the main queue is serial and the main thread is paused, the closure can never start running. Both the thread and the queue wait for each other indefinitely."},{"id":"main-thread-q28","type":"written","difficulty":2,"prompt":"How does `@MainActor` in Swift provide compile-time safety for user interface code? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that @MainActor is a global actor binding types or methods to the main thread.","weight":50,"key":true},{"criterion":"Explains that the Swift compiler prevents background threads from mutating main actor state directly.","weight":30,"key":true},{"criterion":"Mentions that cross-actor access requires asynchronous await calls.","weight":20}],"modelAnswer":"`@MainActor` is a global actor that binds classes, structs, or functions strictly to the main thread. The Swift compiler checks actor isolation at compile time and prevents background threads from mutating UI state directly. Accessing `@MainActor` members from other contexts requires an asynchronous `await` call, eliminating data races before the code runs."},{"id":"main-thread-q29","type":"code-write","difficulty":2,"prompt":"Write an `@MainActor` class `StatusPresenter` with a property `status: String = \"Offline\"`. Implement `func updateStatus(to newStatus: String)` that updates `status` and prints `\"Status: \\(status) on main: \\(Thread.isMainThread)\"`. Create an instance, call `updateStatus(to: \"Online\")`, and print `\"Final status: \\(presenter.status)\"`.","starterCode":null,"modelAnswer":"import Foundation\n\n@MainActor\nclass StatusPresenter {\n    var status: String = \"Offline\"\n    func updateStatus(to newStatus: String) {\n        status = newStatus\n        print(\"Status: \\(status) on main: \\(Thread.isMainThread)\")\n    }\n}\n\nlet presenter = StatusPresenter()\npresenter.updateStatus(to: \"Online\")\nprint(\"Final status: \\(presenter.status)\")","rubric":[{"criterion":"Annotates StatusPresenter class with @MainActor.","weight":40,"key":true},{"criterion":"Implements updateStatus method mutating status and logging Thread.isMainThread.","weight":30,"key":true},{"criterion":"Instantiates presenter, calls updateStatus, and prints final status.","weight":30}]},{"id":"main-thread-q30","type":"code-write","difficulty":2,"prompt":"Write a class `UIViewModel` annotated with `@MainActor`. It has a property `title: String`. Implement `init(title: String)` and a method `refresh(newTitle: String)` that asserts `Thread.isMainThread` and prints `\"Refreshed \\(newTitle)\"`. Instantiate it with `\"Home\"`, call `refresh(newTitle: \"Profile\")`, and print `\"Done\"`.","starterCode":null,"modelAnswer":"import Foundation\n\n@MainActor\nclass UIViewModel {\n    var title: String\n    init(title: String) {\n        self.title = title\n    }\n    func refresh(newTitle: String) {\n        assert(Thread.isMainThread)\n        self.title = newTitle\n        print(\"Refreshed \\(newTitle)\")\n    }\n}\n\nlet vm = UIViewModel(title: \"Home\")\nvm.refresh(newTitle: \"Profile\")\nprint(\"Done\")","rubric":[{"criterion":"Annotates UIViewModel class with @MainActor.","weight":40,"key":true},{"criterion":"Implements refresh method asserting Thread.isMainThread and updating title.","weight":30,"key":true},{"criterion":"Demonstrates initializing model, invoking refresh, and printing Done.","weight":30}]},{"id":"main-thread-q31","type":"code-write","difficulty":2,"prompt":"Write a struct `ScreenState` with `var count: Int`. Write an `@MainActor` class `NavigationCoordinator` with `var state = ScreenState(count: 0)`. Implement `func pushScreen()` that increments `state.count` and prints `\"Screens count: \\(state.count)\"`. Create an instance, call `pushScreen()` twice, and print `\"Finished navigation\"`.","starterCode":null,"modelAnswer":"import Foundation\n\nstruct ScreenState {\n    var count: Int\n}\n\n@MainActor\nclass NavigationCoordinator {\n    var state = ScreenState(count: 0)\n    func pushScreen() {\n        state.count += 1\n        print(\"Screens count: \\(state.count)\")\n    }\n}\n\nlet coordinator = NavigationCoordinator()\ncoordinator.pushScreen()\ncoordinator.pushScreen()\nprint(\"Finished navigation\")","rubric":[{"criterion":"Declares struct ScreenState and @MainActor class NavigationCoordinator.","weight":40,"key":true},{"criterion":"Implements pushScreen mutating state on main actor and printing count.","weight":30,"key":true},{"criterion":"Instantiates coordinator, calls pushScreen twice, and prints confirmation.","weight":30}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

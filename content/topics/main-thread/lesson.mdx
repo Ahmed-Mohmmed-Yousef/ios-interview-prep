@@ -1,0 +1,228 @@
+export const meta = {
+  id: "main-thread",
+  summary: "Understand why user interface updates must run on the main thread in iOS and how to avoid freezing the screen.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Apple Developer Documentation: MainActor", url: "https://developer.apple.com/documentation/swift/mainactor", kind: "official" },
+    { title: "Apple Developer Documentation: DispatchQueue.main", url: "https://developer.apple.com/documentation/dispatch/dispatchqueue/main", kind: "official" },
+    { title: "Apple Developer Documentation: Diagnosing memory, thread, and crash issues early", url: "https://developer.apple.com/documentation/xcode/diagnosing-memory-thread-and-crash-issues-early", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does iOS crash your app if the main thread is blocked for too long?</Question>
+  <Guess>
+    <Option id="a">The battery sensor triggers an automatic shutdown to save power.</Option>
+    <Option id="b" correct>The system watchdog kills unresponsive apps when user touches and screen frames are blocked.</Option>
+    <Option id="c">iOS restarts the operating system kernel when CPU usage drops to zero.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a busy restaurant kitchen with one front counter cashier.
+
+The cashier takes customer orders and hands them food.
+
+If the cashier leaves the counter to chop vegetables in the back room for ten minutes, the line stops.
+
+Customers cannot order, and the restaurant freezes.
+
+A helper in the back should chop the vegetables, so the cashier never leaves the front counter.
+</Analogy>
+
+In iOS, the **main thread** is the front counter of your app.
+
+It is created when your application launches and runs the main run loop.
+
+1. **What runs on the main thread**:
+   - Screen drawing, layout passes, and animations.
+   - User touch events, button taps, and gestures.
+   - UIKit view modifications and SwiftUI state updates.
+2. **Why UI work must run on the main thread**:
+   - UI frameworks like UIKit are not thread-safe.
+   - Adding locks to every button and label would slow down rendering and waste battery.
+   - The screen refreshes 60 or 120 times every second. All layout must synchronize on that clock.
+3. **Keep the main thread free**:
+   - Heavy work like file storage, network requests, and image filters belongs on background threads.
+   - Dispatch the final result back to the main thread before updating any label or screen view.
+
+## See it
+
+<Diagram id="main-thread-diagram" caption="How background work dispatches results back to the main thread for smooth 60fps rendering">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Main Thread timeline with 60fps frame pulses (16.6ms intervals) and user touch events.
+    2. Background Queue timeline processing a heavy network payload.
+    3. Dispatch arrow sending parsed data back to the Main Thread.
+  - Steps:
+    Step 1: User taps a button on the Main Thread. Touch event triggers network call.
+    Step 2: Work moves to a background queue. Background downloads and parses JSON. Main thread stays free at 60fps.
+    Step 3: Background completes and dispatches the result to the main thread using @MainActor.
+    Step 4: Main thread updates the label and draws the new frame smoothly without hitches.
+  - Static version (reduced motion):
+    A side-by-side timeline showing responsive main thread versus background worker queue.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens when you run a heavy synchronous loop on the main thread?</Question>
+  <Option id="a">The loop runs faster because the main thread has higher CPU priority.</Option>
+  <Option id="b" correct>The user interface freezes and cannot respond to taps or animations.</Option>
+  <Option id="c">iOS automatically moves the loop to a background thread.</Option>
+  <Explanation>Running heavy work synchronously on the main thread blocks the run loop, freezing touch handling and animations.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Enforcing main thread execution using @MainActor in Swift">
+
+```swift
+import Foundation
+
+@MainActor
+class ProfileViewModel {
+    var username: String = "Guest"
+    
+    func updateUsername(to newName: String) {
+        username = newName
+        print("Updated on main thread: \(Thread.isMainThread)")
+    }
+}
+
+let vm = ProfileViewModel()
+vm.updateUsername(to: "Taylor")
+print("Current user: \(vm.username)")
+```
+
+```output
+Updated on main thread: true
+Current user: Taylor
+```
+
+</CodeExample>
+
+In this example, `@MainActor` guarantees that `ProfileViewModel` runs exclusively on the main thread.
+
+Swift verifies this at compile time, eliminating data races on user interface state.
+
+`Thread.isMainThread` confirms that the property update happened on the main thread.
+
+<CodeExample title="Asserting main thread safety before updating UI state">
+
+```swift
+import Foundation
+
+struct UserDisplayState {
+    var title: String
+    var isLoading: Bool
+}
+
+@MainActor
+class ScreenPresenter {
+    var state = UserDisplayState(title: "Welcome", isLoading: false)
+    
+    func apply(title: String) {
+        assert(Thread.isMainThread, "UI mutations must run on the main thread!")
+        state.title = title
+        state.isLoading = false
+        print("UI State: title = \(state.title), main = \(Thread.isMainThread)")
+    }
+}
+
+let presenter = ScreenPresenter()
+presenter.apply(title: "Dashboard")
+```
+
+```output
+UI State: title = Dashboard, main = true
+```
+
+</CodeExample>
+
+In this second example, `apply(title:)` guards UI state updates.
+
+The assertion verifies that the function runs on the main thread.
+
+Using `@MainActor` ensures that all state mutations happen safely before the next screen redraw.
+
+<QuickCheck>
+  <Question>What happens if you call DispatchQueue.main.sync from the main thread?</Question>
+  <Option id="a">The closure executes with high priority without blocking.</Option>
+  <Option id="b" correct>The app deadlocks immediately and permanently freezes.</Option>
+  <Option id="c">Swift prints a warning and runs the closure in the background.</Option>
+  <Explanation>Calling sync on the main queue while already on the main thread causes an unrecoverable deadlock.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Calling DispatchQueue.main.sync from the main thread">
+Calling `DispatchQueue.main.sync` from the main thread creates an instant deadlock.
+
+The main thread waits for the block to complete before continuing.
+
+However, the block cannot start because the main thread is blocked waiting for it. The app freezes permanently.
+</Trap>
+
+<Trap title="Updating UI from background network callbacks">
+URLSession data tasks return their results on background threads.
+
+Assigning those results directly to labels, image views, or published properties causes background UI mutation warnings.
+
+Always dispatch back to the main thread using `@MainActor` or `DispatchQueue.main.async`.
+</Trap>
+
+<Trap title="Assuming the watchdog only runs during app launch">
+The iOS watchdog monitors your app during its entire lifecycle, not just at launch.
+
+If the main thread is blocked for more than roughly 10 seconds during normal use, the operating system kills your process.
+
+The crash report will display the exception code `0x8badf00d`.
+</Trap>
+
+<Trap title="Parsing large JSON files on the main thread">
+Decoding large JSON payloads or database queries can take tens or hundreds of milliseconds.
+
+Doing this work on the main thread drops frames and creates visible user interface hitches.
+
+Decode your models on background tasks and pass only the finished state to the main thread.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"The main thread handles all user interaction and screen rendering in iOS. If we do heavy work on the main thread, the app freezes. UI frameworks like UIKit are not thread-safe, so all UI updates must happen on the main thread. We run long tasks in the background and send results to the main thread."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"UIKit is not thread-safe to avoid the performance cost of internal locks. Screen rendering must synchronize with display refreshes at 60 or 120 hertz. If we block the main thread for too long, the iOS watchdog kills the app with exception 0x8badf00d. In modern Swift, I use @MainActor to guarantee main thread isolation for view models and UI code."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"On iOS, every display frame has a strict render budget: 16.6 milliseconds at 60Hz or 8.3 milliseconds on ProMotion displays. During that window, the main thread must handle events, run layout passes, and commit Core Animation transactions to the render server. Blocking the main thread causes dropped frames known as hitches. In Xcode, I catch background UI violations using the Main Thread Checker and diagnose hitches using the Instruments Animation Hitches template."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- The main thread processes touch events, animations, and view drawing.
+- UI frameworks are not thread-safe; all UI updates must run on the main thread.
+- Heavy work like networking, image filtering, and file I/O must run on background threads.
+- Calling `DispatchQueue.main.sync` from the main thread causes an immediate deadlock.
+- The iOS watchdog terminates apps that block the main thread for too long with code `0x8badf00d`.
+- In modern Swift, annotate UI classes and methods with `@MainActor` for compile-time safety.
+</Recap>
+
+## Go deeper
+
+- [Apple Developer Documentation: MainActor](https://developer.apple.com/documentation/swift/mainactor) — Global actor representing the main execution thread.
+- [Apple Developer Documentation: DispatchQueue.main](https://developer.apple.com/documentation/dispatch/dispatchqueue/main) — Managing asynchronous tasks on the main serial dispatch queue.
+- [Apple Developer Documentation: Diagnosing memory, thread, and crash issues early](https://developer.apple.com/documentation/xcode/diagnosing-memory-thread-and-crash-issues-early) — Using the Main Thread Checker and sanitizers in Xcode.
