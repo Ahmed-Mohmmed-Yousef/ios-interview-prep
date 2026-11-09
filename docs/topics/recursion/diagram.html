@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Call Stack in Recursion: Growth and Unwinding</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --call-color: #0284c7; --call-soft: #e0f2fe;
+  --base-color: #16a34a; --base-soft: #dcfce7;
+  --unwind-color: #7c3aed; --unwind-soft: #ede9fe;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --call-color: #38bdf8; --call-soft: #082f49;
+  --base-color: #4ade80; --base-soft: #14532d;
+  --unwind-color: #a78bfa; --unwind-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.frame-box { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 6px; }
+.frame-box.waiting { fill: var(--call-soft); stroke: var(--call-color); stroke-width: 2.5; }
+.frame-box.base { fill: var(--base-soft); stroke: var(--base-color); stroke-width: 2.5; }
+.frame-box.unwound { fill: var(--unwind-soft); stroke: var(--unwind-color); stroke-width: 2.5; }
+
+.frame-title { font-family: var(--font-code); font-size: 13px; font-weight: 700; fill: var(--ink); }
+.frame-sub { font-family: var(--font-body); font-size: 11px; font-weight: 600; fill: var(--muted); }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Recursive call stack interactive diagram">
+
+  <div class="interactive-diagram">
+    <div class="panels">
+      <!-- Left Panel: SVG Visualization of Call Stack -->
+      <div class="panel">
+        <h3>
+          <span id="vis-title">Call factorial(3)</span>
+          <span class="kind" id="vis-tag" style="background:var(--call-soft);color:var(--call-color);">Step 1</span>
+        </h3>
+        
+        <svg viewBox="0 0 340 200" role="img" aria-label="Thread Call Stack Visualizer">
+          <!-- Call Stack Box Outer Container -->
+          <g transform="translate(40, 20)">
+            <text x="75" y="0" font-family="var(--font-body)" font-size="12" font-weight="700" fill="var(--call-color)" text-anchor="middle">Thread Call Stack</text>
+            <!-- Vertical Stack Boundary -->
+            <path d="M 0 10 L 0 150 L 150 150 L 150 10" stroke="var(--line)" stroke-width="2.5" fill="none"/>
+            
+            <!-- Frame 1 (Bottom): factorial(3) -->
+            <g id="frame-1" transform="translate(10, 105)">
+              <rect width="130" height="38" class="frame-box waiting"/>
+              <text x="12" y="18" class="frame-title">factorial(3)</text>
+              <text id="sub-1" x="12" y="31" class="frame-sub">waits for 3 * fact(2)</text>
+            </g>
+
+            <!-- Frame 2 (Middle): factorial(2) -->
+            <g id="frame-2" transform="translate(10, 60)" style="display:none;">
+              <rect width="130" height="38" class="frame-box waiting"/>
+              <text x="12" y="18" class="frame-title">factorial(2)</text>
+              <text id="sub-2" x="12" y="31" class="frame-sub">waits for 2 * fact(1)</text>
+            </g>
+
+            <!-- Frame 3 (Top): factorial(1) -->
+            <g id="frame-3" transform="translate(10, 15)" style="display:none;">
+              <rect width="130" height="38" class="frame-box base"/>
+              <text x="12" y="18" class="frame-title">factorial(1)</text>
+              <text id="sub-3" x="12" y="31" class="frame-sub">base case → returns 1</text>
+            </g>
+          </g>
+
+          <!-- Top of Stack indicator pointer -->
+          <g id="sp-indicator" transform="translate(205, 138)">
+            <text id="sp-text" x="0" y="0" font-family="var(--font-code)" font-size="12" font-weight="700" fill="var(--call-color)">◀ Stack Pointer</text>
+          </g>
+        </svg>
+
+        <p class="caption" id="vis-desc" aria-live="polite">First call to factorial(3) pushes a stack frame. It pauses and waits for 3 * factorial(2).</p>
+      </div>
+
+      <!-- Right Panel: Code & Operation Details -->
+      <div class="panel">
+        <h3>
+          <span id="right-title">Frame 1: Pushed</span>
+          <span class="kind" id="right-tag" style="background:var(--code-bg);color:var(--muted);">Step 1 of 4</span>
+        </h3>
+        <div class="code" id="right-code">factorial(3) {
+    guard 3 &gt; 1 // true
+    return 3 * factorial(2) // pushes frame 2
+}</div>
+        <p class="caption" id="right-desc">A stack frame stores local variable n = 3 and the return address. Stack depth is currently 1.</p>
+        <div class="metrics">
+          <div class="metric-col"><span>Phase</span><strong id="m-phase">Growth</strong></div>
+          <div class="metric-col"><span>Depth</span><strong id="m-depth">1</strong></div>
+          <div class="metric-col"><span>Value</span><strong id="m-val">Pending</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1: Call factorial(3)" onclick="goToStep(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2: Call factorial(2)" onclick="goToStep(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3: Base case factorial(1)" onclick="goToStep(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4: Unwind stack frames" onclick="goToStep(3)"></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()" aria-label="Next step">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-Motion Static Fallback -->
+  <div class="static-fallback" aria-label="Static explanation of recursive call stack">
+    <div class="comp-card" style="border-left: 4px solid var(--call-color);">
+      <h4>Step 1: Call factorial(3) [Depth 1]</h4>
+      <p>Stack frame [n: 3] pushed. Execution pauses waiting for the result of 3 * factorial(2).</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--call-color);">
+      <h4>Step 2: Call factorial(2) [Depth 2]</h4>
+      <p>Stack frame [n: 2] pushed. Execution pauses waiting for the result of 2 * factorial(1).</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--base-color);">
+      <h4>Step 3: Base Case factorial(1) [Depth 3]</h4>
+      <p>Condition n &lt;= 1 met! Base case returns 1 immediately without making further recursive calls.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--unwind-color);">
+      <h4>Step 4: Call Stack Unwinds [Result: 6]</h4>
+      <p>factorial(2) receives 1 and computes 2 * 1 = 2. factorial(3) receives 2 and computes 3 * 2 = 6.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Call factorial(3)",
+    tag: "Step 1",
+    tagColor: "var(--call-soft)",
+    tagText: "var(--call-color)",
+    desc: "First call to factorial(3) pushes a stack frame. It pauses and waits for 3 * factorial(2).",
+    rightTitle: "Frame 1: Pushed",
+    rightTag: "Step 1 of 4",
+    code: "factorial(3) {\n    guard 3 > 1 // true\n    return 3 * factorial(2) // pushes frame 2\n}",
+    rightDesc: "A stack frame stores local variable n = 3 and the return address. Stack depth is currently 1.",
+    phase: "Growth", depth: 1, val: "Pending",
+    showF2: false, showF3: false,
+    spY: 138,
+    f1Class: "frame-box waiting", f1Sub: "waits for 3 * fact(2)",
+    f2Class: "frame-box waiting", f2Sub: "waits for 2 * fact(1)",
+    f3Class: "frame-box base", f3Sub: "base case → returns 1"
+  },
+  {
+    title: "Call factorial(2)",
+    tag: "Step 2",
+    tagColor: "var(--call-soft)",
+    tagText: "var(--call-color)",
+    desc: "factorial(2) pushes a second stack frame on top. It pauses and waits for 2 * factorial(1).",
+    rightTitle: "Frame 2: Pushed",
+    rightTag: "Step 2 of 4",
+    code: "factorial(2) {\n    guard 2 > 1 // true\n    return 2 * factorial(1) // pushes frame 3\n}",
+    rightDesc: "Second stack frame pushed. Call stack depth increases to 2. No work is resolved yet.",
+    phase: "Growth", depth: 2, val: "Pending",
+    showF2: true, showF3: false,
+    spY: 93,
+    f1Class: "frame-box waiting", f1Sub: "waits for 3 * fact(2)",
+    f2Class: "frame-box waiting", f2Sub: "waits for 2 * fact(1)",
+    f3Class: "frame-box base", f3Sub: "base case → returns 1"
+  },
+  {
+    title: "Base Case: factorial(1)",
+    tag: "Step 3",
+    tagColor: "var(--base-soft)",
+    tagText: "var(--base-color)",
+    desc: "Base case reached! guard 1 > 1 fails, returning 1 immediately without further calls.",
+    rightTitle: "Base Case Return",
+    rightTag: "Step 3 of 4",
+    code: "factorial(1) {\n    guard 1 > 1 else { return 1 } // BASE CASE!\n}",
+    rightDesc: "Maximum stack depth 3 reached. factorial(1) returns 1, starting the unwinding phase.",
+    phase: "Base Case", depth: 3, val: "Returns 1",
+    showF2: true, showF3: true,
+    spY: 48,
+    f1Class: "frame-box waiting", f1Sub: "waits for 3 * fact(2)",
+    f2Class: "frame-box waiting", f2Sub: "waits for 2 * fact(1)",
+    f3Class: "frame-box base", f3Sub: "base case → returns 1"
+  },
+  {
+    title: "Stack Unwinds: Result 6",
+    tag: "Step 4",
+    tagColor: "var(--unwind-soft)",
+    tagText: "var(--unwind-color)",
+    desc: "Frames unwind: fact(2) computes 2 * 1 = 2; fact(3) computes 3 * 2 = 6. All frames pop!",
+    rightTitle: "Unwinding Complete",
+    rightTag: "Result: 6",
+    code: "// fact(2) returns 2 * 1 = 2\n// fact(3) returns 3 * 2 = 6\n// Final output: 6",
+    rightDesc: "Each call frame completes and pops from the call stack. Final answer 6 is returned to caller.",
+    phase: "Unwound", depth: 0, val: "Result: 6",
+    showF2: true, showF3: false,
+    spY: 138,
+    f1Class: "frame-box unwound", f1Sub: "returns 3 * 2 = 6",
+    f2Class: "frame-box unwound", f2Sub: "returns 2 * 1 = 2",
+    f3Class: "frame-box base", f3Sub: "returned 1"
+  }
+];
+
+let curStep = 0;
+
+function updateView() {
+  const s = steps[curStep];
+  document.getElementById("vis-title").textContent = s.title;
+  const tag = document.getElementById("vis-tag");
+  tag.textContent = s.tag;
+  tag.style.background = s.tagColor;
+  tag.style.color = s.tagText;
+  document.getElementById("vis-desc").textContent = s.desc;
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.code;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("m-phase").textContent = s.phase;
+  document.getElementById("m-depth").textContent = s.depth;
+  document.getElementById("m-val").textContent = s.val;
+
+  document.getElementById("frame-2").style.display = s.showF2 ? "" : "none";
+  document.getElementById("frame-3").style.display = s.showF3 ? "" : "none";
+
+  document.querySelector("#frame-1 rect").setAttribute("class", s.f1Class);
+  document.getElementById("sub-1").textContent = s.f1Sub;
+
+  document.querySelector("#frame-2 rect").setAttribute("class", s.f2Class);
+  document.getElementById("sub-2").textContent = s.f2Sub;
+
+  document.querySelector("#frame-3 rect").setAttribute("class", s.f3Class);
+  document.getElementById("sub-3").textContent = s.f3Sub;
+
+  document.getElementById("sp-indicator").setAttribute("transform", `translate(205, ${s.spY})`);
+
+  document.querySelectorAll(".dot").forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = curStep === 0;
+  document.getElementById("btn-next").disabled = curStep === steps.length - 1;
+}
+
+function goToStep(i) {
+  curStep = Math.max(0, Math.min(steps.length - 1, i));
+  updateView();
+}
+function nextStep() { goToStep(curStep + 1); }
+function prevStep() { goToStep(curStep - 1); }
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateView();
+</script>
+</body>
+</html>

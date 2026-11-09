@@ -120,7 +120,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **two-pointers-sliding-window** (Two Pointers and Sliding Window) — published (lesson, diagram, 31 questions) → [docs/topics/two-pointers-sliding-window/review.html](docs/topics/two-pointers-sliding-window/review.html)
     - ✅ **stacks-and-queues** (Stacks and Queues) — published (lesson, diagram, 31 questions) → [docs/topics/stacks-and-queues/review.html](docs/topics/stacks-and-queues/review.html)
     - ✅ **linked-lists** (Linked Lists) — published (lesson, diagram, 31 questions) → [docs/topics/linked-lists/review.html](docs/topics/linked-lists/review.html)
-    - 🔄 **recursion** (Recursion) — starting research
+    - ✅ **recursion** (Recursion) — published (lesson, diagram, 31 questions) → [docs/topics/recursion/review.html](docs/topics/recursion/review.html)
+    - 🔄 **matrix-problems** (Matrix Problems) — starting research
     - ⬜ **recursion** (Recursion)
     - ⬜ **matrix-problems** (Matrix Problems)
   - ⬜ **Batch 2C: Memory & Concurrency (6 topics)**
@@ -201,10 +202,10 @@ Plan: [docs/phase-6-plan.md](docs/phase-6-plan.md)
 
 Written answers and code answers graded by AI, with limits against abuse.
 - ✅ **6.0 Plan Phase 6** — [docs/phase-6-plan.md](docs/phase-6-plan.md) approved by user
-- 🔄 **6.1 AI Provider Layer & Mock Engine** — `GradingProvider` interface, Gemini SDK client, deterministic Mock provider
-- ⬜ **6.2 Rubric Evaluation Engine & Prompting** — structured Zod schema, CEFR B1 coaching prompt, 50% key criterion cap logic
-- ⬜ **6.3 API Route & Abuse Protections** — `POST /api/grade`, 2000 char bounds, rate limiting, zero personal data transmission
-- ⬜ **6.4 Exam Runner UI Integration** — "Grade with AI" button, animated evaluation card, criteria badges, manual override toggle, offline self-check fallback
+- ✅ **6.1 AI Provider Layer & Mock Engine** — `GradingProvider` interface, Gemini client, deterministic Mock provider
+- ✅ **6.2 Rubric Evaluation Engine & Prompting** — structured Zod schema, CEFR B1 coaching prompt, 50% key criterion cap logic
+- ✅ **6.3 API Route & Abuse Protections** — `POST /api/grade`, 2000 char bounds, rate limiting, zero personal data transmission
+- 🔄 **6.4 Exam Runner UI Integration** — "Grade with AI" button, animated evaluation card, criteria badges, manual override toggle, offline self-check fallback
 - ⬜ **6.5 Rubric Benchmark Testing** — automated test suite evaluating against 24 sample answers across Good, Average, Weak in `rubric-test.md`
 - ⬜ **6.6 E2E Verification & Phase 6 Summary** — Playwright flow test with mock provider, axe-core a11y audit, `docs/phase-6-summary.md`
 - ✅ **Before Phase 6 starts:** run the Claude Code setup recommender (`claude-code-setup` plugin, read-only) on the Phase 5 app code. Review its suggested hooks, skills, subagents, MCP servers and rules with you, and add only the ones you approve. (A first run on the planning files was done early on 2026-11-08, at your request; run it again on the app code)
@@ -300,6 +301,10 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic recursion (Recursion): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/recursion/review.html`). All checks passed. Starting matrix-problems.
+
+- **2026-11-09** — Step 6.1 and 6.2 done: Built AI Provider Layer (`GradingProvider` interface, `GeminiGradingProvider`, `MockGradingProvider`) and Rubric Evaluation Engine with structured Zod schema and CEFR B1 coaching prompt. Verified rubric scoring math (100% met, 50% partly met, 50% key missed cap) with 8 passing Vitest tests (34 total). Starting Step 6.3: API Route & Abuse Protections.
 
 - **2026-11-09** — Built and published topic linked-lists (Linked Lists): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/linked-lists/review.html`). All checks passed. Starting recursion.
 

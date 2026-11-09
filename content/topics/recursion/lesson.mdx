@@ -1,0 +1,207 @@
+export const meta = {
+  id: "recursion",
+  summary: "Master recursion in Swift, including base cases, call stack mechanics, stack overflow risks, and memoization techniques.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Swift Programming Language: Functions", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/functions/", kind: "official" },
+    { title: "Apple Developer Documentation: Standard Library", url: "https://developer.apple.com/documentation/swift", kind: "official" },
+    { title: "Tech Interview Handbook: Recursion Cheatsheet", url: "https://www.techinterviewhandbook.org/algorithms/recursion/", kind: "community" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does a recursive function consume memory on every call even if it allocates no arrays or objects?</Question>
+  <Guess>
+    <Option id="a">Swift copies all function parameter values to disk cache.</Option>
+    <Option id="b" correct>Each call allocates a stack frame in thread memory to store local variables and the return address.</Option>
+    <Option id="c">ARC allocates reference tracking headers on the heap for every function.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a set of nested Russian matryoshka dolls.
+
+To find the prize hidden inside, you open the outermost doll. Inside is a smaller doll of the exact same shape.
+
+You keep opening smaller dolls until you reach the smallest solid doll that cannot open. This smallest doll is your **base case**.
+</Analogy>
+
+**Recursion** is an approach where a function solves a problem by calling itself with smaller inputs:
+1. **The Base Case**:
+   - The stopping condition that returns an answer directly.
+   - Without a base case, recursion repeats infinitely until memory runs out.
+2. **The Recursive Step**:
+   - Decomposes the problem into a smaller subproblem.
+   - Calls the function again with inputs strictly progressing toward the base case.
+3. **The Call Stack**:
+   - Every function call places a stack frame on the thread call stack.
+   - When the base case is reached, the stack unwinds, returning results upward.
+   - Deep recursion can exhaust stack memory, triggering a **Stack Overflow** crash.
+
+## See it
+
+<Diagram id="recursion-concept" caption="Call stack frames growing during recursion and unwinding upon reaching the base case">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Call stack container showing vertical frames for factorial(3).
+    2. Active call indicator: parameters, waiting operation, return value.
+    3. Status card with stack memory depth.
+  - Steps:
+    Step 1: Call factorial(3). Stack frame [n: 3] pushed. Waits for 3 * factorial(2).
+    Step 2: Call factorial(2). Stack frame [n: 2] pushed. Waits for 2 * factorial(1).
+    Step 3: Base case reached: factorial(1) returns 1! Frame [n: 1] unwinds.
+    Step 4: Unwinding: factorial(2) computes 2 * 1 = 2. factorial(3) computes 3 * 2 = 6. Call stack empty!
+  - Static version (reduced motion):
+    A 4-step vertical call stack visualization showing frame growth and return values.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens if a recursive function lacks a base case?</Question>
+  <Option id="a">Swift automatically converts the call into an iterative while loop.</Option>
+  <Option id="b" correct>The function calls itself indefinitely until a stack overflow crash occurs.</Option>
+  <Option id="c">The compiler catches the missing base case and provides default return values.</Option>
+  <Explanation>Without a base case, call frames accumulate until the thread call stack runs out of memory.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Recursive factorial calculation in Swift">
+
+```swift
+func factorial(_ n: Int) -> Int {
+    guard n > 1 else { return 1 }
+    return n * factorial(n - 1)
+}
+
+print("Factorial of 5: \(factorial(5))")
+print("Factorial of 1: \(factorial(1))")
+print("Factorial of 0: \(factorial(0))")
+```
+
+```output
+Factorial of 5: 120
+Factorial of 1: 1
+Factorial of 0: 1
+```
+
+</CodeExample>
+
+In this example, `guard n > 1 else { return 1 }` acts as the base case.
+
+When `n` is 0 or 1, the function returns 1 immediately without further recursive calls.
+
+For larger numbers, it computes `n * factorial(n - 1)`. Each call reduces `n` by 1, guaranteeing steady progress toward the base case.
+
+The call stack reaches a maximum depth of $n$, giving $O(n)$ auxiliary space complexity.
+
+<CodeExample title="Optimizing branching recursion using memoization">
+
+```swift
+func fibonacciMemo(_ n: Int, _ memo: inout [Int: Int]) -> Int {
+    if n <= 1 { return n }
+    if let cached = memo[n] { return cached }
+    
+    let result = fibonacciMemo(n - 1, &memo) + fibonacciMemo(n - 2, &memo)
+    memo[n] = result
+    return result
+}
+
+var cache: [Int: Int] = [:]
+print("Fibonacci of 10: \(fibonacciMemo(10, &cache))")
+print("Fibonacci of 30: \(fibonacciMemo(30, &cache))")
+```
+
+```output
+Fibonacci of 10: 55
+Fibonacci of 30: 832040
+```
+
+</CodeExample>
+
+Naive recursive Fibonacci calls itself twice per step, creating an exponential $O(2^n)$ call tree.
+
+By passing a dictionary cache (`memo`), we store previously calculated results. When a subproblem is queried again, we return the cached value in $O(1)$ time.
+
+This technique is called **memoization**. It reduces the runtime from exponential $O(2^n)$ to linear $O(n)$ time.
+
+<QuickCheck>
+  <Question>How does memoization improve recursive Fibonacci performance?</Question>
+  <Option id="a">It removes the base case to execute calls faster.</Option>
+  <Option id="b" correct>It caches previously computed subproblem results, eliminating redundant branches.</Option>
+  <Option id="c">It switches code execution from CPU to GPU.</Option>
+  <Explanation>Memoization stores answers to subproblems in a dictionary, preventing repeated calculations.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Omitting the call stack from auxiliary space complexity">
+Candidates frequently claim recursive algorithms run in $O(1)$ space because they allocate no arrays.
+
+Every active recursive call allocates a stack frame in thread memory.
+
+Always include the maximum call stack depth $O(d)$ in your space complexity analysis.
+</Trap>
+
+<Trap title="Assuming Swift guarantees Tail Call Optimization">
+Some functional languages guarantee Tail Call Optimization (TCO), reusing stack frames for tail calls.
+
+Swift does not guarantee TCO in its language specification. Release optimizations might apply TCO, but debug builds and ARC overhead often disable it.
+
+Never rely on tail calls to prevent stack overflows on deep recursive inputs in Swift.
+</Trap>
+
+<Trap title="Inputs that fail to progress toward the base case">
+Passing `recurse(n)` instead of `recurse(n - 1)` traps the program in an infinite cycle.
+
+Similarly, forgetting to guard against negative numbers can cause infinite downward recursion.
+
+Always verify that every execution path moves closer to the base case boundaries.
+</Trap>
+
+<Trap title="Accidental exponential time from branching without memoization">
+Functions that branch into multiple recursive calls without caching repeat identical work exponentially.
+
+Computing Fibonacci(50) naively requires over one quadrillion function calls.
+
+Whenever a problem exhibits overlapping subproblems, use memoization or an iterative dynamic programming loop.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"Recursion is when a function calls itself to solve a smaller piece of a problem. Every recursive function needs a base case to stop, and a recursive step that moves closer to that base case. If a base case is missing, the function calls itself forever and causes a stack overflow crash. Each active call adds a stack frame to memory."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"I choose recursion for naturally hierarchical structures like trees, graphs, and divide-and-conquer problems. I guard against two major risks: stack overflow from deep recursion, and exponential time from overlapping subproblems. In Swift, I implement memoization with a dictionary to reduce exponential branches to linear $O(n)$ time. Because Swift does not guarantee tail call optimization, I rewrite deep recursions into iterative loops with an explicit stack."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Recursion provides concise solutions for tree traversals and backtracking, but presents production risks in mobile apps. On iOS, main thread stacks are limited to 1 MB, and secondary threads to 512 KB. Unbounded recursion on deep data structures triggers uncatchable stack overflow aborts. Furthermore, ARC reference manipulation at call boundaries often impedes LLVM tail call optimization. For production systems, I replace deep recursion with iterative worklists using heap-allocated buffers."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Recursion requires a base case to stop and a recursive step progressing toward that base case.
+- Each call consumes memory on the thread call stack; space complexity equals maximum tree depth.
+- Stack overflow occurs when recursion depth exceeds thread memory limits.
+- Swift does not guarantee Tail Call Optimization; do not rely on it for correctness.
+- Memoization caches subproblem results, transforming exponential $O(2^n)$ calls into linear $O(n)$ time.
+</Recap>
+
+## Go deeper
+
+- [Swift Programming Language: Functions](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/functions/) — Function signatures, inout parameters, and recursive calls.
+- [Apple Developer Documentation: Standard Library](https://developer.apple.com/documentation/swift) — Overview of fundamental Swift primitives and memory models.
+- [Tech Interview Handbook: Recursion Cheatsheet](https://www.techinterviewhandbook.org/algorithms/recursion/) — Key recursion patterns, call stack diagrams, and memoization.
