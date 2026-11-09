@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 6 remaining topics (16 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 5 remaining topics (17 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -97,7 +97,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **arrays-and-strings** (Arrays and Strings) — published (lesson, diagram, 31 questions) → [docs/topics/arrays-and-strings/review.html](docs/topics/arrays-and-strings/review.html)
     - ✅ **hash-tables** (Hash Tables) — published (lesson, diagram, 31 questions) → [docs/topics/hash-tables/review.html](docs/topics/hash-tables/review.html)
   - 🔄 **Batch 1D: SwiftUI Basics (5 topics: `swiftui-views-modifiers` → `swiftui-navigation`)**
-    - 🔄 **swiftui-views-modifiers** (Views and Modifiers) — starting research
+    - ✅ **swiftui-views-modifiers** (Views and Modifiers) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-views-modifiers/review.html](docs/topics/swiftui-views-modifiers/review.html)
+    - 🔄 **swiftui-layout** (Stacks and Layout) — starting research
     - ⬜ **swiftui-layout** (Stacks and Layout)
     - ⬜ **state-and-binding** (@State and @Binding)
     - ⬜ **swiftui-lists** (Lists and ForEach)
@@ -115,8 +116,8 @@ Write all lessons and question banks, level by level, with fact checks.
 Plan: [docs/phase-5-plan.md](docs/phase-5-plan.md)
 
 Level picker, path, lessons, browser-graded exams, saved progress, results.
-- 🟡 **5.0 Plan Phase 5** — [docs/phase-5-plan.md](docs/phase-5-plan.md) waiting for your review
-- ⬜ **5.1 Setup & Scaffold** — Next.js 16 (App Router), TypeScript, Turbopack, Tailwind v4 tokens, agent tools
+- ✅ **5.0 Plan Phase 5** — [docs/phase-5-plan.md](docs/phase-5-plan.md) approved by user
+- 🔄 **5.1 Setup & Scaffold** — Next.js 16 (App Router), TypeScript, Turbopack, Tailwind v4 tokens, agent tools
 - ⬜ **5.2 Content & Store Layer** — Zod schemas, MDX + Shiki compiler, Zustand versioned store with migrations, Vitest product rule tests
 - ⬜ **5.3 Screen 1: Welcome & Level Picker (S1, S2)** — first visit intro, level cards, interactive self-check
 - ⬜ **5.4 Screen 2: Winding Path Map (S3, S4)** — responsive road, 6 stop states, progress bar, path score, locked sheet
@@ -226,6 +227,9 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — Built and published topic swiftui-views-modifiers (Views and Modifiers): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swiftui-views-modifiers/review.html`). All checks passed. Starting swiftui-layout.
+
+- **2026-11-09** — Phase 5 plan approved by user. Started step 5.1: Setup and scaffold Next.js 16 App Router application.
 - **2026-11-09** — Built and published topic hash-tables (Hash Tables): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/hash-tables/review.html`). All checks passed. Completed Batch 1C (Coding Interview). Starting Batch 1D: swiftui-views-modifiers.
 - **2026-11-09** — Planned Phase 5: Web App MVP (`docs/phase-5-plan.md`). Structured into 8 verifiable steps from scaffolding to a11y tests, running in parallel with Phase 4 content production. Status: waiting for your review.
 - **2026-11-09** — arrays-and-strings published. User authorized autonomous content production for remaining Phase 4 topics without pausing for manual approvals.
