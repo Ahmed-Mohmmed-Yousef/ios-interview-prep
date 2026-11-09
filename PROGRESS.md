@@ -77,11 +77,11 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 20 remaining topics (2 published: `structs-vs-classes`, `swift-basics`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 19 remaining topics (3 published: `structs-vs-classes`, `swift-basics`, `optionals`)
   - 🔄 Batch 1A: Swift Language Core (7 topics: `swift-basics` → `functions`)
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
-    - 🔄 **optionals** (Optionals) — started research and draft
-    - ⬜ **operators**
+    - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
+    - 🔄 **operators** (Operators) — started research and draft
     - ⬜ **strings-and-characters**
     - ⬜ **collections**
     - ⬜ **control-flow**
@@ -189,6 +189,8 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — optionals approved and published by user. Started topic operators: researching official documentation and Swift 6 compiler behavior.
+- **2026-11-08** — Built topic optionals (Optionals): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/optionals/review.html`). Status: review, waiting for your approval.
 - **2026-11-08** — swift-basics approved and published by user. Started topic optionals: researching official documentation and Swift 6 compiler behavior.
 - **2026-11-08** — Built topic swift-basics (Constants, Variables and Types): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swift-basics/review.html`). Status: review, waiting for your approval.
 - **2026-11-08** — Step 4.0 finished: generalized prototype review builder (`prototype/build.mjs`) to handle any topic with or without diagrams, writing to `docs/topics/<topic-id>/review.html`; pilot notes moved to `docs/topics/structs-vs-classes/`; hooked in `protect-generated.sh`. Starting Batch 1A (`swift-basics`).

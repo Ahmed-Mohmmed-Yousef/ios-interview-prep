@@ -1,0 +1,577 @@
+<title>Optionals Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --opt-box: #6366f1; --opt-box-soft: #e0e7ff;
+  --unwrapped: #0c765c; --unwrapped-soft: #dcf2ea;
+  --error: #b91c1c; --error-soft: #fee2e2;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --opt-box: #818cf8; --opt-box-soft: #1e1b4b;
+  --unwrapped: #45cfa3; --unwrapped-soft: #13362c;
+  --error: #f87171; --error-soft: #450a0a; --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-box .kind { background: var(--opt-box-soft); color: var(--opt-box); }
+.p-out .kind { background: var(--unwrapped-soft); color: var(--unwrapped); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 2.8em; white-space: pre; overflow-x: auto;
+}
+.code .err { color: var(--error); font-weight: 600; }
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.4em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-shape { stroke-width: 2; fill: var(--surface); stroke: var(--opt-box); }
+.unwrapped-shape { stroke-width: 2; fill: var(--unwrapped-soft); stroke: var(--unwrapped); }
+
+.val-text { font-family: var(--font-code); font-size: 18px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.label-text { font-family: var(--font-code); font-size: 13px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--opt-box); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Fresh · Swift Language · Topic 2 of 13 · Prototype</p>
+    <h1>Optionals</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain what an optional is and unwrap it safely.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">What is an optional in Swift, and how do you unwrap it safely in production code?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">An optional is a variable that accepts any data type at runtime.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">An optional is a wrapper that contains either a value or nil, requiring safe unwrapping before use.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">An optional is a pointer that can point to empty memory without crashing.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of an optional as a gift box. Inside the box, there might be a real present, or the box might be completely empty. You cannot play with the present while it is sealed inside the box. You must open the box first to see what is inside.</p></aside>
+<p>In many programming languages, any variable can become empty or point to nothing. When code tries to use an empty reference, the application crashes. This famous problem is often called a null pointer error.</p>
+<p>Swift solves this problem with a strict rule: <strong>normal variables can never be empty</strong>. If you declare a variable as <code>String</code> or <code>Int</code>, Swift guarantees that it always holds a real value.</p>
+<p>However, real applications often encounter missing information. A user profile might not have a middle name. A search query might find no matching results.</p>
+<p>In Swift, you handle missing information using an <strong>optional</strong>. An optional is a wrapper around a value. It represents two possibilities:</p>
+<ol>
+<li>There is a value inside, and you can unwrap it.</li>
+<li>There is no value at all, which Swift represents as <strong><code>nil</code></strong>.</li>
+</ol>
+<p>You create an optional by adding a question mark <code>?</code> after the type name, such as <code>String?</code> or <code>Int?</code>. Because an optional is a wrapper, you cannot use its content directly. You must <strong>unwrap</strong> the optional first.</p>
+<h2>See it</h2>
+<div class="diagram-host"><figure class="panels">
+    <!-- Panel 1: The Optional Box -->
+    <div class="panel p-box" id="panelBox">
+      <h3>Optional Wrapper <span class="kind">The Box</span></h3>
+      <div class="code" id="codeBox">let name: String? = "Sarah"</div>
+      <svg viewBox="0 0 280 160" aria-hidden="true">
+        <!-- Optional Box Outline -->
+        <rect x="40" y="35" width="200" height="90" rx="12" class="box-shape"/>
+        <line x1="40" y1="65" x2="240" y2="65" stroke="var(--opt-box)" stroke-width="2" stroke-dasharray="4 3"/>
+        <text x="140" y="55" font-family="var(--font-body)" font-size="12" font-weight="700" fill="var(--opt-box)" text-anchor="middle">Optional&lt;String&gt;</text>
+        <!-- Wrapped Content -->
+        <text x="140" y="102" class="val-text" id="valBox">"Sarah"</text>
+        <text x="140" y="148" class="label-text" id="labelBox">.some("Sarah")</text>
+        <!-- Error Badge -->
+        <g id="boxError" hidden>
+          <rect x="35" y="45" width="210" height="30" rx="6" fill="var(--error-soft)" stroke="var(--error)" stroke-width="1.5"/>
+          <text x="140" y="65" font-family="var(--font-body)" font-size="11" font-weight="700" fill="var(--error)" text-anchor="middle">Fatal Error: found nil!</text>
+        </g>
+      </svg>
+      <p class="caption" id="capBox">The value "Sarah" is wrapped inside an Optional.</p>
+    </div>
+
+    <!-- Panel 2: The Unwrapped Value -->
+    <div class="panel p-out" id="panelOut">
+      <h3>Unwrapped Value <span class="kind" id="statusKind">Ready to Use</span></h3>
+      <div class="code" id="codeOut">if let name { print(name) }</div>
+      <svg viewBox="0 0 280 160" aria-hidden="true">
+        <!-- Normal Value Badge -->
+        <rect x="40" y="45" width="200" height="70" rx="10" class="unwrapped-shape" id="outBg"/>
+        <text x="140" y="88" class="val-text" id="valOut">Sarah</text>
+        <text x="140" y="145" class="label-text" id="labelOut">String (non-optional)</text>
+      </svg>
+      <p class="caption" id="capOut">if let unwraps the box safely into a standard String.</p>
+    </div>
+  </figure>
+
+  <div class="controls">
+    <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+      <button class="dot active" type="button" data-step="0" aria-label="Step 1 of 4: Optional with value"></button>
+      <button class="dot" type="button" data-step="1" aria-label="Step 2 of 4: Safe unwrap with if let"></button>
+      <button class="dot" type="button" data-step="2" aria-label="Step 3 of 4: Optional with nil"></button>
+      <button class="dot" type="button" data-step="3" aria-label="Step 4 of 4: Force unwrap crash"></button>
+    </div>
+    <div class="btn-group">
+      <button class="btn-nav" id="btnPrev" type="button" disabled>Back</button>
+      <button class="btn-nav" id="btnNext" type="button">Next step</button>
+    </div>
+  </div>
+
+  <div class="sr-only" id="srStatus" aria-live="polite">Step 1 of 4: An optional variable wrapping the string Sarah.</div>
+
+  <details style="margin-top: 10px; font-size: 14px; color: var(--muted);">
+    <summary>All steps as text (reduced motion)</summary>
+    <ol style="padding-left: 20px; line-height: 1.6;">
+      <li><b>Optional with value:</b> <code>let name: String? = "Sarah"</code> wraps "Sarah" inside an <code>Optional</code> box (<code>.some</code>).</li>
+      <li><b>Safe unwrapping:</b> <code>if let name</code> safely opens the box, making the plain <code>String</code> available to use.</li>
+      <li><b>Optional with nil:</b> <code>let nickname: String? = nil</code> creates a box containing no value (<code>.none</code>).</li>
+      <li><b>Force unwrap crash:</b> <code>nickname!</code> attempts to grab the value without checking; since it is nil, the app crashes with a fatal error.</li>
+    </ol>
+  </details></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What does the nil keyword represent in Swift?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A pointer to address zero in device memory.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The absence of a value of a specific type.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">An empty string containing zero characters.</span></button><p class="qc-explain" hidden="">In Swift, nil is not a pointer. It represents the complete absence of a value for an optional type.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Unwrapping with if let and nil-coalescing</figcaption><pre class="block swift"><code class="language-swift">let enteredText: String? = &quot;120&quot;
+let parsedNumber: Int? = Int(enteredText ?? &quot;&quot;)
+
+if let parsedNumber {
+    print(&quot;Valid score: \(parsedNumber)&quot;)
+} else {
+    print(&quot;Invalid score&quot;)
+}
+
+let emptyText: String? = nil
+let displayName = emptyText ?? &quot;Anonymous&quot;
+print(&quot;User: \(displayName)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Valid score: 120
+User: Anonymous
+</code></pre></figure>
+<p>This example shows two common ways to unwrap optionals safely:</p>
+<ul>
+<li><strong>Optional binding (<code>if let</code>)</strong>: Checks if <code>parsedNumber</code> has a value. If it does, Swift creates a temporary non-optional constant and runs the block.</li>
+<li><strong>Nil-coalescing operator (<code>??</code>)</strong>: Extracts the wrapped value if present, or provides the fallback default value <code>&quot;Anonymous&quot;</code> if the optional is <code>nil</code>.</li>
+</ul>
+<figure class="code-example"><figcaption>Early exit with guard let</figcaption><pre class="block swift"><code class="language-swift">func greetUser(name: String?) {
+    guard let name else {
+        print(&quot;Hello, Guest!&quot;)
+        return
+    }
+    print(&quot;Welcome back, \(name)!&quot;)
+}
+
+greetUser(name: &quot;Taylor&quot;)
+greetUser(name: nil)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Welcome back, Taylor!
+Hello, Guest!
+</code></pre></figure>
+<p>The <strong><code>guard let</code></strong> statement unwraps an optional and requires an early exit if the value is <code>nil</code>. The <code>else</code> block must exit the current scope using <code>return</code> or <code>throw</code>.</p>
+<p>Once the <code>guard</code> statement succeeds, the unwrapped constant <code>name</code> remains available for the rest of the function.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What is a major advantage of guard let over if let?</p><button type="button" class="opt" data-id="a" data-correct=""><span class="opt-id">A</span><span class="opt-text">The unwrapped value remains available in the rest of the function scope.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">guard let runs faster because it skips the nil check.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">guard let allows continuing execution even if the value is nil.</span></button><p class="qc-explain" hidden="">guard let avoids deep indentation by binding the unwrapped value for the entire remaining scope of the function.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Force-unwrapping with the exclamation mark</p><p>Writing <code>optionalValue!</code> tells the compiler to bypass safety checks. If the optional contains <code>nil</code> at runtime, your application crashes immediately with a fatal error. Never force-unwrap values unless you are writing tests or are completely certain a value exists.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming implicitly unwrapped optionals cannot be nil</p><p>An implicitly unwrapped optional (<code>String!</code>) can hold <code>nil</code> at any time. It simply tells Swift to force-unwrap the value automatically whenever you access it. If you access it while it is <code>nil</code>, the application crashes.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Passing an optional into a non-optional parameter</p><p>Swift treats <code>String</code> and <code>String?</code> as two completely separate types. You cannot pass a <code>String?</code> into a function that expects a <code>String</code>. You must unwrap the optional first.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>An optional in Swift is a type that can hold either a concrete value or nil. Swift introduces optionals to eliminate null pointer crashes by requiring developers to handle missing values explicitly. We unwrap optionals safely using optional binding with <code>if let</code> or <code>guard let</code>, or by providing a fallback default value with the nil-coalescing operator <code>??</code>.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>In the Swift standard library, <code>Optional</code> is an enumeration with two cases: <code>.none</code> and <code>.some(Wrapped)</code>. Because non-optional types can never be nil, Swift enforces null safety at compile time. In production code, we avoid forced unwrapping with <code>!</code> because it causes fatal runtime crashes on nil. Instead, we use <code>guard let</code> for early returns to keep code flat, or <code>??</code> to supply sensible defaults.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Non-optional types in Swift can never hold nil.</li>
+<li>An optional wraps an underlying type and holds either a value or nil.</li>
+<li>Use <code>if let</code> to unwrap an optional inside a conditional block.</li>
+<li>Use <code>guard let</code> to unwrap an optional and exit early if the value is nil.</li>
+<li>Use the nil-coalescing operator <code>??</code> to supply a default fallback value.</li>
+<li>Avoid forced unwrapping with <code>!</code> because it causes runtime crashes when nil.</li>
+</ul></div></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const S = [
+  {
+    cBox: 'let name: String? = "Sarah"',
+    capBox: 'The value "Sarah" is wrapped inside an Optional.',
+    valBox: '"Sarah"',
+    lblBox: '.some("Sarah")',
+    errBox: false,
+    cOut: '// not unwrapped yet',
+    capOut: 'Cannot use wrapped value until opened.',
+    valOut: '—',
+    lblOut: 'Waiting for unwrap',
+    sr: 'Step 1 of 4: An optional wrapping the string Sarah.'
+  },
+  {
+    cBox: 'let name: String? = "Sarah"',
+    capBox: 'The optional box is opened safely.',
+    valBox: '"Sarah"',
+    lblBox: '.some("Sarah")',
+    errBox: false,
+    cOut: 'if let name {\n    print(name)\n}',
+    capOut: 'if let unwraps the box safely into a standard String.',
+    valOut: 'Sarah',
+    lblOut: 'String (non-optional)',
+    sr: 'Step 2 of 4: if let unwraps the value Sarah safely.'
+  },
+  {
+    cBox: 'let nickname: String? = nil',
+    capBox: 'The box is completely empty (.none).',
+    valBox: 'nil',
+    lblBox: '.none',
+    errBox: false,
+    cOut: 'if let nickname {\n    print(nickname)\n} // Skipped safely',
+    capOut: 'if let sees nil and skips the block without crashing.',
+    valOut: '—',
+    lblOut: 'No value extracted',
+    sr: 'Step 3 of 4: An optional containing nil is safely skipped by if let.'
+  },
+  {
+    cBox: 'let nickname: String? = nil\nprint(nickname!) <span class="err">// CRASH!</span>',
+    capBox: 'Forced unwrap fails because the box is empty!',
+    valBox: 'nil',
+    lblBox: '.none',
+    errBox: true,
+    cOut: '<span class="err">Fatal error: Unexpectedly found nil</span>',
+    capOut: 'Forced unwrap (!) causes an immediate fatal crash on nil.',
+    valOut: 'CRASH',
+    lblOut: 'Fatal runtime error',
+    sr: 'Step 4 of 4: Force unwrapping nil triggers a fatal runtime error.'
+  }
+];
+
+let cur = 0;
+const codeBox = document.getElementById("codeBox");
+const capBox = document.getElementById("capBox");
+const valBox = document.getElementById("valBox");
+const lblBox = document.getElementById("labelBox");
+const boxError = document.getElementById("boxError");
+const codeOut = document.getElementById("codeOut");
+const capOut = document.getElementById("capOut");
+const valOut = document.getElementById("valOut");
+const lblOut = document.getElementById("labelOut");
+const btnPrev = document.getElementById("btnPrev");
+const btnNext = document.getElementById("btnNext");
+const dots = document.querySelectorAll(".dot");
+const sr = document.getElementById("srStatus");
+
+function applyStep(i) {
+  cur = Math.max(0, Math.min(S.length - 1, i));
+  const s = S[cur];
+  codeBox.innerHTML = s.cBox;
+  capBox.textContent = s.capBox;
+  valBox.textContent = s.valBox;
+  lblBox.textContent = s.lblBox;
+  boxError.hidden = !s.errBox;
+
+  codeOut.innerHTML = s.cOut;
+  capOut.textContent = s.capOut;
+  valOut.textContent = s.valOut;
+  lblOut.textContent = s.lblOut;
+  sr.textContent = s.sr;
+
+  dots.forEach((d, idx) => d.classList.toggle("active", idx === cur));
+  btnPrev.disabled = cur === 0;
+  btnNext.textContent = cur === S.length - 1 ? "Replay ↺" : "Next step";
+}
+
+btnPrev.addEventListener("click", () => applyStep(cur - 1));
+btnNext.addEventListener("click", () => applyStep(cur === S.length - 1 ? 0 : cur + 1));
+dots.forEach((d) => d.addEventListener("click", () => applyStep(Number(d.dataset.step))));
+
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") applyStep(cur + 1);
+  if (e.key === "ArrowLeft") applyStep(cur - 1);
+  if (e.key === "Home") applyStep(0);
+});
+
+}
+</script>
+<script>
+const DATA = {"topicId":"optionals","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"optionals-q1","type":"mcq","difficulty":1,"prompt":"What is an optional in Swift?","options":[{"id":"a","text":"A variable that accepts any data type at runtime.","explanation":"Swift is statically typed; optionals wrap one specific type."},{"id":"b","text":"A pointer pointing to empty memory in C.","explanation":"Swift optionals are safe wrappers, not unmanaged memory pointers."},{"id":"c","text":"A wrapper type that holds either a value or nil.","explanation":"Right. An optional represents either a wrapped value or the absence of a value."},{"id":"d","text":"A function parameter that is never evaluated.","explanation":"Optionals are data types, not unevaluated function arguments."}],"answer":"c"},{"id":"optionals-q2","type":"mcq","difficulty":1,"prompt":"What does the nil keyword signify in Swift?","options":[{"id":"a","text":"The absence of a value of a specific type.","explanation":"Right. In Swift, nil represents the absence of a value for an optional."},{"id":"b","text":"A pointer pointing to memory address zero.","explanation":"In Swift, nil is not a raw pointer to address zero."},{"id":"c","text":"An empty string containing zero characters.","explanation":"An empty string is a valid non-nil value with length 0."},{"id":"d","text":"An integer variable whose value equals zero.","explanation":"Zero is a real Int value, whereas nil means no value exists."}],"answer":"a"},{"id":"optionals-q3","type":"mcq","difficulty":1,"prompt":"What is the underlying type of an optional in the Swift standard library?","options":[{"id":"a","text":"A class with a nullable reference pointer.","explanation":"Optional is a value type in the standard library, not a class."},{"id":"b","text":"A protocol adopted by all basic structures.","explanation":"Optional is a concrete enum type, not an abstract protocol."},{"id":"c","text":"A tuple containing a boolean and a value.","explanation":"Optional is defined as an enum with none and some cases."},{"id":"d","text":"An enum with two cases: none and some.","explanation":"Right. Optional\u003cWrapped> is an enumeration with .none and .some(Wrapped)."}],"answer":"d"},{"id":"optionals-q4","type":"mcq","difficulty":1,"prompt":"Which symbol is used to declare an optional type in Swift?","options":[{"id":"a","text":"!","explanation":"Exclamation mark declares an implicitly unwrapped optional or force-unwraps."},{"id":"b","text":"?","explanation":"Right. Adding ? after a type name declares an optional type."},{"id":"c","text":"*","explanation":"Asterisk is used in Objective-C or C pointers, not Swift optionals."},{"id":"d","text":"&","explanation":"Ampersand is used for in-out parameters, not optional types."}],"answer":"b"},{"id":"optionals-q5","type":"mcq","difficulty":1,"prompt":"Which operator provides a default fallback value when unwrapping an optional?","options":[{"id":"a","text":"??","explanation":"Right. The nil-coalescing operator ?? provides a fallback if nil."},{"id":"b","text":"?:","explanation":"The ternary operator ?: checks boolean conditions, not optional nil values."},{"id":"c","text":"!!","explanation":"Swift has no double exclamation operator."},{"id":"d","text":"||","explanation":"The || operator represents logical OR between boolean conditions."}],"answer":"a"},{"id":"optionals-q6","type":"mcq","difficulty":2,"prompt":"What happens when you force-unwrap an optional containing nil with the ! operator?","options":[{"id":"a","text":"Swift provides a default empty value automatically.","explanation":"Force-unwrapping does not provide default fallback values."},{"id":"b","text":"The compiler flags the code with a warning only.","explanation":"Force-unwrapping compiles, but fails violently at runtime if nil."},{"id":"c","text":"The application terminates with a fatal runtime error.","explanation":"Right. Forced unwrapping of nil causes an immediate fatal crash."},{"id":"d","text":"The code returns nil and continues executing silently.","explanation":"Forced unwrapping aborts execution when finding nil."}],"answer":"c"},{"id":"optionals-q7","type":"mcq","difficulty":2,"prompt":"What is a primary difference between guard let and if let in Swift?","options":[{"id":"a","text":"guard let runs faster because it skips safety checks.","explanation":"Both guard let and if let perform identical runtime safety checks."},{"id":"b","text":"guard let keeps the unwrapped value in the outer scope.","explanation":"Right. guard let binds constants for the remainder of the enclosing scope."},{"id":"c","text":"guard let allows continuing even if the value is nil.","explanation":"guard let requires exiting the scope if the optional is nil."},{"id":"d","text":"guard let works only with numbers and boolean values.","explanation":"guard let works with all optional types, including strings and custom objects."}],"answer":"b"},{"id":"optionals-q8","type":"mcq","difficulty":2,"prompt":"What is an Implicitly Unwrapped Optional (Type!) in Swift?","options":[{"id":"a","text":"A non-optional type that can hold nil without crashing.","explanation":"Non-optional types can never hold nil in Swift."},{"id":"b","text":"A constant value initialized on a separate thread.","explanation":"Concurrency and threads are unrelated to implicitly unwrapped optionals."},{"id":"c","text":"A reference type stored permanently on the heap.","explanation":"Implicit unwrapping describes optional access, not heap allocation."},{"id":"d","text":"An optional that unwraps automatically upon access.","explanation":"Right. It gives permission to force-unwrap automatically when read."}],"answer":"d"},{"id":"optionals-q9","type":"mcq","difficulty":2,"prompt":"What does the shorthand syntax if let name { ... } do in Swift?","options":[{"id":"a","text":"It unwraps optional name into a constant of the same name.","explanation":"Right. Shorthand syntax shadows the optional with an unwrapped constant."},{"id":"b","text":"It creates a new global variable visible everywhere.","explanation":"The unwrapped constant is scoped only inside the if block."},{"id":"c","text":"It converts an optional string into an integer value.","explanation":"Optional binding unwraps the existing type without type conversion."},{"id":"d","text":"It checks whether name equals an empty string literal.","explanation":"It checks whether the optional contains a value or nil."}],"answer":"a"},{"id":"optionals-q10","type":"mcq","difficulty":2,"prompt":"When is an Implicitly Unwrapped Optional (!) commonly used in iOS development?","options":[{"id":"a","text":"When returning data from asynchronous network calls.","explanation":"Network responses use normal optionals or Result types."},{"id":"b","text":"When reading optional values from user interface forms.","explanation":"Form inputs may be missing and should use standard optionals."},{"id":"c","text":"When UIKit connects Interface Builder outlets (@IBOutlet).","explanation":"Right. Outlets are nil before view loading and guaranteed non-nil after."},{"id":"d","text":"When defining required initializers for custom structs.","explanation":"Struct initializers populate non-optional properties normally."}],"answer":"c"},{"id":"optionals-q11","type":"mcq","difficulty":2,"prompt":"Why can normal types in Swift (like String or Int) never be nil?","options":[{"id":"a","text":"Normal types are stored in special read-only CPU registers.","explanation":"Memory registers hold temporary calculations, not type definitions."},{"id":"b","text":"Swift enforces non-null safety at compile time by default.","explanation":"Right. Only explicitly marked optionals can hold nil."},{"id":"c","text":"Device memory automatically fills unassigned bytes with zero.","explanation":"Memory initialization is distinct from language-level type safety."},{"id":"d","text":"Compilers in Swift convert all nil values into empty strings.","explanation":"Swift produces compile errors rather than replacing nil silently."}],"answer":"b"},{"id":"optionals-q12","type":"mcq","difficulty":3,"prompt":"What must the else block of a guard let statement always do?","options":[{"id":"a","text":"It must assign a default value to the unwrapped variable.","explanation":"guard statements cannot fall through by assigning default values."},{"id":"b","text":"It must print an error message to the system console.","explanation":"Logging is optional; an early exit of control flow is mandatory."},{"id":"c","text":"It must wrap the variable inside an optional container.","explanation":"Wrapping does not satisfy the required control flow exit."},{"id":"d","text":"It must exit the current scope using return, throw, or break.","explanation":"Right. The compiler mandates that guard else bodies never fall through."}],"answer":"d"},{"id":"optionals-q13","type":"mcq","difficulty":3,"prompt":"How does Swift determine whether two optionals are equal using ==?","options":[{"id":"a","text":"It unwraps and compares values if the wrapped type is Equatable.","explanation":"Right. Optional conforms to Equatable when its wrapped type does."},{"id":"b","text":"It compares the memory addresses of both optional pointers.","explanation":"Equality == compares logical values, not pointer identity."},{"id":"c","text":"It converts both optionals into strings and compares the text.","explanation":"Comparison is performed directly on the wrapped values, not strings."},{"id":"d","text":"Optionals can never be compared directly with the == operator.","explanation":"Optionals can be compared directly if the inner type is Equatable."}],"answer":"a"},{"id":"optionals-q14","type":"mcq","difficulty":3,"prompt":"What is the result of writing Int(\"hello\") in Swift?","options":[{"id":"a","text":"It returns integer 0 because text has no numeric value.","explanation":"Swift does not substitute 0 for invalid string inputs."},{"id":"b","text":"It crashes at runtime with an invalid format exception.","explanation":"The initializer is failable and returns an optional instead of crashing."},{"id":"c","text":"It returns nil as an Optional Int because parsing failed.","explanation":"Right. Int.init(_:) returns Int?, producing nil on invalid strings."},{"id":"d","text":"It produces a compile-time type mismatch error immediately.","explanation":"The code compiles cleanly; it simply produces nil at runtime."}],"answer":"c"},{"id":"optionals-q15","type":"mcq","difficulty":3,"prompt":"Why is checking if x != nil followed by x! discouraged in Swift?","options":[{"id":"a","text":"Checking for nil consumes extra CPU cycles on 64-bit devices.","explanation":"Performance impact is negligible; safety and maintainability are key."},{"id":"b","text":"Code changes or multithreading can cause force unwraps to crash.","explanation":"Right. Optional binding binds safely in one atomic, refactor-proof step."},{"id":"c","text":"Swift compilers disallow the exclamation mark inside if blocks.","explanation":"The exclamation mark compiles, but creates hazardous fragility."},{"id":"d","text":"The exclamation mark converts the wrapped type to AnyObject.","explanation":"The exclamation mark unwraps the concrete type, not AnyObject."}],"answer":"b"},{"id":"optionals-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"let username: String? = \"Alex\"\nlet result = username ?? \"Guest\"\nprint(result)","options":[{"id":"a","text":"Guest","explanation":"username contains \"Alex\", so the fallback \"Guest\" is ignored."},{"id":"b","text":"Optional(\"Alex\")","explanation":"?? unwraps the optional, returning a plain String without Optional."},{"id":"c","text":"nil","explanation":"username has a value and result is a non-optional String."},{"id":"d","text":"Alex","explanation":"Right. Because username has a value, ?? unwraps and prints \"Alex\"."}],"answer":"d"},{"id":"optionals-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"let input: String? = nil\nlet name = input ?? \"Anonymous\"\nprint(name)","options":[{"id":"a","text":"nil","explanation":"The ?? operator supplies the fallback value \"Anonymous\"."},{"id":"b","text":"Anonymous","explanation":"Right. Since input is nil, ?? returns the fallback \"Anonymous\"."},{"id":"c","text":"Optional(\"Anonymous\")","explanation":"The coalescing operator returns a non-optional String."},{"id":"d","text":"It crashes at runtime.","explanation":"Nil-coalescing handles nil safely without crashing."}],"answer":"b"},{"id":"optionals-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"let rawAge: String? = \"24\"\nif let rawAge, let age = Int(rawAge) {\n    print(\"Age: \\(age)\")\n} else {\n    print(\"Invalid\")\n}","options":[{"id":"a","text":"Age: 24","explanation":"Right. rawAge unwraps to \"24\" and converts to Int 24 successfully."},{"id":"b","text":"Invalid","explanation":"Both optional bindings succeed, so the else branch does not run."},{"id":"c","text":"Age: Optional(24)","explanation":"Optional binding unwraps age into a regular non-optional Int."},{"id":"d","text":"It fails to compile.","explanation":"Multiple optional bindings separated by commas are valid Swift."}],"answer":"a"},{"id":"optionals-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"func greet(member: String?) {\n    guard let member else {\n        print(\"Hello, stranger!\")\n        return\n    }\n    print(\"Welcome, \\(member)!\")\n}\ngreet(member: nil)","options":[{"id":"a","text":"Welcome, stranger!","explanation":"The else block prints \"Hello, stranger!\", not \"Welcome, stranger!\"."},{"id":"b","text":"Welcome, nil!","explanation":"guard unwrapping fails on nil, diverting to the else block."},{"id":"c","text":"Hello, stranger!","explanation":"Right. member is nil, so the guard else block executes and returns."},{"id":"d","text":"It crashes at runtime.","explanation":"guard let handles nil safely and exits through the else branch."}],"answer":"c"},{"id":"optionals-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"let title: String? = \"Swift\"\nlet unwrapped = title!\nprint(unwrapped)","options":[{"id":"a","text":"Optional(\"Swift\")","explanation":"The ! operator force-unwraps the optional into a plain String."},{"id":"b","text":"nil","explanation":"title contains \"Swift\", which unwraps to the non-nil string."},{"id":"c","text":"It crashes at runtime.","explanation":"title contains a valid string, so force-unwrapping succeeds."},{"id":"d","text":"Swift","explanation":"Right. Forced unwrapping returns the underlying non-optional string."}],"answer":"d"},{"id":"optionals-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"let first: Int? = 10\nlet second: Int? = 10\nprint(first == second)","options":[{"id":"a","text":"false","explanation":"Both optionals wrap the equal Int value 10."},{"id":"b","text":"true","explanation":"Right. Optional conforms to Equatable, so comparing values produces true."},{"id":"c","text":"Optional(true)","explanation":"The equality operator returns a standard Bool, not an optional."},{"id":"d","text":"It fails to compile.","explanation":"Optionals wrapping Equatable types can be compared directly."}],"answer":"b"},{"id":"optionals-q22","type":"code-reading","difficulty":3,"prompt":"What happens when you compile this code in Swift?","code":"func printScore(score: Int) {\n    print(\"Score is \\(score)\")\n}\nlet currentScore: Int? = 95\nprintScore(score: currentScore)","options":[{"id":"a","text":"It fails to compile because Int? cannot be passed to an Int parameter.","explanation":"Right. Swift requires explicit unwrapping before passing to Int."},{"id":"b","text":"It compiles and prints \"Score is 95\".","explanation":"Swift does not unwrap optional arguments automatically."},{"id":"c","text":"It compiles and prints \"Score is Optional(95)\".","explanation":"The function expects a non-optional Int, so compilation fails."},{"id":"d","text":"It compiles but crashes at runtime.","explanation":"Swift catches this type mismatch at compile time."}],"answer":"a"},{"id":"optionals-q23","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"let parsed = Int(\"404\")\nlet status = (parsed ?? 0) + 1\nprint(status)","options":[{"id":"a","text":"1","explanation":"\"404\" converts successfully to 404, so the fallback 0 is unused."},{"id":"b","text":"404","explanation":"The calculation adds 1 to 404, resulting in 405."},{"id":"c","text":"405","explanation":"Right. parsed unwraps to 404, and adding 1 produces 405."},{"id":"d","text":"It fails to compile.","explanation":"The parentheses properly group the coalesced value before addition."}],"answer":"c"},{"id":"optionals-q24","type":"written","difficulty":1,"prompt":"What is an optional in Swift, and why does Swift require optionals to represent missing values? Answer in 2–5 sentences.","rubric":[{"criterion":"Defines an optional as a type that wraps either a real value or nil","weight":35,"key":true},{"criterion":"Explains that non-optional types in Swift can never be nil","weight":35,"key":true},{"criterion":"Mentions that optionals prevent null pointer crashes by requiring explicit handling at compile time","weight":30}],"modelAnswer":"An optional in Swift is a type that can hold either a real value or nil. Swift enforces that standard non-optional types can never be nil. This design eliminates null pointer crashes at compile time. By forcing developers to handle potential nil values explicitly, Swift makes code much safer and more reliable."},{"id":"optionals-q25","type":"written","difficulty":2,"prompt":"Compare if let and guard let for unwrapping optionals in Swift. When should you choose each? Answer in 2–5 sentences.","rubric":[{"criterion":"Explains that if let binds the unwrapped constant only inside the conditional block","weight":35,"key":true},{"criterion":"Explains that guard let keeps the unwrapped constant in the outer scope and requires an early exit","weight":35,"key":true},{"criterion":"Explains when to choose each (e.g., guard let for early exits / guard clauses to avoid indentation; if let for optional branching)","weight":30}],"modelAnswer":"Both if let and guard let unwrap optionals safely. With if let, the unwrapped constant is accessible only inside the if block. In contrast, guard let requires an early exit in the else block and keeps the unwrapped value available for the remainder of the function. Use guard let to validate prerequisites early and prevent deep nesting, and use if let when you need simple conditional branching."},{"id":"optionals-q26","type":"written","difficulty":2,"prompt":"How does the nil-coalescing operator (??) work, and what advantages does it offer over forced unwrapping? Answer in 2–5 sentences.","rubric":[{"criterion":"Explains that ?? returns the wrapped value if present, or a fallback default value if nil","weight":40,"key":true},{"criterion":"Explains that it produces a non-optional value safely without runtime crashes","weight":35,"key":true},{"criterion":"Contrasts this with forced unwrapping (!) which crashes immediately on nil","weight":25}],"modelAnswer":"The nil-coalescing operator ?? unwraps an optional if it contains a value, or provides a default fallback value if the optional is nil. Unlike forced unwrapping with !, which triggers an immediate fatal runtime crash on nil, ?? is completely safe. It allows an application to recover gracefully from missing data while producing a clean non-optional value."},{"id":"optionals-q27","type":"written","difficulty":2,"prompt":"Why is forced unwrapping with ! considered an anti-pattern in production Swift code? Answer in 2–5 sentences.","rubric":[{"criterion":"States that forced unwrapping causes a fatal runtime crash if the value is nil","weight":40,"key":true},{"criterion":"Explains that it bypasses Swift's compile-time safety guarantees","weight":35,"key":true},{"criterion":"Recommends safe alternatives like if let, guard let, or ??","weight":25}],"modelAnswer":"Forced unwrapping with ! bypasses Swift's compile-time safety mechanisms. If the optional contains nil when evaluated, the application terminates immediately with a fatal error. Even if a value seems guaranteed, code changes or concurrency issues can cause unexpected nil values. In production apps, developers should use safe techniques like if let, guard let, or nil-coalescing instead."},{"id":"optionals-q28","type":"written","difficulty":3,"prompt":"How is Optional implemented in the Swift standard library, and how does its enum structure work? Answer in 2–5 sentences.","rubric":[{"criterion":"Explains that Optional is an enumeration with cases .none and .some(Wrapped)","weight":40,"key":true},{"criterion":"States that .none represents nil, while .some holds the wrapped value","weight":35,"key":true},{"criterion":"Mentions that syntax like Type? is syntactic sugar for Optional\u003cType>","weight":25}],"modelAnswer":"In the Swift standard library, Optional is implemented as a generic enumeration with two cases: .none and .some(Wrapped). The .none case represents nil, while the .some case stores the wrapped payload. Writing Type? is simply syntactic sugar for Optional\u003cType>. Because Optional is a standard value type, it benefits from Swift's pattern matching and protocol conformances."},{"id":"optionals-q29","type":"code-write","difficulty":1,"prompt":"Declare an optional constant score of type Int? containing nil. Use the nil-coalescing operator (??) to unwrap score into a constant named finalScore, falling back to 0. Print finalScore.","starterCode":"// Declare score, unwrap with ?? into finalScore, and print\n","rubric":[{"criterion":"Declares an optional score: Int? = nil","weight":35,"key":true},{"criterion":"Uses the ?? operator to assign to finalScore with fallback 0","weight":40,"key":true},{"criterion":"Prints finalScore producing output 0","weight":25}],"modelAnswer":"let score: Int? = nil\nlet finalScore = score ?? 0\nprint(finalScore)"},{"id":"optionals-q30","type":"code-write","difficulty":2,"prompt":"Write a function displayUser(name: String?) that uses if let to print \"User: \\(name)\" if present, or \"No user logged in\" if nil. Call displayUser(name: \"Taylor\").","starterCode":"// Define displayUser(name:) and call it with \"Taylor\"\n","rubric":[{"criterion":"Defines displayUser taking an optional parameter name: String?","weight":30,"key":true},{"criterion":"Uses optional binding (if let) to safely check and unwrap name","weight":40,"key":true},{"criterion":"Prints appropriate output and calls displayUser producing 'User: Taylor'","weight":30}],"modelAnswer":"func displayUser(name: String?) {\n    if let name {\n        print(\"User: \\(name)\")\n    } else {\n        print(\"No user logged in\")\n    }\n}\ndisplayUser(name: \"Taylor\")"},{"id":"optionals-q31","type":"code-write","difficulty":3,"prompt":"Write a function parsePort(input: String?) -> Int that uses guard let to unwrap input and convert it to an Int with Int(input). Return 8080 if either step fails. Print parsePort(input: \"3000\") and parsePort(input: nil).","starterCode":"// Define parsePort(input:) and print the two test calls\n","rubric":[{"criterion":"Defines parsePort(input: String?) -> Int","weight":25,"key":true},{"criterion":"Uses guard let to unwrap input and parse it with Int(input)","weight":40,"key":true},{"criterion":"Returns 8080 on failure and the parsed port on success","weight":20},{"criterion":"Prints both function calls producing output '3000\\n8080'","weight":15}],"modelAnswer":"func parsePort(input: String?) -> Int {\n    guard let input, let port = Int(input) else {\n        return 8080\n    }\n    return port\n}\nprint(parsePort(input: \"3000\"))\nprint(parsePort(input: nil))"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

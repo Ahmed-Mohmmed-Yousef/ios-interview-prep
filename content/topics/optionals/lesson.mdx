@@ -1,0 +1,167 @@
+export const meta = {
+  id: "optionals",
+  summary: "Understand optional values in Swift, why nil cannot exist in normal types, and how to unwrap them safely.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-08",
+  sources: [
+    { title: "The Swift Programming Language: The Basics (Optionals)", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/thebasics", kind: "official" },
+    { title: "Apple Developer Documentation: Optional", url: "https://developer.apple.com/documentation/swift/optional", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is an optional in Swift, and how do you unwrap it safely in production code?</Question>
+  <Guess>
+    <Option id="a">An optional is a variable that accepts any data type at runtime.</Option>
+    <Option id="b" correct>An optional is a wrapper that contains either a value or nil, requiring safe unwrapping before use.</Option>
+    <Option id="c">An optional is a pointer that can point to empty memory without crashing.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of an optional as a gift box. Inside the box, there might be a real present, or the box might be completely empty. You cannot play with the present while it is sealed inside the box. You must open the box first to see what is inside.
+</Analogy>
+
+In many programming languages, any variable can become empty or point to nothing. When code tries to use an empty reference, the application crashes. This famous problem is often called a null pointer error.
+
+Swift solves this problem with a strict rule: **normal variables can never be empty**. If you declare a variable as `String` or `Int`, Swift guarantees that it always holds a real value.
+
+However, real applications often encounter missing information. A user profile might not have a middle name. A search query might find no matching results.
+
+In Swift, you handle missing information using an **optional**. An optional is a wrapper around a value. It represents two possibilities:
+1. There is a value inside, and you can unwrap it.
+2. There is no value at all, which Swift represents as **`nil`**.
+
+You create an optional by adding a question mark `?` after the type name, such as `String?` or `Int?`. Because an optional is a wrapper, you cannot use its content directly. You must **unwrap** the optional first.
+
+## See it
+
+<Diagram id="optionals-main" caption="An optional wraps a value like a box. Safe unwrapping checks for nil before extracting the value.">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. A box with a question mark containing the text "Sarah" inside (an optional with a value).
+    2. An empty box with a question mark containing nothing (an optional containing nil).
+  - Steps:
+    Step 1: Declare let name: String? = "Sarah". A closed box appears with "Sarah" inside.
+    Step 2: Safe unwrapping with if let. The lid opens, and "Sarah" is extracted safely as a plain String.
+    Step 3: Declare let nickname: String? = nil. An empty closed box appears.
+    Step 4: Attempt forced unwrap with nickname!. The box breaks, triggering a red Fatal Error badge.
+  - Static version (reduced motion):
+    A three-part comparison showing safe unwrapping with a value, safe unwrapping with nil, and a forced unwrap crash.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What does the nil keyword represent in Swift?</Question>
+  <Option id="a">A pointer to address zero in device memory.</Option>
+  <Option id="b" correct>The absence of a value of a specific type.</Option>
+  <Option id="c">An empty string containing zero characters.</Option>
+  <Explanation>In Swift, nil is not a pointer. It represents the complete absence of a value for an optional type.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Unwrapping with if let and nil-coalescing">
+
+```swift
+let enteredText: String? = "120"
+let parsedNumber: Int? = Int(enteredText ?? "")
+
+if let parsedNumber {
+    print("Valid score: \(parsedNumber)")
+} else {
+    print("Invalid score")
+}
+
+let emptyText: String? = nil
+let displayName = emptyText ?? "Anonymous"
+print("User: \(displayName)")
+```
+
+```output
+Valid score: 120
+User: Anonymous
+```
+
+</CodeExample>
+
+This example shows two common ways to unwrap optionals safely:
+- **Optional binding (`if let`)**: Checks if `parsedNumber` has a value. If it does, Swift creates a temporary non-optional constant and runs the block.
+- **Nil-coalescing operator (`??`)**: Extracts the wrapped value if present, or provides the fallback default value `"Anonymous"` if the optional is `nil`.
+
+<CodeExample title="Early exit with guard let">
+
+```swift
+func greetUser(name: String?) {
+    guard let name else {
+        print("Hello, Guest!")
+        return
+    }
+    print("Welcome back, \(name)!")
+}
+
+greetUser(name: "Taylor")
+greetUser(name: nil)
+```
+
+```output
+Welcome back, Taylor!
+Hello, Guest!
+```
+
+</CodeExample>
+
+The **`guard let`** statement unwraps an optional and requires an early exit if the value is `nil`. The `else` block must exit the current scope using `return` or `throw`.
+
+Once the `guard` statement succeeds, the unwrapped constant `name` remains available for the rest of the function.
+
+<QuickCheck>
+  <Question>What is a major advantage of guard let over if let?</Question>
+  <Option id="a" correct>The unwrapped value remains available in the rest of the function scope.</Option>
+  <Option id="b">guard let runs faster because it skips the nil check.</Option>
+  <Option id="c">guard let allows continuing execution even if the value is nil.</Option>
+  <Explanation>guard let avoids deep indentation by binding the unwrapped value for the entire remaining scope of the function.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Force-unwrapping with the exclamation mark">
+Writing `optionalValue!` tells the compiler to bypass safety checks. If the optional contains `nil` at runtime, your application crashes immediately with a fatal error. Never force-unwrap values unless you are writing tests or are completely certain a value exists.
+</Trap>
+
+<Trap title="Assuming implicitly unwrapped optionals cannot be nil">
+An implicitly unwrapped optional (`String!`) can hold `nil` at any time. It simply tells Swift to force-unwrap the value automatically whenever you access it. If you access it while it is `nil`, the application crashes.
+</Trap>
+
+<Trap title="Passing an optional into a non-optional parameter">
+Swift treats `String` and `String?` as two completely separate types. You cannot pass a `String?` into a function that expects a `String`. You must unwrap the optional first.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+An optional in Swift is a type that can hold either a concrete value or nil. Swift introduces optionals to eliminate null pointer crashes by requiring developers to handle missing values explicitly. We unwrap optionals safely using optional binding with `if let` or `guard let`, or by providing a fallback default value with the nil-coalescing operator `??`.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+In the Swift standard library, `Optional` is an enumeration with two cases: `.none` and `.some(Wrapped)`. Because non-optional types can never be nil, Swift enforces null safety at compile time. In production code, we avoid forced unwrapping with `!` because it causes fatal runtime crashes on nil. Instead, we use `guard let` for early returns to keep code flat, or `??` to supply sensible defaults.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Non-optional types in Swift can never hold nil.
+- An optional wraps an underlying type and holds either a value or nil.
+- Use `if let` to unwrap an optional inside a conditional block.
+- Use `guard let` to unwrap an optional and exit early if the value is nil.
+- Use the nil-coalescing operator `??` to supply a default fallback value.
+- Avoid forced unwrapping with `!` because it causes runtime crashes when nil.
+</Recap>
