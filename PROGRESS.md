@@ -118,8 +118,8 @@ Plan: [docs/phase-5-plan.md](docs/phase-5-plan.md)
 Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ✅ **5.0 Plan Phase 5** — [docs/phase-5-plan.md](docs/phase-5-plan.md) approved by user
 - ✅ **5.1 Setup & Scaffold** — Next.js 16 (App Router), TypeScript, Turbopack, Tailwind v4 tokens, agent tools
-- 🔄 **5.2 Content & Store Layer** — Zod schemas, MDX + Shiki compiler, Zustand versioned store with migrations, Vitest product rule tests
-- ⬜ **5.3 Screen 1: Welcome & Level Picker (S1, S2)** — first visit intro, level cards, interactive self-check
+- ✅ **5.2 Content & Store Layer** — Zod schemas, MDX + Shiki compiler, Zustand versioned store with migrations, Vitest product rule tests
+- 🔄 **5.3 Screen 1: Welcome & Level Picker (S1, S2)** — first visit intro, level cards, interactive self-check
 - ⬜ **5.4 Screen 2: Winding Path Map (S3, S4)** — responsive road, 6 stop states, progress bar, path score, locked sheet
 - ⬜ **5.5 Screen 3: Lesson Reader & Diagrams (S5)** — section reader, embedded diagrams, text size switcher, QuickChecks
 - ⬜ **5.6 Screen 4: Exam Runner & Results (S6–S10)** — 10 questions, option shuffling, instant feedback, scoring, skip tests, path completion
@@ -226,6 +226,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Step 5.2 done: Content & Store Layer built. Zod schemas for levels, units, rules, topics, and questions; content loaders and path road builder; Shiki syntax highlighter; versioned Zustand progress store with sequential migrations, partialize, and SSR-safe hydration; 23 Vitest unit tests verifying 100% of product rules (pass marks, skip tests, score calculation, option shuffling, store resilience). Verified with clean build and passing tests. Starting Step 5.3: Welcome & Level Picker screens.
 
 - **2026-11-09** — Step 5.1 done: Next.js 16.4 (App Router) scaffolded with TypeScript, Turbopack, Tailwind v4 tokens, brand helper, MDX support, Vitest test runner, and Playwright config. Verified with clean production build and test run. Starting Step 5.2: Content & Store Layer.
 
