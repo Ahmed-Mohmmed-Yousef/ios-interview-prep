@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Xcode Targets, Schemes, and Git Workflow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --xcode-color: #0284c7; --xcode-soft: #e0f2fe;
+  --git-color: #0c765c; --git-soft: #dcf2ea;
+  --warn-color: #d97706; --warn-soft: #fef3c7;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --xcode-color: #38bdf8; --xcode-soft: #082f49;
+  --git-color: #45cfa3; --git-soft: #13362c;
+  --warn-color: #fbbf24; --warn-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Controls toolbar */
+.toolbar {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px;
+}
+.controls-grp { display: flex; gap: 8px; align-items: center; }
+button {
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--active-color); color: var(--active-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.steps-dots { display: flex; gap: 6px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--line); border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.15); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+
+  <div class="panels">
+
+    <!-- Interactive Visual Panel -->
+    <div class="panel" id="panel-visual">
+      <h3>
+        <span id="vis-title">1. Xcode Project & Target Hierarchy</span>
+        <span class="kind" id="vis-tag" style="background: var(--xcode-soft); color: var(--xcode-color);">Structure</span>
+      </h3>
+      <p class="caption" id="vis-desc">An Xcode project contains source files, assets, and individual build targets.</p>
+
+      <svg viewBox="0 0 320 220" role="img" aria-label="Xcode Project and Git workflow diagram">
+        <!-- Project Container Box -->
+        <rect x="15" y="15" width="290" height="190" rx="10" fill="var(--code-bg)" stroke="var(--line)" stroke-dasharray="4"/>
+        <text id="txt-proj-hdr" x="30" y="36" font-size="12" font-weight="700" fill="var(--xcode-color)" font-family="var(--font-body)">Xcode Project: MyApp.xcodeproj</text>
+
+        <!-- Target 1 Box (Main App) -->
+        <g id="grp-target1">
+          <rect id="rect-target1" x="28" y="50" width="125" height="60" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="38" y="70" font-size="11" font-weight="700" fill="var(--ink)" font-family="var(--font-body)">Target: iOS App</text>
+          <text x="38" y="86" font-size="10" fill="var(--muted)" font-family="var(--font-code)">com.myorg.app</text>
+          <text x="38" y="100" font-size="9" fill="var(--xcode-color)" font-family="var(--font-body)">✓ ContentView.swift</text>
+        </g>
+
+        <!-- Target 2 Box (Widget Extension) -->
+        <g id="grp-target2">
+          <rect id="rect-target2" x="165" y="50" width="125" height="60" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="175" y="70" font-size="11" font-weight="700" fill="var(--ink)" font-family="var(--font-body)">Target: Widget</text>
+          <text x="175" y="86" font-size="10" fill="var(--muted)" font-family="var(--font-code)">com.myorg.widget</text>
+          <text x="175" y="100" font-size="9" fill="var(--muted)" font-family="var(--font-body)">WidgetBundle.swift</text>
+        </g>
+
+        <!-- Scheme / Git Area Box -->
+        <g id="grp-scheme-area">
+          <rect id="rect-scheme-area" x="28" y="125" width="262" height="65" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text id="txt-sub-title" x="40" y="147" font-size="12" font-weight="700" fill="var(--ink)" font-family="var(--font-body)">Active Scheme: MyApp</text>
+          <text id="txt-sub-detail" x="40" y="165" font-size="10" fill="var(--muted)" font-family="var(--font-code)">Run Action → Target: iOS App (Debug)</text>
+          <text id="txt-sub-tag" x="40" y="180" font-size="10" font-weight="600" fill="var(--xcode-color)" font-family="var(--font-body)">Build & Run on iPhone 16 Simulator</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Code & Git State Panel -->
+    <div class="panel" id="panel-state">
+      <h3>
+        <span id="right-title">Xcode Targets</span>
+        <span class="kind" id="right-tag" style="background: var(--xcode-soft); color: var(--xcode-color);">Targets</span>
+      </h3>
+      <p class="caption" id="right-desc">Targets define what products to build, each with its own bundle ID and settings.</p>
+      
+      <div class="code" id="right-code">// MyApp.xcodeproj
+// ├── Target: iOS App (MyApp)
+// │   ├── Bundle ID: com.myorg.app
+// │   └── Sources: ContentView.swift
+// └── Target: Widget (AppWidget)
+//     └── Bundle ID: com.myorg.widget</div>
+
+      <div class="metrics">
+        <div class="metric-col">
+          <span>Targets</span>
+          <strong id="m-targets">2 Products</strong>
+        </div>
+        <div class="metric-col">
+          <span>Build Mode</span>
+          <strong id="m-mode">Debug</strong>
+        </div>
+        <div class="metric-col">
+          <span>Git Status</span>
+          <strong id="m-git">Clean</strong>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Stepper Controls Toolbar -->
+  <div class="toolbar">
+    <div class="controls-grp">
+      <button id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">‹ Back</button>
+      <button id="btn-next" onclick="nextStep()" aria-label="Next step">Next ›</button>
+    </div>
+
+    <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+      <button class="dot active" onclick="goToStep(0)" role="tab" aria-selected="true" aria-label="Step 1"></button>
+      <button class="dot" onclick="goToStep(1)" role="tab" aria-selected="false" aria-label="Step 2"></button>
+      <button class="dot" onclick="goToStep(2)" role="tab" aria-selected="false" aria-label="Step 3"></button>
+      <button class="dot" onclick="goToStep(3)" role="tab" aria-selected="false" aria-label="Step 4"></button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    visTitle: "1. Xcode Project & Target Hierarchy",
+    visTag: "Structure",
+    visDesc: "An Xcode project contains source files, assets, and individual build targets.",
+    projHdr: "Xcode Project: MyApp.xcodeproj",
+    t1Stroke: "var(--line)",
+    t1Fill: "var(--surface)",
+    t2Stroke: "var(--line)",
+    t2Fill: "var(--surface)",
+    subTitle: "Active Scheme: MyApp",
+    subDetail: "Action: Run → Target: iOS App (Debug)",
+    subTag: "Build & Run on iPhone 16 Simulator",
+    subTagColor: "var(--xcode-color)",
+    rightTitle: "Xcode Targets",
+    rightTag: "Targets",
+    rightCode: "// MyApp.xcodeproj\n// ├── Target: iOS App (MyApp)\n// │   ├── Bundle ID: com.myorg.app\n// │   └── Sources: ContentView.swift\n// └── Target: Widget (AppWidget)\n//     └── Bundle ID: com.myorg.widget",
+    rightDesc: "Targets define what products to build, each with its own bundle ID and settings.",
+    mTargets: "2 Products",
+    mMode: "Debug",
+    mGit: "Clean"
+  },
+  {
+    visTitle: "2. Xcode Scheme Directs Actions",
+    visTag: "Scheme",
+    visDesc: "A scheme instructs Xcode how to build, test, profile, and archive targets.",
+    projHdr: "Xcode Scheme: Connects Targets to Actions",
+    t1Stroke: "var(--xcode-color)",
+    t1Fill: "var(--xcode-soft)",
+    t2Stroke: "var(--line)",
+    t2Fill: "var(--surface)",
+    subTitle: "Scheme: MyApp (Debug vs Release)",
+    subDetail: "Run Action uses Debug | Archive Action uses Release",
+    subTag: "Optimization: -Onone (Debug) / -O (Release)",
+    subTagColor: "var(--xcode-color)",
+    rightTitle: "Build Configurations",
+    rightTag: "Scheme",
+    rightCode: "// Scheme execution rules:\n#if DEBUG\nlet apiHost = \"https://staging.api.com\"\n#else\nlet apiHost = \"https://production.api.com\"\n#endif",
+    rightDesc: "Schemes define how actions execute. Run uses Debug for fast builds; Archive uses Release.",
+    mTargets: "Selected: App",
+    mMode: "Debug / Release",
+    mGit: "Clean"
+  },
+  {
+    visTitle: "3. Editing Files & git status",
+    visTag: "Working Tree",
+    visDesc: "Developer edits ContentView.swift. Git tracks modified files in the working directory.",
+    projHdr: "Git Working Tree: Tracking Edits",
+    t1Stroke: "var(--warn-color)",
+    t1Fill: "var(--warn-soft)",
+    t2Stroke: "var(--line)",
+    t2Fill: "var(--surface)",
+    subTitle: "Terminal: $ git status",
+    subDetail: "Changes not staged for commit:\n  modified: ContentView.swift",
+    subTag: ".gitignore excludes DerivedData/ & xcuserdata/",
+    subTagColor: "var(--warn-color)",
+    rightTitle: "Git Working Directory",
+    rightTag: "git status",
+    rightCode: "$ git status\nOn branch feature/login\nChanges not staged for commit:\n  modified: ContentView.swift\n\n(DerivedData and xcuserdata ignored)",
+    rightDesc: "Git spots changed files. Adding temporary caches to .gitignore keeps diffs clean.",
+    mTargets: "1 Modified",
+    mMode: "Debug",
+    mGit: "1 Unstaged"
+  },
+  {
+    visTitle: "4. git add & git commit Snapshot",
+    visTag: "Committed",
+    visDesc: "Developer stages the modified file and commits an immutable snapshot to Git history.",
+    projHdr: "Git Repository: Commit 7f8b9c2",
+    t1Stroke: "var(--git-color)",
+    t1Fill: "var(--git-soft)",
+    t2Stroke: "var(--line)",
+    t2Fill: "var(--surface)",
+    subTitle: "Commit: 7f8b9c2 (HEAD -> feature/login)",
+    subDetail: "feat: add user profile screen",
+    subTag: "Working tree clean. Snapshot permanently saved.",
+    subTagColor: "var(--git-color)",
+    rightTitle: "Permanent Git History",
+    rightTag: "git commit",
+    rightCode: "$ git add ContentView.swift\n$ git commit -m \"feat: add user profile\"\n[feature/login 7f8b9c2] feat: add user profile\n 1 file changed, 14 insertions(+)",
+    rightDesc: "Staging and committing creates an immutable checkpoint. Clean and ready to push or merge.",
+    mTargets: "Clean",
+    mMode: "Debug",
+    mGit: "Clean (7f8b9c2)"
+  }
+];
+
+let curStep = 0;
+
+function updateDiagram() {
+  const s = steps[curStep];
+  
+  document.getElementById("vis-title").textContent = s.visTitle;
+  document.getElementById("vis-tag").textContent = s.visTag;
+  document.getElementById("vis-desc").textContent = s.visDesc;
+  document.getElementById("txt-proj-hdr").textContent = s.projHdr;
+
+  document.getElementById("rect-target1").setAttribute("stroke", s.t1Stroke);
+  document.getElementById("rect-target1").setAttribute("fill", s.t1Fill);
+  document.getElementById("rect-target2").setAttribute("stroke", s.t2Stroke);
+  document.getElementById("rect-target2").setAttribute("fill", s.t2Fill);
+
+  document.getElementById("txt-sub-title").textContent = s.subTitle;
+  document.getElementById("txt-sub-detail").textContent = s.subDetail;
+  document.getElementById("txt-sub-tag").textContent = s.subTag;
+  document.getElementById("txt-sub-tag").setAttribute("fill", s.subTagColor);
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+  document.getElementById("m-targets").textContent = s.mTargets;
+  document.getElementById("m-mode").textContent = s.mMode;
+  document.getElementById("m-git").textContent = s.mGit;
+
+  const dots = document.querySelectorAll(".steps-dots .dot");
+  dots.forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = (curStep === 0);
+  document.getElementById("btn-next").disabled = (curStep === steps.length - 1);
+}
+
+function prevStep() { if (curStep > 0) { curStep--; updateDiagram(); } }
+function nextStep() { if (curStep < steps.length - 1) { curStep++; updateDiagram(); } }
+function goToStep(i) { curStep = i; updateDiagram(); }
+</script>
+
+</body>
+</html>

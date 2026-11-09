@@ -1,0 +1,603 @@
+<title>Xcode, Projects and Git Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --xcode-color: #0284c7; --xcode-soft: #e0f2fe;
+  --git-color: #0c765c; --git-soft: #dcf2ea;
+  --warn-color: #d97706; --warn-soft: #fef3c7;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --xcode-color: #38bdf8; --xcode-soft: #082f49;
+  --git-color: #45cfa3; --git-soft: #13362c;
+  --warn-color: #fbbf24; --warn-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Controls toolbar */
+.toolbar {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px;
+}
+.controls-grp { display: flex; gap: 8px; align-items: center; }
+button {
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--active-color); color: var(--active-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.steps-dots { display: flex; gap: 6px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--line); border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.15); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Fresh · App and System · Topic 1 of 1 · Prototype</p>
+    <h1>Xcode, Projects and Git</h1>
+    <p class="meta-line"><span>About 12 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can create a project in Xcode, run it and save your work with Git.</p>
+    <article class="lesson"><h1>Xcode, Projects and Git</h1>
+<p>How do iOS developers manage code files, configure build settings, and collaborate with teams? Xcode projects and Git organize everything from code to app store binaries.</p>
+<section class="hook"><p class="label">Interview question</p><p class="q-text">What is the difference between an Xcode target and an Xcode scheme?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A target is written in Swift, while a scheme is written in Objective-C.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">A target defines what product to build, while a scheme defines how to build and run it.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">A target runs on simulators, while a scheme runs on physical devices.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<p>Building an iOS app requires more than writing Swift code. You need tools to organize files, configure settings, and track changes over time.</p>
+<p>Xcode provides three core organizing concepts:</p>
+<ol>
+<li><strong>The Project (<code>.xcodeproj</code>)</strong>:
+<ul>
+<li>The root container for your source code, assets, and configurations.</li>
+<li>It contains your files and settings.</li>
+</ul>
+</li>
+<li><strong>The Target</strong>:
+<ul>
+<li>Defines a single product to build.</li>
+<li>Examples include an iOS application, a Widget Extension, or a Unit Test bundle.</li>
+<li>A target lists which files compile into that product.</li>
+</ul>
+</li>
+<li><strong>The Scheme</strong>:
+<ul>
+<li>Defines the instructions for actions like Build, Run, Test, and Archive.</li>
+<li>It connects a target to a build configuration, such as Debug or Release.</li>
+</ul>
+</li>
+</ol>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of building a car.
+The project is the entire vehicle factory.
+A target is a specific product, such as the family sedan or the racing edition.
+A scheme is the assembly manual for the day, telling the team whether to build for a test drive or showroom release.</p></aside>
+<p>Version control with <strong>Git</strong> tracks every change you make:</p>
+<ul>
+<li><code>git status</code>: Shows modified files in your project.</li>
+<li><code>git add</code>: Stages files for the next snapshot.</li>
+<li><code>git commit</code>: Saves a snapshot with a descriptive message.</li>
+<li><code>git branch</code>: Creates an isolated workspace for a new feature.</li>
+</ul>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which Xcode concept defines an individual build product like an iOS app or widget?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">An Xcode Scheme.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">An Xcode Target.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">A Git Commit.</span></button><p class="qc-explain" hidden="">A target defines a single product to build, specifying its source files and build settings.</p></div>
+<h2>In code</h2>
+<p>You can inspect app target properties and build configurations directly in Swift code.</p>
+<figure class="code-example"><figcaption>Inspecting build configuration and target settings</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+struct AppTarget {
+    let name: String
+    let bundleIdentifier: String
+    let isTestBundle: Bool
+}
+
+let target = AppTarget(
+    name: &quot;PrepStopsApp&quot;,
+    bundleIdentifier: &quot;com.prepstops.ios&quot;,
+    isTestBundle: false
+)
+
+#if DEBUG
+let buildMode = &quot;Debug&quot;
+#else
+let buildMode = &quot;Release&quot;
+#endif
+
+print(&quot;Target: \(target.name), Mode: \(buildMode)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Target: PrepStopsApp, Mode: Release
+</code></pre></figure>
+<p>In Git, commits record atomic units of work with a unique hash and message.</p>
+<figure class="code-example"><figcaption>Modeling a Git commit history snapshot</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+struct GitCommit {
+    let hash: String
+    let message: String
+    let branch: String
+}
+
+let commit = GitCommit(
+    hash: &quot;7f8b9c2&quot;,
+    message: &quot;feat: add user profile screen&quot;,
+    branch: &quot;main&quot;
+)
+
+print(&quot;Commit [\(commit.hash)] on \(commit.branch): \(commit.message)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Commit [7f8b9c2] on main: feat: add user profile screen
+</code></pre></figure>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why must DerivedData and xcuserdata folders be excluded in .gitignore?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because Git cannot track files larger than ten megabytes.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because they hold user-specific IDE states and temporary build caches.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because Apple rejects apps with hidden configuration folders.</span></button><p class="qc-explain" hidden="">DerivedData and xcuserdata contain temporary build caches and personal layout states that cause merge conflicts.</p></div>
+<p class="try-it"><p>Open Terminal on your Mac. Create a new directory, run <code>git init</code>, create a <code>.gitignore</code> file, and stage your initial commit with <code>git add .</code>.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing Targets with Schemes</p><p>A target defines <em>what</em> gets built (the app, extension, or test bundle). A scheme defines <em>how</em> to build and run that target (such as running tests in Debug mode or archiving for Release).</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Forgetting Target Membership</p><p>When you add a new Swift file to an Xcode project, you must check the Target Membership checkbox. If unchecked, the compiler cannot find the file and reports scope errors.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Committing user data to Git</p><p>Checking <code>xcuserdata</code> or <code>DerivedData</code> into Git causes endless merge conflicts and pollutes team history with personal window layouts. Always add these paths to your <code>.gitignore</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Ignoring project.pbxproj merge conflicts</p><p>The <code>project.pbxproj</code> file uses internal UUIDs to track files. When two branches add new files simultaneously, resolve conflicts carefully to avoid corrupting project structure.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;In Xcode, a project contains all code and resources. A target defines an individual product to build, like an iOS app or unit test bundle. A scheme connects targets to actions like Run or Test. We use Git to track changes, create branches for features, and commit snapshots.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;An Xcode target specifies build settings and source file membership for a single product. Schemes define the execution plan, such as running a target in Debug or archiving for Release. For version control, maintaining a clean .gitignore excluding DerivedData and xcuserdata prevents merge conflicts.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;Xcode projects organize code through targets and build configurations. In larger codebases, we separate features into modular Swift packages or multi-target workspaces to reduce build times. On CI/CD pipelines, we use xcodebuild to automate scheme execution, test running, and App Store distribution.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>An Xcode project contains code, assets, and settings.</li>
+<li>A target defines a specific build product, such as an iOS app or test bundle.</li>
+<li>A scheme defines how actions like Build, Run, Test, and Archive are executed.</li>
+<li>The Bundle Identifier uniquely identifies an iOS app.</li>
+<li>Git tracks changes with <code>add</code>, <code>commit</code>, and <code>branch</code>.</li>
+<li>Always ignore <code>DerivedData</code> and <code>xcuserdata</code> in <code>.gitignore</code>.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/xcode/creating-an-xcode-project-for-an-app">Apple Developer Documentation: Creating an Xcode project for an app</a></li>
+<li><a href="https://developer.apple.com/documentation/xcode/source-control-management">Apple Developer Documentation: Source control management in Xcode</a></li>
+<li><a href="https://git-scm.com/doc">Git Documentation</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    visTitle: "1. Xcode Project & Target Hierarchy",
+    visTag: "Structure",
+    visDesc: "An Xcode project contains source files, assets, and individual build targets.",
+    projHdr: "Xcode Project: MyApp.xcodeproj",
+    t1Stroke: "var(--line)",
+    t1Fill: "var(--surface)",
+    t2Stroke: "var(--line)",
+    t2Fill: "var(--surface)",
+    subTitle: "Active Scheme: MyApp",
+    subDetail: "Action: Run → Target: iOS App (Debug)",
+    subTag: "Build & Run on iPhone 16 Simulator",
+    subTagColor: "var(--xcode-color)",
+    rightTitle: "Xcode Targets",
+    rightTag: "Targets",
+    rightCode: "// MyApp.xcodeproj\n// ├── Target: iOS App (MyApp)\n// │   ├── Bundle ID: com.myorg.app\n// │   └── Sources: ContentView.swift\n// └── Target: Widget (AppWidget)\n//     └── Bundle ID: com.myorg.widget",
+    rightDesc: "Targets define what products to build, each with its own bundle ID and settings.",
+    mTargets: "2 Products",
+    mMode: "Debug",
+    mGit: "Clean"
+  },
+  {
+    visTitle: "2. Xcode Scheme Directs Actions",
+    visTag: "Scheme",
+    visDesc: "A scheme instructs Xcode how to build, test, profile, and archive targets.",
+    projHdr: "Xcode Scheme: Connects Targets to Actions",
+    t1Stroke: "var(--xcode-color)",
+    t1Fill: "var(--xcode-soft)",
+    t2Stroke: "var(--line)",
+    t2Fill: "var(--surface)",
+    subTitle: "Scheme: MyApp (Debug vs Release)",
+    subDetail: "Run Action uses Debug | Archive Action uses Release",
+    subTag: "Optimization: -Onone (Debug) / -O (Release)",
+    subTagColor: "var(--xcode-color)",
+    rightTitle: "Build Configurations",
+    rightTag: "Scheme",
+    rightCode: "// Scheme execution rules:\n#if DEBUG\nlet apiHost = \"https://staging.api.com\"\n#else\nlet apiHost = \"https://production.api.com\"\n#endif",
+    rightDesc: "Schemes define how actions execute. Run uses Debug for fast builds; Archive uses Release.",
+    mTargets: "Selected: App",
+    mMode: "Debug / Release",
+    mGit: "Clean"
+  },
+  {
+    visTitle: "3. Editing Files & git status",
+    visTag: "Working Tree",
+    visDesc: "Developer edits ContentView.swift. Git tracks modified files in the working directory.",
+    projHdr: "Git Working Tree: Tracking Edits",
+    t1Stroke: "var(--warn-color)",
+    t1Fill: "var(--warn-soft)",
+    t2Stroke: "var(--line)",
+    t2Fill: "var(--surface)",
+    subTitle: "Terminal: $ git status",
+    subDetail: "Changes not staged for commit:\n  modified: ContentView.swift",
+    subTag: ".gitignore excludes DerivedData/ & xcuserdata/",
+    subTagColor: "var(--warn-color)",
+    rightTitle: "Git Working Directory",
+    rightTag: "git status",
+    rightCode: "$ git status\nOn branch feature/login\nChanges not staged for commit:\n  modified: ContentView.swift\n\n(DerivedData and xcuserdata ignored)",
+    rightDesc: "Git spots changed files. Adding temporary caches to .gitignore keeps diffs clean.",
+    mTargets: "1 Modified",
+    mMode: "Debug",
+    mGit: "1 Unstaged"
+  },
+  {
+    visTitle: "4. git add & git commit Snapshot",
+    visTag: "Committed",
+    visDesc: "Developer stages the modified file and commits an immutable snapshot to Git history.",
+    projHdr: "Git Repository: Commit 7f8b9c2",
+    t1Stroke: "var(--git-color)",
+    t1Fill: "var(--git-soft)",
+    t2Stroke: "var(--line)",
+    t2Fill: "var(--surface)",
+    subTitle: "Commit: 7f8b9c2 (HEAD -> feature/login)",
+    subDetail: "feat: add user profile screen",
+    subTag: "Working tree clean. Snapshot permanently saved.",
+    subTagColor: "var(--git-color)",
+    rightTitle: "Permanent Git History",
+    rightTag: "git commit",
+    rightCode: "$ git add ContentView.swift\n$ git commit -m \"feat: add user profile\"\n[feature/login 7f8b9c2] feat: add user profile\n 1 file changed, 14 insertions(+)",
+    rightDesc: "Staging and committing creates an immutable checkpoint. Clean and ready to push or merge.",
+    mTargets: "Clean",
+    mMode: "Debug",
+    mGit: "Clean (7f8b9c2)"
+  }
+];
+
+let curStep = 0;
+
+function updateDiagram() {
+  const s = steps[curStep];
+  
+  document.getElementById("vis-title").textContent = s.visTitle;
+  document.getElementById("vis-tag").textContent = s.visTag;
+  document.getElementById("vis-desc").textContent = s.visDesc;
+  document.getElementById("txt-proj-hdr").textContent = s.projHdr;
+
+  document.getElementById("rect-target1").setAttribute("stroke", s.t1Stroke);
+  document.getElementById("rect-target1").setAttribute("fill", s.t1Fill);
+  document.getElementById("rect-target2").setAttribute("stroke", s.t2Stroke);
+  document.getElementById("rect-target2").setAttribute("fill", s.t2Fill);
+
+  document.getElementById("txt-sub-title").textContent = s.subTitle;
+  document.getElementById("txt-sub-detail").textContent = s.subDetail;
+  document.getElementById("txt-sub-tag").textContent = s.subTag;
+  document.getElementById("txt-sub-tag").setAttribute("fill", s.subTagColor);
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+  document.getElementById("m-targets").textContent = s.mTargets;
+  document.getElementById("m-mode").textContent = s.mMode;
+  document.getElementById("m-git").textContent = s.mGit;
+
+  const dots = document.querySelectorAll(".steps-dots .dot");
+  dots.forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = (curStep === 0);
+  document.getElementById("btn-next").disabled = (curStep === steps.length - 1);
+}
+
+function prevStep() { if (curStep > 0) { curStep--; updateDiagram(); } }
+function nextStep() { if (curStep < steps.length - 1) { curStep++; updateDiagram(); } }
+function goToStep(i) { curStep = i; updateDiagram(); }
+
+}
+</script>
+<script>
+const DATA = {"topicId":"xcode-and-git-basics","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"xcode-and-git-basics-q1","type":"mcq","difficulty":1,"prompt":"What is an Xcode Target?","options":[{"id":"a","text":"It defines a single product to build, specifying its source files and settings.","explanation":"Right. A target specifies what product to build, such as an app or extension."},{"id":"b","text":"It manages user payment subscriptions inside App Store Connect accounts.","explanation":"App Store Connect handles subscriptions, not Xcode targets."},{"id":"c","text":"It is a Git branch created automatically for testing code on simulators.","explanation":"Targets are Xcode build concepts, not Git branches."},{"id":"d","text":"It stores user interface mockups drawn by product designers in Figma.","explanation":"Targets define build products, not UI design mockups."}],"answer":"a"},{"id":"xcode-and-git-basics-q2","type":"mcq","difficulty":1,"prompt":"What does an Xcode Scheme define?","options":[{"id":"a","text":"The relational database table schema used for persistent app caching.","explanation":"Schemes control build actions, not database schemas."},{"id":"b","text":"The instructions for actions like Build, Run, Test, and Archive on targets.","explanation":"Right. A scheme defines how actions execute and links them to configurations."},{"id":"c","text":"The visual color palette applied across navigation bars in light mode.","explanation":"Color schemes in asset catalogs define colors, not Xcode build schemes."},{"id":"d","text":"The network URL protocols supported by the iOS WebKit framework.","explanation":"Network protocols are configured in Info.plist or code, not schemes."}],"answer":"b"},{"id":"xcode-and-git-basics-q3","type":"mcq","difficulty":1,"prompt":"What is the primary purpose of a Bundle Identifier in iOS development?","options":[{"id":"a","text":"It specifies the device processor architecture required to compile Swift.","explanation":"Processor architecture is controlled by build settings, not bundle IDs."},{"id":"b","text":"It measures the total disk storage space occupied by compiled assets.","explanation":"Bundle IDs identify apps, rather than measuring file sizes."},{"id":"c","text":"It uniquely identifies an app across the iOS operating system and App Store.","explanation":"Right. The bundle identifier is a unique reverse-DNS string."},{"id":"d","text":"It verifies user email addresses during iCloud account registration.","explanation":"Bundle identifiers identify applications, not user email accounts."}],"answer":"c"},{"id":"xcode-and-git-basics-q4","type":"mcq","difficulty":2,"prompt":"What happens if a Swift file is not added to a target's membership in Xcode?","options":[{"id":"a","text":"The file is converted into an Objective-C header file automatically.","explanation":"Xcode does not convert file formats when target membership is omitted."},{"id":"b","text":"The application binary size doubles upon compilation on physical devices.","explanation":"Uncompiled files do not increase binary file sizes."},{"id":"c","text":"The file is deleted permanently from your computer hard drive.","explanation":"Target membership does not delete files from your file system."},{"id":"d","text":"The compiler cannot find types declared in the file and throws scope errors.","explanation":"Right. The target will not compile the file, causing 'cannot find type' errors."}],"answer":"d"},{"id":"xcode-and-git-basics-q5","type":"mcq","difficulty":1,"prompt":"Which Git command displays the current branch and unstaged modified files?","options":[{"id":"a","text":"git status, which summarizes branch state, staged files, and working edits.","explanation":"Right. git status provides a complete summary of your working tree."},{"id":"b","text":"git commit, which records staged changes permanently into the history log.","explanation":"git commit creates a commit snapshot, rather than displaying status."},{"id":"c","text":"git checkout, which switches branches or restores working tree files.","explanation":"git checkout switches branches, but does not display working status."},{"id":"d","text":"git clone, which copies an entire remote repository to your local computer.","explanation":"git clone downloads a repository, but does not inspect current status."}],"answer":"a"},{"id":"xcode-and-git-basics-q6","type":"mcq","difficulty":2,"prompt":"Why should you never commit the xcuserdata directory to your Git repository?","options":[{"id":"a","text":"Because it contains compiled machine binaries that break across macOS versions.","explanation":"xcuserdata holds personal IDE states, not compiled binaries."},{"id":"b","text":"Because it holds user-specific layout states that cause merge conflicts.","explanation":"Right. xcuserdata tracks open tabs and breakpoints, causing conflicts."},{"id":"c","text":"Because Apple App Store review rejects projects containing personal user data.","explanation":"App Store review inspects uploaded IPAs, not raw Git directories."},{"id":"d","text":"Because it stores plaintext passwords for team developer portal logins.","explanation":"Xcode developer logins are stored in macOS Keychain, not xcuserdata."}],"answer":"b"},{"id":"xcode-and-git-basics-q7","type":"mcq","difficulty":1,"prompt":"What is the function of the git add command in everyday Git workflows?","options":[{"id":"a","text":"It adds a new physical iOS test device to your developer portal team.","explanation":"git add is a version control command, not an Apple developer portal tool."},{"id":"b","text":"It pushes your local commits to a remote GitHub or GitLab server repository.","explanation":"Pushing commits is handled by git push, not git add."},{"id":"c","text":"It stages modified or new files to prepare them for the next commit snapshot.","explanation":"Right. git add moves changes into the staging area."},{"id":"d","text":"It creates a brand new Git branch off the current active repository HEAD.","explanation":"Branch creation is performed by git branch or git switch -c."}],"answer":"c"},{"id":"xcode-and-git-basics-q8","type":"mcq","difficulty":2,"prompt":"What build configuration is used by default when archiving an app for App Store submission?","options":[{"id":"a","text":"Debug, because it generates verbose diagnostic console logs during submission.","explanation":"Debug is for local development and lacks compiler optimizations."},{"id":"b","text":"Staging, because it routes network requests to development backend servers.","explanation":"Staging is a custom configuration, not an Xcode archive default."},{"id":"c","text":"Testing, because it enables continuous automated UI test execution.","explanation":"Testing configurations run test suites, not App Store archives."},{"id":"d","text":"Release, because it enables compiler optimizations and dead code stripping.","explanation":"Right. Archive schemes default to Release configuration for performance."}],"answer":"d"},{"id":"xcode-and-git-basics-q9","type":"mcq","difficulty":2,"prompt":"What file inside an Xcode project defines build phases and file references?","options":[{"id":"a","text":"project.pbxproj, which records file references and target configurations.","explanation":"Right. project.pbxproj is the core project file tracking structure."},{"id":"b","text":"Package.resolved, which records third party CocoaPods dependency versions.","explanation":"Package.resolved records Swift Package Manager versions."},{"id":"c","text":"Info.plist, which configures system permissions and target display names.","explanation":"Info.plist configures runtime app metadata, not project structure."},{"id":"d","text":"Podfile.lock, which tracks Ruby script automation for terminal builds.","explanation":"Podfile.lock is a CocoaPods dependency file, not an Xcode project file."}],"answer":"a"},{"id":"xcode-and-git-basics-q10","type":"mcq","difficulty":1,"prompt":"How do you create and switch to a new Git branch in one terminal command?","options":[{"id":"a","text":"git commit -b \u003cbranch-name> from the current root repository folder.","explanation":"git commit creates a commit snapshot; it has no -b flag for branches."},{"id":"b","text":"git switch -c \u003cbranch-name> or git checkout -b \u003cbranch-name>.","explanation":"Right. Both commands create and immediately switch to the new branch."},{"id":"c","text":"git branch --force \u003cbranch-name> followed by git status in terminal.","explanation":"git branch --force creates a branch, but does not switch to it."},{"id":"d","text":"git merge --create \u003cbranch-name> inside the main Xcode project directory.","explanation":"git merge combines branches; it does not create a new branch."}],"answer":"b"},{"id":"xcode-and-git-basics-q11","type":"mcq","difficulty":2,"prompt":"What does DerivedData store in an iOS developer environment?","options":[{"id":"a","text":"Sensitive user keychain credentials and Apple ID authentication certificates.","explanation":"Credentials live in the macOS Keychain, not DerivedData."},{"id":"b","text":"Source code backups stored securely before executing Git commit commands.","explanation":"Git manages repository backups, not the DerivedData directory."},{"id":"c","text":"Intermediate build artifacts, module caches, and project code indexing data.","explanation":"Right. DerivedData caches intermediate build products and index data."},{"id":"d","text":"App Store production customer receipts downloaded during test transactions.","explanation":"StoreKit handles receipts; they are not saved in DerivedData."}],"answer":"c"},{"id":"xcode-and-git-basics-q12","type":"mcq","difficulty":1,"prompt":"How do you combine changes from a feature branch into the main branch in Git?","options":[{"id":"a","text":"By copying and pasting modified Swift source code using the Finder app.","explanation":"Manual file copying ignores commit histories and risks human error."},{"id":"b","text":"By deleting the feature branch directory from your project folder on disk.","explanation":"Deleting a branch discards unmerged changes rather than combining them."},{"id":"c","text":"By renaming the feature branch to main using the git branch -m command.","explanation":"Renaming overwrites branch labels without merging historical commits."},{"id":"d","text":"By checking out main and running git merge \u003cfeature-branch> in terminal.","explanation":"Right. git merge integrates commits from the feature branch into main."}],"answer":"d"},{"id":"xcode-and-git-basics-q13","type":"mcq","difficulty":2,"prompt":"What is an Xcode Workspace (.xcworkspace) used for?","options":[{"id":"a","text":"It groups multiple projects and packages to share build dependencies cleanly.","explanation":"Right. Workspaces group projects and packages together."},{"id":"b","text":"It replaces macOS Finder for all file management across Apple desktop computers.","explanation":"Workspaces organize development projects, not general OS files."},{"id":"c","text":"It enables remote peer programming over encrypted WebRTC video streams.","explanation":"Workspaces manage project structures, not video streaming."},{"id":"d","text":"It compiles Swift code into cross-platform Android bytecode binaries.","explanation":"Xcode workspaces build Apple platform targets, not Android bytecode."}],"answer":"a"},{"id":"xcode-and-git-basics-q14","type":"mcq","difficulty":2,"prompt":"What optimization setting does Xcode apply to Swift code in Debug mode?","options":[{"id":"a","text":"-O, which optimizes code aggressively for maximum runtime execution speed.","explanation":"-O is the Release configuration optimization flag."},{"id":"b","text":"-Onone, which disables optimizations for faster compile times and debugging.","explanation":"Right. -Onone ensures fast builds and accurate debugger inspection."},{"id":"c","text":"-Osize, which minimizes the binary size by stripping unused function symbols.","explanation":"-Osize optimizes for binary size, used in specialized release builds."},{"id":"d","text":"-Ofast, which ignores IEEE floating point standards to accelerate GPU math.","explanation":"-Ofast is not the default optimization flag in Xcode Debug mode."}],"answer":"b"},{"id":"xcode-and-git-basics-q15","type":"mcq","difficulty":1,"prompt":"What is the role of a .gitignore file in an iOS project repository?","options":[{"id":"a","text":"It instructs the Swift compiler to skip compiling legacy Objective-C files.","explanation":"The Swift compiler does not read .gitignore files."},{"id":"b","text":"It prevents Xcode from launching on older unsupported macOS operating systems.","explanation":"System compatibility is defined in project settings, not .gitignore."},{"id":"c","text":"It specifies intentionally untracked files and folders that Git should ignore.","explanation":"Right. .gitignore tells Git which files and caches to leave untracked."},{"id":"d","text":"It encrypts private API tokens before committing changes to Git history.","explanation":".gitignore ignores files; it does not encrypt file contents."}],"answer":"c"},{"id":"xcode-and-git-basics-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nlet bundleID = \"com.example.prepstops\"\nprint(bundleID.hasPrefix(\"com.example\"))","options":[{"id":"a","text":"false, because reverse DNS identifiers cannot be checked with string prefixes.","explanation":"Bundle IDs are standard Swift Strings and support hasPrefix."},{"id":"b","text":"false, because bundle identifiers always begin with an uppercase letter.","explanation":"Bundle identifiers typically use lowercase reverse-DNS notation."},{"id":"c","text":"It fails to compile because hasPrefix requires an integer offset parameter.","explanation":"hasPrefix takes a String prefix parameter, compiling cleanly."},{"id":"d","text":"true, because the bundleID string starts with the prefix com.example.","explanation":"Right. The string starts with 'com.example', returning true."}],"answer":"d"},{"id":"xcode-and-git-basics-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nstruct XcodeTarget {\n    let name: String\n    let isExtension: Bool\n}\n\nlet target = XcodeTarget(name: \"WidgetTarget\", isExtension: true)\nprint(target.isExtension)","options":[{"id":"a","text":"true, because isExtension was initialized to true for the widget target.","explanation":"Right. target.isExtension was initialized to true, so it prints true."},{"id":"b","text":"false, because widget targets cannot be declared inside Swift structs.","explanation":"Swift structs can model target attributes without restrictions."},{"id":"c","text":"false, because isExtension is private to internal Xcode processes.","explanation":"The isExtension property was declared with standard internal access."},{"id":"d","text":"It fails to compile because XcodeTarget is a reserved Apple keyword.","explanation":"XcodeTarget is a custom identifier, not a reserved language keyword."}],"answer":"a"},{"id":"xcode-and-git-basics-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nlet files = [\"ContentView.swift\", \"App.swift\", \"Assets.xcassets\"]\nprint(files.count)","options":[{"id":"a","text":"2, because Assets.xcassets is treated as a directory, not a file.","explanation":"In Swift, the array counts string elements regardless of extension."},{"id":"b","text":"3, because the files array contains three string elements.","explanation":"Right. The array contains three items, so its count is 3."},{"id":"c","text":"0, because the array has not been added to an Xcode target.","explanation":"Target membership does not alter array counts in Swift code."},{"id":"d","text":"It fails to compile because asset catalogs cannot be listed in arrays.","explanation":"Standard string literals can name any file or catalog cleanly."}],"answer":"b"},{"id":"xcode-and-git-basics-q19","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nstruct GitBranch {\n    let name: String\n    let isMain: Bool\n}\n\nlet branch = GitBranch(name: \"feature/login\", isMain: false)\nprint(branch.name)","options":[{"id":"a","text":"main, because all Git branches default to the main root branch name.","explanation":"The struct property holds the value provided during initialization."},{"id":"b","text":"false, because name returns the boolean status of the current branch.","explanation":"The name property is a String, not the isMain boolean property."},{"id":"c","text":"feature/login, because the name property was initialized with that string.","explanation":"Right. branch.name evaluates to the string 'feature/login'."},{"id":"d","text":"It fails to compile because slash characters are prohibited in strings.","explanation":"Forward slashes are completely valid inside Swift string literals."}],"answer":"c"},{"id":"xcode-and-git-basics-q20","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nlet ignored = [\".DS_Store\", \"DerivedData\", \"xcuserdata\"]\nprint(ignored.contains(\"DerivedData\"))","options":[{"id":"a","text":"false, because DerivedData is managed by the operating system kernel.","explanation":"String containment checks string contents, not kernel metadata."},{"id":"b","text":"false, because string arrays cannot perform case-sensitive containment checks.","explanation":"contains(_:) performs exact case-sensitive equality comparisons."},{"id":"c","text":"It fails to compile because dots are disallowed inside array items.","explanation":"Dot characters are completely valid inside Swift string literals."},{"id":"d","text":"true, because DerivedData is an element in the ignored array.","explanation":"Right. 'DerivedData' is in the array, so contains returns true."}],"answer":"d"},{"id":"xcode-and-git-basics-q21","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nstruct BuildSetting {\n    let optimizationLevel: String\n}\n\nlet debugSetting = BuildSetting(optimizationLevel: \"-Onone\")\nprint(debugSetting.optimizationLevel)","options":[{"id":"a","text":"-Onone, because the debugSetting was initialized with optimization flag -Onone.","explanation":"Right. debugSetting.optimizationLevel holds the string '-Onone'."},{"id":"b","text":"-O, because Swift builds always default to full release optimization.","explanation":"The struct property holds its assigned value, not default compiler flags."},{"id":"c","text":"-Osize, because Swift targets optimize for binary file size by default.","explanation":"The struct holds the explicit string assigned at initialization."},{"id":"d","text":"It fails to compile because hyphen prefixes are reserved for operators.","explanation":"Hyphens inside quotation marks are string characters, not operators."}],"answer":"a"},{"id":"xcode-and-git-basics-q22","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nstruct GitCommitNode {\n    let id: Int\n    let next: Int?\n}\n\nlet commit = GitCommitNode(id: 101, next: nil)\nprint(commit.next == nil)","options":[{"id":"a","text":"false, because every Git commit must link to a parent commit node.","explanation":"The initial root commit in Git history has no parent and can be nil."},{"id":"b","text":"true, because the next property was explicitly initialized to nil.","explanation":"Right. next was passed nil, so commit.next == nil evaluates to true."},{"id":"c","text":"false, because optional integers evaluate to zero when initialized.","explanation":"Optional properties set to nil evaluate to nil, never default zero."},{"id":"d","text":"It fails to compile because nil cannot be assigned to optional Int properties.","explanation":"Optional types are specifically designed to accept nil values."}],"answer":"b"},{"id":"xcode-and-git-basics-q23","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nenum SchemeAction {\n    case build\n    case test\n    case archive\n}\n\nlet action = SchemeAction.archive\nprint(action == .archive)","options":[{"id":"a","text":"false, because archive actions are restricted to terminal command lines.","explanation":"Enum cases model domain actions cleanly in Swift code."},{"id":"b","text":"false, because SchemeAction enum cases cannot evaluate equality expressions.","explanation":"Swift enums without payloads conform to Equatable automatically."},{"id":"c","text":"true, because action was assigned the archive case of the enum.","explanation":"Right. action was set to .archive, so action == .archive is true."},{"id":"d","text":"It fails to compile because SchemeAction requires raw integer values.","explanation":"Swift enums do not require raw value representations."}],"answer":"c"},{"id":"xcode-and-git-basics-q24","type":"written","difficulty":1,"prompt":"Explain the difference between an Xcode target and an Xcode scheme. Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that a target defines what product to build, specifying source files and build settings.","weight":45,"key":true},{"criterion":"Explains that a scheme defines how actions like Build, Run, Test, and Archive are executed.","weight":45,"key":true},{"criterion":"Mentions that schemes connect targets to build configurations like Debug or Release.","weight":10}],"modelAnswer":"An Xcode target defines what product gets built, such as an iOS app, a watch app, or a unit test bundle. It specifies the source files to compile and the associated build settings. In contrast, an Xcode scheme defines how to build, run, test, or archive those targets. The scheme connects targets to specific build configurations, such as running in Debug or archiving in Release."},{"id":"xcode-and-git-basics-q25","type":"written","difficulty":2,"prompt":"Why should DerivedData and xcuserdata folders be excluded from Git in .gitignore? Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that DerivedData contains temporary intermediate build artifacts and index caches.","weight":40,"key":true},{"criterion":"Explains that xcuserdata holds user-specific workspace state like open tabs and window layouts.","weight":40,"key":true},{"criterion":"Mentions that committing these files causes merge conflicts and clutters pull request diffs.","weight":20}],"modelAnswer":"DerivedData contains temporary intermediate build products, module caches, and code indexes generated automatically during compilation. Meanwhile, xcuserdata stores user-specific workspace state, including open tabs, window layouts, and local breakpoint states. Committing these directories pollutes repository history, wastes storage, and causes frequent merge conflicts between team members. Excluding them in .gitignore keeps project history clean."},{"id":"xcode-and-git-basics-q26","type":"written","difficulty":1,"prompt":"What is a Bundle Identifier, and why is it essential for iOS apps? Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that a Bundle Identifier is a unique reverse-DNS string identifying an app.","weight":50,"key":true},{"criterion":"Explains that iOS and App Store Connect use it to manage app identity, sandboxing, and capabilities.","weight":35},{"criterion":"Mentions that targets in the same project have distinct bundle identifiers.","weight":15}],"modelAnswer":"A Bundle Identifier is a unique reverse-DNS string, such as com.company.appname, that identifies an app. The iOS operating system and App Store Connect use this identifier to manage app sandboxing, user preferences, and push notification capabilities. Each target in an Xcode project, such as an app and its widget extension, must have its own unique bundle identifier. Without a valid bundle ID, apps cannot install on physical devices."},{"id":"xcode-and-git-basics-q27","type":"written","difficulty":2,"prompt":"What causes a \"Cannot find type in scope\" error when a Swift file is present in the Xcode project navigator? Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that the Swift file is missing Target Membership for the compiling target.","weight":50,"key":true},{"criterion":"Explains that Xcode does not compile files unless they are included in the target's Compile Sources phase.","weight":30},{"criterion":"Explains that the fix is selecting the file and checking the Target Membership box in File Inspector.","weight":20}],"modelAnswer":"This error occurs when a Swift file exists in the project navigator but is missing Target Membership for the target being compiled. Xcode only compiles source files that are explicitly assigned to a target's Compile Sources build phase. If unchecked, the compiler never reads the file, causing types declared inside to be invisible. To fix this, select the file and check the Target Membership box in the File Inspector panel."},{"id":"xcode-and-git-basics-q28","type":"written","difficulty":2,"prompt":"Explain the difference between Debug and Release build configurations in an Xcode project. Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that Debug optimizes for fast builds and debugging with -Onone and DEBUG symbols.","weight":45,"key":true},{"criterion":"Explains that Release optimizes for runtime performance and app store delivery with -O.","weight":45,"key":true},{"criterion":"Mentions that Release strips debug symbols and disables assert statements.","weight":10}],"modelAnswer":"The Debug configuration is optimized for rapid local development. It uses the -Onone optimization level to compile quickly and maintains full debugging symbols for LLDB inspections. In contrast, the Release configuration is optimized for end-user performance and App Store distribution. It applies full optimizations with -O, strips unused symbols, and disables assert checks to make the binary fast and compact."},{"id":"xcode-and-git-basics-q29","type":"code-write","difficulty":1,"prompt":"Write a custom struct AppBundle with let bundleID: String and let version: String. Create an instance with bundleID \"com.prepstops.app\" and version \"1.0\", and print the bundleID.","rubric":[{"criterion":"Declares struct AppBundle with let bundleID: String and let version: String.","weight":40,"key":true},{"criterion":"Initializes an instance with bundleID \"com.prepstops.app\" and version \"1.0\".","weight":40,"key":true},{"criterion":"Prints the bundleID property of the initialized instance.","weight":20}],"modelAnswer":"import Foundation\n\nstruct AppBundle {\n    let bundleID: String\n    let version: String\n}\n\nlet app = AppBundle(bundleID: \"com.prepstops.app\", version: \"1.0\")\nprint(app.bundleID)"},{"id":"xcode-and-git-basics-q30","type":"code-write","difficulty":1,"prompt":"Write a custom struct ProjectScheme with let targetName: String and let isDebug: Bool. Create an instance for target \"PrepStopsApp\" in debug mode, and print its targetName.","rubric":[{"criterion":"Declares struct ProjectScheme with let targetName: String and let isDebug: Bool.","weight":40,"key":true},{"criterion":"Initializes an instance with targetName \"PrepStopsApp\" and isDebug true.","weight":40,"key":true},{"criterion":"Prints the targetName property of the initialized scheme instance.","weight":20}],"modelAnswer":"import Foundation\n\nstruct ProjectScheme {\n    let targetName: String\n    let isDebug: Bool\n}\n\nlet scheme = ProjectScheme(targetName: \"PrepStopsApp\", isDebug: true)\nprint(\"Target: \\(scheme.targetName), Debug: \\(scheme.isDebug)\")"},{"id":"xcode-and-git-basics-q31","type":"code-write","difficulty":1,"prompt":"Write a custom struct GitLogEntry with let hash: String and let message: String. Create an instance with hash \"4a7c1e9\" and message \"feat: initial setup\", and print a formatted summary string.","rubric":[{"criterion":"Declares struct GitLogEntry with let hash: String and let message: String.","weight":40,"key":true},{"criterion":"Initializes an instance with hash \"4a7c1e9\" and message \"feat: initial setup\".","weight":40,"key":true},{"criterion":"Prints a formatted string including both the hash and message properties.","weight":20}],"modelAnswer":"import Foundation\n\nstruct GitLogEntry {\n    let hash: String\n    let message: String\n}\n\nlet log = GitLogEntry(hash: \"4a7c1e9\", message: \"feat: initial setup\")\nprint(\"Commit [\\(log.hash)]: \\(log.message)\")"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

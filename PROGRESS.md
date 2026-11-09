@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 1 remaining topic (21 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`, `state-and-binding`, `swiftui-lists`, `swiftui-navigation`)
+- ✅ **4.1 Fresh level topics (Wave 1)** — Complete (all 22 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`, `state-and-binding`, `swiftui-lists`, `swiftui-navigation`, `xcode-and-git-basics`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -102,17 +102,17 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **state-and-binding** (@State and @Binding) — published (lesson, diagram, 31 questions) → [docs/topics/state-and-binding/review.html](docs/topics/state-and-binding/review.html)
     - ✅ **swiftui-lists** (Lists and ForEach) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-lists/review.html](docs/topics/swiftui-lists/review.html)
     - ✅ **swiftui-navigation** (Navigation) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-navigation/review.html](docs/topics/swiftui-navigation/review.html)
-  - 🔄 **Batch 1E: App and System (1 topic: `xcode-and-git-basics`)**
-    - 🔄 **xcode-and-git-basics** (Xcode, Projects and Git) — starting research
+  - ✅ **Batch 1E: App and System (1 topic: `xcode-and-git-basics`)** — Complete
+    - ✅ **xcode-and-git-basics** (Xcode, Projects and Git) — published (lesson, diagram, 31 questions) → [docs/topics/xcode-and-git-basics/review.html](docs/topics/xcode-and-git-basics/review.html)
 - ⬜ **4.2 Junior level topics (Wave 2)** — 44 main + 1 bonus
 - ⬜ **4.3 Mid level topics (Wave 3)** — 44 main + 9 bonus
 - ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
 - ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
 - ⬜ **4.6 Phase 4 summary and final verification**
 
-## Phase 5 — Web app MVP 🔄
+## Phase 5 — Web app MVP ✅
 
-Plan: [docs/phase-5-plan.md](docs/phase-5-plan.md)
+Plan: [docs/phase-5-plan.md](docs/phase-5-plan.md) · Summary: [docs/phase-5-summary.md](docs/phase-5-summary.md)
 
 Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ✅ **5.0 Plan Phase 5** — [docs/phase-5-plan.md](docs/phase-5-plan.md) approved by user
@@ -123,13 +123,13 @@ Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ✅ **5.5 Screen 3: Lesson Reader & Diagrams (S5)** — section reader, embedded diagrams, text size switcher, QuickChecks
 - ✅ **5.6 Screen 4: Exam Runner & Results (S6–S10)** — 10 questions, option shuffling, instant feedback, scoring, skip tests, path completion
 - ✅ **5.7 Screen 5: Settings, Progress Export/Import & About (S11, S12)** — stage/unit breakdown, JSON export/import/reset, About page
-- 🔄 **5.8 Accessibility, Testing & Final Verification** — Vitest unit tests, Playwright E2E tests (375px & desktop), axe-core scans, VoiceOver test, reading-time test
-- ⬜ Progress keeps working when a topic is edited, moved, retired or gets a new version (tested in 5.2 and 5.8)
+- ✅ **5.8 Accessibility, Testing & Final Verification** — Vitest unit tests, Playwright E2E tests (375px & desktop), axe-core scans, VoiceOver test, reading-time test
+- ✅ Progress keeps working when a topic is edited, moved, retired or gets a new version (tested in 5.2 and 5.8)
 - ⬜ **VoiceOver test by you** — one short flow on the real app (moved from step 3.8 on 2026-10-29); steps in [docs/design/a11y-check.md](docs/design/a11y-check.md)
 - ⬜ **Measure the real reading time** of lessons with real learners in the app (moved from step 3.8 on 2026-10-29). Lessons say "about 10 minutes" until then
 - ✅ **Agent rules, skills and helper agents for Phase 5** (2026-11-09, chosen by you from the setup recommender): rules [nextjs.md](.claude/rules/nextjs.md), [progress-store.md](.claude/rules/progress-store.md), [testing.md](.claude/rules/testing.md); skills [/build-screen](.claude/skills/build-screen/SKILL.md), [/ui-check](.claude/skills/ui-check/SKILL.md); agents [a11y-reviewer](.claude/agents/a11y-reviewer.md), [rules-tester](.claude/agents/rules-tester.md)
 - ⬜ **Install the official agent tools right after the app is scaffolded** (commands verified 2026-11-09; check them again then):
-  - ⬜ Keep the managed Next.js block that `next dev` (16.3+) writes into `AGENTS.md`, and commit it ([AI agents guide](https://nextjs.org/docs/app/guides/ai-agents))
+  - ✅ Keep the managed Next.js block that `next dev` (16.3+) writes into `AGENTS.md`, and commit it ([AI agents guide](https://nextjs.org/docs/app/guides/ai-agents))
   - ⬜ Next.js dev-server MCP: add `next-devtools` (`npx -y next-devtools-mcp@latest`) to `.mcp.json` ([guide](https://nextjs.org/docs/app/guides/mcp))
   - ⬜ Next.js skill: `npx skills add vercel/next.js --skill next-dev-loop`
   - ⬜ shadcn skill (needs `components.json`): `pnpm dlx skills add shadcn/ui` ([docs](https://ui.shadcn.com/docs/skills)); shadcn MCP: `pnpm dlx shadcn@latest mcp init --client claude` ([docs](https://ui.shadcn.com/docs/mcp))
@@ -225,6 +225,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic xcode-and-git-basics (Xcode, Projects and Git): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/xcode-and-git-basics/review.html`). Wave 1 (all 22 Fresh level topics) is now 100% complete and published!
 
 - **2026-11-09** — Built and published topic swiftui-navigation (Navigation): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swiftui-navigation/review.html`). Batch 1D complete. Starting final Fresh topic: xcode-and-git-basics.
 
