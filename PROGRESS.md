@@ -196,18 +196,18 @@ Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ❌ ~~Certificate of completion (PDF) in Phase 5~~ — moved to Phase 8: you want certificates only for logged-in learners (2026-11-09)
 - ❌ ~~Install context7 with `claude mcp add context7 -- npx -y @upstash/context7-mcp`~~ — replaced by the item above (new official setup command; Next.js docs now come bundled)
 
-## Phase 6 — AI grading 🔄
+## Phase 6 — AI grading ✅
 
-Plan: [docs/phase-6-plan.md](docs/phase-6-plan.md)
+Plan: [docs/phase-6-plan.md](docs/phase-6-plan.md) · Summary: [docs/phase-6-summary.md](docs/phase-6-summary.md)
 
 Written answers and code answers graded by AI, with limits against abuse.
 - ✅ **6.0 Plan Phase 6** — [docs/phase-6-plan.md](docs/phase-6-plan.md) approved by user
 - ✅ **6.1 AI Provider Layer & Mock Engine** — `GradingProvider` interface, Gemini client, deterministic Mock provider
 - ✅ **6.2 Rubric Evaluation Engine & Prompting** — structured Zod schema, CEFR B1 coaching prompt, 50% key criterion cap logic
 - ✅ **6.3 API Route & Abuse Protections** — `POST /api/grade`, 2000 char bounds, rate limiting, zero personal data transmission
-- 🔄 **6.4 Exam Runner UI Integration** — "Grade with AI" button, animated evaluation card, criteria badges, manual override toggle, offline self-check fallback
-- ⬜ **6.5 Rubric Benchmark Testing** — automated test suite evaluating against 24 sample answers across Good, Average, Weak in `rubric-test.md`
-- ⬜ **6.6 E2E Verification & Phase 6 Summary** — Playwright flow test with mock provider, axe-core a11y audit, `docs/phase-6-summary.md`
+- ✅ **6.4 Exam Runner UI Integration** — "Grade with AI" button, animated evaluation card, criteria badges, manual override toggle, offline self-check fallback
+- ✅ **6.5 Rubric Benchmark Testing** — automated test suite evaluating against 24 sample answers across Good, Average, Weak in `rubric-test.md`
+- ✅ **6.6 E2E Verification & Phase 6 Summary** — Playwright flow test with mock provider, axe-core a11y audit, `docs/phase-6-summary.md`
 - ✅ **Before Phase 6 starts:** run the Claude Code setup recommender (`claude-code-setup` plugin, read-only) on the Phase 5 app code. Review its suggested hooks, skills, subagents, MCP servers and rules with you, and add only the ones you approve. (A first run on the planning files was done early on 2026-11-08, at your request; run it again on the app code)
 - ⬜ **Backup grader: Cloudflare Workers AI** (free 10,000 Neurons/day) when the Gemini free quota runs out; the learner sees a calm "try again later" if both are used up (decided 2026-11-09, [docs/stack.md](docs/stack.md))
 
@@ -301,6 +301,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Phase 6 (AI Grading) complete: Built Gemini 2.5 Flash and Mock grading providers with structured Zod output, pure rubric scoring math (100/50/0 with 50% key missed cap), `POST /api/grade` with sliding window rate limiting and 2000 char bounds, Exam Runner UI integration with "Grade with AI Coach" and offline fallback, 41 passing Vitest tests (including rubric benchmarks), 16 passing Playwright E2E and axe-core tests, and authored [docs/phase-6-summary.md](docs/phase-6-summary.md).
 
 - **2026-11-09** — Built and published topic recursion (Recursion): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/recursion/review.html`). All checks passed. Starting matrix-problems.
 

@@ -98,3 +98,55 @@ export function shuffleOptions<T extends { id: string }>(
     newAnswerId: originalAnswerId,
   };
 }
+
+export type CriterionStatus = 'met' | 'partlyMet' | 'notMet';
+
+export interface RubricScoreInput {
+  weight: number;
+  key?: boolean;
+  status: CriterionStatus;
+}
+
+/**
+ * Product Rule: Rubric scoring.
+ * - Met: 100% of weight
+ * - Partly met: 50% of weight
+ * - Not met: 0%
+ * - Missing any key criterion (key: true) caps total score at 50% max.
+ */
+export function computeRubricScore(
+  evaluations: RubricScoreInput[],
+  rules?: { met: number; partlyMet: number; notMet: number; keyMissedCap: number }
+): { score: number; keyCriterionMissed: boolean } {
+  const metFactor = rules?.met ?? 1;
+  const partlyFactor = rules?.partlyMet ?? 0.5;
+  const notFactor = rules?.notMet ?? 0;
+  const keyCap = rules?.keyMissedCap ?? 50;
+
+  let rawScore = 0;
+  let keyCriterionMissed = false;
+
+  for (const item of evaluations) {
+    if (item.status === 'met') {
+      rawScore += item.weight * metFactor;
+    } else if (item.status === 'partlyMet') {
+      rawScore += item.weight * partlyFactor;
+    } else {
+      rawScore += item.weight * notFactor;
+      if (item.key) {
+        keyCriterionMissed = true;
+      }
+    }
+  }
+
+  let finalScore = Math.round(rawScore);
+  if (keyCriterionMissed && finalScore > keyCap) {
+    finalScore = keyCap;
+  }
+
+  return {
+    score: Math.min(100, Math.max(0, finalScore)),
+    keyCriterionMissed,
+  };
+}
+

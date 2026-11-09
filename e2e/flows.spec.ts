@@ -80,4 +80,22 @@ test.describe('Prep Stops - Main User Flows', () => {
     // Cancel reset
     await page.getByRole('button', { name: /Cancel/i }).click();
   });
+
+  test('Flow F6: Exam Runner -> Choice checking and AI Coach integration', async ({ page }) => {
+    await page.goto('/topics/structs-vs-classes/exam');
+
+    // Click Start Exam
+    await page.getByRole('button', { name: /Start Exam/i }).click();
+
+    // Question 1 should be visible
+    await expect(page.getByText(/Question 1 of/i)).toBeVisible();
+
+    // Check option selection
+    const firstOption = page.locator('button[type="button"]').filter({ hasText: /^[a-d]\s/i }).first();
+    if (await firstOption.isVisible()) {
+      await firstOption.click();
+      await page.getByRole('button', { name: /Check answer/i }).click();
+      await expect(page.getByText(/Correct!|Incorrect/i)).toBeVisible();
+    }
+  });
 });

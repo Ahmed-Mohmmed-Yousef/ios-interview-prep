@@ -2,8 +2,22 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Check, X, ShieldAlert, Sparkles, Clock, HelpCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  X,
+  Sparkles,
+  Clock,
+  Loader2,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  SlidersHorizontal,
+} from 'lucide-react';
 import type { PreparedQuestion, ShuffledOption } from '@/lib/curriculum/exam-engine';
+import type { GradingResponse } from '@/lib/ai/schema';
 
 export interface QuestionReview {
   question: PreparedQuestion;
@@ -11,6 +25,7 @@ export interface QuestionReview {
   isCorrect: boolean;
   userText?: string;
   rubricScore?: number;
+  aiGraded?: boolean;
 }
 
 interface ExamRunnerProps {
@@ -38,6 +53,12 @@ export function ExamRunner({
   const [rubricGrades, setRubricGrades] = useState<Record<number, number>>({});
   const [reviews, setReviews] = useState<QuestionReview[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // Phase 6: AI Grading States
+  const [isAiGrading, setIsAiGrading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiResult, setAiResult] = useState<GradingResponse | null>(null);
+  const [showManualOverride, setShowManualOverride] = useState(false);
 
   // Timer
   useEffect(() => {
@@ -77,7 +98,7 @@ export function ExamRunner({
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary font-bold">·</span>
-              <span><strong>Immediate feedback</strong>: check your answer after each question.</span>
+              <span><strong>Instant feedback</strong> with automated AI grading on written responses.</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary font-bold">·</span>
@@ -110,11 +131,69 @@ export function ExamRunner({
 
   const handleCheck = () => {
     if (!isChoiceQuestion) {
+      // Manual self-check without AI
       setIsChecked(true);
+      setShowManualOverride(true);
       return;
     }
     if (!selectedOptionId) return;
     setIsChecked(true);
+  };
+
+  const handleGradeWithAi = async () => {
+    if (!userText.trim()) return;
+    setIsAiGrading(true);
+    setAiError(null);
+
+    try {
+      const response = await fetch('/api/grade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionId: currentQ.id,
+          questionType: currentQ.type,
+          prompt: currentQ.prompt,
+          rubric: currentQ.rubric || [],
+          learnerAnswer: userText.trim(),
+          modelAnswer: currentQ.modelAnswer,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({}));
+        throw new Error(errorJson.error || `Service returned status ${response.status}`);
+      }
+
+      const data: GradingResponse = await response.json();
+      setAiResult(data);
+
+      // Auto-populate rubric grades from AI response
+      const newGrades: Record<number, number> = {};
+      currentQ.rubric?.forEach((r, idx) => {
+        const match = data.criteria.find(
+          (c) => c.criterion.trim().toLowerCase() === r.criterion.trim().toLowerCase()
+        ) || data.criteria[idx];
+
+        if (match?.status === 'met') {
+          newGrades[idx] = 1;
+        } else if (match?.status === 'partlyMet') {
+          newGrades[idx] = 0.5;
+        } else {
+          newGrades[idx] = 0;
+        }
+      });
+
+      setRubricGrades(newGrades);
+      setIsChecked(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'AI grading failed.';
+      setAiError(msg);
+      // Fallback: reveal manual rubric self-check so learner is never blocked
+      setIsChecked(true);
+      setShowManualOverride(true);
+    } finally {
+      setIsAiGrading(false);
+    }
   };
 
   const handleNext = () => {
@@ -150,6 +229,7 @@ export function ExamRunner({
       isCorrect,
       userText: userText || undefined,
       rubricScore: !isChoiceQuestion ? rubricScore : undefined,
+      aiGraded: Boolean(aiResult && !showManualOverride),
     };
 
     const newReviews = [...reviews, currentReview];
@@ -160,6 +240,9 @@ export function ExamRunner({
     setUserText('');
     setIsChecked(false);
     setRubricGrades({});
+    setAiResult(null);
+    setAiError(null);
+    setShowManualOverride(false);
 
     if (currentIdx < total - 1) {
       setCurrentIdx((prev) => prev + 1);
@@ -263,7 +346,7 @@ export function ExamRunner({
           </div>
         )}
 
-        {/* Checked Feedback Box */}
+        {/* Checked Feedback Box (MCQ & Code-reading) */}
         {isChecked && isChoiceQuestion && (
           <div
             className={`p-4 rounded-2xl border text-sm space-y-2 animate-in fade-in ${
@@ -299,80 +382,233 @@ export function ExamRunner({
           </div>
         )}
 
-        {/* Written / Code-Write Input & Rubric Self-Check */}
+        {/* Written / Code-Write Input & AI / Self-Check Grading */}
         {!isChoiceQuestion && (
           <div className="space-y-4">
-            <label className="block text-xs font-semibold text-muted-foreground uppercase">
-              Your answer
-            </label>
+            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
+              <span>Your answer</span>
+              <span>{userText.length} / 2000</span>
+            </div>
+
             <textarea
               rows={5}
-              disabled={isChecked}
+              maxLength={2000}
+              disabled={isChecked || isAiGrading}
               value={userText}
               onChange={(e) => setUserText(e.target.value)}
               placeholder={currentQ.starterCode || 'Write your response here…'}
-              className="w-full p-3.5 rounded-xl border border-border bg-card text-foreground text-sm font-mono focus:ring-2 focus:ring-ring focus:outline-none"
+              className="w-full p-3.5 rounded-xl border border-border bg-card text-foreground text-sm font-mono focus:ring-2 focus:ring-ring focus:outline-none disabled:opacity-70"
             />
 
-            {isChecked && (
-              <div className="bg-card border border-border rounded-2xl p-5 space-y-4 animate-in fade-in">
+            {/* Pre-check Action Buttons */}
+            {!isChecked && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+                <button
+                  type="button"
+                  disabled={!userText.trim() || isAiGrading}
+                  onClick={handleGradeWithAi}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-95 active:scale-98 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[44px]"
+                >
+                  {isAiGrading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Evaluating with AI coach…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      Grade with AI Coach
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!userText.trim() || isAiGrading}
+                  onClick={handleCheck}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 text-foreground font-semibold text-sm transition-all cursor-pointer min-h-[44px]"
+                >
+                  Self-check manually
+                </button>
+              </div>
+            )}
+
+            {/* Offline / Error Alert Banner */}
+            {aiError && (
+              <div className="p-4 rounded-xl border border-warn/30 bg-warn-soft text-foreground text-xs sm:text-sm flex items-start gap-2.5 animate-in fade-in">
+                <AlertTriangle className="w-5 h-5 text-warn flex-none mt-0.5" />
                 <div className="space-y-1">
+                  <p className="font-semibold text-warn">
+                    AI grading is temporarily unavailable
+                  </p>
+                  <p className="text-muted-foreground">
+                    {aiError}. You can self-check your answer using the rubric below without losing any progress.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Evaluated Results View */}
+            {isChecked && (
+              <div className="bg-card border border-border rounded-2xl p-5 space-y-5 animate-in fade-in">
+                {/* AI Evaluation Card */}
+                {aiResult && !showManualOverride && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-border">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
+                          <Sparkles className="w-4 h-4" />
+                        </span>
+                        <div>
+                          <h4 className="text-sm font-bold text-foreground">AI Coach Evaluation</h4>
+                          <p className="text-xs text-muted-foreground">Graded against the topic rubric</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-sm font-extrabold px-3 py-1 rounded-full ${
+                            aiResult.score >= passMark
+                              ? 'bg-success/15 text-success'
+                              : 'bg-destructive/15 text-destructive'
+                          }`}
+                        >
+                          {aiResult.score}%
+                        </span>
+                      </div>
+                    </div>
+
+                    {aiResult.keyCriterionMissed && (
+                      <div className="p-3 rounded-xl bg-warn-soft border border-warn/30 text-xs text-warn flex items-center gap-2 font-medium">
+                        <AlertTriangle className="w-4 h-4 flex-none" />
+                        <span>A key criterion was missed, which caps the score for this question at 50% max.</span>
+                      </div>
+                    )}
+
+                    <div className="p-3.5 rounded-xl bg-muted/50 border border-border/60 text-xs sm:text-sm text-foreground/90 leading-relaxed">
+                      {aiResult.summaryFeedback}
+                    </div>
+
+                    {/* Criteria Checklist Breakdown */}
+                    <div className="space-y-2 pt-1">
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Rubric Criteria Breakdown
+                      </h5>
+                      <div className="space-y-2">
+                        {aiResult.criteria.map((c, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3 rounded-xl border border-border bg-background space-y-1.5"
+                          >
+                            <div className="flex items-start justify-between gap-2 text-xs sm:text-sm">
+                              <span className="font-medium text-foreground">{c.criterion}</span>
+                              <span
+                                className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full flex-none ${
+                                  c.status === 'met'
+                                    ? 'bg-success/15 text-success'
+                                    : c.status === 'partlyMet'
+                                    ? 'bg-warn-soft text-warn'
+                                    : 'bg-destructive/15 text-destructive'
+                                }`}
+                              >
+                                {c.status === 'met'
+                                  ? 'Met (100%)'
+                                  : c.status === 'partlyMet'
+                                  ? 'Partly (50%)'
+                                  : 'Not Met (0%)'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{c.feedback}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setShowManualOverride(true)}
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold cursor-pointer"
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                        Adjust grades manually
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Model Answer Drawer */}
+                <div className="space-y-1 pt-1">
                   <span className="text-xs font-bold uppercase tracking-wider text-primary">
-                    Model Answer
+                    Reference Model Answer
                   </span>
-                  <p className="text-xs sm:text-sm text-foreground font-mono bg-muted p-3 rounded-lg overflow-x-auto whitespace-pre-wrap">
+                  <p className="text-xs sm:text-sm text-foreground font-mono bg-muted p-3.5 rounded-xl overflow-x-auto whitespace-pre-wrap leading-relaxed">
                     {currentQ.modelAnswer}
                   </p>
                 </div>
 
-                <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                    Self-Check Rubric (Grade yourself against each criterion)
-                  </h4>
-
-                  {currentQ.rubric?.map((item, idx) => (
-                    <div key={idx} className="p-3 rounded-xl border border-border bg-background space-y-2">
-                      <div className="flex items-start justify-between gap-2 text-xs sm:text-sm font-medium">
-                        <span>{item.criterion}</span>
-                        {item.key && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warn-soft text-warn flex-none">
-                            Key point
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-1">
+                {/* Manual Rubric Self-Check (Shown if opted-in, fallback, or adjusted) */}
+                {(showManualOverride || !aiResult) && (
+                  <div className="space-y-3 pt-2 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                        Self-Check Rubric (Grade yourself against each criterion)
+                      </h4>
+                      {aiResult && (
                         <button
                           type="button"
-                          onClick={() => setRubricGrades({ ...rubricGrades, [idx]: 1 })}
-                          className={`px-3 py-1 rounded-full text-xs font-semibold min-h-[32px] cursor-pointer ${
-                            rubricGrades[idx] === 1 ? 'bg-success text-success-foreground' : 'bg-muted text-foreground'
-                          }`}
+                          onClick={() => setShowManualOverride(false)}
+                          className="text-xs text-primary hover:underline font-semibold cursor-pointer"
                         >
-                          Yes (100%)
+                          Back to AI evaluation
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setRubricGrades({ ...rubricGrades, [idx]: 0.5 })}
-                          className={`px-3 py-1 rounded-full text-xs font-semibold min-h-[32px] cursor-pointer ${
-                            rubricGrades[idx] === 0.5 ? 'bg-warn text-warn-foreground' : 'bg-muted text-foreground'
-                          }`}
-                        >
-                          Partly (50%)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRubricGrades({ ...rubricGrades, [idx]: 0 })}
-                          className={`px-3 py-1 rounded-full text-xs font-semibold min-h-[32px] cursor-pointer ${
-                            rubricGrades[idx] === 0 ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-foreground'
-                          }`}
-                        >
-                          No (0%)
-                        </button>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
+
+                    {currentQ.rubric?.map((item, idx) => (
+                      <div key={idx} className="p-3 rounded-xl border border-border bg-background space-y-2">
+                        <div className="flex items-start justify-between gap-2 text-xs sm:text-sm font-medium">
+                          <span>{item.criterion}</span>
+                          {item.key && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warn-soft text-warn flex-none">
+                              Key point
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setRubricGrades({ ...rubricGrades, [idx]: 1 })}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold min-h-[32px] cursor-pointer ${
+                              rubricGrades[idx] === 1 ? 'bg-success text-success-foreground' : 'bg-muted text-foreground'
+                            }`}
+                          >
+                            Yes (100%)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRubricGrades({ ...rubricGrades, [idx]: 0.5 })}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold min-h-[32px] cursor-pointer ${
+                              rubricGrades[idx] === 0.5 ? 'bg-warn text-warn-foreground' : 'bg-muted text-foreground'
+                            }`}
+                          >
+                            Partly (50%)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRubricGrades({ ...rubricGrades, [idx]: 0 })}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold min-h-[32px] cursor-pointer ${
+                              rubricGrades[idx] === 0 ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-foreground'
+                            }`}
+                          >
+                            No (0%)
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -390,11 +626,23 @@ export function ExamRunner({
           {!isChecked ? (
             <button
               type="button"
-              disabled={isChoiceQuestion ? !selectedOptionId : !userText.trim()}
-              onClick={handleCheck}
+              disabled={isChoiceQuestion ? !selectedOptionId : !userText.trim() || isAiGrading}
+              onClick={isChoiceQuestion ? handleCheck : handleGradeWithAi}
               className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold text-sm sm:text-base hover:opacity-95 active:scale-95 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px] cursor-pointer"
             >
-              Check answer
+              {isChoiceQuestion ? (
+                'Check answer'
+              ) : isAiGrading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Grading…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Grade with AI
+                </>
+              )}
             </button>
           ) : (
             <button
