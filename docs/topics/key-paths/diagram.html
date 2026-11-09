@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Key Paths in Swift</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --path-color: #0284c7; --path-soft: #e0f2fe;
+  --data-color: #7c3aed; --data-soft: #ede9fe;
+  --write-color: #d97706; --write-soft: #fef3c7;
+  --fn-color: #059669; --fn-soft: #d1fae5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --path-color: #38bdf8; --path-soft: #082f49;
+  --data-color: #a78bfa; --data-soft: #2e1065;
+  --write-color: #fbbf24; --write-soft: #451a03;
+  --fn-color: #34d399; --fn-soft: #064e3b;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--path-soft); color: var(--path-color); }
+.p-right .kind { background: var(--data-soft); color: var(--data-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-path { stroke: var(--path-color); stroke-width: 2.5; fill: var(--path-soft); }
+.node-box.active-data { stroke: var(--data-color); stroke-width: 2.5; fill: var(--data-soft); }
+.node-box.active-write { stroke: var(--write-color); stroke-width: 2.5; fill: var(--write-soft); }
+.node-box.active-fn { stroke: var(--fn-color); stroke-width: 2.5; fill: var(--fn-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--path-color); color: var(--path-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+  <div class="interactive-view">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span>KeyPath Reference</span> <span class="kind">Type-Safe Route</span></h3>
+        <svg viewBox="0 0 320 220" aria-label="Key path route diagram">
+          <!-- KeyPath box -->
+          <rect id="pathBox" x="20" y="25" width="280" height="70" rx="8" class="node-box active-path" />
+          <text id="pathTypeTitle" x="40" y="52" font-family="Lexend" font-size="13" font-weight="600" fill="currentColor">KeyPath&lt;User, String&gt;</text>
+          <text id="pathLiteral" x="40" y="74" font-family="JetBrains Mono" font-size="12" fill="var(--path-color)">\User.name</text>
+
+          <!-- Status box -->
+          <rect id="statusBox" x="20" y="125" width="280" height="65" rx="8" class="node-box" />
+          <text id="statusTitle" x="40" y="152" font-family="Lexend" font-size="13" font-weight="600" fill="currentColor">Subscript Access</text>
+          <text id="statusDetail" x="40" y="173" font-family="JetBrains Mono" font-size="11" fill="var(--muted)">user[keyPath: \.name]</text>
+        </svg>
+        <div class="code" id="leftCode">let namePath = \User.name</div>
+        <p class="caption" id="leftCaption">Key path points to the property without reading it immediately.</p>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span>Target Instance</span> <span class="kind">Memory State</span></h3>
+        <svg viewBox="0 0 320 220" aria-label="User instance state diagram">
+          <!-- Instance box -->
+          <rect id="instBox" x="20" y="25" width="280" height="165" rx="8" class="node-box active-data" />
+          <text x="40" y="52" font-family="Lexend" font-size="14" font-weight="600" fill="currentColor">struct User</text>
+          
+          <!-- Property 1 -->
+          <rect id="prop1Box" x="40" y="68" width="240" height="35" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+          <text id="prop1Text" x="55" y="90" font-family="JetBrains Mono" font-size="11" fill="currentColor">let name: "Taylor"</text>
+
+          <!-- Property 2 -->
+          <rect id="prop2Box" x="40" y="115" width="240" height="35" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+          <text id="prop2Text" x="55" y="138" font-family="JetBrains Mono" font-size="11" fill="currentColor">var score: 50</text>
+          
+          <text id="evalResult" x="40" y="175" font-family="Lexend" font-size="11" font-weight="600" fill="var(--data-color)">Evaluated: "Taylor"</text>
+        </svg>
+        <div class="code" id="rightCode">var user = User(name: "Taylor", score: 50)
+print(user[keyPath: namePath]) // "Taylor"</div>
+        <p class="caption" id="rightCaption">Subscript reads the property value with full compile-time safety.</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+      <div class="btn-group">
+        <button id="btnBack" disabled aria-label="Previous step">Back</button>
+        <button id="btnNext" aria-label="Next step">Next</button>
+        <button id="btnReplay" aria-label="Replay animation">Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="static-summary" role="region" aria-label="Summary of Key Paths">
+    <h3>Summary: Key Paths in Swift</h3>
+    <ul>
+      <li><strong>Step 1: KeyPath Literal</strong> — Written with a backslash like <code>\User.name</code>, representing an uninvoked, strongly typed reference.</li>
+      <li><strong>Step 2: Read Access</strong> — Evaluated on an instance using subscript syntax: <code>user[keyPath: path]</code>.</li>
+      <li><strong>Step 3: Writable Key Paths</strong> — <code>WritableKeyPath</code> allows modifying mutable properties through subscripts.</li>
+      <li><strong>Step 4: Functional Usage</strong> — Key paths act as functions: <code>users.map(\.name)</code> replaces closures with clean syntax.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    leftCode: "let namePath = \\User.name",
+    leftCaption: "Backslash syntax creates an uninvoked, strongly typed key path.",
+    rightCode: "struct User {\n    let name: String\n    var score: Int\n}",
+    rightCaption: "The key path references User.name with compile-time type verification.",
+    pathTypeTitle: "KeyPath<User, String>",
+    pathLiteral: "\\User.name",
+    statusTitle: "Uninvoked Reference",
+    statusDetail: "Route to property stored",
+    evalResult: "Uninvoked",
+    activeBoxes: ["pathBox", "instBox"]
+  },
+  {
+    step: 2,
+    leftCode: "let result = user[keyPath: \\.name]",
+    leftCaption: "Subscript reads the property directly on the instance.",
+    rightCode: "print(user[keyPath: \\.name])\n// Output: \"Taylor\"",
+    rightCaption: "Read operation returns \"Taylor\" with zero string reflection overhead.",
+    pathTypeTitle: "KeyPath<User, String>",
+    pathLiteral: "\\.name",
+    statusTitle: "Subscript Read",
+    statusDetail: "user[keyPath: \\.name]",
+    evalResult: "Evaluated: \"Taylor\"",
+    activeBoxes: ["pathBox", "statusBox", "instBox", "prop1Box"]
+  },
+  {
+    step: 3,
+    leftCode: "let scorePath = \\User.score\nuser[keyPath: scorePath] = 85",
+    leftCaption: "WritableKeyPath allows modifying mutable properties via subscript.",
+    rightCode: "// user.score is updated to 85\nprint(user.score) // 85",
+    rightCaption: "Property modified safely through the writable key path.",
+    pathTypeTitle: "WritableKeyPath<User, Int>",
+    pathLiteral: "\\User.score",
+    statusTitle: "Subscript Write",
+    statusDetail: "user[keyPath: \\.score] = 85",
+    evalResult: "Updated: score = 85",
+    activeBoxes: ["pathBox", "statusBox", "instBox", "prop2Box"]
+  },
+  {
+    step: 4,
+    leftCode: "let names = users.map(\\.name)",
+    leftCaption: "Key path passed directly where a closure (User) -> String is expected.",
+    rightCode: "// Equivalent to:\nlet names = users.map { $0.name }",
+    rightCaption: "Key paths as functions provide clean, expressive functional programming.",
+    pathTypeTitle: "Function Sugar",
+    pathLiteral: "users.map(\\.name)",
+    statusTitle: "Functional Pipeline",
+    statusDetail: "map(\\.name)",
+    evalResult: "Names array generated",
+    activeBoxes: ["pathBox", "statusBox", "instBox"]
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+
+  document.getElementById("pathTypeTitle").textContent = s.pathTypeTitle;
+  document.getElementById("pathLiteral").textContent = s.pathLiteral;
+  document.getElementById("statusTitle").textContent = s.statusTitle;
+  document.getElementById("statusDetail").textContent = s.statusDetail;
+  document.getElementById("evalResult").textContent = s.evalResult;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.querySelectorAll(".node-box").forEach(el => {
+    el.classList.remove("active-path", "active-data", "active-write", "active-fn");
+  });
+
+  if (idx === 0) {
+    document.getElementById("pathBox").classList.add("active-path");
+    document.getElementById("instBox").classList.add("active-data");
+  } else if (idx === 1) {
+    document.getElementById("pathBox").classList.add("active-path");
+    document.getElementById("statusBox").classList.add("active-path");
+    document.getElementById("instBox").classList.add("active-data");
+  } else if (idx === 2) {
+    document.getElementById("pathBox").classList.add("active-write");
+    document.getElementById("statusBox").classList.add("active-write");
+    document.getElementById("instBox").classList.add("active-write");
+  } else if (idx === 3) {
+    document.getElementById("pathBox").classList.add("active-fn");
+    document.getElementById("statusBox").classList.add("active-fn");
+    document.getElementById("instBox").classList.add("active-data");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+export const meta = {
+  id: "key-paths",
+  summary: "Refer to properties as first-class values using strongly typed Swift key paths.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "KeyPath (Swift)", url: "https://developer.apple.com/documentation/swift/keypath", kind: "official" },
+    { title: "The Swift Programming Language: Expressions", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/expressions", kind: "official" },
+    { title: "WritableKeyPath (Swift)", url: "https://developer.apple.com/documentation/swift/writablekeypath", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How can you pass a property reference to higher-order functions like map without writing a closure?</Question>
+  <Guess>
+    <Option id="a">By passing the property name as an Objective-C string.</Option>
+    <Option id="b" correct>By passing a key path expression starting with a backslash, like \\.name.</Option>
+    <Option id="c">By invoking the property directly with empty parentheses.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of an address on an envelope. The address tells the mail carrier which house to visit. It is not the house itself, but a set of directions to reach the house. In Swift, a key path is that address. It points to a specific property on a type without reading or changing the value immediately.
+</Analogy>
+
+In Swift, a **key path** is a first-class reference to a property. You write a key path using a backslash followed by the property path, such as `\Person.name`. When the compiler can infer the type, you can use the short syntax `\.name`.
+
+Unlike Objective-C string-based keys, Swift key paths are **strongly typed at compile time**. If you rename a property or misspell its name, the compiler catches the error immediately.
+
+You read or write properties through key paths using a special subscript: `person[keyPath: \.name]`.
+
+Swift organizes key paths into a type hierarchy:
+- **`KeyPath<Root, Value>`**: Provides read-only access to a property.
+- **`WritableKeyPath<Root, Value>`**: Provides read and write access to mutable properties on value types.
+- **`ReferenceWritableKeyPath<Root, Value>`**: Provides read and write access to properties on reference classes.
+
+You can also pass key paths directly to functions like `map` and `filter` wherever a matching closure is expected.
+
+## See it
+
+<Diagram id="key-paths-main" caption="How key paths point to properties and navigate nested data structures">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. KeyPath Reference: Strongly typed pointer \User.profile.city.
+    2. Data Structure: User struct holding Profile struct holding city string.
+    3. Read Subscript: Reading user[keyPath: \.profile.city] returning 'Seattle'.
+    4. Functional Transformation: users.map(\.name) extracting names into a new array.
+  - Steps:
+    Step 1: Key path defines a compile-time route to a property without reading it.
+    Step 2: Subscript evaluates the key path on a specific instance.
+    Step 3: Key paths chain through nested structs and optional chaining safely.
+    Step 4: Key paths act as functions inside map, filter, and sort algorithms.
+  - Static version (reduced motion):
+    Diagram showing a key path route pointing through nested struct properties into a final string value.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What character starts a Swift key path literal?</Question>
+  <Option id="a">A forward slash (/)</Option>
+  <Option id="b" correct>A backslash (\)</Option>
+  <Option id="c">An at symbol (@)</Option>
+  <Explanation>Swift key path literals always start with a backslash, like \Person.name or \.name.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Reading and writing properties using KeyPath and WritableKeyPath">
+
+```swift
+struct Player {
+    let id: Int
+    var score: Int
+}
+
+var player = Player(id: 101, score: 50)
+
+// Read-only key path to constant property
+let idPath: KeyPath<Player, Int> = \Player.id
+print("Player ID: \(player[keyPath: idPath])")
+
+// Writable key path to variable property
+let scorePath: WritableKeyPath<Player, Int> = \Player.score
+player[keyPath: scorePath] = 85
+print("Updated score: \(player.score)")
+```
+
+```output
+Player ID: 101
+Updated score: 85
+```
+
+</CodeExample>
+
+This example shows how key path types work:
+- **`KeyPath<Player, Int>`**: Refers to the constant `id`. It only supports reading.
+- **`WritableKeyPath<Player, Int>`**: Refers to `score`. It supports both reading and writing via subscript.
+
+<CodeExample title="Using key paths as functions in map and filter">
+
+```swift
+struct Task {
+    let title: String
+    let isCompleted: Bool
+}
+
+let tasks = [
+    Task(title: "Write lesson", isCompleted: true),
+    Task(title: "Build diagram", isCompleted: true),
+    Task(title: "Run tests", isCompleted: false)
+]
+
+// Pass \.isCompleted as a closure to filter
+let completedTasks = tasks.filter(\.isCompleted)
+
+// Pass \.title as a closure to map
+let titles = completedTasks.map(\.title)
+
+print("Completed tasks: \(titles.joined(separator: ", "))")
+```
+
+```output
+Completed tasks: Write lesson, Build diagram
+```
+
+</CodeExample>
+
+This example highlights key paths as functions:
+- **`filter(\.isCompleted)`**: `\.isCompleted` acts like `{ $0.isCompleted }`.
+- **`map(\.title)`**: `\.title` acts like `{ $0.title }`. This syntax is clean and concise.
+
+<QuickCheck>
+  <Question>When can you pass a key path directly to map?</Question>
+  <Option id="a" correct>Whenever map expects a closure taking the root type and returning the property value.</Option>
+  <Option id="b">Only when the property type is an integer.</Option>
+  <Option id="c">Only inside Xcode playground files.</Option>
+  <Explanation>Swift treats a key path as equivalent to a closure (Root) -> Value wherever a matching function is needed.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Experiment with key paths and collection operations in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Confusing Swift KeyPaths with Objective-C string-based KVC">
+In Objective-C, Key-Value Coding (KVC) uses raw strings like `valueForKey:@"name"`. If you make a typo, your app crashes at runtime. Swift key paths are checked by the compiler. If a property does not exist or has the wrong type, the code will not compile.
+</Trap>
+
+<Trap title="Using WritableKeyPath on a constant let property">
+You cannot create a `WritableKeyPath` for a property declared with `let`. The compiler only creates a read-only `KeyPath` for constants because their values cannot be changed after initialization.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+A key path in Swift is a way to refer to a property on a type without reading it immediately. It starts with a backslash, like \Person.name. We can use key paths to read or modify properties, and we can pass them to functions like map and filter.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Swift key paths are strongly typed property references. KeyPath provides read-only access, while WritableKeyPath allows modifying mutable properties on value types. ReferenceWritableKeyPath is used for classes. Because Swift treats key paths as closures, we can write concise operations like array.map(\.name). The compiler verifies key paths at compile time, eliminating runtime string typos.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Key paths provide type-safe property abstraction with zero string overhead. They support composition, nesting, and dynamic member lookup via the @dynamicMemberLookup attribute. In SwiftUI, key paths drive bindings and identifiable list loops. Architecturally, key paths enable powerful, decoupled patterns like state store lensing and observation pipelines without sacrificing compile-time type safety.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Key paths refer to properties as first-class values using backslash syntax.
+- Swift key paths are fully type-safe and checked at compile time.
+- `KeyPath` provides read-only access; `WritableKeyPath` provides read-write access for value types.
+- `ReferenceWritableKeyPath` provides read-write access for reference classes.
+- Key paths can be passed directly to higher-order functions like `map` and `filter`.
+- `@dynamicMemberLookup` uses key paths to build flexible, type-safe wrapper types.
+</Recap>
+
+## Go deeper
+
+- [KeyPath (Apple Developer Documentation)](https://developer.apple.com/documentation/swift/keypath)
+- [The Swift Programming Language: Expressions](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/expressions)
+- [WritableKeyPath (Apple Developer Documentation)](https://developer.apple.com/documentation/swift/writablekeypath)
