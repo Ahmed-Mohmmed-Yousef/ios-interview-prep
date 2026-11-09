@@ -1,0 +1,234 @@
+export const meta = {
+  id: "keychain-basics",
+  summary: "Store sensitive secrets like auth tokens in the encrypted iOS Keychain.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Keychain services (Security)", url: "https://developer.apple.com/documentation/security/keychain-services", kind: "official" },
+    { title: "Storing Keys in the Keychain (Security)", url: "https://developer.apple.com/documentation/security/storing-keys-in-the-keychain", kind: "official" },
+    { title: "Searching for Keychain Items (Security)", url: "https://developer.apple.com/documentation/security/keychain_services/keychain_items/searching_for_keychain_items", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why should sensitive secrets like auth tokens be stored in the Keychain instead of `UserDefaults`?</Question>
+  <Guess>
+    <Option id="a">Because UserDefaults keys cannot store strings longer than sixty-four characters.</Option>
+    <Option id="b" correct>Because Keychain encrypts items with hardware keys and stays safe from unencrypted backups.</Option>
+    <Option id="c">Because iOS deletes Keychain items automatically whenever the app closes.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a bank lobby with a guest sign-in book and a vault with safe deposit boxes.
+
+The sign-in book sits in open view on the front counter.
+
+Anyone walking past can read names, visit times, or visitor notes.
+
+You would never write your bank vault pin or private safe combination in the open sign-in book.
+
+Instead, the bank keeps high-value treasures inside a locked steel vault behind a thick metal door.
+
+Only a customer with the right key and authorized identification can open a deposit box.
+</Analogy>
+
+In iOS apps, `UserDefaults` is your open sign-in book.
+
+It stores lightweight user preferences in an unencrypted property list file on disk.
+
+Anyone who inspects an unencrypted device backup can read data in `UserDefaults`.
+
+The **Keychain** is the locked metal vault.
+
+The Keychain is a specialized encrypted database managed by the iOS system daemon named `securityd`.
+
+It protects sensitive secrets like passwords, OAuth access tokens, and private keys.
+
+Hardware encryption keys derived from the Secure Enclave and user passcode protect every item.
+
+Keychain items also follow different lifecycle rules than regular files:
+
+- Regular sandbox files disappear when a user deletes the app.
+- Keychain items persist on the physical device even after the user deletes the app.
+- If the user reinstalls the app later, previously stored Keychain items remain accessible.
+- Related apps from the same development team can share Keychain items using Access Groups.
+
+## See it
+
+<Diagram id="keychain-basics-diagram">
+{/*
+  Interactive 4-step diagram of iOS Keychain architecture:
+  1. Sandbox vs Keychain Daemon: App sandbox vs system securityd and Secure Enclave.
+  2. Query Construction: kSecClassGenericPassword, Service, Account, and ValueData.
+  3. Accessibility Policies: WhenUnlocked vs AfterFirstUnlock for background tasks.
+  4. App Lifecycle & Sharing: Persistence across app deletion and Access Groups.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens to an app's Keychain items when a user deletes the app from their iPhone?</Question>
+  <Option id="a">iOS deletes the Keychain items immediately upon app removal.</Option>
+  <Option id="b" correct>The Keychain items stay on the device and remain available if the app is reinstalled.</Option>
+  <Option id="c">iOS moves the Keychain items to the user's iCloud backup and wipes local copies.</Option>
+  <Explanation>Keychain items belong to the system security daemon and survive app uninstalls on the same physical hardware.</Explanation>
+</QuickCheck>
+
+## In code
+
+Use dictionary queries with keys from the `Security` framework to save and search Keychain items.
+
+Specify `kSecClassGenericPassword` for application tokens and passwords.
+
+<CodeExample title="Constructing Keychain query dictionaries">
+
+```swift
+import Foundation
+import Security
+
+struct KeychainQueryBuilder {
+    static func makeSaveQuery(service: String, account: String, secret: String) -> [String: Any] {
+        let secretData = Data(secret.utf8)
+        return [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecValueData as String: secretData,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+        ]
+    }
+
+    static func makeReadQuery(service: String, account: String) -> [String: Any] {
+        return [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+    }
+}
+
+let saveQuery = KeychainQueryBuilder.makeSaveQuery(
+    service: "com.prepstops.auth",
+    account: "authToken",
+    secret: "top_secret_jwt_token"
+)
+
+let readQuery = KeychainQueryBuilder.makeReadQuery(
+    service: "com.prepstops.auth",
+    account: "authToken"
+)
+
+print("Save class: \(saveQuery[kSecClass as String] != nil)")
+print("Save service: \(saveQuery[kSecAttrService as String] ?? "")")
+print("Read limit one: \(readQuery[kSecMatchLimit as String] != nil)")
+```
+
+```output
+Save class: true
+Save service: com.prepstops.auth
+Read limit one: true
+```
+
+</CodeExample>
+
+Security framework functions return an `OSStatus` code.
+
+Always inspect the return status to handle duplicates and missing entries.
+
+<CodeExample title="Interpreting Keychain status codes">
+
+```swift
+import Foundation
+import Security
+
+func statusDescription(_ status: OSStatus) -> String {
+    switch status {
+    case errSecSuccess:
+        return "Success"
+    case errSecDuplicateItem:
+        return "Duplicate item error"
+    case errSecItemNotFound:
+        return "Item not found error"
+    default:
+        return "Other status: \(status)"
+    }
+}
+
+print(statusDescription(errSecSuccess))
+print(statusDescription(errSecDuplicateItem))
+print(statusDescription(errSecItemNotFound))
+```
+
+```output
+Success
+Duplicate item error
+Item not found error
+```
+
+</CodeExample>
+
+<QuickCheck>
+  <Question>Which accessibility attribute allows a background task to read an auth token while the device screen is locked?</Question>
+  <Option id="a">kSecAttrAccessibleWhenUnlocked</Option>
+  <Option id="b" correct>kSecAttrAccessibleAfterFirstUnlock</Option>
+  <Option id="c">kSecAttrAccessibleAlways</Option>
+  <Explanation>kSecAttrAccessibleAfterFirstUnlock keeps items decrypted once the user enters their passcode after reboot, enabling background tasks.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open Xcode and create a macOS or iOS playground. Import the `Security` framework. Build a query dictionary and check error status codes.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Storing tokens in UserDefaults">
+UserDefaults stores unencrypted property lists on disk. Anyone with physical access to an unencrypted device backup can read tokens. Always use Keychain for secrets.
+</Trap>
+
+<Trap title="Assuming Keychain items delete with the app">
+Sandbox files disappear on app deletion, but Keychain items persist on the device. Check a first-launch flag in UserDefaults to clear stale tokens after a reinstall.
+</Trap>
+
+<Trap title="Crashing on duplicate items">
+Calling `SecItemAdd` on an existing item returns `errSecDuplicateItem`. Use `SecItemUpdate` or delete the existing item before adding a new secret.
+</Trap>
+
+<Trap title="Storing large files in Keychain">
+Keychain is designed for small secrets under a few kilobytes like tokens and passwords. For large files, use filesystem storage with `FileProtectionType.complete`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"The Keychain is an encrypted storage system managed by iOS. We use it to store sensitive data like passwords and authentication tokens. Unlike `UserDefaults`, which is plaintext, Keychain is hardware-encrypted. Another big difference is that Keychain data stays on the device even if the user deletes and reinstalls the app."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"Keychain Services in the `Security` framework provides hardware-backed storage for credentials using `kSecClassGenericPassword`. We query and save items using `SecItemAdd`, `SecItemCopyMatching`, and `SecItemDelete`. We control when data can be decrypted using accessibility attributes like `kSecAttrAccessibleWhenUnlocked` or `kSecAttrAccessibleAfterFirstUnlock` for background tasks. We also use Keychain Access Groups to share tokens between an app and its widget extension."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Architecturally, we wrap procedural C Security APIs behind a clean Swift actor or service protocol. We enforce strict accessibility policies using `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` to prevent silent iCloud Keychain syncing of sensitive enterprise tokens. Where biometric protection is mandated, we configure `SecAccessControl` with `.biometryAny` or `.userPresence` to require Face ID before key derivation. For large assets, we generate symmetric keys stored in Keychain to encrypt local SQLite or Realm databases."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Use `UserDefaults` for light user preferences and `Keychain` for sensitive credentials.
+- The `securityd` system daemon manages the Keychain with hardware-level encryption.
+- Keychain items persist across app uninstalls on the same physical hardware.
+- Use `kSecAttrAccessibleAfterFirstUnlock` when background tasks need access to secrets.
+- Check return codes like `errSecSuccess`, `errSecDuplicateItem`, and `errSecItemNotFound`.
+- Share credentials between main apps and app extensions through Keychain Access Groups.
+</Recap>
+
+## Go deeper
+
+- [Keychain services (Security)](https://developer.apple.com/documentation/security/keychain-services)
+- [Storing Keys in the Keychain (Security)](https://developer.apple.com/documentation/security/storing-keys-in-the-keychain)
+- [Searching for Keychain Items (Security)](https://developer.apple.com/documentation/security/keychain_services/keychain_items/searching_for_keychain_items)

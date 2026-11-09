@@ -139,7 +139,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **auto-layout** (Auto Layout) — published (lesson, diagram, 31 questions) → [docs/topics/auto-layout/review.html](docs/topics/auto-layout/review.html)
     - ✅ **uikit-navigation** (Navigation in UIKit) — published (lesson, diagram, 31 questions) → [docs/topics/uikit-navigation/review.html](docs/topics/uikit-navigation/review.html)
     - ✅ **table-collection-views** (Table and Collection Views) — published (lesson, diagram, 31 questions) → [docs/topics/table-collection-views/review.html](docs/topics/table-collection-views/review.html)
-  - 🔄 **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)** — resuming (8 of 9 published)
+  - ✅ **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)** — completed (9 of 9 published)
     - ✅ **dark-mode-dynamic-type** (Dark Mode and Dynamic Type) — published (lesson, diagram, 31 questions) → [docs/topics/dark-mode-dynamic-type/review.html](docs/topics/dark-mode-dynamic-type/review.html)
     - ✅ **hig-liquid-glass** (Apple Design and Liquid Glass) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/hig-liquid-glass/review.html](docs/topics/hig-liquid-glass/review.html)
     - ✅ **app-lifecycle** (App and Scene Lifecycle) — published (lesson, diagram, 31 questions) → [docs/topics/app-lifecycle/review.html](docs/topics/app-lifecycle/review.html)
@@ -148,8 +148,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **http-rest-basics** (HTTP and REST Basics) — published (lesson, diagram, 31 questions) → [docs/topics/http-rest-basics/review.html](docs/topics/http-rest-basics/review.html)
     - ✅ **urlsession** (URLSession) — published (lesson, diagram, 31 questions) → [docs/topics/urlsession/review.html](docs/topics/urlsession/review.html)
     - ✅ **userdefaults-and-files** (UserDefaults and Files) — published (lesson, diagram, 31 questions) → [docs/topics/userdefaults-and-files/review.html](docs/topics/userdefaults-and-files/review.html)
-    - 🔄 **keychain-basics** (Keychain Basics)
-  - ⬜ **Batch 2F: Architecture & Testing (6 topics)**
+    - ✅ **keychain-basics** (Keychain Basics) — published (lesson, diagram, 31 questions) → [docs/topics/keychain-basics/review.html](docs/topics/keychain-basics/review.html)
+  - 🔄 **Batch 2F: Architecture & Testing (6 topics)** — next
     - ⬜ **communication-patterns** (Delegates, Closures and Notifications)
     - ⬜ **mvc** (MVC and Its Problems)
     - ⬜ **solid-basics** (SOLID Basics)
@@ -299,6 +299,10 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Completed Batch 2E (Design, System & Data: all 9 topics published and committed). Junior level progress is now 39 of 45 topics published (61 total published topics across curriculum). Final Junior batch is Batch 2F (Architecture & Testing, 6 topics).
+
+- **2026-11-09** — Built and published topic keychain-basics (Keychain Basics): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/keychain-basics/review.html`). All checks passed. Batch 2E complete!
 
 - **2026-11-09** — Built and published topic userdefaults-and-files (UserDefaults and Files): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/userdefaults-and-files/review.html`). All checks passed. Starting keychain-basics.
 

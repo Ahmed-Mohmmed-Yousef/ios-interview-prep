@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Keychain Basics: Hardware-Backed Security Architecture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #16a34a; --step2-soft: #dcfce7;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #7c3aed; --step4-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #4ade80; --step2-soft: #052e16;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #a78bfa; --step4-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Keychain Security Architecture Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span class="kind s1" id="badge">Step 1</span> <span id="title">Architecture: Sandbox vs securityd</span></h3>
+      <p class="caption" id="desc">Your app cannot access the Keychain file directly. Instead, IPC requests travel to the securityd daemon, which interfaces with the hardware Secure Enclave.</p>
+      <div class="code" id="codeSnippet">// App process talks via IPC to securityd
+SecItemAdd(query as CFDictionary, nil)</div>
+    </div>
+
+    <div class="panel" style="display:flex; align-items:center; justify-content:center;">
+      <svg viewBox="0 0 320 220" role="img" aria-label="Visual illustration of Keychain security architecture">
+        <rect x="10" y="10" width="300" height="200" class="device-frame" />
+        <rect x="25" y="25" width="270" height="170" rx="10" class="base-screen" />
+
+        <!-- Dynamic elements -->
+        <g id="visualScene">
+          <!-- Step 1 visual -->
+          <rect x="40" y="55" width="105" height="100" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+          <text x="92" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">App Process</text>
+          <text x="92" y="100" text-anchor="middle" font-size="9" fill="var(--ink)">App Sandbox</text>
+          <text x="92" y="125" text-anchor="middle" font-size="9" fill="var(--muted)">SecItem API</text>
+          
+          <line x1="145" y1="105" x2="175" y2="105" stroke="var(--step1-color)" stroke-width="2" stroke-dasharray="3,3" />
+          <polygon points="175,102 182,105 175,108" fill="var(--step1-color)" />
+
+          <rect x="182" y="55" width="105" height="100" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+          <text x="234" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">securityd</text>
+          <text x="234" y="100" text-anchor="middle" font-size="9" fill="var(--ink)">Keychain DB</text>
+          <text x="234" y="125" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step1-color)">Secure Enclave</text>
+          <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Hardware-backed isolation</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "Architecture: Sandbox vs securityd",
+    desc: "Your app cannot access the Keychain file directly. Instead, IPC requests travel to the securityd daemon, which interfaces with the hardware Secure Enclave.",
+    code: `// App process talks via IPC to securityd\nSecItemAdd(query as CFDictionary, nil)`,
+    svg: `
+      <rect x="40" y="55" width="105" height="100" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="92" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">App Process</text>
+      <text x="92" y="100" text-anchor="middle" font-size="9" fill="var(--ink)">App Sandbox</text>
+      <text x="92" y="125" text-anchor="middle" font-size="9" fill="var(--muted)">SecItem API</text>
+      
+      <line x1="145" y1="105" x2="175" y2="105" stroke="var(--step1-color)" stroke-width="2" stroke-dasharray="3,3" />
+      <polygon points="175,102 182,105 175,108" fill="var(--step1-color)" />
+
+      <rect x="182" y="55" width="105" height="100" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="234" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">securityd</text>
+      <text x="234" y="100" text-anchor="middle" font-size="9" fill="var(--ink)">Keychain DB</text>
+      <text x="234" y="125" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step1-color)">Secure Enclave</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Hardware-backed isolation</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "CRUD & Query Dictionary",
+    desc: "Every Keychain item requires a class (e.g. kSecClassGenericPassword), a primary key (service and account), and binary value data.",
+    code: `let query: [String: Any] = [\n  kSecClass as String: kSecClassGenericPassword,\n  kSecAttrService as String: "authToken",\n  kSecAttrAccount as String: "user@domain.com",\n  kSecValueData as String: tokenData\n]`,
+    svg: `
+      <rect x="55" y="45" width="210" height="115" rx="8" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="160" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step2-color)">Generic Password Item</text>
+      <rect x="70" y="80" width="180" height="20" rx="4" fill="var(--step2-soft)" />
+      <text x="78" y="94" font-size="9" font-weight="600" fill="var(--step2-color)">Class: kSecClassGenericPassword</text>
+      <rect x="70" y="105" width="180" height="20" rx="4" fill="var(--code-bg)" />
+      <text x="78" y="119" font-size="9" fill="var(--ink)">Key: service + account</text>
+      <rect x="70" y="130" width="180" height="20" rx="4" fill="var(--code-bg)" />
+      <text x="78" y="144" font-size="9" fill="var(--ink)">Data: AES-256 encrypted bytes</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Indexed C dictionary queries</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Accessibility Policies",
+    desc: "Accessibility attributes dictate when secrets can be decrypted. WhenUnlocked is the secure default; AfterFirstUnlock enables background execution.",
+    code: `kSecAttrAccessible as String:\n  kSecAttrAccessibleAfterFirstUnlock\n// Secret is available even when device is locked`,
+    svg: `
+      <rect x="40" y="50" width="115" height="105" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="97" y="73" text-anchor="middle" font-size="10" font-weight="700" fill="var(--ink)">WhenUnlocked</text>
+      <text x="97" y="98" text-anchor="middle" font-size="8" fill="var(--muted)">Device unlocked</text>
+      <text x="97" y="118" text-anchor="middle" font-size="8" fill="var(--muted)">Interactive UI</text>
+      <text x="97" y="138" text-anchor="middle" font-size="8" font-weight="600" fill="var(--step1-color)">Default safe</text>
+
+      <rect x="165" y="50" width="115" height="105" rx="8" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="222" y="73" text-anchor="middle" font-size="10" font-weight="700" fill="var(--step3-color)">AfterFirstUnlock</text>
+      <text x="222" y="98" text-anchor="middle" font-size="8" fill="var(--ink)">Unlocked once</text>
+      <text x="222" y="118" text-anchor="middle" font-size="8" fill="var(--ink)">Works in background</text>
+      <text x="222" y="138" text-anchor="middle" font-size="8" font-weight="600" fill="var(--step3-color)">Push / Fetch</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Cryptographic access gates</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Persistence & Access Groups",
+    desc: "Keychain items survive app deletion on the device. Keychain Access Groups allow sharing credentials across apps and widget extensions.",
+    code: `// App and Widget share Keychain via Access Group\nkSecAttrAccessGroup as String: "group.com.team.shared"`,
+    svg: `
+      <rect x="45" y="45" width="230" height="115" rx="8" fill="var(--surface)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="160" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step4-color)">Keychain Access Group</text>
+      <rect x="60" y="82" width="95" height="35" rx="4" fill="var(--step4-soft)" />
+      <text x="107" y="97" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step4-color)">Main App</text>
+      <text x="107" y="110" text-anchor="middle" font-size="8" fill="var(--ink)">Survives uninstall</text>
+      <rect x="165" y="82" width="95" height="35" rx="4" fill="var(--step1-soft)" />
+      <text x="212" y="97" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step1-color)">Widget Extension</text>
+      <text x="212" y="110" text-anchor="middle" font-size="8" fill="var(--ink)">Shared token</text>
+      <text x="160" y="142" text-anchor="middle" font-size="10" fill="var(--muted)">Keychain items persist across re-installs</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Persistent team-wide sharing</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+</script>
+</body>
+</html>
