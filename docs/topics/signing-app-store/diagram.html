@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>App Signing and the App Store: Pipeline & Distribution</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #7c3aed; --step2-soft: #f5f3ff;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #16a34a; --step4-soft: #dcfce7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #a78bfa; --step2-soft: #2e1065;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #4ade80; --step4-soft: #052e16;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="App Signing and Distribution Pipeline Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span class="kind s1" id="badge">Step 1</span> <span id="title">The Signing Triangle</span></h3>
+      <p class="caption" id="desc">Code signing links a Certificate (author identity), an App ID (unique name and capabilities), and a Provisioning Profile that binds them.</p>
+      <div class="code" id="codeSnippet">// Provisioning Profile binds:
+// 1. Certificate (.cer)
+// 2. App ID (com.example.app)
+// 3. Entitlements & Devices</div>
+    </div>
+
+    <div class="panel" style="display:flex; align-items:center; justify-content:center;">
+      <svg viewBox="0 0 320 220" role="img" aria-label="Visual illustration of the distribution pipeline">
+        <rect x="10" y="10" width="300" height="200" class="device-frame" />
+        <rect x="25" y="25" width="270" height="170" rx="10" class="base-screen" />
+
+        <!-- Dynamic elements -->
+        <g id="visualScene">
+          <!-- Step 1 visual -->
+          <polygon points="160,50 80,150 240,150" fill="none" stroke="var(--step1-color)" stroke-width="2" stroke-dasharray="4" />
+          <circle cx="160" cy="50" r="18" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="2" />
+          <text x="160" y="55" text-anchor="middle" font-size="10" font-weight="700" fill="var(--step1-color)">ID</text>
+          <circle cx="80" cy="150" r="18" fill="var(--step2-soft)" stroke="var(--step2-color)" stroke-width="2" />
+          <text x="80" y="155" text-anchor="middle" font-size="10" font-weight="700" fill="var(--step2-color)">CER</text>
+          <circle cx="240" cy="150" r="18" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="2" />
+          <text x="240" y="155" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step4-color)">DEV</text>
+          <text x="160" y="185" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Provisioning Profile</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "The Signing Triangle",
+    desc: "Code signing links a Certificate (author identity), an App ID (unique name and capabilities), and a Provisioning Profile that binds them.",
+    code: `// Provisioning Profile binds:\n// 1. Certificate (.cer)\n// 2. App ID (com.example.app)\n// 3. Entitlements & Devices`,
+    svg: `
+      <polygon points="160,50 80,150 240,150" fill="none" stroke="var(--step1-color)" stroke-width="2" stroke-dasharray="4" />
+      <circle cx="160" cy="50" r="18" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="160" y="54" text-anchor="middle" font-size="10" font-weight="700" fill="var(--step1-color)">ID</text>
+      <circle cx="80" cy="150" r="18" fill="var(--step2-soft)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="80" y="154" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step2-color)">CER</text>
+      <circle cx="240" cy="150" r="18" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="240" y="154" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step4-color)">DEV</text>
+      <text x="160" y="185" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">Provisioning Profile</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "Xcode Archive & Validation",
+    desc: "Xcode compiles in Release mode into an .xcarchive bundle, validating bundle icons, privacy manifests, and binary architecture.",
+    code: `xcodebuild -scheme MyApp -configuration Release archive\n// Produces MyApp.xcarchive with dSYMs`,
+    svg: `
+      <rect x="80" y="45" width="160" height="110" rx="10" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="2" />
+      <rect x="100" y="65" width="120" height="20" rx="4" fill="var(--step2-soft)" />
+      <text x="160" y="80" text-anchor="middle" font-size="11" font-weight="600" fill="var(--step2-color)">.xcarchive</text>
+      <path d="M 115 110 L 135 130 L 205 95" fill="none" stroke="var(--step4-color)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      <text x="160" y="180" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">Pre-flight Validation Pass</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Upload & TestFlight",
+    desc: "Uploaded to App Store Connect. Internal teams test immediately; external beta groups test after Apple automated review.",
+    code: `xcrun altool --upload-app -f MyApp.ipa\n// Internal: immediate / External: beta review`,
+    svg: `
+      <circle cx="110" cy="90" r="30" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="110" y="95" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">Internal</text>
+      <circle cx="210" cy="90" r="30" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="210" y="95" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">External</text>
+      <text x="160" y="145" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">TestFlight Beta Testing</text>
+      <text x="160" y="165" text-anchor="middle" font-size="11" fill="var(--muted)">Crash reports & feedback</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "App Review & Phased Release",
+    desc: "After App Review approval, Phased Release rolls out the update over 7 days (1% to 100%) to safely catch production issues early.",
+    code: `// Phased Release Schedule:\n// Day 1: 1% -> Day 3: 5% -> Day 7: 100%`,
+    svg: `
+      <rect x="55" y="60" width="210" height="30" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1" />
+      <rect x="55" y="60" width="130" height="30" rx="6" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="1.5" />
+      <text x="120" y="80" text-anchor="middle" font-size="11" font-weight="600" fill="var(--step4-color)">Day 4: 10% Rollout</text>
+      <circle cx="160" cy="130" r="22" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="2" />
+      <polyline points="150,130 157,137 172,122" fill="none" stroke="var(--step4-color)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      <text x="160" y="175" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">App Store Live Release</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+</script>
+</body>
+</html>

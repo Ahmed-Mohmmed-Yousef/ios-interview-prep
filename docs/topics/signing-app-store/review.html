@@ -1,0 +1,573 @@
+<title>App Signing and the App Store Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #7c3aed; --step2-soft: #f5f3ff;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #16a34a; --step4-soft: #dcfce7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #a78bfa; --step2-soft: #2e1065;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #4ade80; --step4-soft: #052e16;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · App and System · Topic 3 of 3 · Prototype</p>
+    <h1>App Signing and the App Store</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain app signing and how an app gets to the App Store.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Does an App Store distribution provisioning profile contain a list of test device UDID identifiers?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, every iPhone that downloads the app must be registered in the profile.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, App Store profiles omit device identifiers because Apple signs releases for all consumer devices.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Yes, but only for devices running beta software.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine sending an important legal contract through the mail.</p><p>First, you sign the contract with your verified wax seal. The seal proves you wrote the document.</p><p>Second, you place the contract inside a tamper-proof envelope.</p><p>If anyone opens or alters the envelope along the way, the wax seal breaks.</p><p>The receiver knows the contract was changed and rejects it immediately.</p><p>Code signing works the same way. It proves who built the app and guarantees nobody altered the code.</p></aside>
+<p>iOS requires every app running on a physical device to be signed.</p>
+<p>Three key pieces make up the code signing process:</p>
+<ol>
+<li><strong>Certificates</strong>:
+<ul>
+<li>Digital documents issued by Apple that prove your identity.</li>
+<li>A <strong>Development Certificate</strong> lets engineers install and debug builds on team test devices.</li>
+<li>A <strong>Distribution Certificate</strong> signs release builds for TestFlight and the App Store.</li>
+<li>The private key stays secret on your Mac. The public certificate is shared with Apple.</li>
+</ul>
+</li>
+<li><strong>App ID (Bundle Identifier)</strong>:
+<ul>
+<li>A unique identifier for your app, like <code>com.example.phototracker</code>.</li>
+<li>It defines which capabilities your app can use, like Push Notifications or iCloud.</li>
+</ul>
+</li>
+<li><strong>Provisioning Profile (<code>.mobileprovision</code>)</strong>:
+<ul>
+<li>The file that binds everything together.</li>
+<li>It links your App ID, your certificate, and your entitlements.</li>
+<li>Development profiles also contain a list of allowed test device UDIDs.</li>
+<li>App Store distribution profiles do not list devices because Apple signs the final release for everyone.</li>
+</ul>
+</li>
+</ol>
+<p>Once signed, you archive your app in Xcode and upload the build to App Store Connect.</p>
+<p>You can invite teammates to test internal builds through TestFlight immediately.</p>
+<p>After automated and human App Review, your app is approved and ready for release.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens if you lose the private key for your distribution certificate from your Mac?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">You can download the private key from the Apple Developer website.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">You cannot sign new builds with that certificate and must generate a new one.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Xcode automatically recovers the private key from iCloud Keychain.</span></button><p class="qc-explain" hidden="">Apple stores only your public certificate. If you lose your private key without a backup, you must revoke the certificate and create a new one.</p></div>
+<h2>In code</h2>
+<p>Every app submission requires distinct version and build numbers.</p>
+<p>In your project configuration, <code>CFBundleShortVersionString</code> is the marketing version.</p>
+<p><code>CFBundleVersion</code> is the internal build number. Each upload requires an increased build number.</p>
+<figure class="code-example"><figcaption>Managing version and build numbers</figcaption><pre class="block swift"><code class="language-swift">struct AppVersionInfo {
+    let marketingVersion: String
+    let buildNumber: Int
+
+    func isNewerBuild(than previousBuild: Int) -&gt; Bool {
+        buildNumber &gt; previousBuild
+    }
+}
+
+let currentRelease = AppVersionInfo(marketingVersion: &quot;2.1.0&quot;, buildNumber: 42)
+let isReadyForUpload = currentRelease.isNewerBuild(than: 41)
+
+print(&quot;Marketing version: \(currentRelease.marketingVersion)&quot;)
+print(&quot;Upload allowed: \(isReadyForUpload)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Marketing version: 2.1.0
+Upload allowed: true
+</code></pre></figure>
+<p>Different distribution methods require different provisioning profile rules.</p>
+<p>Development profiles require device UDIDs, while App Store profiles omit them.</p>
+<figure class="code-example"><figcaption>Inspecting provisioning profile requirements</figcaption><pre class="block swift"><code class="language-swift">enum ProvisioningKind {
+    case development
+    case appStore
+}
+
+func requiresDeviceList(for kind: ProvisioningKind) -&gt; Bool {
+    switch kind {
+    case .development:
+        return true
+    case .appStore:
+        return false
+    }
+}
+
+let profileType = ProvisioningKind.appStore
+print(&quot;Type: \(profileType)&quot;)
+print(&quot;Needs device UDIDs: \(requiresDeviceList(for: profileType))&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Type: appStore
+Needs device UDIDs: false
+</code></pre></figure>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Do internal TestFlight testers require Apple review approval before testing a new build?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, every build requires full review by Apple employees.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, internal testers receive builds immediately after automated server processing.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Yes, but only if the build changes camera permissions.</span></button><p class="qc-explain" hidden="">Internal testers in your App Store Connect team get builds as soon as Apple finishes processing the binary.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming App Store profiles list devices</p><p>Many developers assume all provisioning profiles list allowed test devices.</p><p>Development and Ad-Hoc profiles include device UDIDs.</p><p>App Store profiles never contain device UDIDs.</p><p>Apple re-encrypts and signs production binaries so all customers can install them.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing marketing version with build number</p><p>Uploading a new binary requires incrementing the build number (<code>CFBundleVersion</code>).</p><p>If you upload two builds with the same build number, App Store Connect rejects the second upload.</p><p>The marketing version (<code>CFBundleShortVersionString</code>) can remain the same while fixing beta bugs.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Forgetting to backup distribution private keys</p><p>When moving to a new Mac, developers often copy only the project code.</p><p>If you do not export your private key as a <code>.p12</code> file, you cannot sign releases.</p><p>Always back up certificates and private keys securely or use automatic team signing.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Releasing to 100% of users immediately</p><p>Releasing a major update to all users on day one is risky.</p><p>If an unexpected crash occurs, all active users experience the bug.</p><p>Use Phased Release to roll out updates gradually over seven days.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;Code signing verifies who built the app and guarantees the code has not been changed. It uses certificates, an App ID, and a provisioning profile. We archive the app in Xcode, upload it to App Store Connect, test it with TestFlight, and submit it for App Review before release.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;App signing links three elements: a certificate proving developer identity, an App ID defining capabilities, and a provisioning profile tying them together. Development profiles list device UDIDs for testing, while App Store profiles omit them. In Xcode, we archive a Release build and validate bundle rules. Then we upload to App Store Connect and use Phased Release to roll out updates safely.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;Code signing establishes a cryptographic chain of trust enforced at the operating system kernel. For teams, we automate signing in CI using tools like Fastlane Match with encrypted certificate repositories. We archive dSYMs for crash symbolication and make sure privacy manifests pass validation. For production releases, we combine TestFlight beta groups with Phased Release to monitor crash rates before full adoption.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Code signing verifies author identity and guarantees binary integrity.</li>
+<li>The three signing pillars are Certificates, App IDs, and Provisioning Profiles.</li>
+<li>Development certificates are for debugging on personal test hardware.</li>
+<li>Distribution certificates sign builds for TestFlight and the App Store.</li>
+<li>Development profiles include device UDIDs; App Store profiles do not.</li>
+<li>Each upload to App Store Connect requires an increased build number (<code>CFBundleVersion</code>).</li>
+<li>Internal TestFlight builds are available immediately without Apple review.</li>
+<li>Phased Release rolls out updates gradually over seven days.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases">Distributing your app for beta testing and releases (Xcode)</a> — Official Apple guide for app distribution.</li>
+<li><a href="https://developer.apple.com/app-store/review/guidelines/">App Review Guidelines - Apple Developer</a> — Official rules and requirements for App Store approval.</li>
+<li><a href="https://developer.apple.com/support/code-signing/">Code Signing (Apple Developer Support)</a> — Official explanation of certificates, identifiers, and profiles.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "The Signing Triangle",
+    desc: "Code signing links a Certificate (author identity), an App ID (unique name and capabilities), and a Provisioning Profile that binds them.",
+    code: `// Provisioning Profile binds:\n// 1. Certificate (.cer)\n// 2. App ID (com.example.app)\n// 3. Entitlements & Devices`,
+    svg: `
+      <polygon points="160,50 80,150 240,150" fill="none" stroke="var(--step1-color)" stroke-width="2" stroke-dasharray="4" />
+      <circle cx="160" cy="50" r="18" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="160" y="54" text-anchor="middle" font-size="10" font-weight="700" fill="var(--step1-color)">ID</text>
+      <circle cx="80" cy="150" r="18" fill="var(--step2-soft)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="80" y="154" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step2-color)">CER</text>
+      <circle cx="240" cy="150" r="18" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="240" y="154" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step4-color)">DEV</text>
+      <text x="160" y="185" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">Provisioning Profile</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "Xcode Archive & Validation",
+    desc: "Xcode compiles in Release mode into an .xcarchive bundle, validating bundle icons, privacy manifests, and binary architecture.",
+    code: `xcodebuild -scheme MyApp -configuration Release archive\n// Produces MyApp.xcarchive with dSYMs`,
+    svg: `
+      <rect x="80" y="45" width="160" height="110" rx="10" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="2" />
+      <rect x="100" y="65" width="120" height="20" rx="4" fill="var(--step2-soft)" />
+      <text x="160" y="80" text-anchor="middle" font-size="11" font-weight="600" fill="var(--step2-color)">.xcarchive</text>
+      <path d="M 115 110 L 135 130 L 205 95" fill="none" stroke="var(--step4-color)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      <text x="160" y="180" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">Pre-flight Validation Pass</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Upload & TestFlight",
+    desc: "Uploaded to App Store Connect. Internal teams test immediately; external beta groups test after Apple automated review.",
+    code: `xcrun altool --upload-app -f MyApp.ipa\n// Internal: immediate / External: beta review`,
+    svg: `
+      <circle cx="110" cy="90" r="30" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="110" y="95" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">Internal</text>
+      <circle cx="210" cy="90" r="30" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="210" y="95" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">External</text>
+      <text x="160" y="145" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">TestFlight Beta Testing</text>
+      <text x="160" y="165" text-anchor="middle" font-size="11" fill="var(--muted)">Crash reports & feedback</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "App Review & Phased Release",
+    desc: "After App Review approval, Phased Release rolls out the update over 7 days (1% to 100%) to safely catch production issues early.",
+    code: `// Phased Release Schedule:\n// Day 1: 1% -> Day 3: 5% -> Day 7: 100%`,
+    svg: `
+      <rect x="55" y="60" width="210" height="30" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1" />
+      <rect x="55" y="60" width="130" height="30" rx="6" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="1.5" />
+      <text x="120" y="80" text-anchor="middle" font-size="11" font-weight="600" fill="var(--step4-color)">Day 4: 10% Rollout</text>
+      <circle cx="160" cy="130" r="22" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="2" />
+      <polyline points="150,130 157,137 172,122" fill="none" stroke="var(--step4-color)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      <text x="160" y="175" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">App Store Live Release</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"signing-app-store","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"signing-app-store-q1","type":"mcq","difficulty":1,"prompt":"What are the two core security guarantees provided by iOS code signing?","options":[{"id":"a","text":"Verifying developer identity and guaranteeing code integrity.","explanation":"Right. Code signing identifies the developer and guarantees the code has not been altered."},{"id":"b","text":"Compressing binary size and encrypting source code comments.","explanation":"Code signing does not compress assets or encrypt source comments."},{"id":"c","text":"Preventing memory leaks and enforcing Swift 6 actor rules.","explanation":"Code signing is a cryptographic security check, not a memory management tool."},{"id":"d","text":"Enabling fast network downloads on 5G cellular connections.","explanation":"Code signing has no effect on network download speeds."}],"answer":"a"},{"id":"signing-app-store-q2","type":"mcq","difficulty":1,"prompt":"Why do App Store distribution provisioning profiles omit device UDID identifiers?","options":[{"id":"a","text":"Because device UDIDs are stored in iCloud Keychain automatically.","explanation":"UDIDs are never retrieved from iCloud Keychain for App Store profiles."},{"id":"b","text":"Because Apple signs the release for distribution to all customers.","explanation":"Right. Apple signs the final binary so any customer device can install it."},{"id":"c","text":"Because consumer iPhones lack hardware UDID chip identifiers.","explanation":"All iPhones have unique hardware UDID identifiers."},{"id":"d","text":"Because the Swift 6 compiler strips hardware identifiers on build.","explanation":"The compiler does not alter provisioning profile metadata."}],"answer":"b"},{"id":"signing-app-store-q3","type":"mcq","difficulty":1,"prompt":"What happens if you upload a new build with the exact same `CFBundleVersion` number as an earlier upload?","options":[{"id":"a","text":"App Store Connect overwrites the earlier build automatically.","explanation":"App Store Connect never overwrites an existing build number."},{"id":"b","text":"The build is automatically renumbered by Xcode Organizer.","explanation":"Xcode Organizer does not renumber build versions during upload."},{"id":"c","text":"App Store Connect rejects the build because build numbers must increase.","explanation":"Right. Each upload must have a higher build number than prior uploads for that version."},{"id":"d","text":"The binary is archived in TestFlight under a duplicate badge.","explanation":"Duplicate build numbers trigger immediate validation rejection."}],"answer":"c"},{"id":"signing-app-store-q4","type":"mcq","difficulty":2,"prompt":"What should you do if the private key for your distribution certificate is permanently lost from your Mac?","options":[{"id":"a","text":"Download the private key from the Apple Developer web portal.","explanation":"Apple holds only your public certificate, never your private key."},{"id":"b","text":"Extract the private key from the latest compiled IPA archive.","explanation":"Compiled IPAs never contain private cryptographic keys."},{"id":"c","text":"Use an MD5 hash of your Apple Developer account password.","explanation":"Account passwords cannot substitute for cryptographic private keys."},{"id":"d","text":"Revoke the certificate in the developer portal and create a new one.","explanation":"Right. Without the private key, the certificate is unusable and must be replaced."}],"answer":"d"},{"id":"signing-app-store-q5","type":"mcq","difficulty":1,"prompt":"What is the difference between `CFBundleShortVersionString` and `CFBundleVersion`?","options":[{"id":"a","text":"ShortVersionString is user marketing version; Version is build number.","explanation":"Right. ShortVersionString is visible on App Store; Version is the internal build counter."},{"id":"b","text":"ShortVersionString is for iPadOS; Version is for iOS devices.","explanation":"Both keys apply across all iOS, iPadOS, macOS, and watchOS targets."},{"id":"c","text":"ShortVersionString is private; Version is displayed on App Store.","explanation":"The roles are reversed; ShortVersionString is the customer-facing version."},{"id":"d","text":"ShortVersionString is required; Version is completely optional.","explanation":"Both version keys are mandatory for App Store binary validation."}],"answer":"a"},{"id":"signing-app-store-q6","type":"mcq","difficulty":2,"prompt":"When can internal TestFlight testers install a newly uploaded application build?","options":[{"id":"a","text":"Only after Apple completes a full human App Review audit.","explanation":"Internal testers do not wait for human App Review approval."},{"id":"b","text":"Immediately after Apple automated server processing completes.","explanation":"Right. Internal team members receive builds as soon as server processing finishes."},{"id":"c","text":"Only after five external public testers submit feedback.","explanation":"Internal testing is completely independent of external tester quotas."},{"id":"d","text":"Exactly seven days after uploading the release archive.","explanation":"There is no mandatory waiting delay for internal TestFlight testing."}],"answer":"b"},{"id":"signing-app-store-q7","type":"mcq","difficulty":2,"prompt":"How does App Store Phased Release protect an engineering team during a major app update?","options":[{"id":"a","text":"It encrypts crash logs with private keys during the first week.","explanation":"Phased Release controls rollout percentages, not crash log encryption."},{"id":"b","text":"It forces beta testers to sign non-disclosure legal contracts.","explanation":"Phased Release is a production release feature, not a beta contract tool."},{"id":"c","text":"It rolls out the update gradually over seven days to catch bugs early.","explanation":"Right. Staged rollout (1% to 100%) limits blast radius if unexpected bugs emerge."},{"id":"d","text":"It pauses user reviews on the App Store product landing page.","explanation":"User reviews are not paused during phased releases."}],"answer":"c"},{"id":"signing-app-store-q8","type":"mcq","difficulty":2,"prompt":"What three core assets form the iOS code signing triangle?","options":[{"id":"a","text":"Xcode project, Swift Package Manager, and CocoaPods specs.","explanation":"Package managers manage third-party code, not cryptographic signing."},{"id":"b","text":"TestFlight group, App Store pricing tier, and privacy nutrition label.","explanation":"Pricing and TestFlight groups are App Store Connect metadata."},{"id":"c","text":"Storyboard file, Asset Catalog, and Core Data SQLite schema.","explanation":"These are application user interface and data storage assets."},{"id":"d","text":"Certificate, App ID (Bundle ID), and Provisioning Profile.","explanation":"Right. The certificate proves identity, the App ID sets capabilities, and the profile binds them."}],"answer":"d"},{"id":"signing-app-store-q9","type":"mcq","difficulty":2,"prompt":"Which file generated during the Xcode Archive action contains compiled binaries and dSYM files?","options":[{"id":"a","text":"The .xcarchive bundle package.","explanation":"Right. The .xcarchive bundle packages the compiled application and debug symbols."},{"id":"b","text":"The Package.resolved lock file.","explanation":"Package.resolved locks dependency commit hashes in Swift Package Manager."},{"id":"c","text":"The Podfile.lock dependency manifest.","explanation":"Podfile.lock is a CocoaPods dependency file."},{"id":"d","text":"The InfoPlist.strings localization catalog.","explanation":"InfoPlist.strings stores localized property list text."}],"answer":"a"},{"id":"signing-app-store-q10","type":"mcq","difficulty":2,"prompt":"Why are dSYM symbol files essential when distributing production builds to the App Store?","options":[{"id":"a","text":"They allow the Swift 6 compiler to optimize CPU battery usage.","explanation":"dSYM files do not alter runtime CPU execution or battery usage."},{"id":"b","text":"They convert hexadecimal crash memory addresses into readable line numbers.","explanation":"Right. Crash symbolication replaces memory addresses with method names and file lines."},{"id":"c","text":"They grant push notification delivery entitlements to the device.","explanation":"Entitlements grant capabilities, not symbol files."},{"id":"d","text":"They enable live remote debugging sessions on customer hardware.","explanation":"Apple does not permit remote live debugger attachment on customer hardware."}],"answer":"b"},{"id":"signing-app-store-q11","type":"mcq","difficulty":2,"prompt":"What is the maximum number of public external beta testers supported in TestFlight?","options":[{"id":"a","text":"Up to one hundred total testers.","explanation":"One hundred is the limit for internal team testing, not external beta testing."},{"id":"b","text":"Up to one thousand total testers.","explanation":"TestFlight supports significantly more than one thousand external testers."},{"id":"c","text":"Up to ten thousand total testers.","explanation":"Right. TestFlight allows up to 10,000 external testers via email or public link."},{"id":"d","text":"Unlimited testers across all countries.","explanation":"External beta testing has an enforced limit of 10,000 testers per app."}],"answer":"c"},{"id":"signing-app-store-q12","type":"mcq","difficulty":2,"prompt":"What happens if a developer pauses an active Phased Release on the App Store?","options":[{"id":"a","text":"All existing users are rolled back to the previous app version.","explanation":"The App Store cannot remotely downgrade already installed app versions."},{"id":"b","text":"The app is removed from the App Store search results.","explanation":"Pausing phased release does not delist the app."},{"id":"c","text":"All TestFlight builds for the app are immediately revoked.","explanation":"TestFlight builds remain active when App Store phased release is paused."},{"id":"d","text":"The release stops expanding to new users for up to thirty days.","explanation":"Right. Developers can pause rollout for up to 30 days while investigating bugs."}],"answer":"d"},{"id":"signing-app-store-q13","type":"mcq","difficulty":3,"prompt":"What is the primary difference between Automatic Signing and Manual Signing in Xcode?","options":[{"id":"a","text":"Automatic lets Xcode manage profiles; manual requires selecting profiles explicitly.","explanation":"Right. Automatic signing delegates certificate and profile generation to Xcode."},{"id":"b","text":"Automatic signing bypasses the need for Apple Developer certificates.","explanation":"All physical device execution requires valid Apple certificates."},{"id":"c","text":"Manual signing is required to compile Swift 6 strict concurrency checks.","explanation":"Compiler concurrency checks are completely separate from code signing mode."},{"id":"d","text":"Automatic signing works only for watchOS and visionOS applications.","explanation":"Automatic signing works across all Apple platforms including iOS."}],"answer":"a"},{"id":"signing-app-store-q14","type":"mcq","difficulty":3,"prompt":"What percentage of users receive an update on Day 1 of a standard Phased Release?","options":[{"id":"a","text":"Ten percent of active users receive the update on Day 1.","explanation":"Day 4 reaches 10% of users in the phased release schedule."},{"id":"b","text":"One percent of active users receive the update on Day 1.","explanation":"Right. Day 1 starts with 1% of automatic update users."},{"id":"c","text":"Twenty percent of active users receive the update on Day 1.","explanation":"Day 5 reaches 20% in the phased release schedule."},{"id":"d","text":"Fifty percent of active users receive the update on Day 1.","explanation":"Day 6 reaches 50% in the phased release schedule."}],"answer":"b"},{"id":"signing-app-store-q15","type":"mcq","difficulty":3,"prompt":"Which tool or service is commonly used by engineering teams to automate code signing across CI/CD runners?","options":[{"id":"a","text":"SwiftLint style rules validation engine.","explanation":"SwiftLint checks source code formatting and conventions, not code signing."},{"id":"b","text":"Core Data SQLite schema migration tool.","explanation":"Core Data manages local database persistence, not certificates."},{"id":"c","text":"Fastlane Match using an encrypted certificate repository.","explanation":"Right. Fastlane Match syncs certificates and profiles across teams using git encryption."},{"id":"d","text":"The LLDB debugger breakpoint command console.","explanation":"LLDB is an interactive debugging engine, not a signing automation tool."}],"answer":"c"},{"id":"signing-app-store-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking if the release configuration is valid?","code":"struct BuildRelease {\n    let version: String\n    let build: Int\n}\nlet b1 = BuildRelease(version: \"1.0.0\", build: 12)\nlet isBuildValid = b1.build > 0 && !b1.version.isEmpty\nprint(\"Valid release: \\(isBuildValid)\")","options":[{"id":"a","text":"Valid release: false","explanation":"The build is 12 and version is not empty, so the condition evaluates to true."},{"id":"b","text":"Valid release: nil","explanation":"The logical expression evaluates to a non-optional boolean."},{"id":"c","text":"Valid release: 12","explanation":"The code outputs the boolean result of isBuildValid, not the build integer."},{"id":"d","text":"Valid release: true","explanation":"Right. Both conditions evaluate to true, so isBuildValid is true."}],"answer":"d"},{"id":"signing-app-store-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking the certificate type?","code":"enum CertificateKind {\n    case development\n    case distribution\n}\nlet cert = CertificateKind.development\nlet isDev = cert == .development\nprint(\"Is development: \\(isDev)\")","options":[{"id":"a","text":"Is development: true","explanation":"Right. The cert variable equals .development, so isDev evaluates to true."},{"id":"b","text":"Is development: false","explanation":"The cert variable is assigned to .development, so the equality check is true."},{"id":"c","text":"Is development: distribution","explanation":"The code outputs the boolean comparison result, not an enum case name."},{"id":"d","text":"Is development: nil","explanation":"The result is a concrete boolean value."}],"answer":"a"},{"id":"signing-app-store-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print when looking up the rollout percentage for day 4?","code":"func rolloutPercentage(day: Int) -> Int {\n    switch day {\n    case 1:\n        return 1\n    case 2:\n        return 2\n    case 3:\n        return 5\n    case 4:\n        return 10\n    case 5:\n        return 20\n    case 6:\n        return 50\n    default:\n        return 100\n    }\n}\nprint(\"Day 4 rollout: \\(rolloutPercentage(day: 4))%\")","options":[{"id":"a","text":"Day 4 rollout: 1%","explanation":"Day 1 corresponds to 1% rollout."},{"id":"b","text":"Day 4 rollout: 10%","explanation":"Right. The switch statement matches case 4 and returns 10."},{"id":"c","text":"Day 4 rollout: 20%","explanation":"Day 5 corresponds to 20% rollout."},{"id":"d","text":"Day 4 rollout: 100%","explanation":"Day 7 and higher fall into the default 100% case."}],"answer":"b"},{"id":"signing-app-store-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when constructing the full app identifier?","code":"struct SigningIdentity {\n    let teamId: String\n    let bundleId: String\n    \n    var appIdentifier: String {\n        \"\\(teamId).\\(bundleId)\"\n    }\n}\nlet identity = SigningIdentity(teamId: \"ABC1234567\", bundleId: \"com.example.app\")\nprint(\"App Identifier: \\(identity.appIdentifier)\")","options":[{"id":"a","text":"App Identifier: com.example.app","explanation":"The computed property prepends the teamId before the bundleId."},{"id":"b","text":"App Identifier: ABC1234567","explanation":"The property includes both teamId and bundleId separated by a period."},{"id":"c","text":"App Identifier: ABC1234567.com.example.app","explanation":"Right. The computed property interpolates teamId and bundleId with a period."},{"id":"d","text":"App Identifier: nil","explanation":"The property returns a non-optional String value."}],"answer":"c"},{"id":"signing-app-store-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when checking if internal TestFlight requires review?","code":"enum TestFlightGroup {\n    case internalGroup\n    case externalGroup\n}\nfunc requiresBetaReview(group: TestFlightGroup) -> Bool {\n    switch group {\n    case .internalGroup:\n        return false\n    case .externalGroup:\n        return true\n    }\n}\nprint(\"Internal needs review: \\(requiresBetaReview(group: .internalGroup))\")","options":[{"id":"a","text":"Internal needs review: true","explanation":"Case .internalGroup returns false, not true."},{"id":"b","text":"Internal needs review: nil","explanation":"The function returns a non-optional boolean value."},{"id":"c","text":"Internal needs review: optional(false)","explanation":"The return type is a standard non-optional Bool."},{"id":"d","text":"Internal needs review: false","explanation":"Right. Internal group builds do not require beta review, so it prints false."}],"answer":"d"},{"id":"signing-app-store-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when inspecting the profile's device inclusion flag?","code":"struct ProvisioningProfile {\n    let name: String\n    let includesDeviceUDIDs: Bool\n}\nlet appStoreProfile = ProvisioningProfile(name: \"AppStore_Profile\", includesDeviceUDIDs: false)\nprint(\"Profile includes devices: \\(appStoreProfile.includesDeviceUDIDs)\")","options":[{"id":"a","text":"Profile includes devices: false","explanation":"Right. The property includesDeviceUDIDs is false for App Store profiles."},{"id":"b","text":"Profile includes devices: true","explanation":"The value was explicitly initialized to false."},{"id":"c","text":"Profile includes devices: AppStore_Profile","explanation":"The print statement prints the boolean flag, not the profile name."},{"id":"d","text":"Profile includes devices: nil","explanation":"The property holds a non-optional boolean."}],"answer":"a"},{"id":"signing-app-store-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when checking if the build number can be submitted?","code":"let previousBuild = 104\nlet currentBuild = 105\nlet canSubmit = currentBuild > previousBuild\nprint(\"Can submit update: \\(canSubmit)\")","options":[{"id":"a","text":"Can submit update: false","explanation":"105 is strictly greater than 104, so the boolean evaluates to true."},{"id":"b","text":"Can submit update: true","explanation":"Right. The new build number is higher, so canSubmit evaluates to true."},{"id":"c","text":"Can submit update: 105","explanation":"The code outputs the boolean value of canSubmit."},{"id":"d","text":"Can submit update: nil","explanation":"The comparison produces a non-optional boolean."}],"answer":"b"},{"id":"signing-app-store-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print when evaluating the phased release description helper?","code":"func releaseModeDescription(isPhased: Bool) -> String {\n    if isPhased {\n        return \"7-day gradual rollout\"\n    } else {\n        return \"immediate 100% release\"\n    }\n}\nprint(\"Release mode: \\(releaseModeDescription(isPhased: true))\")","options":[{"id":"a","text":"Release mode: immediate 100% release","explanation":"Immediate release is returned when isPhased is false."},{"id":"b","text":"Release mode: 1-day rollout","explanation":"The function returns 7-day gradual rollout for true."},{"id":"c","text":"Release mode: 7-day gradual rollout","explanation":"Right. Because isPhased is true, the if branch returns 7-day gradual rollout."},{"id":"d","text":"Release mode: nil","explanation":"The function returns a concrete non-optional String."}],"answer":"c"},{"id":"signing-app-store-q24","type":"written","difficulty":2,"prompt":"Describe the three core components of the iOS code signing triangle and how they work together.","modelAnswer":"The code signing triangle consists of a Certificate, an App ID, and a Provisioning Profile. The Certificate proves the developer identity using public-key cryptography. The App ID uniquely identifies the app and enables specific capabilities like Push Notifications. The Provisioning Profile acts as the binding glue, combining the certificate, the App ID with entitlements, and allowed test device identifiers.","rubric":[{"id":"three-components-identified","criterion":"Identifies the three components as Certificate, App ID (Bundle ID), and Provisioning Profile.","weight":50,"key":true},{"id":"binding-explanation","criterion":"Explains how the provisioning profile binds identity, capabilities, and device eligibility together.","weight":50,"key":true}]},{"id":"signing-app-store-q25","type":"written","difficulty":2,"prompt":"Explain why development provisioning profiles require registered device UDIDs while App Store profiles do not.","modelAnswer":"Development provisioning profiles are designed for team debugging on specific hardware. Apple restricts installation to explicitly registered test device UDIDs to prevent unauthorized distribution. App Store distribution profiles omit device UDIDs because Apple re-signs the final binary with Apple FairPlay DRM, permitting installation on any consumer device worldwide.","rubric":[{"id":"development-device-restriction","criterion":"Explains development profiles restrict installation to registered hardware test devices.","weight":50,"key":true},{"id":"appstore-universal-resigning","criterion":"Explains App Store profiles omit UDIDs because Apple signs releases for universal customer installation.","weight":50,"key":true}]},{"id":"signing-app-store-q26","type":"written","difficulty":2,"prompt":"Explain the difference between `CFBundleShortVersionString` and `CFBundleVersion`, and state the rule for uploading new builds.","modelAnswer":"`CFBundleShortVersionString` is the public marketing version displayed on the App Store, such as 2.1.0. `CFBundleVersion` is the internal build number used by App Store Connect to sequence uploads. When uploading a new build for the same marketing version, `CFBundleVersion` must be strictly higher than the previous upload, or the upload will be rejected.","rubric":[{"id":"version-vs-build-definition","criterion":"Differentiates public marketing version (CFBundleShortVersionString) from internal build number (CFBundleVersion).","weight":50,"key":true},{"id":"build-increment-rule","criterion":"Explains that each new upload requires an increased build number to pass validation.","weight":50,"key":true}]},{"id":"signing-app-store-q27","type":"written","difficulty":2,"prompt":"What is Phased Release on the App Store, how does the 7-day schedule work, and why is it useful?","modelAnswer":"Phased Release is an App Store release option that rolls out an update to automatic-update users over seven days. The rollout starts at 1% on Day 1. It increases to 2%, 5%, 10%, 20%, 50%, and reaches 100% on Day 7. It is useful because it allows teams to detect unforeseen production crashes early and pause the rollout before all users are affected.","rubric":[{"id":"phased-schedule-description","criterion":"Describes the 7-day progressive rollout percentages starting at 1% and reaching 100% by Day 7.","weight":50,"key":true},{"id":"risk-mitigation-benefit","criterion":"Explains that phased rollout limits blast radius by allowing teams to catch and pause bugs early.","weight":50,"key":true}]},{"id":"signing-app-store-q28","type":"written","difficulty":3,"prompt":"Compare Internal Testing and External Testing in TestFlight, focusing on tester capacity and review requirements.","modelAnswer":"Internal Testing supports up to 100 App Store Connect team members. Builds are available immediately after server processing with no Apple review required. External Testing supports up to 10,000 public testers invited by email or public links. External testing requires Beta App Review approval from Apple for the first build of each new marketing version before testers can access it.","rubric":[{"id":"internal-testing-specs","criterion":"States internal testing has a 100-member limit and requires no Apple review.","weight":50,"key":true},{"id":"external-testing-specs","criterion":"States external testing supports up to 10,000 testers and requires Beta App Review for version builds.","weight":50,"key":true}]},{"id":"signing-app-store-q29","type":"code-write","difficulty":1,"prompt":"Create a struct named `VersionComparator` with a static method `static func isBuildEligible(current: Int, previous: Int) -> Bool`. Return `true` if `current` is strictly greater than `previous`, and `false` otherwise.","starterCode":"// Implement VersionComparator struct\n","modelAnswer":"struct VersionComparator {\n    static func isBuildEligible(current: Int, previous: Int) -> Bool {\n        return current > previous\n    }\n}\n\nlet res1 = VersionComparator.isBuildEligible(current: 45, previous: 44)\nlet res2 = VersionComparator.isBuildEligible(current: 45, previous: 45)\nprint(\"Eligibility: \\(res1 && !res2)\")","rubric":[{"id":"comparator-signature","criterion":"Declares struct VersionComparator with static func isBuildEligible(current: Int, previous: Int) -> Bool.","weight":50,"key":true},{"id":"greater-than-logic","criterion":"Checks current > previous and returns the boolean result.","weight":50,"key":true}]},{"id":"signing-app-store-q30","type":"code-write","difficulty":2,"prompt":"Create a struct named `ProfileClassifier` with a method `func requiresUDIDRegistration(profileType: String) -> Bool`. Return `true` if `profileType` is `\"development\"` or `\"adHoc\"`. Return `false` otherwise.","starterCode":"// Implement ProfileClassifier struct\n","modelAnswer":"struct ProfileClassifier {\n    func requiresUDIDRegistration(profileType: String) -> Bool {\n        return profileType == \"development\" || profileType == \"adHoc\"\n    }\n}\n\nlet classifier = ProfileClassifier()\nlet devCheck = classifier.requiresUDIDRegistration(profileType: \"development\")\nlet storeCheck = classifier.requiresUDIDRegistration(profileType: \"appStore\")\nprint(\"Classifier check: \\(devCheck && !storeCheck)\")","rubric":[{"id":"profile-classifier-signature","criterion":"Declares struct ProfileClassifier with func requiresUDIDRegistration(profileType: String) -> Bool.","weight":40,"key":true},{"id":"udid-evaluation-logic","criterion":"Evaluates whether profileType matches development or adHoc and returns boolean.","weight":60,"key":true}]},{"id":"signing-app-store-q31","type":"code-write","difficulty":2,"prompt":"Create a class named `PhasedReleaseScheduler` with a method `func percentageForDay(day: Int) -> Int`. Return 0 if `day \u003c 1`. Return matching percentages for days 1 to 6 (1, 2, 5, 10, 20, 50). Return 100 for day 7 or higher.","starterCode":"// Implement PhasedReleaseScheduler class\n","modelAnswer":"class PhasedReleaseScheduler {\n    func percentageForDay(day: Int) -> Int {\n        if day \u003c 1 { return 0 }\n        switch day {\n        case 1: return 1\n        case 2: return 2\n        case 3: return 5\n        case 4: return 10\n        case 5: return 20\n        case 6: return 50\n        default: return 100\n        }\n    }\n}\n\nlet scheduler = PhasedReleaseScheduler()\nprint(\"Rollout day 1: \\(scheduler.percentageForDay(day: 1))%, day 4: \\(scheduler.percentageForDay(day: 4))%, day 7: \\(scheduler.percentageForDay(day: 7))%\")","rubric":[{"id":"scheduler-declaration-and-bounds","criterion":"Declares class PhasedReleaseScheduler with method percentageForDay(day: Int) handling day \u003c 1.","weight":40,"key":true},{"id":"percentage-mapping-schedule","criterion":"Maps days 1 through 7 to accurate percentages (1, 2, 5, 10, 20, 50, 100).","weight":60,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

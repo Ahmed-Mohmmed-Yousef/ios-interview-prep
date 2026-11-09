@@ -1,0 +1,237 @@
+export const meta = {
+  id: "signing-app-store",
+  summary: "Understand iOS code signing, certificates, provisioning profiles, and the path to the App Store.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Distributing your app for beta testing and releases (Xcode)", url: "https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases", kind: "official" },
+    { title: "App Review Guidelines - Apple Developer", url: "https://developer.apple.com/app-store/review/guidelines/", kind: "official" },
+    { title: "Code Signing (Apple Developer Support)", url: "https://developer.apple.com/support/code-signing/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Does an App Store distribution provisioning profile contain a list of test device UDID identifiers?</Question>
+  <Guess>
+    <Option id="a">Yes, every iPhone that downloads the app must be registered in the profile.</Option>
+    <Option id="b" correct>No, App Store profiles omit device identifiers because Apple signs releases for all consumer devices.</Option>
+    <Option id="c">Yes, but only for devices running beta software.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine sending an important legal contract through the mail.
+
+First, you sign the contract with your verified wax seal. The seal proves you wrote the document.
+
+Second, you place the contract inside a tamper-proof envelope.
+
+If anyone opens or alters the envelope along the way, the wax seal breaks.
+
+The receiver knows the contract was changed and rejects it immediately.
+
+Code signing works the same way. It proves who built the app and guarantees nobody altered the code.
+</Analogy>
+
+iOS requires every app running on a physical device to be signed.
+
+Three key pieces make up the code signing process:
+
+1. **Certificates**:
+   - Digital documents issued by Apple that prove your identity.
+   - A **Development Certificate** lets engineers install and debug builds on team test devices.
+   - A **Distribution Certificate** signs release builds for TestFlight and the App Store.
+   - The private key stays secret on your Mac. The public certificate is shared with Apple.
+2. **App ID (Bundle Identifier)**:
+   - A unique identifier for your app, like `com.example.phototracker`.
+   - It defines which capabilities your app can use, like Push Notifications or iCloud.
+3. **Provisioning Profile (`.mobileprovision`)**:
+   - The file that binds everything together.
+   - It links your App ID, your certificate, and your entitlements.
+   - Development profiles also contain a list of allowed test device UDIDs.
+   - App Store distribution profiles do not list devices because Apple signs the final release for everyone.
+
+Once signed, you archive your app in Xcode and upload the build to App Store Connect.
+
+You can invite teammates to test internal builds through TestFlight immediately.
+
+After automated and human App Review, your app is approved and ready for release.
+
+## See it
+
+<Diagram id="signing-app-store-diagram" caption="App Signing Triangle and Distribution Pipeline">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Code Signing Triangle: Certificate + App ID + Provisioning Profile.
+    2. Xcode Archive step creating .xcarchive.
+    3. TestFlight distribution (Internal immediate, External beta review).
+    4. App Store Review and Phased Release.
+  - Steps:
+    Step 1: The Code Signing Triangle connects Certificate, App ID, and Profile.
+    Step 2: Xcode builds a release archive (.xcarchive) and validates bundle rules.
+    Step 3: Upload to App Store Connect and distribute via TestFlight.
+    Step 4: Pass App Review and roll out update via 7-day Phased Release.
+  - Static version (reduced motion):
+    A 4-step diagram showing Signing Triangle, Archive, TestFlight, and App Store Release.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens if you lose the private key for your distribution certificate from your Mac?</Question>
+  <Option id="a">You can download the private key from the Apple Developer website.</Option>
+  <Option id="b" correct>You cannot sign new builds with that certificate and must generate a new one.</Option>
+  <Option id="c">Xcode automatically recovers the private key from iCloud Keychain.</Option>
+  <Explanation>Apple stores only your public certificate. If you lose your private key without a backup, you must revoke the certificate and create a new one.</Explanation>
+</QuickCheck>
+
+## In code
+
+Every app submission requires distinct version and build numbers.
+
+In your project configuration, `CFBundleShortVersionString` is the marketing version.
+
+`CFBundleVersion` is the internal build number. Each upload requires an increased build number.
+
+<CodeExample title="Managing version and build numbers">
+
+```swift
+struct AppVersionInfo {
+    let marketingVersion: String
+    let buildNumber: Int
+
+    func isNewerBuild(than previousBuild: Int) -> Bool {
+        buildNumber > previousBuild
+    }
+}
+
+let currentRelease = AppVersionInfo(marketingVersion: "2.1.0", buildNumber: 42)
+let isReadyForUpload = currentRelease.isNewerBuild(than: 41)
+
+print("Marketing version: \(currentRelease.marketingVersion)")
+print("Upload allowed: \(isReadyForUpload)")
+```
+
+```output
+Marketing version: 2.1.0
+Upload allowed: true
+```
+
+</CodeExample>
+
+Different distribution methods require different provisioning profile rules.
+
+Development profiles require device UDIDs, while App Store profiles omit them.
+
+<CodeExample title="Inspecting provisioning profile requirements">
+
+```swift
+enum ProvisioningKind {
+    case development
+    case appStore
+}
+
+func requiresDeviceList(for kind: ProvisioningKind) -> Bool {
+    switch kind {
+    case .development:
+        return true
+    case .appStore:
+        return false
+    }
+}
+
+let profileType = ProvisioningKind.appStore
+print("Type: \(profileType)")
+print("Needs device UDIDs: \(requiresDeviceList(for: profileType))")
+```
+
+```output
+Type: appStore
+Needs device UDIDs: false
+```
+
+</CodeExample>
+
+<QuickCheck>
+  <Question>Do internal TestFlight testers require Apple review approval before testing a new build?</Question>
+  <Option id="a">Yes, every build requires full review by Apple employees.</Option>
+  <Option id="b" correct>No, internal testers receive builds immediately after automated server processing.</Option>
+  <Option id="c">Yes, but only if the build changes camera permissions.</Option>
+  <Explanation>Internal testers in your App Store Connect team get builds as soon as Apple finishes processing the binary.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming App Store profiles list devices">
+Many developers assume all provisioning profiles list allowed test devices.
+
+Development and Ad-Hoc profiles include device UDIDs.
+
+App Store profiles never contain device UDIDs.
+
+Apple re-encrypts and signs production binaries so all customers can install them.
+</Trap>
+
+<Trap title="Confusing marketing version with build number">
+Uploading a new binary requires incrementing the build number (`CFBundleVersion`).
+
+If you upload two builds with the same build number, App Store Connect rejects the second upload.
+
+The marketing version (`CFBundleShortVersionString`) can remain the same while fixing beta bugs.
+</Trap>
+
+<Trap title="Forgetting to backup distribution private keys">
+When moving to a new Mac, developers often copy only the project code.
+
+If you do not export your private key as a `.p12` file, you cannot sign releases.
+
+Always back up certificates and private keys securely or use automatic team signing.
+</Trap>
+
+<Trap title="Releasing to 100% of users immediately">
+Releasing a major update to all users on day one is risky.
+
+If an unexpected crash occurs, all active users experience the bug.
+
+Use Phased Release to roll out updates gradually over seven days.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"Code signing verifies who built the app and guarantees the code has not been changed. It uses certificates, an App ID, and a provisioning profile. We archive the app in Xcode, upload it to App Store Connect, test it with TestFlight, and submit it for App Review before release."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"App signing links three elements: a certificate proving developer identity, an App ID defining capabilities, and a provisioning profile tying them together. Development profiles list device UDIDs for testing, while App Store profiles omit them. In Xcode, we archive a Release build and validate bundle rules. Then we upload to App Store Connect and use Phased Release to roll out updates safely."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Code signing establishes a cryptographic chain of trust enforced at the operating system kernel. For teams, we automate signing in CI using tools like Fastlane Match with encrypted certificate repositories. We archive dSYMs for crash symbolication and make sure privacy manifests pass validation. For production releases, we combine TestFlight beta groups with Phased Release to monitor crash rates before full adoption."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Code signing verifies author identity and guarantees binary integrity.
+- The three signing pillars are Certificates, App IDs, and Provisioning Profiles.
+- Development certificates are for debugging on personal test hardware.
+- Distribution certificates sign builds for TestFlight and the App Store.
+- Development profiles include device UDIDs; App Store profiles do not.
+- Each upload to App Store Connect requires an increased build number (`CFBundleVersion`).
+- Internal TestFlight builds are available immediately without Apple review.
+- Phased Release rolls out updates gradually over seven days.
+</Recap>
+
+## Go deeper
+
+- [Distributing your app for beta testing and releases (Xcode)](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases) — Official Apple guide for app distribution.
+- [App Review Guidelines - Apple Developer](https://developer.apple.com/app-store/review/guidelines/) — Official rules and requirements for App Store approval.
+- [Code Signing (Apple Developer Support)](https://developer.apple.com/support/code-signing/) — Official explanation of certificates, identifiers, and profiles.
