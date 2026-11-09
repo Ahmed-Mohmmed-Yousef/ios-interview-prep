@@ -104,7 +104,58 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **swiftui-navigation** (Navigation) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-navigation/review.html](docs/topics/swiftui-navigation/review.html)
   - ✅ **Batch 1E: App and System (1 topic: `xcode-and-git-basics`)** — Complete
     - ✅ **xcode-and-git-basics** (Xcode, Projects and Git) — published (lesson, diagram, 31 questions) → [docs/topics/xcode-and-git-basics/review.html](docs/topics/xcode-and-git-basics/review.html)
-- ⬜ **4.2 Junior level topics (Wave 2)** — 44 main + 1 bonus
+- 🔄 **4.2 Junior level topics (Wave 2)** — 45 topics (44 main + 1 bonus), starting Batch 2A
+  - 🔄 **Batch 2A: Swift Language Advanced (9 topics)**
+    - 🔄 **optional-chaining** (Optional Chaining) — starting research
+    - ⬜ **inheritance** (Inheritance)
+    - ⬜ **type-casting** (Type Casting and Any)
+    - ⬜ **protocols** (Protocols)
+    - ⬜ **extensions** (Extensions)
+    - ⬜ **generics-basics** (Generics: The Basics)
+    - ⬜ **access-control** (Access Control)
+    - ⬜ **closures-escaping-capture** (Closures: Escaping and Capture Lists)
+    - ⬜ **codable** (Codable and JSON)
+  - ⬜ **Batch 2B: Coding Interview Algorithms (6 topics)**
+    - ⬜ **sorting-binary-search** (Sorting and Binary Search)
+    - ⬜ **two-pointers-sliding-window** (Two Pointers and Sliding Window)
+    - ⬜ **stacks-and-queues** (Stacks and Queues)
+    - ⬜ **linked-lists** (Linked Lists)
+    - ⬜ **recursion** (Recursion)
+    - ⬜ **matrix-problems** (Matrix Problems)
+  - ⬜ **Batch 2C: Memory & Concurrency (6 topics)**
+    - ⬜ **arc-basics** (How ARC Works)
+    - ⬜ **strong-weak-unowned** (Strong, Weak and Unowned)
+    - ⬜ **retain-cycles** (Retain Cycles)
+    - ⬜ **main-thread** (The Main Thread)
+    - ⬜ **gcd-basics** (GCD Basics)
+    - ⬜ **async-await** (async/await)
+  - ⬜ **Batch 2D: SwiftUI & UIKit (9 topics)**
+    - ⬜ **swiftui-observation** (Data Flow with @Observable)
+    - ⬜ **observable-object** (ObservableObject and @StateObject)
+    - ⬜ **forms-and-input** (Forms and User Input)
+    - ⬜ **sheets-alerts-dialogs** (Sheets, Alerts and Dialogs)
+    - ⬜ **uiviews-and-view-controllers** (Views and View Controllers)
+    - ⬜ **view-controller-lifecycle** (View Controller Lifecycle)
+    - ⬜ **auto-layout** (Auto Layout)
+    - ⬜ **uikit-navigation** (Navigation in UIKit)
+    - ⬜ **table-collection-views** (Table and Collection Views)
+  - ⬜ **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)**
+    - ⬜ **dark-mode-dynamic-type** (Dark Mode and Dynamic Type)
+    - ⬜ **hig-liquid-glass** (Apple Design and Liquid Glass) [bonus]
+    - ⬜ **app-lifecycle** (App and Scene Lifecycle)
+    - ⬜ **permissions-privacy** (Permissions and Privacy)
+    - ⬜ **signing-app-store** (App Signing and the App Store)
+    - ⬜ **http-rest-basics** (HTTP and REST Basics)
+    - ⬜ **urlsession** (URLSession)
+    - ⬜ **userdefaults-and-files** (UserDefaults and Files)
+    - ⬜ **keychain-basics** (Keychain Basics)
+  - ⬜ **Batch 2F: Architecture & Testing (6 topics)**
+    - ⬜ **communication-patterns** (Delegates, Closures and Notifications)
+    - ⬜ **mvc** (MVC and Its Problems)
+    - ⬜ **solid-basics** (SOLID Basics)
+    - ⬜ **debugging-lldb** (Debugging with Breakpoints and LLDB)
+    - ⬜ **logging-oslog** (Logging with OSLog)
+    - ⬜ **unit-testing** (Unit Tests)
 - ⬜ **4.3 Mid level topics (Wave 3)** — 44 main + 9 bonus
 - ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
 - ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
@@ -225,6 +276,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Step 4.2 started: Junior level topics (Wave 2, 45 topics across 6 batches). Launching dedicated autonomous subagent for Batch 2A (`optional-chaining` through `codable`).
 
 - **2026-11-09** — Step 5.8 done, Phase 5 complete: Verified Web App MVP with 26 passing Vitest unit tests, 14 passing Playwright E2E tests (mobile 375px & desktop), 0 axe-core WCAG 2.1 A/AA violations, Next.js 16 SSG build producing 52 static routes with Turbopack, and authored docs/phase-5-summary.md. Phase 5 Web App MVP is 100% complete and approved!
 
