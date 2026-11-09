@@ -1,0 +1,214 @@
+export const meta = {
+  id: "optional-chaining",
+  summary: "Query and call properties, methods, and subscripts on optional values safely without runtime crashes.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Optional Chaining", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/optionalchaining", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What happens when you call a method returning Void through optional chaining on a nil instance?</Question>
+  <Guess>
+    <Option id="a">The application crashes with a fatal runtime error.</Option>
+    <Option id="b" correct>The expression evaluates safely to Void? with a value of nil.</Option>
+    <Option id="c">The call returns a non-optional empty tuple immediately.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of opening a series of locked boxes. Each box holds a key to the next box. If any box in the sequence is missing, you stop immediately and walk away empty-handed. You do not break the lock or force a door. Optional chaining works the same way by stopping at the first missing link and returning nil safely.
+</Analogy>
+
+In Swift, **optional chaining** is a process for querying and calling properties, methods, and subscripts on an optional that might be `nil`.
+
+You place a question mark (`?`) after the optional value you want to query. If the optional contains a value, the call succeeds. If the optional is `nil`, the entire chain stops and returns `nil`.
+
+Key rules of optional chaining:
+- **Safety over crashes**: Unlike forced unwrapping (`!`), optional chaining never causes a runtime crash when a value is missing.
+- **The result is always an optional**: Even if the property you access is a regular non-optional `String`, the expression evaluates to `String?`.
+- **No extra wrapping layers**: If the property is already an optional `Int?`, querying it through optional chaining still produces `Int?`, never `Int??`.
+- **Short-circuit evaluation**: If any link in the chain is `nil`, Swift does not evaluate the rest of the chain.
+
+## See it
+
+<Diagram id="optional-chaining-main" caption="How optional chaining traverses nested values and handles nil">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Root Person box containing an optional Residence.
+    2. Residence box containing an optional Address.
+    3. Address box containing a street String.
+    4. Chain flow indicator showing success vs early short-circuit nil stop.
+  - Steps:
+    Step 1: Start at person instance. Check if person is present.
+    Step 2: Inspect person.residence?. If nil, exit immediately and return nil.
+    Step 3: If residence exists, inspect address?. If nil, exit immediately.
+    Step 4: If address exists, access street and wrap it in an Optional.
+  - Static version (reduced motion):
+    Flow diagram with two paths: Success path yielding street name vs broken link path yielding nil.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What is the return type of person?.age when age is a non-optional Int?</Question>
+  <Option id="a">Int</Option>
+  <Option id="b" correct>Int?</Option>
+  <Option id="c">Optional&lt;Optional&lt;Int&gt;&gt;</Option>
+  <Explanation>Optional chaining always wraps the final value in an optional. Since the base instance can be nil, the result might also be nil.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Querying nested properties with optional chaining">
+
+```swift
+struct Address {
+    var street: String
+    var city: String
+}
+
+class Residence {
+    var address: Address?
+}
+
+class Person {
+    var residence: Residence?
+}
+
+let person = Person()
+
+// 1. Chain stops at residence because it is nil
+let street = person.residence?.address?.street
+print("Street without residence: \(street ?? "none")")
+
+// 2. Populate the residence and address
+let residence = Residence()
+residence.address = Address(street: "1 Infinite Loop", city: "Cupertino")
+person.residence = residence
+
+// 3. Chain traverses all links successfully
+let updatedStreet = person.residence?.address?.street
+print("Street with residence: \(updatedStreet ?? "none")")
+```
+
+```output
+Street without residence: none
+Street with residence: 1 Infinite Loop
+```
+
+</CodeExample>
+
+This code shows the core behavior of optional chaining:
+- **Early exit**: When `person.residence` is `nil`, Swift does not look for `address` or `street`. It returns `nil` at once.
+- **Nil coalescing**: You can combine optional chaining with `??` to supply a sensible default value.
+- **Deep chains**: You can connect multiple optional links together smoothly using question marks.
+
+<CodeExample title="Calling methods, subscripts, and assignment short-circuiting">
+
+```swift
+class Order {
+    var items: [String: Int]? = ["apple": 3]
+    var isSubmitted = false
+    
+    func submit() {
+        isSubmitted = true
+        print("Order submitted.")
+    }
+}
+
+var order: Order? = Order()
+
+// 1. Calling a Void method through optional chaining returns Void?
+let result: Void? = order?.submit()
+print("Method executed: \(result != nil)")
+
+// 2. Accessing dictionary subscripts safely
+let appleCount = order?.items?["apple"]
+print("Apple count: \(appleCount ?? 0)")
+
+// 3. Assignment short-circuiting when instance is nil
+order = nil
+func calculateItems() -> [String: Int] {
+    print("Function called")
+    return ["orange": 2]
+}
+
+// Swift sees order is nil and never calls calculateItems()
+order?.items = calculateItems()
+print("Order is nil: \(order == nil)")
+```
+
+```output
+Order submitted.
+Method executed: true
+Apple count: 3
+Order is nil: true
+```
+
+</CodeExample>
+
+This example shows advanced optional chaining capabilities:
+- **Checking method calls**: A method returning `Void` evaluates to `Void?`. You can check if the method executed by testing `result != nil`.
+- **Subscript placement**: Put the question mark before the brackets (`items?["apple"]`) to inspect the optional dictionary.
+- **Assignment protection**: When the left side of an assignment is `nil`, Swift skips the entire expression on the right side.
+
+<QuickCheck>
+  <Question>Where do you place the question mark to access an element of an optional array named numbers?</Question>
+  <Option id="a">numbers[0]?</Option>
+  <Option id="b" correct>numbers?[0]</Option>
+  <Option id="c">numbers.?[0]</Option>
+  <Explanation>The question mark goes directly before the square brackets to test whether the array itself is present.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try optional chaining in Swift Playgrounds on iPad or Mac to inspect nested models.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming multiple question marks create double optionals">
+Some candidates think querying an optional property on an optional object returns `Type??`. Optional chaining does not wrap results in multiple optional layers. The final result always has a single layer of optionality.
+</Trap>
+
+<Trap title="Expecting right-hand side expressions to run during failed assignments">
+When assigning a value through optional chaining, Swift short-circuits if the target is `nil`. If you call a network request or heavy calculation on the right-hand side, that code will never execute.
+</Trap>
+
+<Trap title="Using forced unwrapping (!) instead of optional chaining (?)">
+Forced unwrapping crashes your app when an object is `nil`. Optional chaining fails gracefully and gives your app a chance to handle the missing state cleanly.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Optional chaining is a safe way to query properties, call methods, and access subscripts on optionals using a question mark. If the optional holds a value, the call succeeds. If the optional is nil, the call returns nil instead of crashing.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Optional chaining queries nested properties, methods, and subscripts on optional types without forced unwrapping. If any link in the chain is nil, the entire chain short-circuits and evaluates to nil. The return value is always an optional type, and multiple levels collapse into a single optional rather than nested optionals.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+At the compiler level, optional chaining turns into conditional branches that short-circuit upon encountering nil. This includes assignments, where expressions on the right-hand side are not evaluated when the chain target fails. Void-returning methods return Void?, which callers can check against nil to verify execution.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Optional chaining uses `?.` to call properties, methods, and subscripts safely.
+- If any link in the chain is `nil`, the entire chain stops and returns `nil`.
+- The final result of an optional chain is always wrapped in an `Optional`.
+- Accessing optional properties does not produce double optionals.
+- Subscripts use `?[index]` before the brackets to test the collection.
+- Expressions on the right side of a failed optional assignment never run.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Optional Chaining](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/optionalchaining)
+- [Swift Standard Library: Optional](https://developer.apple.com/documentation/swift/optional)

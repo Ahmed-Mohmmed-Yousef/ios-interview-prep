@@ -1,0 +1,603 @@
+<title>Optional Chaining Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --accent-color: #0284c7; --accent-soft: #e0f2fe;
+  --success-color: #0c765c; --success-soft: #dcf2ea;
+  --nil-color: #dc2626; --nil-soft: #fee2e2;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --accent-color: #38bdf8; --accent-soft: #082f49;
+  --success-color: #45cfa3; --success-soft: #13362c;
+  --nil-color: #f87171; --nil-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--accent-soft); color: var(--accent-color); }
+.p-right .kind { background: var(--success-soft); color: var(--success-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.card-shape.active { stroke: var(--accent-color); stroke-width: 2.5; fill: var(--accent-soft); }
+.card-shape.success { stroke: var(--success-color); stroke-width: 2.5; fill: var(--success-soft); }
+.card-shape.failed { stroke: var(--nil-color); stroke-width: 2.5; fill: var(--nil-soft); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--accent-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Swift Language · Topic 1 of 9 · Prototype</p>
+    <h1>Optional Chaining</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can call properties and methods on optionals safely.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">What happens when you call a method returning Void through optional chaining on a nil instance?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The application crashes with a fatal runtime error.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The expression evaluates safely to Void? with a value of nil.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The call returns a non-optional empty tuple immediately.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of opening a series of locked boxes. Each box holds a key to the next box. If any box in the sequence is missing, you stop immediately and walk away empty-handed. You do not break the lock or force a door. Optional chaining works the same way by stopping at the first missing link and returning nil safely.</p></aside>
+<p>In Swift, <strong>optional chaining</strong> is a process for querying and calling properties, methods, and subscripts on an optional that might be <code>nil</code>.</p>
+<p>You place a question mark (<code>?</code>) after the optional value you want to query. If the optional contains a value, the call succeeds. If the optional is <code>nil</code>, the entire chain stops and returns <code>nil</code>.</p>
+<p>Key rules of optional chaining:</p>
+<ul>
+<li><strong>Safety over crashes</strong>: Unlike forced unwrapping (<code>!</code>), optional chaining never causes a runtime crash when a value is missing.</li>
+<li><strong>The result is always an optional</strong>: Even if the property you access is a regular non-optional <code>String</code>, the expression evaluates to <code>String?</code>.</li>
+<li><strong>No extra wrapping layers</strong>: If the property is already an optional <code>Int?</code>, querying it through optional chaining still produces <code>Int?</code>, never <code>Int??</code>.</li>
+<li><strong>Short-circuit evaluation</strong>: If any link in the chain is <code>nil</code>, Swift does not evaluate the rest of the chain.</li>
+</ul>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What is the return type of person?.age when age is a non-optional Int?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Int</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Int?</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Optional&lt;Optional&lt;Int&gt;&gt;</span></button><p class="qc-explain" hidden="">Optional chaining always wraps the final value in an optional. Since the base instance can be nil, the result might also be nil.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Querying nested properties with optional chaining</figcaption><pre class="block swift"><code class="language-swift">struct Address {
+    var street: String
+    var city: String
+}
+
+class Residence {
+    var address: Address?
+}
+
+class Person {
+    var residence: Residence?
+}
+
+let person = Person()
+
+// 1. Chain stops at residence because it is nil
+let street = person.residence?.address?.street
+print(&quot;Street without residence: \(street ?? &quot;none&quot;)&quot;)
+
+// 2. Populate the residence and address
+let residence = Residence()
+residence.address = Address(street: &quot;1 Infinite Loop&quot;, city: &quot;Cupertino&quot;)
+person.residence = residence
+
+// 3. Chain traverses all links successfully
+let updatedStreet = person.residence?.address?.street
+print(&quot;Street with residence: \(updatedStreet ?? &quot;none&quot;)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Street without residence: none
+Street with residence: 1 Infinite Loop
+</code></pre></figure>
+<p>This code shows the core behavior of optional chaining:</p>
+<ul>
+<li><strong>Early exit</strong>: When <code>person.residence</code> is <code>nil</code>, Swift does not look for <code>address</code> or <code>street</code>. It returns <code>nil</code> at once.</li>
+<li><strong>Nil coalescing</strong>: You can combine optional chaining with <code>??</code> to supply a sensible default value.</li>
+<li><strong>Deep chains</strong>: You can connect multiple optional links together smoothly using question marks.</li>
+</ul>
+<figure class="code-example"><figcaption>Calling methods, subscripts, and assignment short-circuiting</figcaption><pre class="block swift"><code class="language-swift">class Order {
+    var items: [String: Int]? = [&quot;apple&quot;: 3]
+    var isSubmitted = false
+    
+    func submit() {
+        isSubmitted = true
+        print(&quot;Order submitted.&quot;)
+    }
+}
+
+var order: Order? = Order()
+
+// 1. Calling a Void method through optional chaining returns Void?
+let result: Void? = order?.submit()
+print(&quot;Method executed: \(result != nil)&quot;)
+
+// 2. Accessing dictionary subscripts safely
+let appleCount = order?.items?[&quot;apple&quot;]
+print(&quot;Apple count: \(appleCount ?? 0)&quot;)
+
+// 3. Assignment short-circuiting when instance is nil
+order = nil
+func calculateItems() -&gt; [String: Int] {
+    print(&quot;Function called&quot;)
+    return [&quot;orange&quot;: 2]
+}
+
+// Swift sees order is nil and never calls calculateItems()
+order?.items = calculateItems()
+print(&quot;Order is nil: \(order == nil)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Order submitted.
+Method executed: true
+Apple count: 3
+Order is nil: true
+</code></pre></figure>
+<p>This example shows advanced optional chaining capabilities:</p>
+<ul>
+<li><strong>Checking method calls</strong>: A method returning <code>Void</code> evaluates to <code>Void?</code>. You can check if the method executed by testing <code>result != nil</code>.</li>
+<li><strong>Subscript placement</strong>: Put the question mark before the brackets (<code>items?[&quot;apple&quot;]</code>) to inspect the optional dictionary.</li>
+<li><strong>Assignment protection</strong>: When the left side of an assignment is <code>nil</code>, Swift skips the entire expression on the right side.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Where do you place the question mark to access an element of an optional array named numbers?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">numbers[0]?</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">numbers?[0]</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">numbers.?[0]</span></button><p class="qc-explain" hidden="">The question mark goes directly before the square brackets to test whether the array itself is present.</p></div>
+<p class="try-it"><p>Try optional chaining in Swift Playgrounds on iPad or Mac to inspect nested models.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming multiple question marks create double optionals</p><p>Some candidates think querying an optional property on an optional object returns <code>Type??</code>. Optional chaining does not wrap results in multiple optional layers. The final result always has a single layer of optionality.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Expecting right-hand side expressions to run during failed assignments</p><p>When assigning a value through optional chaining, Swift short-circuits if the target is <code>nil</code>. If you call a network request or heavy calculation on the right-hand side, that code will never execute.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using forced unwrapping (!) instead of optional chaining (?)</p><p>Forced unwrapping crashes your app when an object is <code>nil</code>. Optional chaining fails gracefully and gives your app a chance to handle the missing state cleanly.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>Optional chaining is a safe way to query properties, call methods, and access subscripts on optionals using a question mark. If the optional holds a value, the call succeeds. If the optional is nil, the call returns nil instead of crashing.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Optional chaining queries nested properties, methods, and subscripts on optional types without forced unwrapping. If any link in the chain is nil, the entire chain short-circuits and evaluates to nil. The return value is always an optional type, and multiple levels collapse into a single optional rather than nested optionals.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>At the compiler level, optional chaining turns into conditional branches that short-circuit upon encountering nil. This includes assignments, where expressions on the right-hand side are not evaluated when the chain target fails. Void-returning methods return Void?, which callers can check against nil to verify execution.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Optional chaining uses <code>?.</code> to call properties, methods, and subscripts safely.</li>
+<li>If any link in the chain is <code>nil</code>, the entire chain stops and returns <code>nil</code>.</li>
+<li>The final result of an optional chain is always wrapped in an <code>Optional</code>.</li>
+<li>Accessing optional properties does not produce double optionals.</li>
+<li>Subscripts use <code>?[index]</code> before the brackets to test the collection.</li>
+<li>Expressions on the right side of a failed optional assignment never run.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/optionalchaining">The Swift Programming Language: Optional Chaining</a></li>
+<li><a href="https://developer.apple.com/documentation/swift/optional">Swift Standard Library: Optional</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    leftTitle: "1. Root Instance",
+    leftTag: "Target",
+    leftCode: "let person = Person()\n// Ready to inspect residence?",
+    leftDesc: "We start by checking the base instance. The person instance exists in memory.",
+    rightTitle: "Chain Initialized",
+    rightTag: "Starting",
+    rightCode: "let street: String? // Type is optional\n// Ready to query first link",
+    rightDesc: "Optional chaining guarantees the outcome will be an Optional type.",
+    statusHeadline: "Chain Initialized",
+    statusSub: "Base instance exists",
+    statusState: "active",
+    nodes: { person: "active", residence: "", address: "" }
+  },
+  {
+    leftTitle: "2. Inspect residence?",
+    leftTag: "Short-Circuit Check",
+    leftCode: "if person.residence == nil {\n    // Stops here and returns nil!\n}",
+    leftDesc: "If residence is nil, the entire expression evaluates to nil at once. No crashes happen.",
+    rightTitle: "Nil Short-Circuit Branch",
+    rightTag: "Nil Result",
+    rightCode: "let street = person.residence?.address?.street\n// street == nil immediately",
+    rightDesc: "Short-circuiting prevents any further calls in the chain from executing.",
+    statusHeadline: "Link is nil → Short Circuit",
+    statusSub: "Returns nil safely",
+    statusState: "failed",
+    nodes: { person: "active", residence: "failed", address: "" }
+  },
+  {
+    leftTitle: "3. Inspect address?",
+    leftTag: "Next Link",
+    leftCode: "person.residence = Residence()\n// residence exists! Now inspect address?",
+    leftDesc: "When residence exists, optional chaining advances to test the address property.",
+    rightTitle: "Advancing Chain",
+    rightTag: "Link Passed",
+    rightCode: "residence.address = Address(street: \"1 Loop\")\n// address is found!",
+    rightDesc: "Each link is checked in sequence. As long as values exist, the chain continues.",
+    statusHeadline: "Links Are Valid",
+    statusSub: "Traversing to final property",
+    statusState: "active",
+    nodes: { person: "active", residence: "active", address: "active" }
+  },
+  {
+    leftTitle: "4. Final Property Value",
+    leftTag: "Success",
+    leftCode: "let street = person.residence?.address?.street\nprint(street) // Optional(\"1 Loop\")",
+    leftDesc: "All links were non-nil. Swift retrieves street and wraps it in a single Optional layer.",
+    rightTitle: "Success: Optional(Value)",
+    rightTag: "Result Ready",
+    rightCode: "// Return type is String? (not String??)\nlet unwrapped = street ?? \"Unknown\"",
+    rightDesc: "The final value is ready to use or unwrap with nil-coalescing or if let.",
+    statusHeadline: "Success: Optional(\"1 Loop\")",
+    statusSub: "Safe, single-layer optional returned",
+    statusState: "success",
+    nodes: { person: "success", residence: "success", address: "success" }
+  }
+];
+
+let currentStep = 0;
+
+function updateUI() {
+  const s = steps[currentStep];
+  document.getElementById("left-title").textContent = s.leftTitle;
+  document.getElementById("left-tag").textContent = s.leftTag;
+  document.getElementById("left-code").textContent = s.leftCode;
+  document.getElementById("left-desc").textContent = s.leftDesc;
+  
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("status-headline").textContent = s.statusHeadline;
+  document.getElementById("status-sub").textContent = s.statusSub;
+
+  const statusCard = document.getElementById("status-card");
+  statusCard.className = "card-shape " + s.statusState;
+
+  const nodeP = document.getElementById("node-person");
+  const nodeR = document.getElementById("node-residence");
+  const nodeA = document.getElementById("node-address");
+  nodeP.className = "card-shape " + (s.nodes.person || "");
+  nodeR.className = "card-shape " + (s.nodes.residence || "");
+  nodeA.className = "card-shape " + (s.nodes.address || "");
+
+  // Update dots and buttons
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.className = "dot" + (idx === currentStep ? " active" : "");
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = currentStep === 0;
+  document.getElementById("btn-next").disabled = currentStep === steps.length - 1;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateUI();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateUI();
+  }
+}
+
+function jumpTo(idx) {
+  currentStep = idx;
+  updateUI();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateUI();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"optional-chaining","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"optional-chaining-q1","type":"mcq","difficulty":1,"prompt":"What symbol is placed after an optional variable to perform optional chaining in Swift?","options":[{"id":"a","text":"A question mark (?)","explanation":"Right. Optional chaining uses a question mark placed directly after the optional value."},{"id":"b","text":"An exclamation mark (!)","explanation":"An exclamation mark force-unwraps the optional value, which risks a crash."},{"id":"c","text":"A colon symbol (:)","explanation":"Colons denote type annotations or dictionary key-value separators."},{"id":"d","text":"An ampersand sign (&)","explanation":"Ampersands are used for in-out parameter passing at call sites."}],"answer":"a"},{"id":"optional-chaining-q2","type":"mcq","difficulty":1,"prompt":"What does optional chaining return if any link in the chain contains nil?","options":[{"id":"a","text":"A fatal runtime exception.","explanation":"Optional chaining avoids runtime crashes when missing values occur."},{"id":"b","text":"A nil value wrapped as an optional.","explanation":"Right. If any link is nil, the entire chain evaluates safely to nil."},{"id":"c","text":"An empty non-optional default instance.","explanation":"Swift does not manufacture default values automatically."},{"id":"d","text":"A compile-time type-check warning.","explanation":"Optional chaining evaluates at runtime rather than emitting warnings."}],"answer":"b"},{"id":"optional-chaining-q3","type":"mcq","difficulty":1,"prompt":"What is the return type of person?.age when the underlying age property is Int?","options":[{"id":"a","text":"Int","explanation":"The result must be optional because the target person could be nil."},{"id":"b","text":"Int??","explanation":"Optional chaining does not double-wrap results into nested optionals."},{"id":"c","text":"Int?","explanation":"Right. Optional chaining always yields an optional type."},{"id":"d","text":"Void","explanation":"Querying a stored property returns its value, not Void."}],"answer":"c"},{"id":"optional-chaining-q4","type":"mcq","difficulty":2,"prompt":"What return type results from calling a Void method on an instance through optional chaining?","options":[{"id":"a","text":"A fatal crash if the instance is nil.","explanation":"Optional chaining never crashes when the receiver is nil."},{"id":"b","text":"A standard non-optional Void value.","explanation":"Because the receiver might be nil, the call must return an optional."},{"id":"c","text":"A Bool indicating success or failure.","explanation":"Swift does not convert method calls into booleans automatically."},{"id":"d","text":"An optional Void? also written as ()?.","explanation":"Right. Void methods called via optional chaining evaluate to Void?."}],"answer":"d"},{"id":"optional-chaining-q5","type":"mcq","difficulty":1,"prompt":"How does optional chaining differ from forced unwrapping with exclamation marks?","options":[{"id":"a","text":"Optional chaining returns nil gracefully without crashing.","explanation":"Right. Optional chaining fails gracefully while forced unwrapping crashes on nil."},{"id":"b","text":"Forced unwrapping safely returns nil when the value is missing.","explanation":"Forced unwrapping crashes immediately when encounter nil."},{"id":"c","text":"Optional chaining only operates on non-optional values.","explanation":"Optional chaining exists specifically to work on optional types."},{"id":"d","text":"Forced unwrapping always produces an optional return type.","explanation":"Forced unwrapping strips optionality to return the raw wrapped type."}],"answer":"a"},{"id":"optional-chaining-q6","type":"mcq","difficulty":2,"prompt":"Where do you place the question mark to access a subscript on an optional array named items?","options":[{"id":"a","text":"items[0]?","explanation":"Placing question marks after brackets checks an optional element returned by the array."},{"id":"b","text":"items?[0]","explanation":"Right. The question mark precedes brackets when checking an optional collection."},{"id":"c","text":"items.?[0]","explanation":"Swift does not use a dot before subscript brackets."},{"id":"d","text":"items.[?0]","explanation":"This syntax is invalid in the Swift language."}],"answer":"b"},{"id":"optional-chaining-q7","type":"mcq","difficulty":2,"prompt":"What happens if you query a property that is already an optional String? using optional chaining?","options":[{"id":"a","text":"The result becomes a double optional String??.","explanation":"Swift collapses multiple optional queries into a single optional layer."},{"id":"b","text":"The compiler issues a mandatory syntax warning.","explanation":"Querying optional properties via optional chaining is standard Swift."},{"id":"c","text":"The result remains a single optional String?.","explanation":"Right. Optional chaining flattens nested optionals into one optional layer."},{"id":"d","text":"The property unwraps automatically into String.","explanation":"Swift will not unwrap values without explicit unwrapping constructs."}],"answer":"c"},{"id":"optional-chaining-q8","type":"mcq","difficulty":2,"prompt":"What happens to the right-hand side of person?.residence = makeResidence() when person is nil?","options":[{"id":"a","text":"The makeResidence function executes but discards its output.","explanation":"Swift short-circuits the assignment completely before evaluating the right side."},{"id":"b","text":"The runtime throws an unhandled assignment exception.","explanation":"Assignments through optional chaining fail silently without exceptions."},{"id":"c","text":"The expression crashes with a nil pointer dereference.","explanation":"Optional chaining avoids nil pointer crashes."},{"id":"d","text":"The makeResidence function is never evaluated or run.","explanation":"Right. Swift short-circuits the entire assignment when the target is nil."}],"answer":"d"},{"id":"optional-chaining-q9","type":"mcq","difficulty":1,"prompt":"Which operator can provide a fallback default when optional chaining evaluates to nil?","options":[{"id":"a","text":"The nil-coalescing operator (??)","explanation":"Right. The nil-coalescing operator provides a default value when the chain evaluates to nil."},{"id":"b","text":"The identity comparison operator (===)","explanation":"The identity operator checks if two references share the same instance."},{"id":"c","text":"The ternary conditional operator (?:)","explanation":"The ternary operator checks a boolean condition rather than nil values directly."},{"id":"d","text":"The pattern matching operator (~=)","explanation":"Pattern matching is used in switch expressions and ranges."}],"answer":"a"},{"id":"optional-chaining-q10","type":"mcq","difficulty":2,"prompt":"How can you check if a Void-returning method was successfully called through optional chaining?","options":[{"id":"a","text":"Wrap the invocation inside an assertion handler.","explanation":"Assertions are for debug assertions, not runtime optional verification."},{"id":"b","text":"Compare the resulting Void? value against nil.","explanation":"Right. If the returned Void? value is not nil, the method ran successfully."},{"id":"c","text":"Check if the receiver instance conforms to Any.","explanation":"Protocol conformance does not determine whether a method executed."},{"id":"d","text":"Inspect the compiler debug log output flags.","explanation":"Compiler logs are build-time artifacts, not runtime checks."}],"answer":"b"},{"id":"optional-chaining-q11","type":"mcq","difficulty":2,"prompt":"What occurs when multiple optional properties are chained: a?.b?.c?.d?","options":[{"id":"a","text":"Every single property in the chain is always read.","explanation":"Swift short-circuits as soon as any link in the chain is nil."},{"id":"b","text":"The chain creates a four-level nested optional.","explanation":"Optional chaining collapses the outcome into a single optional."},{"id":"c","text":"Execution halts at the first nil link encountered.","explanation":"Right. If a or b or c is nil, the entire chain terminates immediately."},{"id":"d","text":"The compiler rejects chains with more than two links.","explanation":"Swift permits optional chains of arbitrary depth."}],"answer":"c"},{"id":"optional-chaining-q12","type":"mcq","difficulty":3,"prompt":"What does dict?[\"key\"]?[\"subKey\"] mean when dict is an optional dictionary of dictionaries?","options":[{"id":"a","text":"It checks both keys in parallel without ordering.","explanation":"Evaluation happens strictly in sequence from left to right."},{"id":"b","text":"It throws an error if either dictionary key is missing.","explanation":"Missing dictionary keys return nil rather than throwing errors."},{"id":"c","text":"It force-unwraps the nested child dictionary value.","explanation":"Question marks chain safely; exclamation marks force-unwrap."},{"id":"d","text":"It checks dict first, then queries the sub-dictionary.","explanation":"Right. dict? tests the outer dictionary, while the inner ? tests the nested dictionary."}],"answer":"d"},{"id":"optional-chaining-q13","type":"mcq","difficulty":1,"prompt":"Can you use optional binding (if let) together with optional chaining?","options":[{"id":"a","text":"Yes, to unwrap the final optional result cleanly.","explanation":"Right. Combining if let with optional chaining unwraps the non-nil final value."},{"id":"b","text":"No, because optional chaining already unwraps values.","explanation":"Optional chaining preserves optionality in its return type."},{"id":"c","text":"No, the Swift compiler disallows this combination.","explanation":"Using if let with optional chaining is idiomatic Swift."},{"id":"d","text":"Only if all nested classes inherit from NSObject.","explanation":"Optional chaining works across all Swift types, structs, and classes."}],"answer":"a"},{"id":"optional-chaining-q14","type":"mcq","difficulty":2,"prompt":"What happens when you write user?.name = \"Taylor\" and user is nil?","options":[{"id":"a","text":"A runtime crash halts application execution.","explanation":"Optional chaining prevents runtime crashes on nil targets."},{"id":"b","text":"The assignment is skipped without any crash.","explanation":"Right. The assignment silently fails without mutating any memory."},{"id":"c","text":"Swift automatically initializes a new user.","explanation":"Swift does not instantiate missing instances during assignment."},{"id":"d","text":"The compiler reports an illegal assignment error.","explanation":"Mutating properties via optional chaining is valid Swift syntax."}],"answer":"b"},{"id":"optional-chaining-q15","type":"mcq","difficulty":3,"prompt":"Why does Swift not produce nested optionals (like String??) when chaining optional properties?","options":[{"id":"a","text":"The type system cannot represent multiple optionals.","explanation":"Swift fully supports nested optionals in collections and bindings."},{"id":"b","text":"Double optionals are deprecated in Swift 6.","explanation":"Nested optionals are not deprecated; chaining simply flattens them."},{"id":"c","text":"The language rule flattens optional chain outcomes.","explanation":"Right. Optional chaining rules specify that the return type collapses to one optional."},{"id":"d","text":"ARC automatically strips excess pointer levels.","explanation":"ARC manages memory lifetimes, not static compile-time types."}],"answer":"c"},{"id":"optional-chaining-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"struct Book {\n    var title: String\n}\nclass Library {\n    var featuredBook: Book?\n}\nlet lib: Library? = Library()\nprint(lib?.featuredBook?.title ?? \"Empty\")","options":[{"id":"a","text":"Book","explanation":"Book is the type name, not the title string."},{"id":"b","text":"nil","explanation":"The nil-coalescing operator converts nil to the string Empty."},{"id":"c","text":"Optional(\"Empty\")","explanation":"Nil-coalescing unwraps the optional, printing a raw string."},{"id":"d","text":"Empty","explanation":"Right. featuredBook is nil, so the chain evaluates to nil and falls back to Empty."}],"answer":"d"},{"id":"optional-chaining-q17","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class Counter {\n    var count = 0\n    func increment() {\n        count += 1\n    }\n}\nvar counter: Counter? = nil\nlet res: Void? = counter?.increment()\nprint(res == nil)","options":[{"id":"a","text":"true","explanation":"Right. counter is nil, so calling increment() evaluates to nil of type Void?."},{"id":"b","text":"false","explanation":"res is nil because counter is nil."},{"id":"c","text":"0","explanation":"increment() returns Void, not an integer count."},{"id":"d","text":"Optional(0)","explanation":"The method returns Void?, which evaluates to nil here."}],"answer":"a"},{"id":"optional-chaining-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"struct Student {\n    var grades: [String: Int]\n}\nlet student: Student? = Student(grades: [\"math\": 95, \"science\": 88])\nlet mathGrade = student?.grades[\"math\"]\nprint(mathGrade ?? 0)","options":[{"id":"a","text":"0","explanation":"The math key exists with value 95, so fallback 0 is unused."},{"id":"b","text":"95","explanation":"Right. The optional chain resolves student, finds the math grade, and prints 95."},{"id":"c","text":"Optional(95)","explanation":"Nil-coalescing unwraps the optional value before printing."},{"id":"d","text":"nil","explanation":"mathGrade contains 95, so it is not nil."}],"answer":"b"},{"id":"optional-chaining-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class Device {\n    var serialNumber: String? = \"SN12345\"\n}\nlet dev: Device? = Device()\nlet sn = dev?.serialNumber\nprint(type(of: sn))","options":[{"id":"a","text":"String","explanation":"Optional chaining always produces an optional type."},{"id":"b","text":"Optional\u003cOptional\u003cString>>","explanation":"Swift does not nest optionals when querying optional properties."},{"id":"c","text":"Optional\u003cString>","explanation":"Right. Querying an optional property through optional chaining produces Optional\u003cString>."},{"id":"d","text":"Substring","explanation":"serialNumber is declared as String?, not Substring."}],"answer":"c"},{"id":"optional-chaining-q20","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"class Account {\n    var balance: Int = 100\n}\nvar acc: Account? = nil\nvar executed = false\n@MainActor func getDeposit() -> Int {\n    executed = true\n    return 50\n}\nacc?.balance = getDeposit()\nprint(executed)","options":[{"id":"a","text":"true","explanation":"getDeposit() is never called because acc is nil."},{"id":"b","text":"50","explanation":"The code prints the boolean variable executed, not balance."},{"id":"c","text":"100","explanation":"The code prints executed, not the account balance."},{"id":"d","text":"false","explanation":"Right. The target acc is nil, so Swift skips evaluating the right-hand side."}],"answer":"d"},{"id":"optional-chaining-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"struct Room {\n    var number: Int\n}\nclass Hotel {\n    var rooms: [Room]? = [Room(number: 101), Room(number: 102)]\n}\nlet hotel: Hotel? = Hotel()\nlet firstRoom = hotel?.rooms?[0].number\nprint(firstRoom ?? 0)","options":[{"id":"a","text":"101","explanation":"Right. The optional chain successfully resolves the hotel, rooms array, and first room number."},{"id":"b","text":"102","explanation":"Index 0 accesses the first room, which has number 101."},{"id":"c","text":"0","explanation":"The fallback 0 is only used if any link in the chain is nil."},{"id":"d","text":"nil","explanation":"Nil-coalescing replaces nil with the fallback number 0."}],"answer":"a"},{"id":"optional-chaining-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class Profile {\n    var nickname: String?\n}\nclass Member {\n    var profile: Profile? = Profile()\n}\nlet member = Member()\nmember.profile?.nickname = \"SwiftFan\"\nprint(member.profile?.nickname ?? \"None\")","options":[{"id":"a","text":"None","explanation":"profile exists, so nickname is successfully updated."},{"id":"b","text":"SwiftFan","explanation":"Right. member.profile is present, allowing nickname assignment to succeed."},{"id":"c","text":"Optional(\"SwiftFan\")","explanation":"Nil-coalescing unwraps the value before printing."},{"id":"d","text":"nil","explanation":"nickname holds SwiftFan, not nil."}],"answer":"b"},{"id":"optional-chaining-q23","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"class Engine {\n    var horsepower = 300\n}\nclass Car {\n    var engine: Engine?\n}\nlet car: Car? = Car()\nlet hp = car?.engine?.horsepower\nprint(hp == nil)","options":[{"id":"a","text":"false","explanation":"hp is nil because engine was never instantiated on car."},{"id":"b","text":"300","explanation":"The horsepower property is never reached because engine is nil."},{"id":"c","text":"true","explanation":"Right. engine is nil, so optional chaining short-circuits to nil."},{"id":"d","text":"Optional(300)","explanation":"hp contains nil rather than a horsepower value."}],"answer":"c"},{"id":"optional-chaining-q24","type":"written","difficulty":2,"prompt":"Explain what optional chaining is and how its safety differs from forced unwrapping with exclamation marks.","rubric":[{"criterion":"Explains that optional chaining queries properties, methods, or subscripts on optionals using a question mark","weight":40,"key":true},{"criterion":"Contrasts with forced unwrapping, stating that optional chaining returns nil safely while forced unwrapping crashes if nil","weight":40,"key":true},{"criterion":"Notes that the result of an optional chain is always wrapped in an optional","weight":20,"key":false}],"modelAnswer":"Optional chaining queries properties, methods, and subscripts on optional values using a question mark. If any link in the chain is nil, the entire expression evaluates safely to nil. Forced unwrapping using an exclamation mark crashes the application at runtime if the value is missing. The return value of optional chaining is always an optional type."},{"id":"optional-chaining-q25","type":"written","difficulty":2,"prompt":"What is the return type rule in optional chaining, and why does accessing an optional property not produce a double optional?","rubric":[{"criterion":"States that optional chaining always returns an optional type","weight":40,"key":true},{"criterion":"Explains that Swift flattens multiple optional levels into a single optional rather than nesting them","weight":40,"key":true},{"criterion":"Mentions that querying an Int property yields Int? and querying an Int? property also yields Int?","weight":20,"key":false}],"modelAnswer":"Optional chaining always produces an optional result because the target could be nil. If you access a non-optional property like Int, the result is Int?. If you access an optional property like Int?, Swift flattens the result so it remains Int? instead of producing a nested double optional."},{"id":"optional-chaining-q26","type":"written","difficulty":2,"prompt":"How can you tell whether a method returning Void was called when using optional chaining?","rubric":[{"criterion":"Explains that calling a Void method through optional chaining returns Void? or ()?","weight":50,"key":true},{"criterion":"States that callers can compare the returned value against nil or use if let / guard let","weight":50,"key":true}],"modelAnswer":"When you call a method returning Void through optional chaining, the call evaluates to Void?, which is an optional empty tuple ()?. You can check whether the method executed by comparing the result against nil using if call != nil."},{"id":"optional-chaining-q27","type":"written","difficulty":2,"prompt":"Explain how short-circuit evaluation works during property assignments through optional chaining.","rubric":[{"criterion":"Explains that Swift evaluates the optional chain target before executing the assignment","weight":40,"key":true},{"criterion":"States that if the target is nil, the right-hand side expression is not evaluated","weight":40,"key":true},{"criterion":"Mentions that any side effects or function calls on the right-hand side are skipped","weight":20,"key":false}],"modelAnswer":"When assigning a property through optional chaining, Swift first inspects the target on the left. If any optional link before the property is nil, the entire assignment short-circuits. Swift skips the assignment, and any expression or function call on the right-hand side is never executed."},{"id":"optional-chaining-q28","type":"written","difficulty":3,"prompt":"How does optional chaining differ from optional binding (if let or guard let), and when should you choose each?","rubric":[{"criterion":"Explains that optional chaining queries values concisely on a single line and leaves the result wrapped as an optional","weight":40,"key":true},{"criterion":"Explains that optional binding unwraps values for use across multiple statements in a dedicated scope","weight":40,"key":true},{"criterion":"Describes when to choose each: chaining for single property checks, binding for multiple dependent operations","weight":20,"key":false}],"modelAnswer":"Optional chaining is ideal for querying deeply nested properties or calling single methods on a single line. Its result remains an optional. Optional binding unwraps the optional into a non-optional constant. This works better when using the unwrapped object across multiple statements."},{"id":"optional-chaining-q29","type":"code-write","difficulty":1,"prompt":"Complete the readCylinders function so it uses optional chaining to return the cylinders count from vehicle's engine. If vehicle or engine is nil, return 0.","starterCode":"struct Engine {\n    var cylinders: Int\n}\nclass Vehicle {\n    var engine: Engine?\n}\nfunc readCylinders(vehicle: Vehicle?) -> Int {\n    // Return cylinders using optional chaining, or 0 if missing\n}","modelAnswer":"struct Engine {\n    var cylinders: Int\n}\nclass Vehicle {\n    var engine: Engine?\n}\nfunc readCylinders(vehicle: Vehicle?) -> Int {\n    return vehicle?.engine?.cylinders ?? 0\n}\nlet v = Vehicle()\nv.engine = Engine(cylinders: 6)\nprint(readCylinders(vehicle: v))\nprint(readCylinders(vehicle: nil))","rubric":[{"criterion":"Uses optional chaining with question marks on vehicle and engine","weight":50,"key":true},{"criterion":"Returns the cylinders property using nil-coalescing to fall back to 0","weight":50,"key":true}]},{"id":"optional-chaining-q30","type":"code-write","difficulty":2,"prompt":"Complete the getTestScore function to look up test in account's profile scores dictionary using optional chaining. Return the optional Int score.","starterCode":"struct UserProfile {\n    var scores: [String: Int]\n}\nclass Account {\n    var profile: UserProfile?\n}\nfunc getTestScore(account: Account?, test: String) -> Int? {\n    // Return score using optional chaining\n}","modelAnswer":"struct UserProfile {\n    var scores: [String: Int]\n}\nclass Account {\n    var profile: UserProfile?\n}\nfunc getTestScore(account: Account?, test: String) -> Int? {\n    return account?.profile?.scores[test]\n}\nlet acc = Account()\nacc.profile = UserProfile(scores: [\"quiz\": 92])\nprint(getTestScore(account: acc, test: \"quiz\") ?? -1)\nprint(getTestScore(account: nil, test: \"quiz\") ?? -1)","rubric":[{"criterion":"Uses optional chaining across account and profile to access scores","weight":50,"key":true},{"criterion":"Queries the dictionary subscript by key test and returns an Int? value","weight":50,"key":true}]},{"id":"optional-chaining-q31","type":"code-write","difficulty":2,"prompt":"Complete the runTask function to call logMessage(\"Started\") on service's logger using optional chaining. Return true if the call succeeded, or false if logger or service was nil.","starterCode":"class Logger {\n    var logs: [String] = []\n    func logMessage(_ msg: String) {\n        logs.append(msg)\n    }\n}\nclass Service {\n    var logger: Logger?\n}\nfunc runTask(service: Service?) -> Bool {\n    // Call logMessage(\"Started\") using optional chaining.\n    // Return true if the call succeeded, or false if logger was nil.\n}","modelAnswer":"class Logger {\n    var logs: [String] = []\n    func logMessage(_ msg: String) {\n        logs.append(msg)\n    }\n}\nclass Service {\n    var logger: Logger?\n}\nfunc runTask(service: Service?) -> Bool {\n    let call: Void? = service?.logger?.logMessage(\"Started\")\n    return call != nil\n}\nlet s1 = Service()\ns1.logger = Logger()\nlet s2 = Service()\nprint(runTask(service: s1))\nprint(runTask(service: s2))","rubric":[{"criterion":"Calls logMessage(\"Started\") through optional chaining on service and logger","weight":50,"key":true},{"criterion":"Evaluates whether the Void? result is non-nil and returns a boolean","weight":50,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

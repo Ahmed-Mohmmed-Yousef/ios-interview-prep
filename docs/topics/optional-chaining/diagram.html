@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Optional Chaining in Swift</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --accent-color: #0284c7; --accent-soft: #e0f2fe;
+  --success-color: #0c765c; --success-soft: #dcf2ea;
+  --nil-color: #dc2626; --nil-soft: #fee2e2;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --accent-color: #38bdf8; --accent-soft: #082f49;
+  --success-color: #45cfa3; --success-soft: #13362c;
+  --nil-color: #f87171; --nil-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--accent-soft); color: var(--accent-color); }
+.p-right .kind { background: var(--success-soft); color: var(--success-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.card-shape.active { stroke: var(--accent-color); stroke-width: 2.5; fill: var(--accent-soft); }
+.card-shape.success { stroke: var(--success-color); stroke-width: 2.5; fill: var(--success-soft); }
+.card-shape.failed { stroke: var(--nil-color); stroke-width: 2.5; fill: var(--nil-soft); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--accent-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div class="diagram-host" tabindex="0" role="region" aria-label="Interactive diagram: Optional Chaining in Swift">
+
+  <!-- Interactive Animator -->
+  <div class="anim-only" style="display: grid; gap: 16px;">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span id="left-title">1. Root Instance</span><span class="kind" id="left-tag">Target</span></h3>
+        <div class="code" id="left-code">let person = Person()
+// Attempting to read:
+// person.residence?.address?.street</div>
+        <p class="caption" id="left-desc">We start by checking the base instance. The person instance exists in memory.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="node-person" x="20" y="25" width="90" height="70" rx="8" class="card-shape active" />
+          <text x="65" y="55" class="title-text">person</text>
+          <text x="65" y="75" class="sub-text">Person</text>
+
+          <path d="M 110 60 L 150 60" stroke="var(--line)" stroke-width="2" stroke-dasharray="4 4" />
+
+          <rect id="node-residence" x="150" y="25" width="90" height="70" rx="8" class="card-shape" />
+          <text x="195" y="55" class="title-text">residence?</text>
+          <text x="195" y="75" class="sub-text">Residence?</text>
+
+          <path d="M 240 60 L 280 60" stroke="var(--line)" stroke-width="2" stroke-dasharray="4 4" />
+
+          <rect id="node-address" x="280" y="25" width="50" height="70" rx="8" class="card-shape" />
+          <text x="305" y="65" class="sub-text">...</text>
+        </svg>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span id="right-title">Evaluation State</span><span class="kind" id="right-tag">Safe Path</span></h3>
+        <div class="code" id="right-code">// Current evaluation outcome:
+let street: String?</div>
+        <p class="caption" id="right-desc">Optional chaining guarantees the outcome will be an Optional type.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="status-card" x="30" y="25" width="280" height="75" rx="10" class="card-shape active" />
+          <text id="status-headline" x="170" y="58" class="title-text">Chain Evaluation Active</text>
+          <text id="status-sub" x="170" y="80" class="sub-text">Inspecting chain step by step</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1" onclick="jumpTo(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2" onclick="jumpTo(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3" onclick="jumpTo(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4" onclick="jumpTo(3)"></button>
+      </div>
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" disabled onclick="prevStep()">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accessible Static Fallback (Reduced Motion) -->
+  <div class="static-fallback" role="region" aria-label="Optional Chaining summary">
+    <div class="comp-card">
+      <h4>1. Base Instance Exists</h4>
+      <p>The query begins at the root instance (for example, <code>person</code>). Swift prepares to inspect the first optional property.</p>
+    </div>
+    <div class="comp-card">
+      <h4>2. First Optional Link (Short-Circuit)</h4>
+      <p>If <code>residence</code> is <code>nil</code>, the chain short-circuits immediately and returns <code>nil</code> safely without runtime errors.</p>
+    </div>
+    <div class="comp-card">
+      <h4>3. Nested Optional Link</h4>
+      <p>If <code>residence</code> exists, Swift continues to inspect <code>residence.address?</code>. If missing, it returns <code>nil</code>.</p>
+    </div>
+    <div class="comp-card">
+      <h4>4. Successful Unwrapping and Return</h4>
+      <p>If all links are present, Swift retrieves the final property value (such as <code>street</code>) and wraps it into <code>String?</code>.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    leftTitle: "1. Root Instance",
+    leftTag: "Target",
+    leftCode: "let person = Person()\n// Ready to inspect residence?",
+    leftDesc: "We start by checking the base instance. The person instance exists in memory.",
+    rightTitle: "Chain Initialized",
+    rightTag: "Starting",
+    rightCode: "let street: String? // Type is optional\n// Ready to query first link",
+    rightDesc: "Optional chaining guarantees the outcome will be an Optional type.",
+    statusHeadline: "Chain Initialized",
+    statusSub: "Base instance exists",
+    statusState: "active",
+    nodes: { person: "active", residence: "", address: "" }
+  },
+  {
+    leftTitle: "2. Inspect residence?",
+    leftTag: "Short-Circuit Check",
+    leftCode: "if person.residence == nil {\n    // Stops here and returns nil!\n}",
+    leftDesc: "If residence is nil, the entire expression evaluates to nil at once. No crashes happen.",
+    rightTitle: "Nil Short-Circuit Branch",
+    rightTag: "Nil Result",
+    rightCode: "let street = person.residence?.address?.street\n// street == nil immediately",
+    rightDesc: "Short-circuiting prevents any further calls in the chain from executing.",
+    statusHeadline: "Link is nil → Short Circuit",
+    statusSub: "Returns nil safely",
+    statusState: "failed",
+    nodes: { person: "active", residence: "failed", address: "" }
+  },
+  {
+    leftTitle: "3. Inspect address?",
+    leftTag: "Next Link",
+    leftCode: "person.residence = Residence()\n// residence exists! Now inspect address?",
+    leftDesc: "When residence exists, optional chaining advances to test the address property.",
+    rightTitle: "Advancing Chain",
+    rightTag: "Link Passed",
+    rightCode: "residence.address = Address(street: \"1 Loop\")\n// address is found!",
+    rightDesc: "Each link is checked in sequence. As long as values exist, the chain continues.",
+    statusHeadline: "Links Are Valid",
+    statusSub: "Traversing to final property",
+    statusState: "active",
+    nodes: { person: "active", residence: "active", address: "active" }
+  },
+  {
+    leftTitle: "4. Final Property Value",
+    leftTag: "Success",
+    leftCode: "let street = person.residence?.address?.street\nprint(street) // Optional(\"1 Loop\")",
+    leftDesc: "All links were non-nil. Swift retrieves street and wraps it in a single Optional layer.",
+    rightTitle: "Success: Optional(Value)",
+    rightTag: "Result Ready",
+    rightCode: "// Return type is String? (not String??)\nlet unwrapped = street ?? \"Unknown\"",
+    rightDesc: "The final value is ready to use or unwrap with nil-coalescing or if let.",
+    statusHeadline: "Success: Optional(\"1 Loop\")",
+    statusSub: "Safe, single-layer optional returned",
+    statusState: "success",
+    nodes: { person: "success", residence: "success", address: "success" }
+  }
+];
+
+let currentStep = 0;
+
+function updateUI() {
+  const s = steps[currentStep];
+  document.getElementById("left-title").textContent = s.leftTitle;
+  document.getElementById("left-tag").textContent = s.leftTag;
+  document.getElementById("left-code").textContent = s.leftCode;
+  document.getElementById("left-desc").textContent = s.leftDesc;
+  
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("status-headline").textContent = s.statusHeadline;
+  document.getElementById("status-sub").textContent = s.statusSub;
+
+  const statusCard = document.getElementById("status-card");
+  statusCard.className = "card-shape " + s.statusState;
+
+  const nodeP = document.getElementById("node-person");
+  const nodeR = document.getElementById("node-residence");
+  const nodeA = document.getElementById("node-address");
+  nodeP.className = "card-shape " + (s.nodes.person || "");
+  nodeR.className = "card-shape " + (s.nodes.residence || "");
+  nodeA.className = "card-shape " + (s.nodes.address || "");
+
+  // Update dots and buttons
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.className = "dot" + (idx === currentStep ? " active" : "");
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = currentStep === 0;
+  document.getElementById("btn-next").disabled = currentStep === steps.length - 1;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateUI();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateUI();
+  }
+}
+
+function jumpTo(idx) {
+  currentStep = idx;
+  updateUI();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateUI();
+</script>
+</body>
+</html>
