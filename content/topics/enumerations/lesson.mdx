@@ -1,0 +1,195 @@
+export const meta = {
+  id: "enumerations",
+  summary: "Model related choices in Swift using type-safe enums, associated values, raw values, and exhaustive pattern matching.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Enumerations", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/enumerations", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How do Swift enumerations differ from enums in C or Objective-C?</Question>
+  <Guess>
+    <Option id="a">Swift enums are reference types that always inherit from a base class.</Option>
+    <Option id="b" correct>Swift enums do not assign integer values by default, and cases can store different associated values.</Option>
+    <Option id="c">Swift enums can only store raw string values and cannot have methods.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a traffic light. At any moment, the light is red, yellow, or green. It can never be purple, and it cannot be red and green at the same time. An enumeration lets your code represent that exact set of valid choices. If you try to pass an invalid choice, the compiler stops you immediately.
+</Analogy>
+
+In Swift, an **enumeration** (often called an **enum**) is a type that defines a fixed list of related options.
+
+Unlike enums in C or Objective-C, Swift enum cases do not receive integer values by default. Each case is a complete, first-class value in its own right.
+
+Swift enums offer powerful features:
+- **Type safety**: You cannot pass an unexpected value by mistake.
+- **Dot syntax**: Once Swift knows the enum type, you can use short names like `.north` or `.red`.
+- **Exhaustive pattern matching**: When you use a `switch` statement, Swift makes sure you handle every case.
+- **Associated values**: Individual cases can store custom data that varies each time you create an instance.
+- **Raw values**: Cases can share a fixed default value, such as a number or a string.
+
+Enums in Swift are **value types**. When you assign an enum to a new variable or pass it to a function, Swift copies it.
+
+## See it
+
+<Diagram id="enumerations-main" caption="How Swift enums store raw values versus associated values">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Case box: Simple enum (CompassPoint with .north, .south, .east, .west).
+    2. Raw Value card: Fixed compile-time value per case (e.g., Planet.earth has fixed raw value 3).
+    3. Associated Value card: Dynamic runtime payload per instance (e.g., Barcode.qrCode("https://apple.com") vs Barcode.upc(8, 85909, 51226, 3)).
+  - Steps:
+    Step 1: Show a basic enum defining a fixed set of named choices.
+    Step 2: Show raw values where every case has a pre-assigned, uniform constant (like Int or String).
+    Step 3: Show associated values where each created instance carries its own custom data payload.
+    Step 4: Highlight the key rule: an enum case can use raw values OR associated values, but never both together.
+  - Static version (reduced motion):
+    A 3-column comparison table showing basic enums, raw values, and associated values side by side.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why does a switch statement over a Swift enum require you to handle every case?</Question>
+  <Option id="a">Because Swift switch statements only work with integer numbers.</Option>
+  <Option id="b" correct>Because Swift requires switch statements to be exhaustive so no unhandled case causes a bug.</Option>
+  <Option id="c">Because the compiler converts all enums into while loops behind the scenes.</Option>
+  <Explanation>Exhaustive matching is a core safety guarantee in Swift. Handling every case prevents unexpected runtime states.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Defining an enum and matching cases with switch">
+
+```swift
+enum CompassPoint {
+    case north
+    case south
+    case east
+    case west
+}
+
+func describeDirection(_ direction: CompassPoint) -> String {
+    switch direction {
+    case .north:
+        return "Heading towards the Arctic."
+    case .south:
+        return "Heading towards Antarctica."
+    case .east:
+        return "Heading towards the sunrise."
+    case .west:
+        return "Heading towards the sunset."
+    }
+}
+
+let travelDirection: CompassPoint = .east
+print(describeDirection(travelDirection))
+```
+
+```output
+Heading towards the sunrise.
+```
+
+</CodeExample>
+
+This example shows the core features of a basic Swift enum:
+- **Enum declaration**: The `enum` keyword defines `CompassPoint`. You can list cases on separate lines or separate them with commas.
+- **Dot syntax**: Because `travelDirection` has the explicit type `CompassPoint`, you can assign `.east` directly.
+- **Exhaustive switch**: The `switch` statement handles all four cases. If you miss one, the code will not compile.
+
+<CodeExample title="Using associated values and raw values">
+
+```swift
+enum Barcode {
+    case upc(Int, Int, Int, Int)
+    case qrCode(String)
+}
+
+func inspectBarcode(_ barcode: Barcode) -> String {
+    switch barcode {
+    case .upc(let numberSystem, let manufacturer, let product, let check):
+        return "UPC: \(numberSystem)-\(manufacturer)-\(product)-\(check)"
+    case let .qrCode(payload):
+        return "QR: \(payload)"
+    }
+}
+
+let code = Barcode.qrCode("https://apple.com")
+print(inspectBarcode(code))
+
+enum Planet: Int {
+    case mercury = 1, venus, earth, mars
+}
+
+print("Earth position: \(Planet.earth.rawValue)")
+let secondPlanet = Planet(rawValue: 2)
+print("Second planet: \(secondPlanet == .venus)")
+```
+
+```output
+QR: https://apple.com
+Earth position: 3
+Second planet: true
+```
+
+</CodeExample>
+
+This example highlights the two ways enums store extra information:
+- **Associated values**: `Barcode.qrCode` stores a `String`, while `.upc` stores four `Int` values. You extract them using `let` inside a `case`.
+- **Raw values**: `Planet` conforms to `Int`. Swift automatically increments the numbers: Mercury is 1, Venus is 2, Earth is 3.
+- **Failable initializer**: Calling `Planet(rawValue: 2)` returns an optional `Planet?`. If you pass an invalid number like 99, it returns `nil`.
+
+<QuickCheck>
+  <Question>What type does the raw value initializer Planet(rawValue: 3) return?</Question>
+  <Option id="a">A non-optional Planet instance that defaults to case 0 on error.</Option>
+  <Option id="b" correct>An optional Planet? because the raw value might not match any valid case.</Option>
+  <Option id="c">A fatal error that crashes immediately if the raw value is missing.</Option>
+  <Explanation>The raw value initializer is failable. It returns an optional value that is nil when the raw value does not match a case.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming enums can have stored properties">
+Swift enums can have computed properties and methods, but they cannot contain stored properties. If you declare `var name: String = "Test"` inside an enum, the compiler will produce an error. Store per-instance data as associated values instead.
+</Trap>
+
+<Trap title="Mixing raw values and associated values on the same enum">
+An enum can use raw values, or it can use associated values. It cannot use both at the same time. If an enum declares a raw type like `String`, its cases cannot accept associated value arguments.
+</Trap>
+
+<Trap title="Forgetting that init?(rawValue:) returns an Optional">
+Candidates often write `let planet: Planet = Planet(rawValue: 1)`. This fails to compile. Because a raw value might not match any case, `init?(rawValue:)` always returns an optional `Planet?`. You must safely unwrap it.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+An enumeration in Swift defines a common type for a group of related values. Unlike enums in C, Swift enum cases do not have default integer values unless a raw type is explicitly declared. Swift enums are value types and support exhaustive switch matching, methods, computed properties, and associated values for storing custom runtime data.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Swift enums provide algebraic data modeling through associated values and raw values. Raw values are compile-time constants shared across all instances of a case, accessible via the failable initializer init?(rawValue:). In contrast, associated values attach custom dynamic data to specific instances at runtime. Enums are value types that cannot hold stored properties, but they can include computed properties, instance methods, and mutating methods.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Swift enums define a fixed set of related choices with strong type safety.
+- Cases do not have integer values by default; each case is a distinct value.
+- Switch statements on enums must be exhaustive to prevent unhandled cases.
+- Associated values let individual cases store custom runtime data.
+- Raw values provide fixed default values of a uniform type, like Int or String.
+- Initializing with a raw value uses `init?(rawValue:)` and returns an Optional.
+- Enums are value types; they support computed properties and methods, but not stored properties.
+</Recap>

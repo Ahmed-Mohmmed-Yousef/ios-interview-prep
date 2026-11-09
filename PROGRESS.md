@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 13 remaining topics (9 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 12 remaining topics (10 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -88,8 +88,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **functions** (Functions) — published (lesson, diagram, 31 questions) → [docs/topics/functions/review.html](docs/topics/functions/review.html)
   - 🔄 **Batch 1B: Intermediate Types & Logic (6 topics: `closures-basics` → `optional-chaining`)**
     - ✅ **closures-basics** (Closures: The Basics) — published (lesson, diagram, 31 questions) → [docs/topics/closures-basics/review.html](docs/topics/closures-basics/review.html)
-    - 🔄 **enumerations** — starting research
-    - ⬜ **properties**
+    - ✅ **enumerations** (Enumerations) — published (lesson, diagram, 31 questions) → [docs/topics/enumerations/review.html](docs/topics/enumerations/review.html)
+    - 🔄 **properties** — starting research
     - ⬜ **methods-and-initialization**
     - ⬜ **error-handling**
     - ⬜ **optional-chaining**
@@ -203,6 +203,10 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — enumerations approved and published by user. Started topic properties: researching official documentation and Swift 6 compiler behavior.
+
+- **2026-11-09** — Built topic enumerations (Enumerations): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/enumerations/review.html`). Status: review, waiting for your approval.
 
 - **2026-11-09** — closures-basics approved and published by user. Started topic enumerations: researching official documentation and Swift 6 compiler behavior.
 
