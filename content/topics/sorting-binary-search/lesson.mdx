@@ -1,0 +1,219 @@
+export const meta = {
+  id: "sorting-binary-search",
+  summary: "Master Swift sorting methods and binary search, including in-place mutation, stable sorts, and logarithmic search algorithms.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Apple Developer Documentation: Array.sort()", url: "https://developer.apple.com/documentation/swift/array/sort()", kind: "official" },
+    { title: "Apple Developer Documentation: Array.sorted()", url: "https://developer.apple.com/documentation/swift/array/sorted()", kind: "official" },
+    { title: "Tech Interview Handbook: Sorting and Searching Cheatsheet", url: "https://www.techinterviewhandbook.org/algorithms/sorting-searching/", kind: "community" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How does binary search achieve O(log n) time, and what critical precondition must the array meet first?</Question>
+  <Guess>
+    <Option id="a">It checks every element one by one, and the array must contain only positive integers.</Option>
+    <Option id="b" correct>It halves the search space on each step, and the array elements must already be sorted.</Option>
+    <Option id="c">It converts the array into a hash table, and the array must contain no duplicate values.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine looking for a word in a printed paper dictionary.
+
+You do not flip through the book page by page from the start. You open the dictionary right in the middle.
+
+If your word comes earlier in the alphabet, you ignore the entire second half. You repeat this process on the remaining pages until you find your word.
+</Analogy>
+
+Searching an unsorted list requires checking every element from beginning to end. This linear scan takes $O(n)$ time.
+
+When data is sorted, you can do much better:
+1. **Divide and Conquer**:
+   - Check the middle element of the current range.
+   - If the middle value matches your target, you are done.
+   - If the target is smaller, search only the left half.
+   - If the target is larger, search only the right half.
+2. **Logarithmic Time**:
+   - Each comparison throws away half of the remaining elements.
+   - An array with one million items takes at most twenty comparisons to search.
+   - This cut gives binary search an efficient $O(\log n)$ time complexity.
+3. **Swift Sorting**:
+   - Swift provides `sort()` for in-place sorting and `sorted()` for returning a new array.
+   - Both use an adaptive, stable algorithm that runs in $O(n \log n)$ time.
+
+## See it
+
+<Diagram id="sorting-binary-search-concept" caption="Binary search halving the search space step by step in a sorted array">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Sorted array: [3, 7, 12, 19, 25, 31, 42]. Target: 19.
+    2. Pointers: low, mid, high.
+    3. Status card: current search range and comparison result.
+    4. Code action line.
+  - Steps:
+    Step 1: low = 0 (3), high = 6 (42), mid = 3 (19). Compare mid value with target.
+    Step 2: If searching for 31: mid is 19 < 31, so narrow search to right half (low = 4).
+    Step 3: New range [25, 31, 42]. mid = 5 (31). Match found in 2 steps!
+    Step 4: Target located at index 5 with O(log n) efficiency.
+  - Static version (reduced motion):
+    A 4-step horizontal breakdown showing the pointer updates and range narrowing.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens if you run binary search on an unsorted array?</Question>
+  <Option id="a">Swift throws a runtime fatal error before the loop begins.</Option>
+  <Option id="b" correct>The algorithm may discard valid elements and return wrong answers.</Option>
+  <Option id="c">The algorithm automatically sorts the array during the first comparison.</Option>
+  <Explanation>Binary search assumes sorted order. Halving an unsorted array discards elements arbitrarily.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Sorting arrays in Swift with sort and sorted">
+
+```swift
+var numbers = [5, 2, 8, 1, 9]
+numbers.sort()
+print("In-place sort: \(numbers)")
+
+let words = ["kiwi", "apple", "banana"]
+let sortedWords = words.sorted { $0.count < $1.count }
+print("Sorted by length: \(sortedWords)")
+```
+
+```output
+In-place sort: [1, 2, 5, 8, 9]
+Sorted by length: ["kiwi", "apple", "banana"]
+```
+
+</CodeExample>
+
+In the first snippet, `numbers.sort()` sorts the mutable array in-place and returns `Void`.
+
+In the second snippet, `words.sorted(by:)` leaves the original array untouched. It produces a fresh array sorted by character count.
+
+Swift sorting is **stable**. When elements have equal sort keys, Swift preserves their original relative order.
+
+<CodeExample title="Iterative binary search implementation in Swift">
+
+```swift
+func binarySearch(_ array: [Int], target: Int) -> Int? {
+    var low = 0
+    var high = array.count - 1
+    
+    while low <= high {
+        let mid = low + (high - low) / 2
+        let value = array[mid]
+        
+        if value == target {
+            return mid
+        } else if value < target {
+            low = mid + 1
+        } else {
+            high = mid - 1
+        }
+    }
+    return nil
+}
+
+let sortedNumbers = [3, 7, 12, 19, 25, 31, 42]
+print("Index of 19: \(binarySearch(sortedNumbers, target: 19) ?? -1)")
+print("Index of 20: \(binarySearch(sortedNumbers, target: 20) ?? -1)")
+```
+
+```output
+Index of 19: 3
+Index of 20: -1
+```
+
+</CodeExample>
+
+Notice how we compute the middle index with `low + (high - low) / 2`.
+
+This avoids integer overflow in systems with fixed-size integers. Adding `low + high` could exceed integer bounds on large collections.
+
+Updating `low = mid + 1` and `high = mid - 1` prevents infinite loops when narrowing the range.
+
+<QuickCheck>
+  <Question>Why is low + (high - low) / 2 preferred over (low + high) / 2?</Question>
+  <Option id="a">It runs faster because the CPU skips division.</Option>
+  <Option id="b" correct>It prevents potential integer overflow when low and high are large numbers.</Option>
+  <Option id="c">It automatically handles negative array indices in Swift.</Option>
+  <Explanation>Adding two large integers together can exceed maximum integer capacity. Subtraction keeps calculations within range.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Using sort() on an immutable let constant">
+In Swift, `sort()` mutates the receiver collection directly.
+
+Calling `sort()` on an array declared with `let` triggers a compiler error.
+
+Use `sorted()` when working with immutable constants or when you want to keep the original collection intact.
+</Trap>
+
+<Trap title="Violating strict weak ordering in custom sort closures">
+The closure passed to `sort(by:)` must define a strict weak ordering.
+
+Returning `true` for equal elements with `<=` instead of `<` violates irreflexivity.
+
+This mistake can lead to unpredictable sort results or crashes during sorting. Always return `false` for equal values.
+</Trap>
+
+<Trap title="Infinite loops from off-by-one pointer updates">
+When narrowing the search space in binary search, you must exclude the tested middle element.
+
+Writing `low = mid` instead of `low = mid + 1` can trap the loop in an infinite cycle when two elements remain.
+
+Always increment past `mid` on the left or decrement past `mid` on the right.
+</Trap>
+
+<Trap title="Assuming Swift Array provides a built-in binary search method">
+The Swift standard library does not provide a direct `binarySearch` method on `Array`.
+
+Swift collections provide `firstIndex(of:)`, but that performs a linear $O(n)$ search.
+
+In technical interviews, you are expected to write the $O(\log n)$ binary search loop yourself.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"Binary search is an algorithm that searches a sorted array in $O(\log n)$ time by repeatedly halving the search space. It compares the middle element to the target and moves the search boundary left or right. In Swift, we use `sort()` to sort an array in-place or `sorted()` to return a new sorted array. Both sorting methods run in $O(n \log n)$ time."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"Binary search requires an array sorted by the search key. In Swift, I implement it with two pointers, `low` and `high`, updating `mid = low + (high - low) / 2` to avoid integer overflow. The loop continues while `low <= high`, adjusting `low = mid + 1` or `high = mid - 1`. Swift standard library sorts are stable and use a modified Timsort running in $O(n \log n)$ time with $O(1)$ space for in-place `sort()`."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Binary search extends beyond static arrays to any monotonic function, such as finding boundaries in capacity allocation or minimum rates in optimization problems. In Swift, `sort()` provides guaranteed stability, which is vital when sorting records by multiple criteria sequentially. When writing binary search for production code, I guard against integer overflow and handle duplicates with lower-bound rules. I also avoid slow linear collection methods like `firstIndex` on sorted datasets."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Binary search searches sorted data in $O(\log n)$ time and $O(1)$ auxiliary space.
+- The input collection must be sorted before binary search can work.
+- Calculate midpoints with `low + (high - low) / 2` to prevent integer overflow.
+- Update pointers with `mid + 1` and `mid - 1` to avoid infinite loops.
+- Swift `sort()` mutates in-place, while `sorted()` returns a new array; both are stable and run in $O(n \log n)$ time.
+</Recap>
+
+## Go deeper
+
+- [Apple Developer Documentation: Array.sort()](https://developer.apple.com/documentation/swift/array/sort()) — In-place array sorting and comparator closures.
+- [Apple Developer Documentation: Array.sorted()](https://developer.apple.com/documentation/swift/array/sorted()) — Returning a new sorted array from a sequence.
+- [Apple Developer Documentation: Comparable](https://developer.apple.com/documentation/swift/comparable) — Protocol for types with relational order operators.
+- [Tech Interview Handbook: Sorting and Searching Cheatsheet](https://www.techinterviewhandbook.org/algorithms/sorting-searching/) — Interview patterns and edge cases for binary search.

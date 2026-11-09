@@ -116,8 +116,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **closures-escaping-capture** (Closures: Escaping and Capture Lists) — published (lesson, diagram, 31 questions) → [docs/topics/closures-escaping-capture/review.html](docs/topics/closures-escaping-capture/review.html)
     - ✅ **codable** (Codable and JSON) — published (lesson, diagram, 31 questions) → [docs/topics/codable/review.html](docs/topics/codable/review.html)
   - 🔄 **Batch 2B: Coding Interview Algorithms (6 topics)**
-    - 🔄 **sorting-binary-search** (Sorting and Binary Search) — starting research
-    - ⬜ **two-pointers-sliding-window** (Two Pointers and Sliding Window)
+    - ✅ **sorting-binary-search** (Sorting and Binary Search) — published (lesson, diagram, 31 questions) → [docs/topics/sorting-binary-search/review.html](docs/topics/sorting-binary-search/review.html)
+    - 🔄 **two-pointers-sliding-window** (Two Pointers and Sliding Window) — starting research
     - ⬜ **stacks-and-queues** (Stacks and Queues)
     - ⬜ **linked-lists** (Linked Lists)
     - ⬜ **recursion** (Recursion)
@@ -197,15 +197,19 @@ Level picker, path, lessons, browser-graded exams, saved progress, results.
 ## Phase 6 — AI grading ⬜
 
 Written answers and code answers graded by AI, with limits against abuse.
+- ⬜ **Backup grader: Cloudflare Workers AI** (free 10,000 Neurons/day) when the Gemini free quota runs out; the learner sees a calm "try again later" if both are used up (decided 2026-11-09, [docs/stack.md](docs/stack.md))
 - ⬜ **Before Phase 6 starts:** run the Claude Code setup recommender (`claude-code-setup` plugin, read-only) on the Phase 5 app code. Review its suggested hooks, skills, subagents, MCP servers and rules with you, and add only the ones you approve. (A first run on the planning files was done early on 2026-11-08, at your request; run it again on the app code)
 
 ## Phase 7 — Launch ⬜
 
 Search engine setup, privacy-friendly analytics, deploy, feedback button.
+- ⬜ **Analytics: Cloudflare Web Analytics** — free, no personal data (decided 2026-11-09)
+- ⬜ **"Report a problem" on each question + anonymous question stats** in Cloudflare D1 through a small Worker, right after launch. Shows which questions confuse learners, to improve them (decided 2026-11-09)
 
 ## Phase 8 — Later ⬜
 
 Login and sync, running real Swift code, review reminders, mock interviews.
+- ⬜ **Login and sync: Firebase Authentication + Cloud Firestore** (free Spark plan; replaces Supabase, decided 2026-11-09). Email, Google, Apple or GitHub sign-in; no phone sign-in on Spark. Certificates are stored in Firestore
 - ⬜ **Certificate (PDF), for logged-in learners only** — earned when all main topics of the chosen level are done **and** the path score is at least the pass mark (`topicPassMark` in `content/rules.json`, now 70%). The name comes from the learner's account. Shows the level, path score, number of topics, date and a check link (for example `/verify/<id>`) that an employer can open, so every certificate is verified from day one. The server checks the results before it issues a certificate, so it cannot be faked by editing browser data. Calm, branded design (Calm Trail, level color, path-stop mark), always the light theme, app name from `config/brand.json`. PDF library to choose then (`@react-pdf/renderer` 4.9.0, MIT, was current on npm 2026-11-09). Needs a short design step first for your OK. Guests see a note on the results screen: "Log in to get your certificate"
 - ⬜ **PWA push notifications** for review reminders (iOS 16.4+ when the app is installed). Needs a server and a database for subscriptions, so it comes with login ([Next.js PWA guide](https://nextjs.org/docs/app/guides/progressive-web-apps))
 
@@ -279,6 +283,7 @@ New rules and changes you ask for are added here, with the date.
 | 2026-11-08 | Content production runs level by level, starting with Fresh level (21 remaining topics) | [docs/phase-4-plan.md](docs/phase-4-plan.md) |
 | 2026-11-09 | The web app is a PWA: installable and works offline in Phase 5; push notifications later in Phase 8 | this file (Phase 5, Phase 8) |
 | 2026-11-09 | Downloadable PDF certificate when a level is done with a path score at the pass mark or more; **only for logged-in learners**, verified with a check link; calm branded design | this file (Phase 8) |
+| 2026-11-09 | Free services only: Firebase Auth + Firestore for login (Phase 8), Cloudflare Web Analytics (Phase 7), Cloudflare Workers AI as backup grader (Phase 6), Cloudflare D1 for problem reports and question stats (after launch); hosting stays on Vercel | [docs/stack.md](docs/stack.md) |
 | 2026-11-09 | Complete all 22 Fresh level topics first (Coding Interview, SwiftUI, App and System); keep optional-chaining in Wave 2 (Junior) | ask_question decision |
 | 2026-11-09 | Delegate Phase 4 content production to autonomous workflow without manual approvals; each topic auto-publishes upon passing compiler and linter checks | User instruction |
 
@@ -286,6 +291,9 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — Built and published topic sorting-binary-search (Sorting and Binary Search): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/sorting-binary-search/review.html`). All checks passed. Starting two-pointers-sliding-window.
+
+- **2026-11-09** — Decided free Firebase and Cloudflare services with you: Firebase Auth + Firestore replace Supabase for login (Phase 8), Cloudflare Web Analytics (Phase 7), Cloudflare Workers AI replaces Groq / OpenRouter as the backup grader (Phase 6), and Cloudflare D1 stores "Report a problem" and question stats after launch. Hosting stays on Vercel; Cloudflare is plan B if money ever comes in. Limits checked on the official pricing pages and written in `docs/stack.md`.
 - **2026-11-09** — Completed Batch 2A (Swift Language Advanced: 9 topics published and committed). Launching dedicated autonomous subagent for Batch 2B (Coding Interview Algorithms: 6 topics, `sorting-binary-search` through `matrix-problems`).
 
 - **2026-11-09** — Changed the certificate plan: only logged-in learners get a certificate, so it moved from Phase 5 to Phase 8 (login). Every certificate is now verified, with a check link, and the name comes from the account.

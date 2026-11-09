@@ -1,0 +1,624 @@
+<title>Sorting and Binary Search Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --pointer-low: #0284c7; --pointer-low-soft: #e0f2fe;
+  --pointer-mid: #7c3aed; --pointer-mid-soft: #ede9fe;
+  --pointer-high: #0c765c; --pointer-high-soft: #dcf2ea;
+  --match-color: #16a34a; --match-soft: #dcfce7;
+  --discard-color: #94a3b8; --discard-soft: #f1f5f9;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --pointer-low: #38bdf8; --pointer-low-soft: #082f49;
+  --pointer-mid: #a78bfa; --pointer-mid-soft: #2e1065;
+  --pointer-high: #45cfa3; --pointer-high-soft: #13362c;
+  --match-color: #4ade80; --match-soft: #14532d;
+  --discard-color: #475569; --discard-soft: #1e293b;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.cell-slot { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 6px; }
+.cell-slot.low { stroke: var(--pointer-low); stroke-width: 2.5; }
+.cell-slot.mid { stroke: var(--pointer-mid); fill: var(--pointer-mid-soft); stroke-width: 2.5; }
+.cell-slot.high { stroke: var(--pointer-high); stroke-width: 2.5; }
+.cell-slot.match { stroke: var(--match-color); fill: var(--match-soft); stroke-width: 3; }
+.cell-slot.discarded { fill: var(--discard-soft); stroke: var(--discard-color); opacity: 0.45; }
+
+.cell-val { font-family: var(--font-code); font-size: 14px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.cell-idx { font-family: var(--font-body); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+.pointer-lbl { font-family: var(--font-body); font-size: 11px; font-weight: 700; text-anchor: middle; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Coding Interview · Topic 1 of 6 · Prototype</p>
+    <h1>Sorting and Binary Search</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can sort data and search it with binary search.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">How does binary search achieve O(log n) time, and what critical precondition must the array meet first?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It checks every element one by one, and the array must contain only positive integers.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It halves the search space on each step, and the array elements must already be sorted.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It converts the array into a hash table, and the array must contain no duplicate values.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine looking for a word in a printed paper dictionary.</p><p>You do not flip through the book page by page from the start. You open the dictionary right in the middle.</p><p>If your word comes earlier in the alphabet, you ignore the entire second half. You repeat this process on the remaining pages until you find your word.</p></aside>
+<p>Searching an unsorted list requires checking every element from beginning to end. This linear scan takes $O(n)$ time.</p>
+<p>When data is sorted, you can do much better:</p>
+<ol>
+<li><strong>Divide and Conquer</strong>:
+<ul>
+<li>Check the middle element of the current range.</li>
+<li>If the middle value matches your target, you are done.</li>
+<li>If the target is smaller, search only the left half.</li>
+<li>If the target is larger, search only the right half.</li>
+</ul>
+</li>
+<li><strong>Logarithmic Time</strong>:
+<ul>
+<li>Each comparison throws away half of the remaining elements.</li>
+<li>An array with one million items takes at most twenty comparisons to search.</li>
+<li>This cut gives binary search an efficient $O(\log n)$ time complexity.</li>
+</ul>
+</li>
+<li><strong>Swift Sorting</strong>:
+<ul>
+<li>Swift provides <code>sort()</code> for in-place sorting and <code>sorted()</code> for returning a new array.</li>
+<li>Both use an adaptive, stable algorithm that runs in $O(n \log n)$ time.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens if you run binary search on an unsorted array?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Swift throws a runtime fatal error before the loop begins.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The algorithm may discard valid elements and return wrong answers.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The algorithm automatically sorts the array during the first comparison.</span></button><p class="qc-explain" hidden="">Binary search assumes sorted order. Halving an unsorted array discards elements arbitrarily.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Sorting arrays in Swift with sort and sorted</figcaption><pre class="block swift"><code class="language-swift">var numbers = [5, 2, 8, 1, 9]
+numbers.sort()
+print(&quot;In-place sort: \(numbers)&quot;)
+
+let words = [&quot;kiwi&quot;, &quot;apple&quot;, &quot;banana&quot;]
+let sortedWords = words.sorted { $0.count &lt; $1.count }
+print(&quot;Sorted by length: \(sortedWords)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">In-place sort: [1, 2, 5, 8, 9]
+Sorted by length: [&quot;kiwi&quot;, &quot;apple&quot;, &quot;banana&quot;]
+</code></pre></figure>
+<p>In the first snippet, <code>numbers.sort()</code> sorts the mutable array in-place and returns <code>Void</code>.</p>
+<p>In the second snippet, <code>words.sorted(by:)</code> leaves the original array untouched. It produces a fresh array sorted by character count.</p>
+<p>Swift sorting is <strong>stable</strong>. When elements have equal sort keys, Swift preserves their original relative order.</p>
+<figure class="code-example"><figcaption>Iterative binary search implementation in Swift</figcaption><pre class="block swift"><code class="language-swift">func binarySearch(_ array: [Int], target: Int) -&gt; Int? {
+    var low = 0
+    var high = array.count - 1
+    
+    while low &lt;= high {
+        let mid = low + (high - low) / 2
+        let value = array[mid]
+        
+        if value == target {
+            return mid
+        } else if value &lt; target {
+            low = mid + 1
+        } else {
+            high = mid - 1
+        }
+    }
+    return nil
+}
+
+let sortedNumbers = [3, 7, 12, 19, 25, 31, 42]
+print(&quot;Index of 19: \(binarySearch(sortedNumbers, target: 19) ?? -1)&quot;)
+print(&quot;Index of 20: \(binarySearch(sortedNumbers, target: 20) ?? -1)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Index of 19: 3
+Index of 20: -1
+</code></pre></figure>
+<p>Notice how we compute the middle index with <code>low + (high - low) / 2</code>.</p>
+<p>This avoids integer overflow in systems with fixed-size integers. Adding <code>low + high</code> could exceed integer bounds on large collections.</p>
+<p>Updating <code>low = mid + 1</code> and <code>high = mid - 1</code> prevents infinite loops when narrowing the range.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why is low + (high - low) / 2 preferred over (low + high) / 2?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It runs faster because the CPU skips division.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It prevents potential integer overflow when low and high are large numbers.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It automatically handles negative array indices in Swift.</span></button><p class="qc-explain" hidden="">Adding two large integers together can exceed maximum integer capacity. Subtraction keeps calculations within range.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using sort() on an immutable let constant</p><p>In Swift, <code>sort()</code> mutates the receiver collection directly.</p><p>Calling <code>sort()</code> on an array declared with <code>let</code> triggers a compiler error.</p><p>Use <code>sorted()</code> when working with immutable constants or when you want to keep the original collection intact.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Violating strict weak ordering in custom sort closures</p><p>The closure passed to <code>sort(by:)</code> must define a strict weak ordering.</p><p>Returning <code>true</code> for equal elements with <code>&lt;=</code> instead of <code>&lt;</code> violates irreflexivity.</p><p>This mistake can lead to unpredictable sort results or crashes during sorting. Always return <code>false</code> for equal values.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Infinite loops from off-by-one pointer updates</p><p>When narrowing the search space in binary search, you must exclude the tested middle element.</p><p>Writing <code>low = mid</code> instead of <code>low = mid + 1</code> can trap the loop in an infinite cycle when two elements remain.</p><p>Always increment past <code>mid</code> on the left or decrement past <code>mid</code> on the right.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming Swift Array provides a built-in binary search method</p><p>The Swift standard library does not provide a direct <code>binarySearch</code> method on <code>Array</code>.</p><p>Swift collections provide <code>firstIndex(of:)</code>, but that performs a linear $O(n)$ search.</p><p>In technical interviews, you are expected to write the $O(\log n)$ binary search loop yourself.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;Binary search is an algorithm that searches a sorted array in $O(\log n)$ time by repeatedly halving the search space. It compares the middle element to the target and moves the search boundary left or right. In Swift, we use <code>sort()</code> to sort an array in-place or <code>sorted()</code> to return a new sorted array. Both sorting methods run in $O(n \log n)$ time.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;Binary search requires an array sorted by the search key. In Swift, I implement it with two pointers, <code>low</code> and <code>high</code>, updating <code>mid = low + (high - low) / 2</code> to avoid integer overflow. The loop continues while <code>low &lt;= high</code>, adjusting <code>low = mid + 1</code> or <code>high = mid - 1</code>. Swift standard library sorts are stable and use a modified Timsort running in $O(n \log n)$ time with $O(1)$ space for in-place <code>sort()</code>.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;Binary search extends beyond static arrays to any monotonic function, such as finding boundaries in capacity allocation or minimum rates in optimization problems. In Swift, <code>sort()</code> provides guaranteed stability, which is vital when sorting records by multiple criteria sequentially. When writing binary search for production code, I guard against integer overflow and handle duplicates with lower-bound rules. I also avoid slow linear collection methods like <code>firstIndex</code> on sorted datasets.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Binary search searches sorted data in $O(\log n)$ time and $O(1)$ auxiliary space.</li>
+<li>The input collection must be sorted before binary search can work.</li>
+<li>Calculate midpoints with <code>low + (high - low) / 2</code> to prevent integer overflow.</li>
+<li>Update pointers with <code>mid + 1</code> and <code>mid - 1</code> to avoid infinite loops.</li>
+<li>Swift <code>sort()</code> mutates in-place, while <code>sorted()</code> returns a new array; both are stable and run in $O(n \log n)$ time.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/swift/array/sort()">Apple Developer Documentation: Array.sort()</a> — In-place array sorting and comparator closures.</li>
+<li><a href="https://developer.apple.com/documentation/swift/array/sorted()">Apple Developer Documentation: Array.sorted()</a> — Returning a new sorted array from a sequence.</li>
+<li><a href="https://developer.apple.com/documentation/swift/comparable">Apple Developer Documentation: Comparable</a> — Protocol for types with relational order operators.</li>
+<li><a href="https://www.techinterviewhandbook.org/algorithms/sorting-searching/">Tech Interview Handbook: Sorting and Searching Cheatsheet</a> — Interview patterns and edge cases for binary search.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    title: "Initial Search Space",
+    tag: "Step 1",
+    tagColor: "var(--pointer-low-soft)",
+    tagText: "var(--pointer-low)",
+    desc: "Search space spans indices 0 to 6. Middle element at index 3 is 19. Since 19 < 31, target lies to the right.",
+    rightTitle: "Midpoint Calculation",
+    rightTag: "Step 1 of 4",
+    code: "let mid = low + (high - low) / 2 // 0 + 3 = 3\nif array[mid] < target {\n    low = mid + 1 // narrow to right half\n}",
+    rightDesc: "Middle index 3 holds 19. Comparing 19 with target 31 shows target is larger. We discard index 0 through 3.",
+    low: 0, mid: 3, high: 6, checks: 1,
+    cellClasses: ["cell-slot low", "cell-slot", "cell-slot", "cell-slot mid", "cell-slot", "cell-slot", "cell-slot high"],
+    lowPos: 35, midPos: 176, highPos: 317,
+    showMid: true
+  },
+  {
+    title: "Discard Left Half",
+    tag: "Step 2",
+    tagColor: "var(--pointer-low-soft)",
+    tagText: "var(--pointer-low)",
+    desc: "Left half (indices 0 to 3) is discarded. Search space narrows to indices 4 through 6: [25, 31, 42].",
+    rightTitle: "Boundary Shift",
+    rightTag: "Step 2 of 4",
+    code: "low = mid + 1 // low is now 4\n// range remaining: array[4...6]\n// elements left: 3",
+    rightDesc: "Updating low to mid + 1 eliminates half the array in one step. Only 3 elements remain to inspect.",
+    low: 4, mid: "-", high: 6, checks: 1,
+    cellClasses: [
+      "cell-slot discarded", "cell-slot discarded", "cell-slot discarded", "cell-slot discarded",
+      "cell-slot low", "cell-slot", "cell-slot high"
+    ],
+    lowPos: 223, midPos: -100, highPos: 317,
+    showMid: false
+  },
+  {
+    title: "Evaluate New Midpoint",
+    tag: "Step 3",
+    tagColor: "var(--pointer-mid-soft)",
+    tagText: "var(--pointer-mid)",
+    desc: "Midpoint calculated as 4 + (6 - 4)/2 = 5. Element at index 5 is 31, matching target exactly!",
+    rightTitle: "Match Comparison",
+    rightTag: "Step 3 of 4",
+    code: "let mid = 4 + (6 - 4) / 2 // 5\nif array[mid] == target {\n    return mid // match found!\n}",
+    rightDesc: "Value 31 at index 5 equals target 31. The search terminates immediately with success.",
+    low: 4, mid: 5, high: 6, checks: 2,
+    cellClasses: [
+      "cell-slot discarded", "cell-slot discarded", "cell-slot discarded", "cell-slot discarded",
+      "cell-slot low", "cell-slot mid match", "cell-slot high"
+    ],
+    lowPos: 223, midPos: 270, highPos: 317,
+    showMid: true
+  },
+  {
+    title: "Target Found at Index 5",
+    tag: "Step 4",
+    tagColor: "var(--match-soft)",
+    tagText: "var(--match-color)",
+    desc: "Target located at index 5 in only 2 comparisons! A linear scan would have taken 6 comparisons.",
+    rightTitle: "Search Complete",
+    rightTag: "O(log n)",
+    code: "// Result: Optional(5)\n// Total comparisons: 2\n// Linear search would require 6 checks",
+    rightDesc: "Binary search completed in logarithmic time O(log n). No further comparisons are needed.",
+    low: "-", mid: 5, high: "-", checks: 2,
+    cellClasses: [
+      "cell-slot discarded", "cell-slot discarded", "cell-slot discarded", "cell-slot discarded",
+      "cell-slot discarded", "cell-slot match", "cell-slot discarded"
+    ],
+    lowPos: -100, midPos: 270, highPos: -100,
+    showMid: true
+  }
+];
+
+let curStep = 0;
+
+function updateView() {
+  const s = steps[curStep];
+  document.getElementById("vis-title").textContent = s.title;
+  const tag = document.getElementById("vis-tag");
+  tag.textContent = s.tag;
+  tag.style.background = s.tagColor;
+  tag.style.color = s.tagText;
+  document.getElementById("vis-desc").textContent = s.desc;
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.code;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("m-low").textContent = s.low;
+  document.getElementById("m-mid").textContent = s.mid;
+  document.getElementById("m-high").textContent = s.high;
+  document.getElementById("m-checks").textContent = s.checks;
+
+  for (let i = 0; i < 7; i++) {
+    const el = document.getElementById("c-" + i);
+    el.setAttribute("class", s.cellClasses[i]);
+  }
+
+  const lblLow = document.getElementById("lbl-low");
+  const lblMid = document.getElementById("lbl-mid");
+  const lblHigh = document.getElementById("lbl-high");
+
+  if (s.lowPos > 0) {
+    lblLow.style.display = "";
+    lblLow.setAttribute("x", s.lowPos);
+  } else {
+    lblLow.style.display = "none";
+  }
+
+  if (s.showMid && s.midPos > 0) {
+    lblMid.style.display = "";
+    lblMid.setAttribute("x", s.midPos);
+  } else {
+    lblMid.style.display = "none";
+  }
+
+  if (s.highPos > 0) {
+    lblHigh.style.display = "";
+    lblHigh.setAttribute("x", s.highPos);
+  } else {
+    lblHigh.style.display = "none";
+  }
+
+  document.querySelectorAll(".dot").forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = curStep === 0;
+  document.getElementById("btn-next").disabled = curStep === steps.length - 1;
+}
+
+function goToStep(i) {
+  curStep = Math.max(0, Math.min(steps.length - 1, i));
+  updateView();
+}
+function nextStep() { goToStep(curStep + 1); }
+function prevStep() { goToStep(curStep - 1); }
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateView();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"sorting-binary-search","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"sorting-binary-search-q1","type":"mcq","difficulty":1,"prompt":"What is the primary difference between sort() and sorted() on a Swift Array?","options":[{"id":"a","text":"sort() modifies the array in-place, while sorted() returns a new sorted array.","explanation":"Right. sort() mutates mutable collections in-place, whereas sorted() returns a new array."},{"id":"b","text":"sort() runs in linear time, while sorted() runs in logarithmic time.","explanation":"Both methods use the same sorting algorithm with O(n log n) time complexity."},{"id":"c","text":"sort() requires String elements, while sorted() works on any numeric type.","explanation":"Both methods work on any Comparable elements or with custom comparator closures."},{"id":"d","text":"sort() is safe on let constants, while sorted() requires var variables.","explanation":"sort() mutates the array so it requires var. sorted() works on let constants."}],"answer":"a"},{"id":"sorting-binary-search-q2","type":"mcq","difficulty":1,"prompt":"What is the time complexity of binary search on a sorted array of n elements?","options":[{"id":"a","text":"O(1) constant time in all circumstances.","explanation":"Binary search divides the array repeatedly and requires multiple comparisons."},{"id":"b","text":"O(log n) time because each step cuts the search space in half.","explanation":"Right. Halving the search range on each step gives logarithmic time."},{"id":"c","text":"O(n) linear time because it visits every element once.","explanation":"Linear search visits every element in O(n) time, not binary search."},{"id":"d","text":"O(n log n) time because it must sort the collection first.","explanation":"Binary search assumes the collection is already sorted before searching begins."}],"answer":"b"},{"id":"sorting-binary-search-q3","type":"mcq","difficulty":1,"prompt":"Which prerequisite must be satisfied before performing binary search on an array?","options":[{"id":"a","text":"The array must contain only unique positive integers.","explanation":"Binary search works with duplicate values and negative numbers."},{"id":"b","text":"The array elements must conform to the Codable protocol.","explanation":"Binary search does not require JSON encoding or decoding support."},{"id":"c","text":"The array elements must be sorted according to the search key.","explanation":"Right. Binary search relies strictly on monotonic ordering to discard halves."},{"id":"d","text":"The array size must always be an exact power of two.","explanation":"Binary search works on arrays of any positive size."}],"answer":"c"},{"id":"sorting-binary-search-q4","type":"mcq","difficulty":2,"prompt":"Why is low + (high - low) / 2 used instead of (low + high) / 2 to compute midpoints?","options":[{"id":"a","text":"It executes faster by using SIMD instructions.","explanation":"Both expressions compile to basic integer arithmetic instructions."},{"id":"b","text":"It enables searching on arrays that contain duplicate values.","explanation":"Handling duplicates depends on boundary comparison logic rather than midpoint syntax."},{"id":"c","text":"It forces Swift to allocate midpoints on the stack.","explanation":"Local integer variables are already allocated on the stack."},{"id":"d","text":"It prevents potential integer overflow when low and high are large.","explanation":"Right. Adding two large integers can exceed integer limits. Subtraction avoids overflow."}],"answer":"d"},{"id":"sorting-binary-search-q5","type":"mcq","difficulty":2,"prompt":"What does it mean that Swift standard library sorting is stable?","options":[{"id":"a","text":"Equal elements keep their original relative order after sorting.","explanation":"Right. A stable sort never changes the relative order of items with equal keys."},{"id":"b","text":"The sorting function never crashes on invalid memory addresses.","explanation":"Stability refers to preserving duplicate ordering, not memory safety."},{"id":"c","text":"The time complexity remains O(1) in the best and worst cases.","explanation":"Swift sorting runs in O(n log n) time comparisons."},{"id":"d","text":"The array cannot be modified once the sorting process begins.","explanation":"Immutability is distinct from algorithmic sorting stability."}],"answer":"a"},{"id":"sorting-binary-search-q6","type":"mcq","difficulty":2,"prompt":"What happens when you pass a closure returning true for equal elements to sort(by:)?","options":[{"id":"a","text":"Swift automatically reverses the entire array before sorting.","explanation":"Swift does not invert sorting order when predicates violate weak ordering."},{"id":"b","text":"It violates strict weak ordering and can trigger crashes or bad sorts.","explanation":"Right. Swift requires strict weak ordering. Returning true for equality causes crashes."},{"id":"c","text":"Swift converts the sort into an O(n) radix sort algorithm.","explanation":"Swift does not switch to radix sort based on predicate return values."},{"id":"d","text":"The closure is ignored and elements sort by memory address.","explanation":"Swift executes the provided closure for all element comparisons."}],"answer":"b"},{"id":"sorting-binary-search-q7","type":"mcq","difficulty":2,"prompt":"In an iterative exact-match binary search, what is the correct while loop condition?","options":[{"id":"a","text":"while low != mid","explanation":"This condition causes premature loop exit and misses valid indices."},{"id":"b","text":"while low > high","explanation":"The loop would never execute because low starts less than or equal to high."},{"id":"c","text":"while low \u003c= high","explanation":"Right. The search interval remains valid while low is less than or equal to high."},{"id":"d","text":"while low + 1 \u003c high","explanation":"This stops before checking intervals with one or two remaining elements."}],"answer":"c"},{"id":"sorting-binary-search-q8","type":"mcq","difficulty":2,"prompt":"What is the auxiliary space complexity of iterative binary search on an array?","options":[{"id":"a","text":"O(n) space to store intermediate search intervals.","explanation":"Iterative binary search stores only a few index pointers, not subarray slices."},{"id":"b","text":"O(log n) space to maintain call frames on stack.","explanation":"Recursive binary search uses O(log n) stack space. Iterative search uses O(1)."},{"id":"c","text":"O(n log n) space to store partitioned subarrays.","explanation":"No memory allocation or data duplication occurs during iteration."},{"id":"d","text":"O(1) space because it only uses pointer variables.","explanation":"Right. Iterative binary search requires only low, mid, and high index pointers."}],"answer":"d"},{"id":"sorting-binary-search-q9","type":"mcq","difficulty":2,"prompt":"How does binary search adjust pointers when array[mid] is strictly less than target?","options":[{"id":"a","text":"low = mid + 1, narrowing the search to the right half.","explanation":"Right. Since target is larger than array[mid], the target must lie to the right."},{"id":"b","text":"high = mid - 1, narrowing the search to the left half.","explanation":"Setting high = mid - 1 searches the left half, which contains smaller elements."},{"id":"c","text":"low = mid, retaining the current midpoint in range.","explanation":"Keeping mid causes infinite loops when only two candidate elements remain."},{"id":"d","text":"high = mid, discarding only elements to the right.","explanation":"This moves in the wrong direction when target is greater than array[mid]."}],"answer":"a"},{"id":"sorting-binary-search-q10","type":"mcq","difficulty":2,"prompt":"Why can firstIndex(of:) in Swift be inefficient on large sorted arrays?","options":[{"id":"a","text":"It re-sorts the array before performing the lookup.","explanation":"firstIndex(of:) does not re-sort the collection."},{"id":"b","text":"It performs an O(n) linear scan from start to end.","explanation":"Right. firstIndex(of:) inspects elements linearly without taking advantage of order."},{"id":"c","text":"It copies the array to a temporary heap location.","explanation":"firstIndex(of:) iterates over the existing array without copying."},{"id":"d","text":"It only works on arrays that contain unique values.","explanation":"firstIndex(of:) works with duplicate values and returns the first matching index."}],"answer":"b"},{"id":"sorting-binary-search-q11","type":"mcq","difficulty":3,"prompt":"When searching for the lower bound of duplicate keys, what should you do when array[mid] == target?","options":[{"id":"a","text":"Return mid immediately because any matching index is valid.","explanation":"Returning mid immediately might return a later duplicate rather than the first one."},{"id":"b","text":"Set low = mid + 1 to explore elements on the right side.","explanation":"Moving right explores higher indices, missing earlier duplicate occurrences."},{"id":"c","text":"Record mid as candidate and set high = mid - 1 to check earlier.","explanation":"Right. To find the first occurrence, keep searching left by setting high = mid - 1."},{"id":"d","text":"Terminate search and return nil because duplicates are invalid.","explanation":"Duplicate elements are common in interview questions and must be handled correctly."}],"answer":"c"},{"id":"sorting-binary-search-q12","type":"mcq","difficulty":3,"prompt":"What algorithm does Swift standard library Array.sort() use internally?","options":[{"id":"a","text":"QuickSort with a randomized pivot selection strategy.","explanation":"QuickSort is unstable and can degrade to O(n^2) worst-case time."},{"id":"b","text":"BubbleSort optimized with early termination flags.","explanation":"BubbleSort has O(n^2) time complexity and is unsuitable for standard libraries."},{"id":"c","text":"HeapSort to maintain strictly constant memory usage.","explanation":"HeapSort is unstable and lacks adaptive performance on partially sorted inputs."},{"id":"d","text":"A modified Timsort variant that is stable and adaptive.","explanation":"Right. Swift uses a modified Timsort that exploits existing runs and ensures stability."}],"answer":"d"},{"id":"sorting-binary-search-q13","type":"mcq","difficulty":3,"prompt":"How many comparisons does binary search make in the worst case for an array with 1024 elements?","options":[{"id":"a","text":"About 11 comparisons because log2(1024) is 10.","explanation":"Right. Halving 1024 elements takes 10 divisions, resulting in at most 11 checks."},{"id":"b","text":"Exactly 512 comparisons by dividing once in half.","explanation":"512 comparisons would represent linear search over half the collection."},{"id":"c","text":"1024 comparisons because all items must be examined.","explanation":"Examining all 1024 items describes a linear scan, not binary search."},{"id":"d","text":"About 100 comparisons based on decimal scaling.","explanation":"Binary search halves by powers of two rather than base-ten factors."}],"answer":"a"},{"id":"sorting-binary-search-q14","type":"mcq","difficulty":2,"prompt":"What happens if you call sort() on an array declared with let in Swift?","options":[{"id":"a","text":"The code compiles and automatically makes a mutable copy.","explanation":"Swift does not implicitly convert immutable constants into mutable variables."},{"id":"b","text":"The Swift compiler throws an error because sort() requires mutation.","explanation":"Right. sort() is a mutating method that cannot be called on a let constant."},{"id":"c","text":"The application crashes at runtime when calling sort().","explanation":"The issue is caught at compile time by Swift value semantics."},{"id":"d","text":"The array sorts in background thread without mutation.","explanation":"sort() runs synchronously and mutates the collection directly."}],"answer":"b"},{"id":"sorting-binary-search-q15","type":"mcq","difficulty":3,"prompt":"How can binary search be applied to an answer space rather than a concrete array?","options":[{"id":"a","text":"By sorting random numbers until an answer appears.","explanation":"Random guessing is not a binary search algorithm."},{"id":"b","text":"By inserting candidates into a dictionary and querying keys.","explanation":"Dictionary hashing does not provide monotonic interval halving."},{"id":"c","text":"By testing feasibility over a monotonic true-false function.","explanation":"Right. If a condition changes from false to true monotonically, binary search finds the boundary."},{"id":"d","text":"By running linear search over all possible integer values.","explanation":"Linear search over large answer ranges is too slow and inefficient."}],"answer":"c"},{"id":"sorting-binary-search-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"var numbers = [9, 3, 1, 7, 4]\nnumbers.sort()\nprint(numbers[2])","options":[{"id":"a","text":"4","explanation":"Right. The sorted array is [1, 3, 4, 7, 9]. Element at index 2 is 4."},{"id":"b","text":"1","explanation":"1 is located at index 0 of the sorted array."},{"id":"c","text":"7","explanation":"7 is located at index 3 of the sorted array."},{"id":"d","text":"3","explanation":"3 is located at index 1 of the sorted array."}],"answer":"a"},{"id":"sorting-binary-search-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"let names = [\"Charlie\", \"Bob\", \"Alice\"]\nlet sortedNames = names.sorted()\nprint(\"\\(names.first!) \\(sortedNames.first!)\")","options":[{"id":"a","text":"Alice Alice","explanation":"names is immutable and was not mutated by sorted()."},{"id":"b","text":"Charlie Alice","explanation":"Right. names retains Charlie at index 0. sortedNames begins with Alice."},{"id":"c","text":"Charlie Charlie","explanation":"sortedNames is sorted alphabetically and starts with Alice."},{"id":"d","text":"Bob Alice","explanation":"names has Charlie as its first element, not Bob."}],"answer":"b"},{"id":"sorting-binary-search-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"func findIndex(_ items: [Int], target: Int) -> Int {\n    var low = 0\n    var high = items.count - 1\n    while low \u003c= high {\n        let mid = low + (high - low) / 2\n        if items[mid] == target { return mid }\n        if items[mid] \u003c target { low = mid + 1 }\n        else { high = mid - 1 }\n    }\n    return -1\n}\nlet data = [10, 20, 30, 40, 50]\nprint(findIndex(data, target: 40))","options":[{"id":"a","text":"1","explanation":"Index 1 holds value 20, not 40."},{"id":"b","text":"2","explanation":"Index 2 holds value 30, not 40."},{"id":"c","text":"3","explanation":"Right. Target 40 is located at index 3 in the array."},{"id":"d","text":"-1","explanation":"Target 40 exists in the array so the function does not return -1."}],"answer":"c"},{"id":"sorting-binary-search-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"var values = [5, 2, 8]\nlet result = values.sort()\nprint(\"\\(values) \\(type(of: result))\")","options":[{"id":"a","text":"[5, 2, 8] Array\u003cInt>","explanation":"values is mutated in-place and sort() returns Void."},{"id":"b","text":"[2, 5, 8] Array\u003cInt>","explanation":"sort() does not return a new Array. It returns Void."},{"id":"c","text":"[5, 2, 8] ()","explanation":"values was modified in-place to [2, 5, 8]."},{"id":"d","text":"[2, 5, 8] ()","explanation":"Right. values is sorted in-place to [2, 5, 8] and result has type Void, printed as ()."}],"answer":"d"},{"id":"sorting-binary-search-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"struct Task {\n    let priority: Int\n    let name: String\n}\nlet tasks = [\n    Task(priority: 2, name: \"A\"),\n    Task(priority: 1, name: \"B\"),\n    Task(priority: 2, name: \"C\")\n]\nlet sorted = tasks.sorted { $0.priority \u003c $1.priority }\nprint(sorted.map { $0.name }.joined())","options":[{"id":"a","text":"BAC","explanation":"Right. B has priority 1. A and C have priority 2. Stable sort keeps A before C."},{"id":"b","text":"BCA","explanation":"Swift sorting is stable, so A cannot be placed after C."},{"id":"c","text":"ABC","explanation":"B has priority 1, so it must appear before priority 2 items."},{"id":"d","text":"CAB","explanation":"B must be first, and stable sorting keeps original order of A then C."}],"answer":"a"},{"id":"sorting-binary-search-q21","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"func searchBoundary(_ arr: [Int], target: Int) -> Int {\n    var low = 0\n    var high = arr.count\n    while low \u003c high {\n        let mid = low + (high - low) / 2\n        if arr[mid] \u003c target { low = mid + 1 }\n        else { high = mid }\n    }\n    return low\n}\nlet numbers = [1, 3, 3, 3, 5, 7]\nprint(searchBoundary(numbers, target: 3))","options":[{"id":"a","text":"0","explanation":"Index 0 holds value 1, which is strictly less than target 3."},{"id":"b","text":"1","explanation":"Right. Lower bound binary search finds the first index where 3 appears, which is 1."},{"id":"c","text":"2","explanation":"Index 2 holds 3, but index 1 is the first occurrence."},{"id":"d","text":"3","explanation":"Index 3 is the last duplicate 3, not the lower bound."}],"answer":"b"},{"id":"sorting-binary-search-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"func binarySearchMissing(_ arr: [Int], target: Int) -> Int {\n    var low = 0\n    var high = arr.count - 1\n    var steps = 0\n    while low \u003c= high {\n        steps += 1\n        let mid = low + (high - low) / 2\n        if arr[mid] == target { return steps }\n        if arr[mid] \u003c target { low = mid + 1 }\n        else { high = mid - 1 }\n    }\n    return steps\n}\nlet items = [2, 4, 6, 8, 10, 12, 14, 16]\nprint(binarySearchMissing(items, target: 7))","options":[{"id":"a","text":"1","explanation":"Step 1 tests index 3 (value 8) and narrows to the left half."},{"id":"b","text":"2","explanation":"Step 2 tests index 1 (value 4) and narrows to the right half."},{"id":"c","text":"3","explanation":"Right. Step 1 checks 8, step 2 checks 4, step 3 checks 6. Then loop ends."},{"id":"d","text":"8","explanation":"8 steps describes a linear search, not a binary search."}],"answer":"c"},{"id":"sorting-binary-search-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"let words = [\"cat\", \"elephant\", \"dog\", \"antelope\"]\nlet sorted = words.sorted { $0.count > $1.count }\nprint(sorted.first ?? \"\")","options":[{"id":"a","text":"antelope","explanation":"antelope has 8 characters, which matches elephant, but elephant appears first."},{"id":"b","text":"dog","explanation":"dog has 3 characters and sorts towards the end of descending order."},{"id":"c","text":"cat","explanation":"cat has 3 characters and is not the longest word."},{"id":"d","text":"elephant","explanation":"Right. elephant has 8 letters. Stable sorting keeps elephant before antelope."}],"answer":"d"},{"id":"sorting-binary-search-q24","type":"written","difficulty":1,"prompt":"Explain the difference between sort() and sorted() on Array in Swift, including mutability, return value, and memory. Write 2 to 5 sentences.","modelAnswer":"In Swift, sort() mutates the array in-place and returns Void, requiring a mutable var array. In contrast, sorted() returns a new sorted array and leaves the original collection unchanged, making it safe for let constants. Because sort() works in-place, it avoids allocating a new array buffer, while sorted() allocates O(n) space for the new array.","rubric":[{"criterion":"Explains that sort() mutates in-place (returning Void) while sorted() returns a new array.","weight":50,"key":true},{"criterion":"Mentions that sort() requires var while sorted() works on immutable let constants.","weight":30},{"criterion":"Notes memory difference where sorted() allocates O(n) space for the returned array.","weight":20}]},{"id":"sorting-binary-search-q25","type":"written","difficulty":2,"prompt":"Explain why binary search achieves O(log n) time complexity and describe what happens if the input array is unsorted. Write 2 to 5 sentences.","modelAnswer":"Binary search achieves O(log n) time complexity because each comparison halves the remaining search interval. By comparing the target with the middle element, it discards half of the candidates on every step. If the input array is unsorted, the monotonic order assumption fails. The algorithm will discard valid elements arbitrarily and return incorrect results.","rubric":[{"criterion":"Explains that each step halves the search space, resulting in logarithmic O(log n) time.","weight":50,"key":true},{"criterion":"States that the algorithm compares target to middle element to choose the left or right half.","weight":30},{"criterion":"Explains that an unsorted array breaks the ordering assumption and produces wrong results.","weight":20}]},{"id":"sorting-binary-search-q26","type":"written","difficulty":2,"prompt":"Why is midpoint computed as low + (high - low) / 2 instead of (low + high) / 2, and what bug occurs if you update pointers with low = mid? Write 2 to 5 sentences.","modelAnswer":"Calculating (low + high) / 2 risks integer overflow when low and high are large numbers whose sum exceeds maximum integer size. Using low + (high - low) / 2 prevents overflow by subtracting first. Furthermore, updating low = mid instead of low = mid + 1 causes infinite loops when items are adjacent. Integer division truncates down so mid never advances.","rubric":[{"criterion":"Explains that (low + high) can overflow fixed-width integer limits.","weight":50,"key":true},{"criterion":"Explains that low + (high - low) / 2 avoids overflow through subtraction.","weight":30},{"criterion":"Explains that setting low = mid creates an infinite loop when low and high are adjacent.","weight":20}]},{"id":"sorting-binary-search-q27","type":"written","difficulty":2,"prompt":"Explain what sorting stability means in Swift and describe a real-world iOS scenario where stability is required. Write 2 to 5 sentences.","modelAnswer":"A sorting algorithm is stable when it guarantees that elements with equal comparison keys keep their original relative positions after sorting. In Swift, both sort() and sorted() are guaranteed to be stable. A practical iOS scenario is sorting a list of contacts first by first name, and then by last name. Stability guarantees that contacts sharing the same last name remain sorted alphabetically by their first name.","rubric":[{"criterion":"Defines stability as preserving the relative order of elements with equal keys.","weight":50,"key":true},{"criterion":"Notes that Swift sort() and sorted() provide guaranteed stability.","weight":30},{"criterion":"Provides a valid multi-level sorting example such as sorting records by secondary keys.","weight":20}]},{"id":"sorting-binary-search-q28","type":"written","difficulty":3,"prompt":"Explain the concept of strict weak ordering in Swift sort closures and what happens if a comparator uses \u003c= instead of \u003c. Write 2 to 5 sentences.","modelAnswer":"Swift sorting closures require a strict weak ordering relationship where the predicate is irreflexive. This means an element compared against itself or an identical element must return false. If a closure uses \u003c= instead of \u003c, comparing two equal items returns true. This breaks the ordering contract, leading to inconsistent sort results, non-deterministic loops, or runtime assertion crashes.","rubric":[{"criterion":"Explains that the comparison predicate must return false for equal elements (irreflexivity).","weight":50,"key":true},{"criterion":"States that using \u003c= returns true for equal items, violating strict weak ordering.","weight":30},{"criterion":"Mentions consequences such as crashes, incorrect order, or undefined behavior.","weight":20}]},{"id":"sorting-binary-search-q29","type":"code-write","difficulty":2,"prompt":"Write a function binarySearchIndex(_ array: [Int], target: Int) -> Int? that performs an iterative binary search on a sorted array and returns the target index or nil if missing.","starterCode":null,"modelAnswer":"func binarySearchIndex(_ array: [Int], target: Int) -> Int? {\n    var low = 0\n    var high = array.count - 1\n    while low \u003c= high {\n        let mid = low + (high - low) / 2\n        if array[mid] == target {\n            return mid\n        } else if array[mid] \u003c target {\n            low = mid + 1\n        } else {\n            high = mid - 1\n        }\n    }\n    return nil\n}\n\nlet items = [4, 8, 15, 16, 23, 42]\nprint(binarySearchIndex(items, target: 16) ?? -1)\nprint(binarySearchIndex(items, target: 99) ?? -1)","rubric":[{"criterion":"Initializes low and high pointers and loops while low \u003c= high.","weight":30},{"criterion":"Calculates midpoint without overflow and returns index when element matches target.","weight":50,"key":true},{"criterion":"Correctly updates low = mid + 1 and high = mid - 1 and returns nil when target is absent.","weight":20}]},{"id":"sorting-binary-search-q30","type":"code-write","difficulty":3,"prompt":"Write a function findFirstOccurrence(_ array: [Int], target: Int) -> Int? that returns the index of the first occurrence of target in a sorted array containing possible duplicate values.","starterCode":null,"modelAnswer":"func findFirstOccurrence(_ array: [Int], target: Int) -> Int? {\n    var low = 0\n    var high = array.count - 1\n    var result: Int? = nil\n    while low \u003c= high {\n        let mid = low + (high - low) / 2\n        if array[mid] == target {\n            result = mid\n            high = mid - 1\n        } else if array[mid] \u003c target {\n            low = mid + 1\n        } else {\n            high = mid - 1\n        }\n    }\n    return result\n}\n\nlet numbers = [1, 2, 4, 4, 4, 5, 9]\nprint(findFirstOccurrence(numbers, target: 4) ?? -1)\nprint(findFirstOccurrence(numbers, target: 7) ?? -1)","rubric":[{"criterion":"Uses binary search with low and high boundary pointers.","weight":30},{"criterion":"When target matches array[mid], stores mid and moves high = mid - 1 to find earlier occurrences.","weight":50,"key":true},{"criterion":"Returns the recorded first index or nil when the target is not present.","weight":20}]},{"id":"sorting-binary-search-q31","type":"code-write","difficulty":2,"prompt":"Write `sortPeople(_:)` to sort tuples by age ascending, and secondarily by name ascending. The parameter and return type are `[(name: String, age: Int)]`.","starterCode":null,"modelAnswer":"func sortPeople(_ people: [(name: String, age: Int)]) -> [(name: String, age: Int)] {\n    return people.sorted { first, second in\n        if first.age != second.age {\n            return first.age \u003c second.age\n        }\n        return first.name \u003c second.name\n    }\n}\n\nlet people = [(name: \"John\", age: 30), (name: \"Alice\", age: 25), (name: \"Bob\", age: 25)]\nlet sorted = sortPeople(people)\nfor person in sorted {\n    print(\"\\(person.name): \\(person.age)\")\n}","rubric":[{"criterion":"Uses sorted(by:) returning a new collection without mutating input.","weight":30},{"criterion":"Compares primary age criteria and secondary name criteria when ages match.","weight":50,"key":true},{"criterion":"Uses strict \u003c comparison ensuring valid strict weak ordering.","weight":20}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
