@@ -129,8 +129,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **main-thread** (The Main Thread) — published (lesson, diagram, 31 questions) → [docs/topics/main-thread/review.html](docs/topics/main-thread/review.html)
     - ✅ **gcd-basics** (GCD Basics) — published (lesson, diagram, 31 questions) → [docs/topics/gcd-basics/review.html](docs/topics/gcd-basics/review.html)
     - ✅ **async-await** (async/await) — published (lesson, diagram, 31 questions) → [docs/topics/async-await/review.html](docs/topics/async-await/review.html)
-  - ⬜ **Batch 2D: SwiftUI & UIKit (9 topics)**
-    - ⬜ **swiftui-observation** (Data Flow with @Observable)
+  - 🔄 **Batch 2D: SwiftUI & UIKit (9 topics)**
+    - 🔄 **swiftui-observation** (Data Flow with @Observable) — starting research
     - ⬜ **observable-object** (ObservableObject and @StateObject)
     - ⬜ **forms-and-input** (Forms and User Input)
     - ⬜ **sheets-alerts-dialogs** (Sheets, Alerts and Dialogs)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Completed Batch 2C (Memory & Concurrency: 6 topics published and committed). Launching dedicated autonomous subagent for Batch 2D (SwiftUI & UIKit: 9 topics, `swiftui-observation` through `table-collection-views`).
 
 - **2026-11-09** — Built and published topic async-await (async/await): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/async-await/review.html`). All checks passed. Batch 2C (Memory & Concurrency - 6 topics) is now 100% complete and published!
 
