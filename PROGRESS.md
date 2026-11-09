@@ -139,10 +139,10 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **auto-layout** (Auto Layout) — published (lesson, diagram, 31 questions) → [docs/topics/auto-layout/review.html](docs/topics/auto-layout/review.html)
     - ✅ **uikit-navigation** (Navigation in UIKit) — published (lesson, diagram, 31 questions) → [docs/topics/uikit-navigation/review.html](docs/topics/uikit-navigation/review.html)
     - ✅ **table-collection-views** (Table and Collection Views) — published (lesson, diagram, 31 questions) → [docs/topics/table-collection-views/review.html](docs/topics/table-collection-views/review.html)
-  - ⏸️ **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)** — paused (2 of 9 published)
+  - 🔄 **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)** — resuming (2 of 9 published)
     - ✅ **dark-mode-dynamic-type** (Dark Mode and Dynamic Type) — published (lesson, diagram, 31 questions) → [docs/topics/dark-mode-dynamic-type/review.html](docs/topics/dark-mode-dynamic-type/review.html)
     - ✅ **hig-liquid-glass** (Apple Design and Liquid Glass) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/hig-liquid-glass/review.html](docs/topics/hig-liquid-glass/review.html)
-    - ⏸️ **app-lifecycle** (App and Scene Lifecycle) — paused (draft in progress)
+    - 🔄 **app-lifecycle** (App and Scene Lifecycle) — resuming from draft
     - ⬜ **permissions-privacy** (Permissions and Privacy)
     - ⬜ **signing-app-store** (App Signing and the App Store)
     - ⬜ **http-rest-basics** (HTTP and REST Basics)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Resumed Batch 2E subagent upon user request. Continuing from `app-lifecycle` through `keychain-basics`.
 
 - **2026-11-09** — Subagent stopped upon user request. Published `hig-liquid-glass` (Commit `047ccf5`). Batch 2E paused with 2 of 9 topics published (54 total published topics across curriculum). Draft of `app-lifecycle` preserved.
 
