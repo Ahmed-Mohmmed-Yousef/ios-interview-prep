@@ -1,0 +1,619 @@
+<title>Generics: The Basics Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --gen-color: #0284c7; --gen-soft: #e0f2fe;
+  --int-color: #0c765c; --int-soft: #dcf2ea;
+  --str-color: #7c3aed; --str-soft: #ede9fe;
+  --con-color: #d97706; --con-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --gen-color: #38bdf8; --gen-soft: #082f49;
+  --int-color: #45cfa3; --int-soft: #13362c;
+  --str-color: #a78bfa; --str-soft: #2e1065;
+  --con-color: #fbbf24; --con-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--gen-soft); color: var(--gen-color); }
+.p-right .kind { background: var(--int-soft); color: var(--int-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.card-shape.active-gen { stroke: var(--gen-color); stroke-width: 2.5; fill: var(--gen-soft); }
+.card-shape.active-int { stroke: var(--int-color); stroke-width: 2.5; fill: var(--int-soft); }
+.card-shape.active-str { stroke: var(--str-color); stroke-width: 2.5; fill: var(--str-soft); }
+.card-shape.active-con { stroke: var(--con-color); stroke-width: 2.5; fill: var(--con-soft); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--gen-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Swift Language · Topic 6 of 9 · Prototype</p>
+    <h1>Generics: The Basics</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can write generic functions and types.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Why are Swift generics superior to using Any for reusable collections or functions?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Generics allocate all instances inside static global memory buffers.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Generics preserve compile-time static type safety without requiring runtime downcasts or losing type information.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Generics bypass ARC reference counting checks completely.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a molded shipping container. The container structure is identical whether you load bicycles, books, or electronics. You do not need to build a new container design for every product. But once loaded with books, it holds books safely and predictably. Swift generics work the same way: you build one reusable structure that safely holds any specific type you provide.</p></aside>
+<p>In Swift, <strong>generics</strong> allow you to write flexible, reusable functions and types that work with any type according to rules you define.</p>
+<p>Generics prevent duplicated logic without discarding compile-time type safety. Built-in types like <code>Array</code> and <code>Dictionary</code> are generic types.</p>
+<p>Key elements of generics:</p>
+<ul>
+<li><strong>Type parameters</strong>: Placeholders written inside angle brackets, like <code>&lt;T&gt;</code> or <code>&lt;Element&gt;</code>, representing an actual type supplied at call time.</li>
+<li><strong>Generic types</strong>: Custom structs, classes, or enums that adapt to any element type, such as <code>Stack&lt;Element&gt;</code>.</li>
+<li><strong>Type constraints</strong>: Requirements dictating that a type parameter must inherit from a specific class or conform to a protocol, like <code>&lt;T: Equatable&gt;</code>.</li>
+<li><strong>Where clauses</strong>: Additional conditional constraints specified with the <code>where</code> keyword.</li>
+</ul>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">How do you declare a placeholder type parameter named Element on a generic struct?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">struct Stack(Element)</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">struct Stack&lt;Element&gt;</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">struct Stack: Element</span></button><p class="qc-explain" hidden="">Type parameters are declared inside angle brackets immediately after the type name: struct Stack&lt;Element&gt;.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Writing a generic function with type inference</figcaption><pre class="block swift"><code class="language-swift">// 1. A generic swap function working with any matching type
+func swapValues&lt;T&gt;(_ a: inout T, _ b: inout T) {
+    let temporary = a
+    a = b
+    b = temporary
+}
+
+var firstInt = 10
+var secondInt = 20
+swapValues(&amp;firstInt, &amp;secondInt)
+print(&quot;Ints: first is \(firstInt), second is \(secondInt)&quot;)
+
+var firstString = &quot;World&quot;
+var secondString = &quot;Hello&quot;
+swapValues(&amp;firstString, &amp;secondString)
+print(&quot;Strings: \(firstString) \(secondString)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Ints: first is 20, second is 10
+Strings: Hello World
+</code></pre></figure>
+<p>This code shows how generic functions operate:</p>
+<ul>
+<li><strong>Type parameter <code>&lt;T&gt;</code></strong>: <code>T</code> stands in for an actual type determined when the function is called.</li>
+<li><strong>Type matching</strong>: Both <code>a</code> and <code>b</code> must share the exact same type <code>T</code>.</li>
+<li><strong>Automatic inference</strong>: The compiler infers <code>T</code> as <code>Int</code> in the first call and <code>T</code> as <code>String</code> in the second call.</li>
+</ul>
+<figure class="code-example"><figcaption>Building generic types and applying type constraints</figcaption><pre class="block swift"><code class="language-swift">// 2. Generic custom type: Stack
+struct Stack&lt;Element&gt; {
+    private var items: [Element] = []
+    
+    mutating func push(_ item: Element) {
+        items.append(item)
+    }
+    
+    mutating func pop() -&gt; Element? {
+        return items.popLast()
+    }
+}
+
+// Extending a generic type reuses the Element placeholder
+extension Stack {
+    var topItem: Element? {
+        return items.last
+    }
+}
+
+var intStack = Stack&lt;Int&gt;()
+intStack.push(1)
+intStack.push(2)
+print(&quot;Top item: \(intStack.topItem ?? 0)&quot;)
+print(&quot;Popped item: \(intStack.pop() ?? 0)&quot;)
+
+// 3. Type constraint enforcing Equatable
+func findIndex&lt;T: Equatable&gt;(of target: T, in list: [T]) -&gt; Int? {
+    for (index, item) in list.enumerated() {
+        if item == target {
+            return index
+        }
+    }
+    return nil
+}
+
+let fruits = [&quot;Apple&quot;, &quot;Banana&quot;, &quot;Orange&quot;]
+let index = findIndex(of: &quot;Banana&quot;, in: fruits)
+print(&quot;Banana index: \(index ?? -1)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Top item: 2
+Popped item: 2
+Banana index: 1
+</code></pre></figure>
+<p>This example highlights generic types and constraints:</p>
+<ul>
+<li><strong>Generic struct</strong>: <code>Stack&lt;Element&gt;</code> stores items of any specified type safely.</li>
+<li><strong>Generic extensions</strong>: <code>extension Stack</code> reuses <code>Element</code> without writing angle brackets again.</li>
+<li><strong>Type constraint <code>&lt;T: Equatable&gt;</code></strong>: Enables the <code>==</code> comparison operator inside <code>findIndex</code>.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why must findIndex constrain T to Equatable when comparing items with ==?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">To convert the elements to strings.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because not all Swift types support the == equality operator.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">To force elements to be reference types.</span></button><p class="qc-explain" hidden="">By default, arbitrary types cannot be compared with ==. Constraining T to Equatable tells the compiler == is supported.</p></div>
+<p class="try-it"><p>Build generic stacks and queues in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using Any instead of generics</p><p>Candidates sometimes reach for <code>Any</code> when they want flexible functions. <code>Any</code> throws away type safety and requires risky runtime casting. Generics enforce strict type relationships while keeping code flexible.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Repeating angle brackets when extending generic types</p><p>When extending <code>Stack&lt;Element&gt;</code>, candidates often write <code>extension Stack&lt;Element&gt;</code>. Swift forbids angle brackets in the extension signature. Write <code>extension Stack</code> and use <code>Element</code> directly.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming Swift generics use Java-style type erasure</p><p>In Java, generic types are erased at runtime to raw Objects. In Swift, generics preserve full type metadata. The compiler generates specialized machine code for concrete types.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>Generics let you write functions and types that work with any type. We define placeholder names in angle brackets like <code>&lt;T&gt;</code>. Generics give us code reuse while maintaining Swift compile-time type safety.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Generics allow functions and custom types to operate on placeholder types like <code>&lt;T&gt;</code> or <code>&lt;Element&gt;</code>. Type constraints restrict placeholders to types conforming to specific protocols, such as <code>&lt;T: Equatable&gt;</code>. Unlike Any, generics maintain static type safety without runtime casting.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Swift generics are implemented through compiler specialization, known as monomorphization. When concrete types are known, the compiler generates specialized, non-generic machine code with direct dispatch and zero abstraction penalty. For unspecialized code, Swift uses metadata records and witness tables to pass types safely at runtime.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Generics enable flexible, reusable functions and types without code duplication.</li>
+<li>Placeholder types are declared inside angle brackets, such as <code>&lt;T&gt;</code> or <code>&lt;Element&gt;</code>.</li>
+<li>The compiler infers type parameters from argument values at the call site.</li>
+<li>Extensions on generic types reuse existing type parameter names without angle brackets.</li>
+<li>Type constraints like <code>&lt;T: Equatable&gt;</code> unlock protocol-specific operations like <code>==</code>.</li>
+<li>Swift compiler monomorphization optimizes generic code into fast concrete implementations.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/generics">The Swift Programming Language: Generics</a></li>
+<li><a href="https://developer.apple.com/documentation/swift/equatable">Swift Standard Library: Equatable</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    leftTitle: "1. Generic Blueprint",
+    leftTag: "Type Placeholder",
+    leftCode: "func swapValues<T>(_ a: inout T, _ b: inout T) {\n    let temp = a; a = b; b = temp\n}",
+    leftDesc: "Placeholder T stands in for any concrete type supplied at call time.",
+    rightTitle: "Universal Template",
+    rightTag: "Blueprint",
+    rightCode: "// T can be Int, String, Double, or CustomType\n// Both arguments must share the identical type",
+    rightDesc: "Monomorphization generates direct, non-boxed machine code.",
+    genTitle: "Generic Blueprint: <T>",
+    genLine1: "a: inout T",
+    genLine2: "b: inout T",
+    specTitle: "Generic Definition",
+    specLine1: "Type unspecified",
+    specLine2: "Awaiting call site",
+    genStyle: "active-gen",
+    specStyle: "card-shape"
+  },
+  {
+    leftTitle: "2. Specialized for Int",
+    leftTag: "swapValues(&x, &y)",
+    leftCode: "var x = 10, y = 20\nswapValues(&x, &y)\n// Compiler infers T as Int",
+    leftDesc: "The compiler recognizes both arguments are Int and specializes T to Int.",
+    rightTitle: "Direct Machine Code",
+    rightTag: "T = Int",
+    rightCode: "// Specialized machine code:\nfunc swapValues(a: inout Int, b: inout Int)\n// Direct register swap, zero boxing",
+    rightDesc: "Executes at raw machine speed without heap boxing or runtime reflection.",
+    genTitle: "Specialized: <Int>",
+    genLine1: "a: inout Int",
+    genLine2: "b: inout Int",
+    specTitle: "Specialized: Int",
+    specLine1: "Machine type: Int64",
+    specLine2: "Fast direct execution",
+    genStyle: "card-shape",
+    specStyle: "active-int"
+  },
+  {
+    leftTitle: "3. Specialized for String",
+    leftTag: "swapValues(&s1, &s2)",
+    leftCode: "var s1 = \"World\", s2 = \"Hello\"\nswapValues(&s1, &s2)\n// Compiler infers T as String",
+    leftDesc: "The exact same generic function handles strings cleanly without rewriting code.",
+    rightTitle: "Direct Machine Code",
+    rightTag: "T = String",
+    rightCode: "// Specialized machine code:\nfunc swapValues(a: inout String, b: inout String)\n// String buffer pointer swap",
+    rightDesc: "Type safety guarantees you cannot accidentally swap an Int with a String.",
+    genTitle: "Specialized: <String>",
+    genLine1: "a: inout String",
+    genLine2: "b: inout String",
+    specTitle: "Specialized: String",
+    specLine1: "Machine type: Swift.String",
+    specLine2: "Full type safety retained",
+    genStyle: "card-shape",
+    specStyle: "active-str"
+  },
+  {
+    leftTitle: "4. Type Constraints",
+    leftTag: "<T: Equatable>",
+    leftCode: "func findIndex<T: Equatable>(item: T, list: [T]) {\n    if element == item { ... }\n}",
+    leftDesc: "Type constraints limit T to types conforming to specific protocols like Equatable.",
+    rightTitle: "Capability Unlocked",
+    rightTag: "Enforces Protocol",
+    rightCode: "// Protocol requirement enables:\n// == comparison operator\n// Rejects non-conforming types at build time",
+    rightDesc: "Unlocks required operators while preventing illegal types at compile time.",
+    genTitle: "Constrained: <T: Equatable>",
+    genLine1: "T must conform to Equatable",
+    genLine2: "== operator unlocked",
+    specTitle: "Constraint: Equatable",
+    specLine1: "Enforces: element == item",
+    specLine2: "Compile-time safety verified",
+    genStyle: "card-shape",
+    specStyle: "active-con"
+  }
+];
+
+let currentStep = 0;
+
+function updateUI() {
+  const s = steps[currentStep];
+  document.getElementById("left-title").textContent = s.leftTitle;
+  document.getElementById("left-tag").textContent = s.leftTag;
+  document.getElementById("left-code").textContent = s.leftCode;
+  document.getElementById("left-desc").textContent = s.leftDesc;
+  
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("gen-title").textContent = s.genTitle;
+  document.getElementById("gen-line1").textContent = s.genLine1;
+  document.getElementById("gen-line2").textContent = s.genLine2;
+
+  document.getElementById("spec-title").textContent = s.specTitle;
+  document.getElementById("spec-line1").textContent = s.specLine1;
+  document.getElementById("spec-line2").textContent = s.specLine2;
+
+  const cardGen = document.getElementById("card-gen");
+  const cardSpec = document.getElementById("card-spec");
+  cardGen.className = "card-shape " + s.genStyle;
+  cardSpec.className = "card-shape " + s.specStyle;
+
+  // Update dots and buttons
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.className = "dot" + (idx === currentStep ? " active" : "");
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = currentStep === 0;
+  document.getElementById("btn-next").disabled = currentStep === steps.length - 1;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateUI();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateUI();
+  }
+}
+
+function jumpTo(idx) {
+  currentStep = idx;
+  updateUI();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateUI();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"generics-basics","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"generics-basics-q1","type":"mcq","difficulty":1,"prompt":"What do generics allow you to write in Swift?","options":[{"id":"a","text":"Flexible and reusable functions and types that work with any type.","explanation":"Right. Generics enable reusable code that works with any type while preserving type safety."},{"id":"b","text":"Functions that bypass compile-time type checking entirely.","explanation":"Generics enforce strict compile-time type checking."},{"id":"c","text":"Dynamic closures that execute only on secondary threads.","explanation":"Generics are static type abstractions, unrelated to thread scheduling."},{"id":"d","text":"Classes that inherit from multiple superclasses simultaneously.","explanation":"Swift classes only support single inheritance, regardless of generics."}],"answer":"a"},{"id":"generics-basics-q2","type":"mcq","difficulty":1,"prompt":"How are type parameter placeholders declared on a generic function?","options":[{"id":"a","text":"Inside parentheses after the parameter names.","explanation":"Parentheses enclose function arguments, not type parameters."},{"id":"b","text":"Inside angle brackets immediately after the function name.","explanation":"Right. Type parameters are written in angle brackets, like func swapTwo\u003cT>(...)."},{"id":"c","text":"Inside square brackets before the return arrow.","explanation":"Square brackets define array types and collection subscripts."},{"id":"d","text":"Inside curly braces preceding the function body.","explanation":"Curly braces enclose the executable body statements."}],"answer":"b"},{"id":"generics-basics-q3","type":"mcq","difficulty":1,"prompt":"Which of these standard Swift collection types is a generic type?","options":[{"id":"a","text":"Array only.","explanation":"Dictionary and Set are also generic collection types."},{"id":"b","text":"Dictionary only.","explanation":"Array and Set are also built as generic collections."},{"id":"c","text":"Array, Set, and Dictionary.","explanation":"Right. All standard Swift collections are generic types."},{"id":"d","text":"None of the standard collections use generics.","explanation":"Swift standard collections are foundational examples of generic types."}],"answer":"c"},{"id":"generics-basics-q4","type":"mcq","difficulty":2,"prompt":"What is a type constraint in Swift generics?","options":[{"id":"a","text":"A rule restricting functions to accept only integer types.","explanation":"Type constraints apply to arbitrary protocols or class hierarchies."},{"id":"b","text":"A compiler limit capping generic parameters at four.","explanation":"Swift enforces no arbitrary limit on generic parameter count."},{"id":"c","text":"A check that converts value types to heap references.","explanation":"Constraints define interface requirements, not memory allocation."},{"id":"d","text":"A requirement that a type parameter conform to a protocol or class.","explanation":"Right. Syntax like \u003cT: Equatable> enforces protocol or superclass conformance."}],"answer":"d"},{"id":"generics-basics-q5","type":"mcq","difficulty":2,"prompt":"Why does a generic function comparing elements with == require \u003cT: Equatable>?","options":[{"id":"a","text":"Because not all Swift types support the == operator by default.","explanation":"Right. The compiler requires the Equatable constraint to verify that == is valid."},{"id":"b","text":"Because Equatable converts objects to numeric hashes.","explanation":"Hashable generates integer hashes, while Equatable provides equality."},{"id":"c","text":"Because unconstrained generics cannot be compiled into machine code.","explanation":"Unconstrained generics compile cleanly, but cannot use ==."},{"id":"d","text":"Because Equatable is required for all function arguments.","explanation":"Functions only require Equatable when equality comparisons occur."}],"answer":"a"},{"id":"generics-basics-q6","type":"mcq","difficulty":2,"prompt":"How do you extend a generic type named Stack\u003cElement> in Swift?","options":[{"id":"a","text":"extension Stack\u003cElement> { ... }","explanation":"Swift forbids repeating type parameter angle brackets on extensions."},{"id":"b","text":"extension Stack { ... }","explanation":"Right. You write extension Stack and use Element directly in the body."},{"id":"c","text":"extension Stack where Element: Any { ... }","explanation":"Unconstrained extensions do not require redundant where clauses."},{"id":"d","text":"extension \u003cElement> Stack { ... }","explanation":"This syntax is invalid in the Swift programming language."}],"answer":"b"},{"id":"generics-basics-q7","type":"mcq","difficulty":2,"prompt":"Why are Swift generics superior to using Any for general collections?","options":[{"id":"a","text":"Any collections execute on background threads only.","explanation":"Any has no effect on thread scheduling."},{"id":"b","text":"Any collections cannot be mutated after creation.","explanation":"Variables of type [Any] can be mutated freely."},{"id":"c","text":"Generics guarantee static type safety without runtime casting.","explanation":"Right. Generics catch type mismatches at compile time, eliminating runtime casts."},{"id":"d","text":"Generics eliminate the need for memory management.","explanation":"ARC manages memory for generic types just like concrete types."}],"answer":"c"},{"id":"generics-basics-q8","type":"mcq","difficulty":3,"prompt":"How does the Swift compiler optimize generic functions during compilation?","options":[{"id":"a","text":"By converting all generic parameters to Objective-C id pointers.","explanation":"Pure Swift generics do not box types into Objective-C pointers."},{"id":"b","text":"By interpreting generic method calls through a bytecode virtual machine.","explanation":"Swift compiles to native machine code, not interpreted bytecode."},{"id":"c","text":"By erasing all generic types to raw untyped heap blocks.","explanation":"Java uses type erasure; Swift preserves full type metadata."},{"id":"d","text":"By specializing functions for concrete types (monomorphization).","explanation":"Right. Compiler specialization produces direct machine code for concrete types."}],"answer":"d"},{"id":"generics-basics-q9","type":"mcq","difficulty":1,"prompt":"How does the compiler know what type T is when you call swapValues(&a, &b)?","options":[{"id":"a","text":"It infers the concrete type automatically from the arguments passed.","explanation":"Right. Type inference deduces T from the arguments at the call site."},{"id":"b","text":"You must always specify the type explicitly: swapValues\u003cInt>(&a, &b).","explanation":"Swift automatically infers generic parameters from call arguments."},{"id":"c","text":"It assumes all generic parameters are Double by default.","explanation":"Swift never assumes arbitrary default types for generic parameters."},{"id":"d","text":"It asks the operating system runtime for the memory size.","explanation":"Type inference is performed statically at compile time."}],"answer":"a"},{"id":"generics-basics-q10","type":"mcq","difficulty":2,"prompt":"What happens if you pass an Int and a String to func compare\u003cT>(_ a: T, _ b: T)?","options":[{"id":"a","text":"The function compiles and converts Int into a String.","explanation":"Swift does not perform implicit type coercion."},{"id":"b","text":"The compiler raises an error because both arguments must share type T.","explanation":"Right. T represents a single identical concrete type for both arguments."},{"id":"c","text":"The function executes by boxing both values inside Any.","explanation":"The compiler enforces type consistency instead of boxing silently."},{"id":"d","text":"The application crashes with a type mismatch exception at runtime.","explanation":"The error is caught at compile time, preventing runtime crashes."}],"answer":"b"},{"id":"generics-basics-q11","type":"mcq","difficulty":2,"prompt":"Can a generic type define multiple placeholder parameters?","options":[{"id":"a","text":"No, generic types are limited to a single placeholder \u003cT>.","explanation":"Types can define multiple placeholders, like Dictionary\u003cKey, Value>."},{"id":"b","text":"Only if all parameters inherit from NSObject.","explanation":"Generic parameters work with pure Swift value types and classes."},{"id":"c","text":"Yes, separated by commas inside angle brackets like \u003cKey, Value>.","explanation":"Right. Multiple placeholders are separated by commas, such as \u003cKey, Value>."},{"id":"d","text":"Only if declared as a class, not as a struct.","explanation":"Structs, enums, and classes all support multiple type parameters."}],"answer":"c"},{"id":"generics-basics-q12","type":"mcq","difficulty":2,"prompt":"What keyword defines advanced requirements on generic parameters or associated types?","options":[{"id":"a","text":"guard","explanation":"guard is a control-flow statement for early exits."},{"id":"b","text":"when","explanation":"when is not a keyword for type constraints in Swift."},{"id":"c","text":"requires","explanation":"requires is not a Swift keyword."},{"id":"d","text":"where","explanation":"Right. Generic where clauses specify requirements on type parameters."}],"answer":"d"},{"id":"generics-basics-q13","type":"mcq","difficulty":1,"prompt":"Can a generic type be instantiated with a custom struct?","options":[{"id":"a","text":"Yes, generics work seamlessly with custom structs, enums, and classes.","explanation":"Right. Any valid Swift type can be used as a concrete generic argument."},{"id":"b","text":"No, generics only accept Apple standard library types.","explanation":"Generics work with any user-defined or standard Swift types."},{"id":"c","text":"Only if the struct has fewer than three stored properties.","explanation":"Struct property count does not impact generic compatibility."},{"id":"d","text":"Only if the struct conforms to Codable.","explanation":"Codable is only needed when encoding or decoding JSON data."}],"answer":"a"},{"id":"generics-basics-q14","type":"mcq","difficulty":2,"prompt":"What naming convention does Apple recommend for generic type parameters?","options":[{"id":"a","text":"LowerCamelCase names like myType or element.","explanation":"Types and type parameters in Swift use UpperCamelCase."},{"id":"b","text":"UpperCamelCase names like T, Element, Key, or Value.","explanation":"Right. Descriptive UpperCamelCase or single letters like T are standard."},{"id":"c","text":"Screaming snake case like TYPE_PARAM.","explanation":"Swift does not use screaming snake case for type parameters."},{"id":"d","text":"Prefixing with an underscore like _T.","explanation":"Underscores denote private symbols or ignored arguments."}],"answer":"b"},{"id":"generics-basics-q15","type":"mcq","difficulty":3,"prompt":"What is a trade-off of aggressive compiler generic specialization (monomorphization)?","options":[{"id":"a","text":"It causes memory retain cycles between value types.","explanation":"Specialization does not introduce ARC retain cycles."},{"id":"b","text":"It forces code to run on a single background queue.","explanation":"Generics have no correlation with Grand Central Dispatch queues."},{"id":"c","text":"It can increase the final binary code size.","explanation":"Right. Generating specialized machine code for many types increases binary size."},{"id":"d","text":"It disables compile-time type checking.","explanation":"Monomorphization relies on strict compile-time type verification."}],"answer":"c"},{"id":"generics-basics-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"func printPair\u003cT>(_ a: T, _ b: T) {\n    print(\"\\(a) and \\(b)\")\n}\nprintPair(\"Cat\", \"Dog\")","options":[{"id":"a","text":"Cat","explanation":"The function prints both arguments separated by and."},{"id":"b","text":"Dog","explanation":"Both arguments are printed, not just the second."},{"id":"c","text":"T and T","explanation":"T is the generic placeholder, replaced by the actual string values."},{"id":"d","text":"Cat and Dog","explanation":"Right. T is inferred as String and the function formats Cat and Dog."}],"answer":"d"},{"id":"generics-basics-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"struct Box\u003cT> {\n    var item: T\n}\nlet intBox = Box(item: 42)\nprint(intBox.item + 8)","options":[{"id":"a","text":"50","explanation":"Right. intBox.item is inferred as Int with value 42, giving 42 + 8 = 50."},{"id":"b","text":"42","explanation":"intBox.item (42) is added to 8."},{"id":"c","text":"428","explanation":"item is an integer, so the + operator adds numbers rather than concatenating."},{"id":"d","text":"nil","explanation":"intBox.item is a non-optional integer."}],"answer":"a"},{"id":"generics-basics-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"func areEqual\u003cT: Equatable>(_ a: T, _ b: T) -> Bool {\n    a == b\n}\nprint(areEqual(15, 15))","options":[{"id":"a","text":"false","explanation":"15 equals 15, so the function returns true."},{"id":"b","text":"true","explanation":"Right. Both arguments are 15, so a == b evaluates to true."},{"id":"c","text":"15","explanation":"areEqual returns a Bool, not an Int."},{"id":"d","text":"0","explanation":"The output is a boolean true value."}],"answer":"b"},{"id":"generics-basics-q19","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"struct Pair\u003cFirst, Second> {\n    var first: First\n    var second: Second\n}\nlet p = Pair(first: \"Age\", second: 25)\nprint(\"\\(p.first): \\(p.second)\")","options":[{"id":"a","text":"Age","explanation":"Both first and second properties are printed."},{"id":"b","text":"25","explanation":"The string also includes the first property Age."},{"id":"c","text":"Age: 25","explanation":"Right. Pair holds First as String and Second as Int, formatting Age: 25."},{"id":"d","text":"Pair: Age","explanation":"The format string prints first: second."}],"answer":"c"},{"id":"generics-basics-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"struct Stack\u003cElement> {\n    var items: [Element] = []\n    mutating func push(_ item: Element) { items.append(item) }\n}\nextension Stack {\n    var count: Int { items.count }\n}\nvar s = Stack\u003cString>()\ns.push(\"Swift\")\ns.push(\"Generics\")\nprint(s.count)","options":[{"id":"a","text":"0","explanation":"Two elements were pushed to the stack."},{"id":"b","text":"1","explanation":"Both Swift and Generics were appended to items."},{"id":"c","text":"nil","explanation":"count is a non-optional integer."},{"id":"d","text":"2","explanation":"Right. Two items were pushed, so the extended count property returns 2."}],"answer":"d"},{"id":"generics-basics-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"func findFirst\u003cT: Comparable>(in array: [T]) -> T? {\n    array.sorted().first\n}\nlet numbers = [5, 2, 8, 1, 9]\nprint(findFirst(in: numbers) ?? 0)","options":[{"id":"a","text":"1","explanation":"Right. sorted() orders numbers ascending [1, 2, 5, 8, 9], so first is 1."},{"id":"b","text":"5","explanation":"5 is the original first element, but array.sorted() sorts first."},{"id":"c","text":"9","explanation":"9 is the largest element, not the first of sorted()."},{"id":"d","text":"0","explanation":"The array is non-empty, so fallback 0 is unused."}],"answer":"a"},{"id":"generics-basics-q22","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"func repeatItem\u003cT>(_ item: T, count: Int) -> [T] {\n    Array(repeating: item, count: count)\n}\nlet res = repeatItem(7, count: 3)\nprint(res.reduce(0, +))","options":[{"id":"a","text":"7","explanation":"The array contains three 7s: [7, 7, 7]."},{"id":"b","text":"21","explanation":"Right. [7, 7, 7] summed together equals 21."},{"id":"c","text":"10","explanation":"7 + 7 + 7 is 21, not 10."},{"id":"d","text":"3","explanation":"3 is the count, not the sum of elements."}],"answer":"b"},{"id":"generics-basics-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"struct Wrapper\u003cValue> {\n    var value: Value\n}\nextension Wrapper where Value == Int {\n    func doubled() -> Int { value * 2 }\n}\nlet w = Wrapper(value: 20)\nprint(w.doubled())","options":[{"id":"a","text":"20","explanation":"doubled() multiplies value by 2."},{"id":"b","text":"10","explanation":"The method multiplies by 2, it does not divide."},{"id":"c","text":"40","explanation":"Right. Value matches Int, so the conditional extension method doubled() computes 20 * 2 = 40."},{"id":"d","text":"nil","explanation":"doubled() returns a non-optional Int."}],"answer":"c"},{"id":"generics-basics-q24","type":"written","difficulty":2,"prompt":"Explain what generics are in Swift, how type parameters work, and why generics are preferred over Any.","rubric":[{"criterion":"Explains that generics allow writing flexible, reusable code with placeholder type parameters (like \u003cT>)","weight":40,"key":true},{"criterion":"Contrasts with Any, noting generics maintain compile-time type safety without runtime casting","weight":40,"key":true},{"criterion":"Mentions that standard Swift collections like Array and Dictionary are generic types","weight":20,"key":false}],"modelAnswer":"Generics enable you to write flexible, reusable functions and types that work with any type using placeholder names in angle brackets like \u003cT>. Unlike Any, generics enforce strict compile-time static type safety without requiring runtime downcasts. Standard collections like Array and Dictionary are built using generics."},{"id":"generics-basics-q25","type":"written","difficulty":2,"prompt":"What are type constraints in Swift generics, and why are they necessary when using operators like == or \u003c inside generic functions?","rubric":[{"criterion":"Explains that type constraints specify that a type parameter must inherit from a class or conform to a protocol","weight":50,"key":true},{"criterion":"Explains that operators like == or \u003c require protocol conformance (such as Equatable or Comparable) to be permitted by the compiler","weight":50,"key":true}],"modelAnswer":"Type constraints specify that a generic type parameter must inherit from a specific class or conform to a protocol, such as \u003cT: Equatable>. Because arbitrary Swift types do not automatically support comparison operators, type constraints are necessary to prove to the compiler that operators like == or \u003c are supported."},{"id":"generics-basics-q26","type":"written","difficulty":2,"prompt":"How do you extend a generic type, and what syntax rule applies to the type parameter list?","rubric":[{"criterion":"Explains that extensions use the type name without angle brackets (for example, extension Stack)","weight":50,"key":true},{"criterion":"Explains that the existing type parameter placeholders (like Element) are available inside the extension body automatically","weight":50,"key":true}],"modelAnswer":"When extending a generic type, you do not restate the type parameter list in angle brackets; you simply write extension TypeName. The original type parameter placeholders (such as Element) are automatically available inside the extension body for properties and methods."},{"id":"generics-basics-q27","type":"written","difficulty":3,"prompt":"Explain compiler specialization (monomorphization) in Swift generics and its performance benefits.","rubric":[{"criterion":"Explains that the compiler generates specialized machine code for concrete types used at call sites","weight":50,"key":true},{"criterion":"Explains that specialization eliminates runtime boxing and indirection, matching the performance of hand-written concrete code","weight":50,"key":true}],"modelAnswer":"Compiler specialization (monomorphization) generates concrete, non-generic machine code for each specific type used at call sites. This optimization eliminates runtime boxing and indirect table dispatch, allowing the generic function to execute at the speed of hand-written concrete functions."},{"id":"generics-basics-q28","type":"written","difficulty":3,"prompt":"How do generic where clauses work, and when should you use them instead of simple protocol constraints?","rubric":[{"criterion":"Explains that where clauses define complex requirements across multiple parameters or associated types","weight":50,"key":true},{"criterion":"Gives an example such as equating associated types or adding conditional protocol conformances","weight":50,"key":true}],"modelAnswer":"A generic where clause defines requirements for type parameters and associated types. Simple constraints like \u003cT: Equatable> work for single types. Where clauses handle multi-type relationships, like matching elements between two collections."},{"id":"generics-basics-q29","type":"code-write","difficulty":1,"prompt":"Write a generic function swapValues\u003cT> that swaps the values of two inout parameters of type T.","starterCode":"// Write generic swapValues function here","modelAnswer":"func swapValues\u003cT>(_ a: inout T, _ b: inout T) {\n    let temp = a\n    a = b\n    b = temp\n}\nvar x = 10\nvar y = 20\nswapValues(&x, &y)\nprint(\"\\(x) and \\(y)\")","rubric":[{"criterion":"Declares generic function signature with type parameter \u003cT> and inout parameters","weight":50,"key":true},{"criterion":"Correctly swaps both inout values using a temporary constant","weight":50,"key":true}]},{"id":"generics-basics-q30","type":"code-write","difficulty":2,"prompt":"Create a generic struct Stack\u003cT> with an internal array of items. Implement mutating func push(_ item: T) and mutating func pop() -> T?.","starterCode":"// Create generic Stack struct here","modelAnswer":"struct Stack\u003cT> {\n    private var items: [T] = []\n    mutating func push(_ item: T) {\n        items.append(item)\n    }\n    mutating func pop() -> T? {\n        return items.popLast()\n    }\n}\nvar s = Stack\u003cInt>()\ns.push(100)\ns.push(200)\nprint(s.pop() ?? 0)\nprint(s.pop() ?? 0)","rubric":[{"criterion":"Declares struct Stack\u003cT> with internal storage array [T]","weight":40,"key":true},{"criterion":"Implements mutating push method appending to items","weight":30,"key":true},{"criterion":"Implements mutating pop method returning optional T? from popLast","weight":30,"key":true}]},{"id":"generics-basics-q31","type":"code-write","difficulty":2,"prompt":"Write a generic function findIndex\u003cT: Equatable>(of target: T, in array: [T]) -> Int? that returns the index of the first match, or nil if not found.","starterCode":"// Write generic findIndex function here","modelAnswer":"func findIndex\u003cT: Equatable>(of target: T, in array: [T]) -> Int? {\n    for (index, item) in array.enumerated() {\n        if item == target {\n            return index\n        }\n    }\n    return nil\n}\nlet names = [\"Taylor\", \"Chris\", \"Sam\"]\nprint(findIndex(of: \"Chris\", in: names) ?? -1)\nprint(findIndex(of: \"Alex\", in: names) ?? -1)","rubric":[{"criterion":"Constrains type parameter T to Equatable in function signature","weight":50,"key":true},{"criterion":"Iterates array, compares elements with ==, and returns matching index or nil","weight":50,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

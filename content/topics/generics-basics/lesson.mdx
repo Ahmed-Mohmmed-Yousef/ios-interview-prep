@@ -1,0 +1,211 @@
+export const meta = {
+  id: "generics-basics",
+  summary: "Write flexible, reusable functions and types with type parameters, type constraints, and compiler specialization.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Generics", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/generics", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why are Swift generics superior to using Any for reusable collections or functions?</Question>
+  <Guess>
+    <Option id="a">Generics allocate all instances inside static global memory buffers.</Option>
+    <Option id="b" correct>Generics preserve compile-time static type safety without requiring runtime downcasts or losing type information.</Option>
+    <Option id="c">Generics bypass ARC reference counting checks completely.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a molded shipping container. The container structure is identical whether you load bicycles, books, or electronics. You do not need to build a new container design for every product. But once loaded with books, it holds books safely and predictably. Swift generics work the same way: you build one reusable structure that safely holds any specific type you provide.
+</Analogy>
+
+In Swift, **generics** allow you to write flexible, reusable functions and types that work with any type according to rules you define.
+
+Generics prevent duplicated logic without discarding compile-time type safety. Built-in types like `Array` and `Dictionary` are generic types.
+
+Key elements of generics:
+- **Type parameters**: Placeholders written inside angle brackets, like `<T>` or `<Element>`, representing an actual type supplied at call time.
+- **Generic types**: Custom structs, classes, or enums that adapt to any element type, such as `Stack<Element>`.
+- **Type constraints**: Requirements dictating that a type parameter must inherit from a specific class or conform to a protocol, like `<T: Equatable>`.
+- **Where clauses**: Additional conditional constraints specified with the `where` keyword.
+
+## See it
+
+<Diagram id="generics-basics-main" caption="How generic type parameters and type constraints operate in Swift">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Generic Function box swapValues<T>(_ a: inout T, _ b: inout T).
+    2. Call site with Int arguments -> specialized to swapValues(Int, Int).
+    3. Call site with String arguments -> specialized to swapValues(String, String).
+    4. Type constraint badge T: Equatable enabling == comparison.
+  - Steps:
+    Step 1: Declare generic function with type placeholder <T>.
+    Step 2: Caller passes Int arguments; compiler specializes T to Int.
+    Step 3: Caller passes String arguments; compiler specializes T to String.
+    Step 4: Add type constraint <T: Equatable> unlocking == equality checks.
+  - Static version (reduced motion):
+    Central generic blueprint routing into specialized concrete machine code implementations.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>How do you declare a placeholder type parameter named Element on a generic struct?</Question>
+  <Option id="a">struct Stack(Element)</Option>
+  <Option id="b" correct>struct Stack&lt;Element&gt;</Option>
+  <Option id="c">struct Stack: Element</Option>
+  <Explanation>Type parameters are declared inside angle brackets immediately after the type name: struct Stack&lt;Element&gt;.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Writing a generic function with type inference">
+
+```swift
+// 1. A generic swap function working with any matching type
+func swapValues<T>(_ a: inout T, _ b: inout T) {
+    let temporary = a
+    a = b
+    b = temporary
+}
+
+var firstInt = 10
+var secondInt = 20
+swapValues(&firstInt, &secondInt)
+print("Ints: first is \(firstInt), second is \(secondInt)")
+
+var firstString = "World"
+var secondString = "Hello"
+swapValues(&firstString, &secondString)
+print("Strings: \(firstString) \(secondString)")
+```
+
+```output
+Ints: first is 20, second is 10
+Strings: Hello World
+```
+
+</CodeExample>
+
+This code shows how generic functions operate:
+- **Type parameter `<T>`**: `T` stands in for an actual type determined when the function is called.
+- **Type matching**: Both `a` and `b` must share the exact same type `T`.
+- **Automatic inference**: The compiler infers `T` as `Int` in the first call and `T` as `String` in the second call.
+
+<CodeExample title="Building generic types and applying type constraints">
+
+```swift
+// 2. Generic custom type: Stack
+struct Stack<Element> {
+    private var items: [Element] = []
+    
+    mutating func push(_ item: Element) {
+        items.append(item)
+    }
+    
+    mutating func pop() -> Element? {
+        return items.popLast()
+    }
+}
+
+// Extending a generic type reuses the Element placeholder
+extension Stack {
+    var topItem: Element? {
+        return items.last
+    }
+}
+
+var intStack = Stack<Int>()
+intStack.push(1)
+intStack.push(2)
+print("Top item: \(intStack.topItem ?? 0)")
+print("Popped item: \(intStack.pop() ?? 0)")
+
+// 3. Type constraint enforcing Equatable
+func findIndex<T: Equatable>(of target: T, in list: [T]) -> Int? {
+    for (index, item) in list.enumerated() {
+        if item == target {
+            return index
+        }
+    }
+    return nil
+}
+
+let fruits = ["Apple", "Banana", "Orange"]
+let index = findIndex(of: "Banana", in: fruits)
+print("Banana index: \(index ?? -1)")
+```
+
+```output
+Top item: 2
+Popped item: 2
+Banana index: 1
+```
+
+</CodeExample>
+
+This example highlights generic types and constraints:
+- **Generic struct**: `Stack<Element>` stores items of any specified type safely.
+- **Generic extensions**: `extension Stack` reuses `Element` without writing angle brackets again.
+- **Type constraint `<T: Equatable>`**: Enables the `==` comparison operator inside `findIndex`.
+
+<QuickCheck>
+  <Question>Why must findIndex constrain T to Equatable when comparing items with ==?</Question>
+  <Option id="a">To convert the elements to strings.</Option>
+  <Option id="b" correct>Because not all Swift types support the == equality operator.</Option>
+  <Option id="c">To force elements to be reference types.</Option>
+  <Explanation>By default, arbitrary types cannot be compared with ==. Constraining T to Equatable tells the compiler == is supported.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Build generic stacks and queues in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Using Any instead of generics">
+Candidates sometimes reach for `Any` when they want flexible functions. `Any` throws away type safety and requires risky runtime casting. Generics enforce strict type relationships while keeping code flexible.
+</Trap>
+
+<Trap title="Repeating angle brackets when extending generic types">
+When extending `Stack<Element>`, candidates often write `extension Stack<Element>`. Swift forbids angle brackets in the extension signature. Write `extension Stack` and use `Element` directly.
+</Trap>
+
+<Trap title="Assuming Swift generics use Java-style type erasure">
+In Java, generic types are erased at runtime to raw Objects. In Swift, generics preserve full type metadata. The compiler generates specialized machine code for concrete types.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Generics let you write functions and types that work with any type. We define placeholder names in angle brackets like `<T>`. Generics give us code reuse while maintaining Swift compile-time type safety.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Generics allow functions and custom types to operate on placeholder types like `<T>` or `<Element>`. Type constraints restrict placeholders to types conforming to specific protocols, such as `<T: Equatable>`. Unlike Any, generics maintain static type safety without runtime casting.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Swift generics are implemented through compiler specialization, known as monomorphization. When concrete types are known, the compiler generates specialized, non-generic machine code with direct dispatch and zero abstraction penalty. For unspecialized code, Swift uses metadata records and witness tables to pass types safely at runtime.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Generics enable flexible, reusable functions and types without code duplication.
+- Placeholder types are declared inside angle brackets, such as `<T>` or `<Element>`.
+- The compiler infers type parameters from argument values at the call site.
+- Extensions on generic types reuse existing type parameter names without angle brackets.
+- Type constraints like `<T: Equatable>` unlock protocol-specific operations like `==`.
+- Swift compiler monomorphization optimizes generic code into fast concrete implementations.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Generics](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/generics)
+- [Swift Standard Library: Equatable](https://developer.apple.com/documentation/swift/equatable)

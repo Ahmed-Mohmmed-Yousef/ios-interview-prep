@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swift Generics: Placeholders, Types, and Constraints</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --gen-color: #0284c7; --gen-soft: #e0f2fe;
+  --int-color: #0c765c; --int-soft: #dcf2ea;
+  --str-color: #7c3aed; --str-soft: #ede9fe;
+  --con-color: #d97706; --con-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --gen-color: #38bdf8; --gen-soft: #082f49;
+  --int-color: #45cfa3; --int-soft: #13362c;
+  --str-color: #a78bfa; --str-soft: #2e1065;
+  --con-color: #fbbf24; --con-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--gen-soft); color: var(--gen-color); }
+.p-right .kind { background: var(--int-soft); color: var(--int-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.card-shape.active-gen { stroke: var(--gen-color); stroke-width: 2.5; fill: var(--gen-soft); }
+.card-shape.active-int { stroke: var(--int-color); stroke-width: 2.5; fill: var(--int-soft); }
+.card-shape.active-str { stroke: var(--str-color); stroke-width: 2.5; fill: var(--str-soft); }
+.card-shape.active-con { stroke: var(--con-color); stroke-width: 2.5; fill: var(--con-soft); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--gen-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div class="diagram-host" tabindex="0" role="region" aria-label="Interactive diagram: Swift Generics">
+
+  <!-- Interactive Animator -->
+  <div class="anim-only" style="display: grid; gap: 16px;">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span id="left-title">1. Generic Definition</span><span class="kind" id="left-tag">Type Parameter</span></h3>
+        <div class="code" id="left-code">func swapValues<T>(_ a: inout T, _ b: inout T) {
+    let temp = a; a = b; b = temp
+}</div>
+        <p class="caption" id="left-desc">Placeholder T stands in for any concrete type supplied at call time.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="card-gen" x="40" y="20" width="260" height="85" rx="10" class="card-shape active-gen" />
+          <text id="gen-title" x="170" y="50" class="title-text">Generic Blueprint: &lt;T&gt;</text>
+          <text id="gen-line1" x="170" y="72" class="sub-text">a: inout T</text>
+          <text id="gen-line2" x="170" y="90" class="sub-text">b: inout T</text>
+        </svg>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span id="right-title">Specialization</span><span class="kind" id="right-tag">Compiler Output</span></h3>
+        <div class="code" id="right-code">// Swift compiler specializes generic code
+// for concrete types at build time</div>
+        <p class="caption" id="right-desc">Monomorphization generates direct, non-boxed machine code.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="card-spec" x="40" y="20" width="260" height="85" rx="10" class="card-shape" />
+          <text id="spec-title" x="170" y="50" class="title-text">Compiler Specialization</text>
+          <text id="spec-line1" x="170" y="72" class="sub-text">Zero abstraction penalty</text>
+          <text id="spec-line2" x="170" y="90" class="sub-text">Static type safety</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1" onclick="jumpTo(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2" onclick="jumpTo(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3" onclick="jumpTo(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4" onclick="jumpTo(3)"></button>
+      </div>
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" disabled onclick="prevStep()">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accessible Static Fallback (Reduced Motion) -->
+  <div class="static-fallback" role="region" aria-label="Generics summary">
+    <div class="comp-card">
+      <h4>1. Type Parameters</h4>
+      <p>Placeholder names in angle brackets (like <code>&lt;T&gt;</code>) define reusable functions and types.</p>
+    </div>
+    <div class="comp-card">
+      <h4>2. Type Inference</h4>
+      <p>The compiler determines concrete types from call-site arguments automatically.</p>
+    </div>
+    <div class="comp-card">
+      <h4>3. Monomorphization (Specialization)</h4>
+      <p>The compiler generates optimized machine code for each concrete type, avoiding runtime boxing overhead.</p>
+    </div>
+    <div class="comp-card">
+      <h4>4. Type Constraints</h4>
+      <p>Constraints like <code>&lt;T: Equatable&gt;</code> limit types to those supporting required protocol capabilities.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    leftTitle: "1. Generic Blueprint",
+    leftTag: "Type Placeholder",
+    leftCode: "func swapValues<T>(_ a: inout T, _ b: inout T) {\n    let temp = a; a = b; b = temp\n}",
+    leftDesc: "Placeholder T stands in for any concrete type supplied at call time.",
+    rightTitle: "Universal Template",
+    rightTag: "Blueprint",
+    rightCode: "// T can be Int, String, Double, or CustomType\n// Both arguments must share the identical type",
+    rightDesc: "Monomorphization generates direct, non-boxed machine code.",
+    genTitle: "Generic Blueprint: <T>",
+    genLine1: "a: inout T",
+    genLine2: "b: inout T",
+    specTitle: "Generic Definition",
+    specLine1: "Type unspecified",
+    specLine2: "Awaiting call site",
+    genStyle: "active-gen",
+    specStyle: "card-shape"
+  },
+  {
+    leftTitle: "2. Specialized for Int",
+    leftTag: "swapValues(&x, &y)",
+    leftCode: "var x = 10, y = 20\nswapValues(&x, &y)\n// Compiler infers T as Int",
+    leftDesc: "The compiler recognizes both arguments are Int and specializes T to Int.",
+    rightTitle: "Direct Machine Code",
+    rightTag: "T = Int",
+    rightCode: "// Specialized machine code:\nfunc swapValues(a: inout Int, b: inout Int)\n// Direct register swap, zero boxing",
+    rightDesc: "Executes at raw machine speed without heap boxing or runtime reflection.",
+    genTitle: "Specialized: <Int>",
+    genLine1: "a: inout Int",
+    genLine2: "b: inout Int",
+    specTitle: "Specialized: Int",
+    specLine1: "Machine type: Int64",
+    specLine2: "Fast direct execution",
+    genStyle: "card-shape",
+    specStyle: "active-int"
+  },
+  {
+    leftTitle: "3. Specialized for String",
+    leftTag: "swapValues(&s1, &s2)",
+    leftCode: "var s1 = \"World\", s2 = \"Hello\"\nswapValues(&s1, &s2)\n// Compiler infers T as String",
+    leftDesc: "The exact same generic function handles strings cleanly without rewriting code.",
+    rightTitle: "Direct Machine Code",
+    rightTag: "T = String",
+    rightCode: "// Specialized machine code:\nfunc swapValues(a: inout String, b: inout String)\n// String buffer pointer swap",
+    rightDesc: "Type safety guarantees you cannot accidentally swap an Int with a String.",
+    genTitle: "Specialized: <String>",
+    genLine1: "a: inout String",
+    genLine2: "b: inout String",
+    specTitle: "Specialized: String",
+    specLine1: "Machine type: Swift.String",
+    specLine2: "Full type safety retained",
+    genStyle: "card-shape",
+    specStyle: "active-str"
+  },
+  {
+    leftTitle: "4. Type Constraints",
+    leftTag: "<T: Equatable>",
+    leftCode: "func findIndex<T: Equatable>(item: T, list: [T]) {\n    if element == item { ... }\n}",
+    leftDesc: "Type constraints limit T to types conforming to specific protocols like Equatable.",
+    rightTitle: "Capability Unlocked",
+    rightTag: "Enforces Protocol",
+    rightCode: "// Protocol requirement enables:\n// == comparison operator\n// Rejects non-conforming types at build time",
+    rightDesc: "Unlocks required operators while preventing illegal types at compile time.",
+    genTitle: "Constrained: <T: Equatable>",
+    genLine1: "T must conform to Equatable",
+    genLine2: "== operator unlocked",
+    specTitle: "Constraint: Equatable",
+    specLine1: "Enforces: element == item",
+    specLine2: "Compile-time safety verified",
+    genStyle: "card-shape",
+    specStyle: "active-con"
+  }
+];
+
+let currentStep = 0;
+
+function updateUI() {
+  const s = steps[currentStep];
+  document.getElementById("left-title").textContent = s.leftTitle;
+  document.getElementById("left-tag").textContent = s.leftTag;
+  document.getElementById("left-code").textContent = s.leftCode;
+  document.getElementById("left-desc").textContent = s.leftDesc;
+  
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("gen-title").textContent = s.genTitle;
+  document.getElementById("gen-line1").textContent = s.genLine1;
+  document.getElementById("gen-line2").textContent = s.genLine2;
+
+  document.getElementById("spec-title").textContent = s.specTitle;
+  document.getElementById("spec-line1").textContent = s.specLine1;
+  document.getElementById("spec-line2").textContent = s.specLine2;
+
+  const cardGen = document.getElementById("card-gen");
+  const cardSpec = document.getElementById("card-spec");
+  cardGen.className = "card-shape " + s.genStyle;
+  cardSpec.className = "card-shape " + s.specStyle;
+
+  // Update dots and buttons
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.className = "dot" + (idx === currentStep ? " active" : "");
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = currentStep === 0;
+  document.getElementById("btn-next").disabled = currentStep === steps.length - 1;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateUI();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateUI();
+  }
+}
+
+function jumpTo(idx) {
+  currentStep = idx;
+  updateUI();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateUI();
+</script>
+</body>
+</html>
