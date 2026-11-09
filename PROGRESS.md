@@ -117,8 +117,8 @@ Plan: [docs/phase-5-plan.md](docs/phase-5-plan.md)
 
 Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ✅ **5.0 Plan Phase 5** — [docs/phase-5-plan.md](docs/phase-5-plan.md) approved by user
-- 🔄 **5.1 Setup & Scaffold** — Next.js 16 (App Router), TypeScript, Turbopack, Tailwind v4 tokens, agent tools
-- ⬜ **5.2 Content & Store Layer** — Zod schemas, MDX + Shiki compiler, Zustand versioned store with migrations, Vitest product rule tests
+- ✅ **5.1 Setup & Scaffold** — Next.js 16 (App Router), TypeScript, Turbopack, Tailwind v4 tokens, agent tools
+- 🔄 **5.2 Content & Store Layer** — Zod schemas, MDX + Shiki compiler, Zustand versioned store with migrations, Vitest product rule tests
 - ⬜ **5.3 Screen 1: Welcome & Level Picker (S1, S2)** — first visit intro, level cards, interactive self-check
 - ⬜ **5.4 Screen 2: Winding Path Map (S3, S4)** — responsive road, 6 stop states, progress bar, path score, locked sheet
 - ⬜ **5.5 Screen 3: Lesson Reader & Diagrams (S5)** — section reader, embedded diagrams, text size switcher, QuickChecks
@@ -226,6 +226,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Step 5.1 done: Next.js 16.4 (App Router) scaffolded with TypeScript, Turbopack, Tailwind v4 tokens, brand helper, MDX support, Vitest test runner, and Playwright config. Verified with clean production build and test run. Starting Step 5.2: Content & Store Layer.
 
 - **2026-11-09** — Built and published topic swiftui-views-modifiers (Views and Modifiers): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swiftui-views-modifiers/review.html`). All checks passed. Starting swiftui-layout.
 
