@@ -1,0 +1,558 @@
+<title>Codable and JSON Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --swift-color: #0284c7; --swift-soft: #e0f2fe;
+  --json-color: #7c3aed; --json-soft: #ede9fe;
+  --encode-color: #0c765c; --encode-soft: #dcf2ea;
+  --decode-color: #d97706; --decode-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --swift-color: #38bdf8; --swift-soft: #082f49;
+  --json-color: #a78bfa; --json-soft: #2e1065;
+  --encode-color: #45cfa3; --encode-soft: #13362c;
+  --decode-color: #fbbf24; --decode-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--swift-soft); color: var(--swift-color); }
+.p-right .kind { background: var(--json-soft); color: var(--json-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-swift { stroke: var(--swift-color); stroke-width: 2.5; fill: var(--swift-soft); }
+.node-box.active-json { stroke: var(--json-color); stroke-width: 2.5; fill: var(--json-soft); }
+.node-box.active-encode { stroke: var(--encode-color); stroke-width: 2.5; fill: var(--encode-soft); }
+.node-box.active-decode { stroke: var(--decode-color); stroke-width: 2.5; fill: var(--decode-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--swift-color); color: var(--swift-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Swift Language · Topic 9 of 9 · Prototype</p>
+    <h1>Codable and JSON</h1>
+    <p class="meta-line"><span>About 12 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can convert Swift types to and from JSON with Codable.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">How does Swift parse JSON data into strongly typed models without manual dictionary casting?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">By reflecting on Objective-C runtime classes dynamically.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">By conforming models to Codable and using JSONDecoder.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">By importing third-party C libraries into every project.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of shipping luggage on an airplane. When you pack your suitcase, you fold your clothes into flat boxes that fit onto cargo belts. When you arrive at your destination, you unpack those boxes back into clothes in your closet. Codable works the same way: it folds Swift objects into portable JSON data, and unpacks JSON data back into Swift objects.</p></aside>
+<p>In Swift, <strong><code>Codable</code></strong> is a typealias combining two protocols: <code>Encodable</code> and <code>Decodable</code>.</p>
+<p><code>Encodable</code> types can serialize themselves into external representations like JSON. <code>Decodable</code> types can deserialize external data into Swift types.</p>
+<p>When all stored properties inside a struct conform to <code>Codable</code>, the Swift compiler synthesizes the decoding and encoding code automatically.</p>
+<p>Real-world API data often uses <code>snake_case</code> keys like <code>first_name</code>, while Swift style uses <code>camelCase</code> like <code>firstName</code>.</p>
+<p>You bridge this gap with <strong><code>CodingKeys</code></strong>. A nested <code>CodingKeys</code> enum maps external JSON string keys directly to Swift property names.</p>
+<p>For advanced formats, you can implement custom decoding with <code>init(from decoder: Decoder)</code> to provide default fallbacks for missing fields.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What two protocols does the Codable typealias combine in Swift?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Equatable and Hashable</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Encodable and Decodable</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">CustomStringConvertible and Identifiable</span></button><p class="qc-explain" hidden="">Codable is a typealias for Encodable and Decodable. Types conforming to Codable can both serialize and deserialize.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Decoding and encoding with custom CodingKeys</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+struct User: Codable {
+    let id: Int
+    let fullName: String
+    let email: String
+    
+    // Mapping snake_case JSON keys to Swift camelCase properties
+    enum CodingKeys: String, CodingKey {
+        case id
+        case fullName = &quot;full_name&quot;
+        case email
+    }
+}
+
+let json = &quot;&quot;&quot;
+{
+    &quot;id&quot;: 101,
+    &quot;full_name&quot;: &quot;Taylor Swift&quot;,
+    &quot;email&quot;: &quot;taylor@example.com&quot;
+}
+&quot;&quot;&quot;.data(using: .utf8)!
+
+// Decoding JSON data into a strongly typed User struct
+let user = try JSONDecoder().decode(User.self, from: json)
+print(&quot;\(user.fullName) has ID \(user.id)&quot;)
+
+// Encoding User struct back into JSON data
+let encoder = JSONEncoder()
+encoder.outputFormatting = .sortedKeys
+let encodedData = try encoder.encode(user)
+let encodedString = String(data: encodedData, encoding: .utf8)!
+print(encodedString.contains(&quot;full_name&quot;))
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Taylor Swift has ID 101
+true
+</code></pre></figure>
+<p>This example shows two key patterns:</p>
+<ul>
+<li><strong><code>CodingKeys</code></strong>: The enum renames <code>full_name</code> from JSON to <code>fullName</code> in Swift.</li>
+<li><strong><code>JSONDecoder</code> and <code>JSONEncoder</code></strong>: They handle parsing and serialization with strict type checking.</li>
+</ul>
+<figure class="code-example"><figcaption>Custom decoding with decodeIfPresent and fallback values</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+struct Product: Codable {
+    let name: String
+    let price: Double
+    let description: String
+    
+    enum CodingKeys: String, CodingKey {
+        case name
+        case price
+        case description
+    }
+    
+    // Custom decoding initializer to handle missing optional fields safely
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.price = try container.decode(Double.self, forKey: .price)
+        self.description = try container.decodeIfPresent(String.self, forKey: .description) ?? &quot;No description&quot;
+    }
+}
+
+let jsonWithoutDescription = &quot;&quot;&quot;
+{
+    &quot;name&quot;: &quot;Coffee Mug&quot;,
+    &quot;price&quot;: 12.50
+}
+&quot;&quot;&quot;.data(using: .utf8)!
+
+let product = try JSONDecoder().decode(Product.self, from: jsonWithoutDescription)
+print(&quot;\(product.name): $\(product.price)&quot;)
+print(&quot;Description: \(product.description)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Coffee Mug: $12.5
+Description: No description
+</code></pre></figure>
+<p>This example highlights custom decoding flexibility:</p>
+<ul>
+<li><strong><code>container(keyedBy:)</code></strong>: Extracts a keyed container matching the <code>CodingKeys</code> enum.</li>
+<li><strong><code>decodeIfPresent</code></strong>: Safely reads optional keys, allowing default fallback values when fields are absent.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens if a required JSON key is missing and decodeIfPresent is not used?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The property is assigned a random value.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The decoder throws a DecodingError.keyNotFound error.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The application terminates immediately with a segmentation fault.</span></button><p class="qc-explain" hidden="">When a non-optional key is missing during decoding, JSONDecoder throws a DecodingError.keyNotFound error that callers can catch.</p></div>
+<p class="try-it"><p>Experiment with Codable structs and JSON parsing in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Omitting properties from custom CodingKeys</p><p>When you write a custom <code>CodingKeys</code> enum, you must include every stored property you want encoded or decoded. If you omit a property, the compiler will not synthesize decoding for it.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Mixing convertFromSnakeCase with explicit snake_case raw values</p><p>If you set <code>keyDecodingStrategy = .convertFromSnakeCase</code> and also write <code>case fullName = &quot;full_name&quot;</code> in <code>CodingKeys</code>, the decoder applies conversion twice. Choose either automated strategy conversion or explicit <code>CodingKeys</code>, not both.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Failing to handle dates with proper dateDecodingStrategy</p><p>By default, <code>JSONDecoder</code> expects dates as floating point numbers representing seconds since 2001. If your API sends ISO8601 date strings, you must configure <code>decoder.dateDecodingStrategy = .iso8601</code>.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>Codable is a Swift protocol that combines Encodable and Decodable. We use it with JSONDecoder and JSONEncoder to convert Swift structs to and from JSON. If JSON keys do not match our property names, we use CodingKeys to map them.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Codable is a typealias for Encodable and Decodable. When all stored properties conform to Codable, Swift automatically synthesizes serialization and deserialization methods. We can customize key mappings with a nested CodingKeys enum, or set keyDecodingStrategy to convertFromSnakeCase on the decoder. For custom logic or default values on missing fields, we implement custom init(from decoder:) using decodeIfPresent.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Codable provides compile-time type-safe serialization without reflection overhead. It decouples domain models from external serialization formats like JSON, Plist, or Protobuf. In production networking layers, we configure JSONDecoder with ISO8601 date strategies and snake_case strategies. To build resilient apps, we implement custom decoding containers and handle DecodingError cases gracefully so unexpected remote payload changes do not crash client flows.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>Codable</code> is a typealias combining <code>Encodable</code> and <code>Decodable</code>.</li>
+<li>The compiler automatically synthesizes conformance when all stored properties conform to <code>Codable</code>.</li>
+<li>A nested <code>CodingKeys</code> enum maps external JSON keys to Swift property names.</li>
+<li><code>JSONDecoder</code> and <code>JSONEncoder</code> parse and serialize data with strict type checking.</li>
+<li><code>decodeIfPresent</code> allows safe fallbacks for optional or missing JSON fields.</li>
+<li><code>keyDecodingStrategy</code> and <code>dateDecodingStrategy</code> automate common formatting conventions.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/swift/codable">Apple Developer Documentation: Codable</a></li>
+<li><a href="https://developer.apple.com/documentation/foundation/encoding-and-decoding-custom-types">Apple Developer Documentation: Encoding and Decoding Custom Types</a></li>
+<li><a href="https://developer.apple.com/documentation/foundation/jsondecoder">Apple Developer Documentation: JSONDecoder</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    leftCode: "struct User: Codable {\n    let id: Int\n    let fullName: String\n}",
+    leftCaption: "Model definition: Conforming to Codable triggers compiler synthesis of encoding and decoding logic.",
+    rightCode: "// Ready for serialization\n// Encodable + Decodable",
+    rightCaption: "Codable decouples the in-memory data model from the external serialization format.",
+    swiftClass: "active-swift",
+    jsonClass: "",
+    jsonLine2: "\"full_name\": \"Taylor Swift\""
+  },
+  {
+    step: 2,
+    leftCode: "let user = User(id: 101, fullName: \"Taylor\")\nlet data = try JSONEncoder().encode(user)",
+    leftCaption: "Encoding: JSONEncoder traverses properties and emits serialized UTF-8 JSON bytes.",
+    rightCode: "{\n  \"id\": 101,\n  \"fullName\": \"Taylor\"\n}",
+    rightCaption: "JSON output created without manual dictionary casting or reflection boilerplate.",
+    swiftClass: "",
+    jsonClass: "active-encode",
+    jsonLine2: "\"fullName\": \"Taylor Swift\""
+  },
+  {
+    step: 3,
+    leftCode: "enum CodingKeys: String, CodingKey {\n    case id\n    case fullName = \"full_name\"\n}",
+    leftCaption: "Key mapping: CodingKeys links snake_case remote keys to Swift camelCase properties.",
+    rightCode: "{\n  \"id\": 101,\n  \"full_name\": \"Taylor Swift\"\n}",
+    rightCaption: "JSONDecoder reads 'full_name' from payload and populates the fullName property.",
+    swiftClass: "active-decode",
+    jsonClass: "active-decode",
+    jsonLine2: "\"full_name\": \"Taylor Swift\""
+  },
+  {
+    step: 4,
+    leftCode: "let user = try JSONDecoder().decode(\n    User.self, from: jsonData\n)\nprint(user.fullName)",
+    leftCaption: "Decoding: JSONDecoder validates types and reconstructs a strongly typed User instance.",
+    rightCode: "Output: Taylor Swift has ID 101\n// Type-safe & compile-checked",
+    rightCaption: "Malformed JSON or type mismatches throw descriptive DecodingError errors safely.",
+    swiftClass: "active-swift",
+    jsonClass: "active-json",
+    jsonLine2: "\"full_name\": \"Taylor Swift\""
+  }
+];
+
+let cur = 0;
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+const swiftBox = document.getElementById("swiftBox");
+const jsonBox = document.getElementById("jsonBox");
+const jsonLine2 = document.getElementById("jsonLine2");
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function render(idx) {
+  const s = steps[idx];
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+  
+  swiftBox.className.baseVal = "node-box " + s.swiftClass;
+  jsonBox.className.baseVal = "node-box " + s.jsonClass;
+  jsonLine2.textContent = s.jsonLine2;
+  
+  stepCounter.textContent = "Step " + (idx + 1) + " of " + steps.length;
+  btnBack.disabled = idx === 0;
+  btnNext.disabled = idx === steps.length - 1;
+}
+
+btnBack.addEventListener("click", () => { if (cur > 0) { cur--; render(cur); } });
+btnNext.addEventListener("click", () => { if (cur < steps.length - 1) { cur++; render(cur); } });
+btnReplay.addEventListener("click", () => { cur = 0; render(cur); });
+
+render(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"codable","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"codable-q1","type":"mcq","difficulty":1,"prompt":"What is the Codable protocol in Swift?","options":[{"id":"a","text":"A typealias combining the Encodable and Decodable protocols.","explanation":"Right. Codable is defined as typealias Codable = Encodable & Decodable."},{"id":"b","text":"A base class providing dynamic runtime JSON serialization.","explanation":"Codable is a protocol typealias, not an Objective-C base class."},{"id":"c","text":"A compiler flag that enables Objective-C runtime archiving.","explanation":"Codable is part of the Swift Standard Library, not a compiler flag."},{"id":"d","text":"A struct that stores raw UTF-8 binary bytes directly.","explanation":"Data represents raw bytes; Codable is a protocol."}],"answer":"a"},{"id":"codable-q2","type":"mcq","difficulty":1,"prompt":"What does the Encodable protocol allow a Swift type to do?","options":[{"id":"a","text":"Parse external JSON into strongly typed models.","explanation":"Parsing external data into Swift models is handled by Decodable."},{"id":"b","text":"Serialize itself into an external representation.","explanation":"Right. Encodable types can encode themselves into external formats like JSON or property lists."},{"id":"c","text":"Connect to remote web sockets over HTTPS directly.","explanation":"Networking connections are managed by URLSession or Network framework, not Encodable."},{"id":"d","text":"Store unencrypted sensitive records in Keychain.","explanation":"The Security framework manages Keychain access, not Encodable."}],"answer":"b"},{"id":"codable-q3","type":"mcq","difficulty":1,"prompt":"When does the Swift compiler automatically synthesize Codable conformance for a struct?","options":[{"id":"a","text":"Only when the struct inherits from NSObject.","explanation":"Swift structs cannot inherit from NSObject; they are pure value types."},{"id":"b","text":"Only when the struct has fewer than five fields.","explanation":"There is no limitation on the number of stored properties."},{"id":"c","text":"When all stored properties also conform to Codable.","explanation":"Right. The compiler synthesizes encoding and decoding automatically when all stored properties conform to Codable."},{"id":"d","text":"Only when the struct contains no optional values.","explanation":"Optional properties whose wrapped types conform to Codable are supported automatically."}],"answer":"c"},{"id":"codable-q4","type":"mcq","difficulty":1,"prompt":"Which nested enum is used to map JSON keys to Swift property names?","options":[{"id":"a","text":"The PropertyKeys enumeration.","explanation":"PropertyKeys is not a standard Codable mapping protocol enum."},{"id":"b","text":"The KeyPathType enumeration.","explanation":"Key paths are used to refer to properties, not JSON key mapping."},{"id":"c","text":"The JSONMapping enumeration.","explanation":"JSONMapping is not a Swift standard library protocol."},{"id":"d","text":"The CodingKeys enumeration.","explanation":"Right. The nested CodingKeys enum defines the mapping between Swift properties and JSON keys."}],"answer":"d"},{"id":"codable-q5","type":"mcq","difficulty":1,"prompt":"What protocol must the nested CodingKeys enum conform to?","options":[{"id":"a","text":"The CodingKey protocol.","explanation":"Right. CodingKeys must conform to CodingKey and typically uses String as its raw type."},{"id":"b","text":"The CaseIterable rule.","explanation":"CaseIterable is for iterating enum cases, not Codable key mapping."},{"id":"c","text":"The StringConvertible.","explanation":"CustomStringConvertible customizes description printing, not Codable serialization."},{"id":"d","text":"The Identifiable type.","explanation":"Identifiable provides unique ids for SwiftUI views, not JSON encoding."}],"answer":"a"},{"id":"codable-q6","type":"mcq","difficulty":2,"prompt":"How can you convert snake_case JSON keys to camelCase Swift properties automatically without CodingKeys?","options":[{"id":"a","text":"By importing the FoundationXML parser module.","explanation":"XML parsing does not configure JSONDecoder snake_case strategies."},{"id":"b","text":"By setting keyDecodingStrategy on JSONDecoder.","explanation":"Right. Setting decoder.keyDecodingStrategy = .convertFromSnakeCase automatically converts snake_case keys."},{"id":"c","text":"By marking every stored property with macro.","explanation":"Macros are not required for automatic snake_case decoding."},{"id":"d","text":"By naming all Swift properties with prefix.","explanation":"Prefixing property names does not automate key conversions."}],"answer":"b"},{"id":"codable-q7","type":"mcq","difficulty":2,"prompt":"What error does JSONDecoder throw when a non-optional key is missing in the JSON data?","options":[{"id":"a","text":"DecodingError.typeMismatch","explanation":"typeMismatch occurs when the data type in JSON does not match the Swift property type."},{"id":"b","text":"DecodingError.dataCorrupted","explanation":"dataCorrupted occurs when JSON syntax is malformed."},{"id":"c","text":"DecodingError.keyNotFound","explanation":"Right. When a required non-optional key is missing from JSON, JSONDecoder throws keyNotFound."},{"id":"d","text":"DecodingError.valueNotFound","explanation":"valueNotFound occurs when a required non-optional key contains null."}],"answer":"c"},{"id":"codable-q8","type":"mcq","difficulty":2,"prompt":"Which method on KeyedDecodingContainer is used to safely decode a field that might be null or missing?","options":[{"id":"a","text":"container.decodeSafe()","explanation":"decodeSafe is not a method on KeyedDecodingContainer."},{"id":"b","text":"container.decodeValue()","explanation":"decodeValue is not a standard container decoding method."},{"id":"c","text":"container.decodeCatch()","explanation":"decodeCatch is not a Swift Codable method."},{"id":"d","text":"container.decodeIfPresent()","explanation":"Right. decodeIfPresent decodes optional values, returning nil if the key is missing or null."}],"answer":"d"},{"id":"codable-q9","type":"mcq","difficulty":2,"prompt":"What initializer must be implemented when writing custom decoding logic for a Decodable type?","options":[{"id":"a","text":"init(from decoder: Decoder) throws","explanation":"Right. Decodable requires init(from decoder: Decoder) throws to deserialize data."},{"id":"b","text":"init(json: [String: Any]) throws","explanation":"Codable uses Decoder instances rather than untyped [String: Any] dictionaries."},{"id":"c","text":"init(container: KeyedContainer)","explanation":"The initializer receives a Decoder, from which containers are extracted."},{"id":"d","text":"init(data: Data, options: Config)","explanation":"init(from decoder:) is the protocol requirement, not init(data:)."}],"answer":"a"},{"id":"codable-q10","type":"mcq","difficulty":2,"prompt":"What must you do if you define a custom CodingKeys enum with custom keys for some properties?","options":[{"id":"a","text":"You only need to list the renamed properties.","explanation":"If CodingKeys is defined, omitting properties causes the compiler to ignore them."},{"id":"b","text":"You must list every stored property in Codable.","explanation":"Right. Defining CodingKeys requires listing all stored properties that participate in Codable."},{"id":"c","text":"You must declare all omitted fields as private.","explanation":"Access control does not bypass CodingKeys requirements."},{"id":"d","text":"You must convert the enclosing type to class.","explanation":"This rule applies equally to both structs and classes."}],"answer":"b"},{"id":"codable-q11","type":"mcq","difficulty":2,"prompt":"What happens if a JSON field contains a String value but your Swift model expects an Int?","options":[{"id":"a","text":"Swift automatically parses String digits to Int.","explanation":"JSONDecoder does not perform implicit type coercion."},{"id":"b","text":"The field is assigned a default value of zero.","explanation":"JSONDecoder throws an error rather than silently assigning zero."},{"id":"c","text":"JSONDecoder throws DecodingError.typeMismatch.","explanation":"Right. Type mismatch errors occur when the actual JSON data type does not match the Swift property type."},{"id":"d","text":"The application crashes with a fatal exception.","explanation":"JSONDecoder throws a catchable Swift error without terminating the app."}],"answer":"c"},{"id":"codable-q12","type":"mcq","difficulty":2,"prompt":"How should you configure JSONDecoder if your JSON data contains dates formatted as ISO8601 strings?","options":[{"id":"a","text":"Set dateDecodingStrategy to .secondsSince1970.","explanation":"secondsSince1970 expects Unix timestamp numbers, not ISO8601 formatted strings."},{"id":"b","text":"Set dateDecodingStrategy to .deferredToDate.","explanation":"deferredToDate expects Apple reference dates in seconds since 2001."},{"id":"c","text":"Set dateDecodingStrategy to .milliseconds70.","explanation":"millisecondsSince1970 expects numeric millisecond timestamps."},{"id":"d","text":"Set dateDecodingStrategy to .iso8601 format.","explanation":"Right. Setting decoder.dateDecodingStrategy = .iso8601 configures JSONDecoder to parse standard ISO8601 date strings."}],"answer":"d"},{"id":"codable-q13","type":"mcq","difficulty":1,"prompt":"Which method is called on JSONEncoder to convert a Codable value into JSON Data?","options":[{"id":"a","text":"encoder.encode(value)","explanation":"Right. JSONEncoder().encode(value) serializes an Encodable instance into UTF-8 JSON Data."},{"id":"b","text":"encoder.serialize(val)","explanation":"serialize is used in older JSONSerialization APIs, not JSONEncoder."},{"id":"c","text":"encoder.writeJSON(val)","explanation":"writeJSON is not an official method on JSONEncoder."},{"id":"d","text":"encoder.convertData(v)","explanation":"convertData is not an official JSONEncoder method."}],"answer":"a"},{"id":"codable-q14","type":"mcq","difficulty":2,"prompt":"What container method is used on a Decoder to decode a JSON array of values?","options":[{"id":"a","text":"decoder.container(keyedBy:)","explanation":"keyedBy extracts keyed containers for JSON objects with key-value pairs."},{"id":"b","text":"decoder.unkeyedContainer()","explanation":"Right. unkeyedContainer() extracts sequential unkeyed elements from a JSON array."},{"id":"c","text":"decoder.singleValueContainer()","explanation":"singleValueContainer is used to decode single raw primitive values."},{"id":"d","text":"decoder.arrayContainerType()","explanation":"arrayContainerType is not an official method on Decoder."}],"answer":"b"},{"id":"codable-q15","type":"mcq","difficulty":2,"prompt":"Why is Codable preferred over manual dictionary parsing like [String: Any]?","options":[{"id":"a","text":"Codable bypasses all error handling in calls.","explanation":"Codable throws typed DecodingError errors when parsing fails."},{"id":"b","text":"Codable runs exclusively on background queues.","explanation":"Codable executes synchronously on whichever queue invokes the decoder."},{"id":"c","text":"Codable provides type safety without casting.","explanation":"Right. Codable eliminates error-prone runtime downcasting (as? String) by enforcing static compile-time type checks."},{"id":"d","text":"Codable allows models to run without compile.","explanation":"Codable models are compiled Swift types subject to standard build compilation."}],"answer":"c"},{"id":"codable-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nstruct City: Codable {\n    let name: String\n    let population: Int\n}\nlet json = \"{\\\"name\\\": \\\"Cupertino\\\", \\\"population\\\": 60000}\".data(using: .utf8)!\nlet city = try! JSONDecoder().decode(City.self, from: json)\nprint(city.name)","options":[{"id":"a","text":"It prints the word population.","explanation":"city.name reads the name property Cupertino, not population."},{"id":"b","text":"It prints the number 60000.","explanation":"60000 is the population property, not name."},{"id":"c","text":"It prints the value nil.","explanation":"name is a non-optional String with value Cupertino."},{"id":"d","text":"It prints the text Cupertino.","explanation":"Right. JSONDecoder parses the name key into the city struct property."}],"answer":"d"},{"id":"codable-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nstruct Item: Codable {\n    let id: Int\n    let title: String\n    enum CodingKeys: String, CodingKey {\n        case id\n        case title = \"item_title\"\n    }\n}\nlet json = \"{\\\"id\\\": 1, \\\"item_title\\\": \\\"Notebook\\\"}\".data(using: .utf8)!\nlet item = try! JSONDecoder().decode(Item.self, from: json)\nprint(item.title)","options":[{"id":"a","text":"It prints the text Notebook.","explanation":"Right. CodingKeys maps item_title from JSON to title in Swift, which holds Notebook."},{"id":"b","text":"It prints the key item_title.","explanation":"The value Notebook is printed, not the raw JSON key name."},{"id":"c","text":"It prints the number 1.","explanation":"1 is the id property, not title."},{"id":"d","text":"It prints the value nil.","explanation":"title is a non-optional String with value Notebook."}],"answer":"a"},{"id":"codable-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import Foundation\n\nstruct Score: Codable {\n    let points: Int\n}\nlet score = Score(points: 95)\nlet data = try! JSONEncoder().encode(score)\nlet string = String(data: data, encoding: .utf8)!\nprint(string.contains(\"points\"))","options":[{"id":"a","text":"It prints the boolean false.","explanation":"JSONEncoder serializes the points property into the JSON string."},{"id":"b","text":"It prints the boolean true.","explanation":"Right. JSONEncoder produces {\"points\":95}, which contains the string points."},{"id":"c","text":"It prints the number 95.","explanation":"The code prints the boolean result of contains(\"points\")."},{"id":"d","text":"It prints the value nil.","explanation":"The contains check returns a non-optional Bool."}],"answer":"b"},{"id":"codable-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import Foundation\n\nstruct UserProfile: Codable {\n    let name: String\n    let role: String\n    init(from decoder: Decoder) throws {\n        let container = try decoder.container(keyedBy: CodingKeys.self)\n        self.name = try container.decode(String.self, forKey: .name)\n        self.role = try container.decodeIfPresent(String.self, forKey: .role) ?? \"Member\"\n    }\n}\nlet json = \"{\\\"name\\\": \\\"Sam\\\"}\".data(using: .utf8)!\nlet profile = try! JSONDecoder().decode(UserProfile.self, from: json)\nprint(profile.role)","options":[{"id":"a","text":"It prints the text Sam.","explanation":"Sam is the name property, not role."},{"id":"b","text":"It prints the value nil.","explanation":"The nil-coalescing operator provides the fallback string Member."},{"id":"c","text":"It prints the text Member.","explanation":"Right. Because the role key is missing, decodeIfPresent returns nil and defaults to Member."},{"id":"d","text":"It throws a decoding error.","explanation":"decodeIfPresent prevents throwing keyNotFound errors for missing keys."}],"answer":"c"},{"id":"codable-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import Foundation\n\nstruct Book: Codable {\n    let title: String\n    let pageCount: Int\n}\nlet json = \"{\\\"title\\\": \\\"Swift Guide\\\", \\\"page_count\\\": 300}\".data(using: .utf8)!\nlet decoder = JSONDecoder()\ndecoder.keyDecodingStrategy = .convertFromSnakeCase\nlet book = try! decoder.decode(Book.self, from: json)\nprint(book.pageCount)","options":[{"id":"a","text":"It prints the number 0.","explanation":"pageCount is decoded from page_count as 300."},{"id":"b","text":"It prints the value nil.","explanation":"pageCount is a non-optional Int."},{"id":"c","text":"It prints the text Swift Guide.","explanation":"Swift Guide is the title, not pageCount."},{"id":"d","text":"It prints the number 300.","explanation":"Right. convertFromSnakeCase converts page_count to pageCount, populating 300."}],"answer":"d"},{"id":"codable-q21","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Foundation\n\nstruct Coordinates: Codable {\n    let latitude: Double\n    let longitude: Double\n}\nlet json = \"{\\\"latitude\\\": 37.33, \\\"longitude\\\": -122.03}\".data(using: .utf8)!\nlet coords = try! JSONDecoder().decode(Coordinates.self, from: json)\nprint(Int(coords.latitude))","options":[{"id":"a","text":"It prints the number 37.","explanation":"Right. latitude is decoded as 37.33, which converts to Int as 37."},{"id":"b","text":"It prints the number -122.","explanation":"-122 is the longitude property, not latitude."},{"id":"c","text":"It prints the number 0.","explanation":"latitude is non-zero (37.33)."},{"id":"d","text":"It prints the number 100.","explanation":"Int(37.33) truncates to 37, not 100."}],"answer":"a"},{"id":"codable-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import Foundation\n\nstruct ProductTag: Codable {\n    let id: Int\n    let name: String?\n}\nlet json = \"{\\\"id\\\": 42}\".data(using: .utf8)!\nlet tag = try! JSONDecoder().decode(ProductTag.self, from: json)\nprint(tag.name ?? \"Default\")","options":[{"id":"a","text":"It prints the number 42.","explanation":"42 is the id property, not name."},{"id":"b","text":"It prints the text Default.","explanation":"Right. Because name is optional and omitted in JSON, it decodes as nil and ?? outputs Default."},{"id":"c","text":"It prints the value nil.","explanation":"The nil-coalescing operator provides Default when tag.name is nil."},{"id":"d","text":"It throws a decoding error.","explanation":"Optional properties do not throw keyNotFound when omitted from JSON."}],"answer":"b"},{"id":"codable-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import Foundation\n\nstruct PackageInfo: Codable {\n    let trackingId: String\n    enum CodingKeys: String, CodingKey {\n        case trackingId = \"tracking_code\"\n    }\n}\nlet info = PackageInfo(trackingId: \"TRACK123\")\nlet data = try! JSONEncoder().encode(info)\nlet string = String(data: data, encoding: .utf8)!\nprint(string.contains(\"tracking_code\"))","options":[{"id":"a","text":"It prints the boolean false.","explanation":"The encoder outputs tracking_code because of the custom CodingKeys mapping."},{"id":"b","text":"It prints the text TRACK123.","explanation":"The code prints the boolean result of contains(\"tracking_code\")."},{"id":"c","text":"It prints the boolean true.","explanation":"Right. CodingKeys renames trackingId to tracking_code in the encoded JSON string."},{"id":"d","text":"It prints the key trackingId.","explanation":"trackingId is mapped to tracking_code in output JSON."}],"answer":"c"},{"id":"codable-q24","type":"written","difficulty":1,"prompt":"Explain what the Codable protocol is in Swift and how the compiler provides automatic synthesis. Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that Codable is a typealias combining the Encodable and Decodable protocols","weight":50,"key":true},{"criterion":"Explains that the compiler synthesizes conformance automatically when all stored properties conform to Codable","weight":50,"key":true}],"modelAnswer":"Codable is a typealias combining the Encodable and Decodable protocols. When all stored properties conform to Codable, the Swift compiler synthesizes conformance automatically. It generates the CodingKeys enum alongside encoding and decoding methods. This automatic synthesis removes the need to write repetitive serialization boilerplate manually."},{"id":"codable-q25","type":"written","difficulty":2,"prompt":"What is the purpose of the nested CodingKeys enum, and what rule must you follow when creating one? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that CodingKeys maps external JSON keys to Swift property names","weight":50,"key":true},{"criterion":"Explains that all stored properties participating in Codable must be included in the enum cases","weight":50,"key":true}],"modelAnswer":"The nested CodingKeys enum maps external JSON keys to Swift property names, allowing models to bridge snake_case API keys with camelCase Swift properties. When you declare a custom CodingKeys enum, you must list every stored property that participates in encoding and decoding. Any property omitted from CodingKeys cannot be synthesized by the compiler and must have a default value."},{"id":"codable-q26","type":"written","difficulty":2,"prompt":"How does decodeIfPresent work in custom decoding, and why is it useful when consuming third-party APIs? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that decodeIfPresent returns nil when a key is absent or contains null","weight":50,"key":true},{"criterion":"Explains that it provides safe fallbacks for optional or missing fields from remote APIs","weight":50,"key":true}],"modelAnswer":"The decodeIfPresent method attempts to decode a value for a specific key, returning nil if the key is missing or contains null. It is useful when working with third-party APIs because remote payloads often omit optional fields or introduce schema variations. Using decodeIfPresent alongside the nil-coalescing operator allows developers to provide safe default values and avoid keyNotFound errors."},{"id":"codable-q27","type":"written","difficulty":2,"prompt":"What are the common cases of DecodingError thrown by JSONDecoder, and what causes them? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Mentions common DecodingError cases like keyNotFound, typeMismatch, and valueNotFound","weight":50,"key":true},{"criterion":"Explains what causes them, such as missing keys, wrong types, or malformed JSON","weight":50,"key":true}],"modelAnswer":"JSONDecoder throws DecodingError cases when deserialization fails. Common cases include keyNotFound for missing keys and typeMismatch for mismatched data types. Other cases include valueNotFound for unexpected null values and dataCorrupted for malformed JSON data. Catching these specific cases provides clear diagnostic information during debugging."},{"id":"codable-q28","type":"written","difficulty":3,"prompt":"Compare using keyDecodingStrategy = .convertFromSnakeCase with using an explicit CodingKeys enum. When would you choose one over the other? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that convertFromSnakeCase automatically transforms standard snake_case keys across the payload","weight":50,"key":true},{"criterion":"Explains that explicit CodingKeys is required for non-standard abbreviations or custom property renames","weight":50,"key":true}],"modelAnswer":"Setting keyDecodingStrategy = .convertFromSnakeCase automatically converts standard snake_case keys into camelCase property names across the entire JSON payload without writing boilerplate enums. An explicit CodingKeys enum is chosen when remote keys do not follow standard snake_case rules, such as abbreviated names like doc_id to documentIdentifier. Teams use the global strategy for uniform APIs and custom CodingKeys for non-standard or bespoke keys."},{"id":"codable-q29","type":"code-write","difficulty":1,"prompt":"Create a struct Person conforming to Codable with two constant properties: name of type String and age of type Int.","starterCode":"// Create Person struct here","modelAnswer":"import Foundation\n\nstruct Person: Codable {\n    let name: String\n    let age: Int\n}\nlet json = \"{\\\"name\\\": \\\"Jordan\\\", \\\"age\\\": 28}\".data(using: .utf8)!\nlet person = try! JSONDecoder().decode(Person.self, from: json)\nprint(\"\\(person.name) is \\(person.age)\")","rubric":[{"criterion":"Declares struct Person conforming to Codable","weight":50,"key":true},{"criterion":"Declares constant properties name: String and age: Int","weight":50,"key":true}]},{"id":"codable-q30","type":"code-write","difficulty":2,"prompt":"Create a struct Account conforming to Codable with properties accountId of type Int and accountName of type String. Define a custom CodingKeys enum to map accountId to account_id and accountName to account_name.","starterCode":"// Create Account struct here","modelAnswer":"import Foundation\n\nstruct Account: Codable {\n    let accountId: Int\n    let accountName: String\n    \n    enum CodingKeys: String, CodingKey {\n        case accountId = \"account_id\"\n        case accountName = \"account_name\"\n    }\n}\nlet json = \"{\\\"account_id\\\": 500, \\\"account_name\\\": \\\"Savings\\\"}\".data(using: .utf8)!\nlet account = try! JSONDecoder().decode(Account.self, from: json)\nprint(\"\\(account.accountId): \\(account.accountName)\")","rubric":[{"criterion":"Declares struct Account conforming to Codable with accountId and accountName properties","weight":40,"key":true},{"criterion":"Declares nested enum CodingKeys conforming to String and CodingKey","weight":30,"key":true},{"criterion":"Maps accountId to account_id and accountName to account_name","weight":30,"key":true}]},{"id":"codable-q31","type":"code-write","difficulty":2,"prompt":"Write a struct Movie conforming to Codable with properties title of type String and rating of type Double. Implement custom init(from decoder: Decoder) using decodeIfPresent so that if rating is missing from JSON, it defaults to 5.0.","starterCode":"// Create Movie struct here","modelAnswer":"import Foundation\n\nstruct Movie: Codable {\n    let title: String\n    let rating: Double\n    \n    enum CodingKeys: String, CodingKey {\n        case title\n        case rating\n    }\n    \n    init(from decoder: Decoder) throws {\n        let container = try decoder.container(keyedBy: CodingKeys.self)\n        self.title = try container.decode(String.self, forKey: .title)\n        self.rating = try container.decodeIfPresent(Double.self, forKey: .rating) ?? 5.0\n    }\n}\nlet json = \"{\\\"title\\\": \\\"Inception\\\"}\".data(using: .utf8)!\nlet movie = try! JSONDecoder().decode(Movie.self, from: json)\nprint(\"\\(movie.title): \\(movie.rating)\")","rubric":[{"criterion":"Declares struct Movie conforming to Codable with title and rating properties","weight":30,"key":true},{"criterion":"Implements custom init(from decoder: Decoder) throws extracting keyed container","weight":30,"key":true},{"criterion":"Uses decodeIfPresent for rating with fallback default 5.0","weight":40,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

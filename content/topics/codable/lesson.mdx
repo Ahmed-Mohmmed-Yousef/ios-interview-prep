@@ -1,0 +1,223 @@
+export const meta = {
+  id: "codable",
+  summary: "Convert Swift structs and classes to and from JSON using Codable, CodingKeys, and JSONDecoder.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Codable (Swift)", url: "https://developer.apple.com/documentation/swift/codable", kind: "official" },
+    { title: "Encoding and Decoding Custom Types (Foundation)", url: "https://developer.apple.com/documentation/foundation/encoding-and-decoding-custom-types", kind: "official" },
+    { title: "JSONDecoder (Foundation)", url: "https://developer.apple.com/documentation/foundation/jsondecoder", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How does Swift parse JSON data into strongly typed models without manual dictionary casting?</Question>
+  <Guess>
+    <Option id="a">By reflecting on Objective-C runtime classes dynamically.</Option>
+    <Option id="b" correct>By conforming models to Codable and using JSONDecoder.</Option>
+    <Option id="c">By importing third-party C libraries into every project.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of shipping luggage on an airplane. When you pack your suitcase, you fold your clothes into flat boxes that fit onto cargo belts. When you arrive at your destination, you unpack those boxes back into clothes in your closet. Codable works the same way: it folds Swift objects into portable JSON data, and unpacks JSON data back into Swift objects.
+</Analogy>
+
+In Swift, **`Codable`** is a typealias combining two protocols: `Encodable` and `Decodable`.
+
+`Encodable` types can serialize themselves into external representations like JSON. `Decodable` types can deserialize external data into Swift types.
+
+When all stored properties inside a struct conform to `Codable`, the Swift compiler synthesizes the decoding and encoding code automatically.
+
+Real-world API data often uses `snake_case` keys like `first_name`, while Swift style uses `camelCase` like `firstName`.
+
+You bridge this gap with **`CodingKeys`**. A nested `CodingKeys` enum maps external JSON string keys directly to Swift property names.
+
+For advanced formats, you can implement custom decoding with `init(from decoder: Decoder)` to provide default fallbacks for missing fields.
+
+## See it
+
+<Diagram id="codable-main" caption="Transforming Swift data models to and from JSON data using Codable">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Swift Struct card representing in-memory strongly typed model.
+    2. JSONEncoder and JSONDecoder serialization engine block.
+    3. Serialized UTF-8 JSON Data block with key-value pairs.
+    4. CodingKeys bridge mapping between camelCase and snake_case.
+  - Steps:
+    Step 1: Swift model conforms to Codable with compiler synthesized keys.
+    Step 2: JSONEncoder converts Swift struct into UTF-8 JSON Data.
+    Step 3: CodingKeys maps snake_case JSON keys to camelCase properties.
+    Step 4: JSONDecoder parses JSON Data back into a strongly typed Swift model.
+  - Static version (reduced motion):
+    Bidirectional diagram showing Swift struct converting to JSON and back via Codable protocols.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What two protocols does the Codable typealias combine in Swift?</Question>
+  <Option id="a">Equatable and Hashable</Option>
+  <Option id="b" correct>Encodable and Decodable</Option>
+  <Option id="c">CustomStringConvertible and Identifiable</Option>
+  <Explanation>Codable is a typealias for Encodable and Decodable. Types conforming to Codable can both serialize and deserialize.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Decoding and encoding with custom CodingKeys">
+
+```swift
+import Foundation
+
+struct User: Codable {
+    let id: Int
+    let fullName: String
+    let email: String
+    
+    // Mapping snake_case JSON keys to Swift camelCase properties
+    enum CodingKeys: String, CodingKey {
+        case id
+        case fullName = "full_name"
+        case email
+    }
+}
+
+let json = """
+{
+    "id": 101,
+    "full_name": "Taylor Swift",
+    "email": "taylor@example.com"
+}
+""".data(using: .utf8)!
+
+// Decoding JSON data into a strongly typed User struct
+let user = try JSONDecoder().decode(User.self, from: json)
+print("\(user.fullName) has ID \(user.id)")
+
+// Encoding User struct back into JSON data
+let encoder = JSONEncoder()
+encoder.outputFormatting = .sortedKeys
+let encodedData = try encoder.encode(user)
+let encodedString = String(data: encodedData, encoding: .utf8)!
+print(encodedString.contains("full_name"))
+```
+
+```output
+Taylor Swift has ID 101
+true
+```
+
+</CodeExample>
+
+This example shows two key patterns:
+- **`CodingKeys`**: The enum renames `full_name` from JSON to `fullName` in Swift.
+- **`JSONDecoder` and `JSONEncoder`**: They handle parsing and serialization with strict type checking.
+
+<CodeExample title="Custom decoding with decodeIfPresent and fallback values">
+
+```swift
+import Foundation
+
+struct Product: Codable {
+    let name: String
+    let price: Double
+    let description: String
+    
+    enum CodingKeys: String, CodingKey {
+        case name
+        case price
+        case description
+    }
+    
+    // Custom decoding initializer to handle missing optional fields safely
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.price = try container.decode(Double.self, forKey: .price)
+        self.description = try container.decodeIfPresent(String.self, forKey: .description) ?? "No description"
+    }
+}
+
+let jsonWithoutDescription = """
+{
+    "name": "Coffee Mug",
+    "price": 12.50
+}
+""".data(using: .utf8)!
+
+let product = try JSONDecoder().decode(Product.self, from: jsonWithoutDescription)
+print("\(product.name): $\(product.price)")
+print("Description: \(product.description)")
+```
+
+```output
+Coffee Mug: $12.5
+Description: No description
+```
+
+</CodeExample>
+
+This example highlights custom decoding flexibility:
+- **`container(keyedBy:)`**: Extracts a keyed container matching the `CodingKeys` enum.
+- **`decodeIfPresent`**: Safely reads optional keys, allowing default fallback values when fields are absent.
+
+<QuickCheck>
+  <Question>What happens if a required JSON key is missing and decodeIfPresent is not used?</Question>
+  <Option id="a">The property is assigned a random value.</Option>
+  <Option id="b" correct>The decoder throws a DecodingError.keyNotFound error.</Option>
+  <Option id="c">The application terminates immediately with a segmentation fault.</Option>
+  <Explanation>When a non-optional key is missing during decoding, JSONDecoder throws a DecodingError.keyNotFound error that callers can catch.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Experiment with Codable structs and JSON parsing in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Omitting properties from custom CodingKeys">
+When you write a custom `CodingKeys` enum, you must include every stored property you want encoded or decoded. If you omit a property, the compiler will not synthesize decoding for it.
+</Trap>
+
+<Trap title="Mixing convertFromSnakeCase with explicit snake_case raw values">
+If you set `keyDecodingStrategy = .convertFromSnakeCase` and also write `case fullName = "full_name"` in `CodingKeys`, the decoder applies conversion twice. Choose either automated strategy conversion or explicit `CodingKeys`, not both.
+</Trap>
+
+<Trap title="Failing to handle dates with proper dateDecodingStrategy">
+By default, `JSONDecoder` expects dates as floating point numbers representing seconds since 2001. If your API sends ISO8601 date strings, you must configure `decoder.dateDecodingStrategy = .iso8601`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Codable is a Swift protocol that combines Encodable and Decodable. We use it with JSONDecoder and JSONEncoder to convert Swift structs to and from JSON. If JSON keys do not match our property names, we use CodingKeys to map them.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Codable is a typealias for Encodable and Decodable. When all stored properties conform to Codable, Swift automatically synthesizes serialization and deserialization methods. We can customize key mappings with a nested CodingKeys enum, or set keyDecodingStrategy to convertFromSnakeCase on the decoder. For custom logic or default values on missing fields, we implement custom init(from decoder:) using decodeIfPresent.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Codable provides compile-time type-safe serialization without reflection overhead. It decouples domain models from external serialization formats like JSON, Plist, or Protobuf. In production networking layers, we configure JSONDecoder with ISO8601 date strategies and snake_case strategies. To build resilient apps, we implement custom decoding containers and handle DecodingError cases gracefully so unexpected remote payload changes do not crash client flows.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `Codable` is a typealias combining `Encodable` and `Decodable`.
+- The compiler automatically synthesizes conformance when all stored properties conform to `Codable`.
+- A nested `CodingKeys` enum maps external JSON keys to Swift property names.
+- `JSONDecoder` and `JSONEncoder` parse and serialize data with strict type checking.
+- `decodeIfPresent` allows safe fallbacks for optional or missing JSON fields.
+- `keyDecodingStrategy` and `dateDecodingStrategy` automate common formatting conventions.
+</Recap>
+
+## Go deeper
+
+- [Apple Developer Documentation: Codable](https://developer.apple.com/documentation/swift/codable)
+- [Apple Developer Documentation: Encoding and Decoding Custom Types](https://developer.apple.com/documentation/foundation/encoding-and-decoding-custom-types)
+- [Apple Developer Documentation: JSONDecoder](https://developer.apple.com/documentation/foundation/jsondecoder)

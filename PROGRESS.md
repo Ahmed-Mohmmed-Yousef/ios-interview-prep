@@ -104,8 +104,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **swiftui-navigation** (Navigation) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-navigation/review.html](docs/topics/swiftui-navigation/review.html)
   - ✅ **Batch 1E: App and System (1 topic: `xcode-and-git-basics`)** — Complete
     - ✅ **xcode-and-git-basics** (Xcode, Projects and Git) — published (lesson, diagram, 31 questions) → [docs/topics/xcode-and-git-basics/review.html](docs/topics/xcode-and-git-basics/review.html)
-- 🔄 **4.2 Junior level topics (Wave 2)** — 45 topics (44 main + 1 bonus), starting Batch 2A
-  - 🔄 **Batch 2A: Swift Language Advanced (9 topics: 8 published, 1 remaining)**
+- 🔄 **4.2 Junior level topics (Wave 2)** — 45 topics (44 main + 1 bonus), Batch 2A complete
+  - ✅ **Batch 2A: Swift Language Advanced (9 topics)** — Complete
     - ✅ **optional-chaining** (Optional Chaining) — published (lesson, diagram, 31 questions) → [docs/topics/optional-chaining/review.html](docs/topics/optional-chaining/review.html)
     - ✅ **inheritance** (Inheritance) — published (lesson, diagram, 31 questions) → [docs/topics/inheritance/review.html](docs/topics/inheritance/review.html)
     - ✅ **type-casting** (Type Casting and Any) — published (lesson, diagram, 31 questions) → [docs/topics/type-casting/review.html](docs/topics/type-casting/review.html)
@@ -114,7 +114,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **generics-basics** (Generics: The Basics) — published (lesson, diagram, 31 questions) → [docs/topics/generics-basics/review.html](docs/topics/generics-basics/review.html)
     - ✅ **access-control** (Access Control) — published (lesson, diagram, 31 questions) → [docs/topics/access-control/review.html](docs/topics/access-control/review.html)
     - ✅ **closures-escaping-capture** (Closures: Escaping and Capture Lists) — published (lesson, diagram, 31 questions) → [docs/topics/closures-escaping-capture/review.html](docs/topics/closures-escaping-capture/review.html)
-    - 🔄 **codable** (Codable and JSON)
+    - ✅ **codable** (Codable and JSON) — published (lesson, diagram, 31 questions) → [docs/topics/codable/review.html](docs/topics/codable/review.html)
   - ⬜ **Batch 2B: Coding Interview Algorithms (6 topics)**
     - ⬜ **sorting-binary-search** (Sorting and Binary Search)
     - ⬜ **two-pointers-sliding-window** (Two Pointers and Sliding Window)
@@ -307,6 +307,8 @@ Newest first.
 - **2026-11-09** — Step 5.5 done: Built Screen 5 (Lesson Reader & Animated Diagrams). Features: section-by-section reader splitting by headings, interactive guess-first hook with recap reveal, interactive QuickCheck with explanation toggles, animated 4-step diagram stepper with Back/Next/Replay and accessible descriptions, A/A+/A++ text size switcher tied to store, copyable Swift code figures, keyboard focus management on step headings, official sources drawer, and SSG static prerendering for all published topic lessons. Clean Next.js build and 26 passing tests. Starting Step 5.6: Exam Runner & Results.
 
 - **2026-11-09** — Step 5.4 done: Built Screen 3 (Winding Path Map) and Screen 4 (Locked Notice bottom sheet). Features: sticky top stats bar (done count, path score, accessible progress bar), zig-zag responsive road, 6 visual stop states (passed, updated with amber badge, current with pulse ring, locked with prerequisite guidance, skipped with dashed outline, bonus branch), completed stage folding, unit and stage skip test triggers, and floating "Go to my stop" jump button. Next.js build passes cleanly with 26 unit tests. Starting Step 5.5: Lesson Reader & Diagrams.
+
+- **2026-11-09** — Built and published topic codable (Codable and JSON): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/codable/review.html`). All checks passed. Completed Batch 2A (Swift Language Advanced - 9 topics).
 
 - **2026-11-09** — Built and published topic closures-escaping-capture (Closures: Escaping and Capture Lists): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/closures-escaping-capture/review.html`). All checks passed. Starting codable.
 
