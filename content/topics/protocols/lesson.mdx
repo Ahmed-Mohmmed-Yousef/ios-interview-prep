@@ -1,0 +1,225 @@
+export const meta = {
+  id: "protocols",
+  summary: "Define blueprints for properties and methods, conform value and reference types, and use class-only protocols for delegates.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Protocols", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/protocols", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why must a non-final class mark a protocol initializer implementation with the required keyword?</Question>
+  <Guess>
+    <Option id="a">To tell ARC to retain the initializer closure in heap memory.</Option>
+    <Option id="b" correct>To make sure all future subclasses also provide or inherit the required initializer to honor the protocol contract.</Option>
+    <Option id="c">To convert the initializer into an Objective-C factory selector.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a driver license requirement. A licensing agency requires drivers to pass a vision test and follow road signs. The agency does not care what brand of car you drive. Both compact cars and large trucks can meet the requirements. In Swift, a protocol works like a license: it sets rules and capabilities that any conforming struct, enum, or class must satisfy.
+</Analogy>
+
+In Swift, a **protocol** defines a blueprint of methods, properties, and other requirements for a particular task.
+
+A protocol does not provide storage or implementation on its own. Instead, structs, enums, and classes **conform** to the protocol by implementing its requirements.
+
+Core protocol rules:
+- **Property requirements**: Always declared with `var`. Must specify whether each property is gettable (`{ get }`) or gettable and settable (`{ get set }`).
+- **Method requirements**: Declares function signatures without bodies. Methods that modify value types must use the `mutating` keyword.
+- **Initializer requirements**: Declares initializers that conforming types must provide. Non-final classes must mark them with `required`.
+- **Class-only protocols**: Protocols inheriting from `AnyObject` can only be adopted by classes. This is necessary for weak delegate references.
+
+## See it
+
+<Diagram id="protocols-main" caption="How protocols act as contracts across structs and classes">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Protocol blueprint card Greetable with name { get } and greet() -> String.
+    2. Struct Student card conforming to Greetable.
+    3. Class Teacher card conforming to Greetable.
+    4. Polymorphic array [any Greetable] accepting both value and reference types.
+  - Steps:
+    Step 1: Define protocol Greetable with required property and method blueprint.
+    Step 2: Struct Student conforms to Greetable by supplying stored let name.
+    Step 3: Class Teacher conforms to Greetable by supplying stored var and custom method.
+    Step 4: Group both instances into an existential collection [any Greetable].
+  - Static version (reduced motion):
+    Central protocol blueprint box branching out to conforming Struct and Class boxes.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Can a stored constant let property satisfy a protocol requirement of `var id: String { get }`?</Question>
+  <Option id="a">No, protocols always require mutable var properties.</Option>
+  <Option id="b" correct>Yes, because `{ get }` only requires read access.</Option>
+  <Option id="c">Only if the type is a class.</Option>
+  <Explanation>A `{ get }` requirement only demands that the property can be read. A constant let satisfies this rule perfectly.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Defining protocols and conforming structs and classes">
+
+```swift
+protocol Greetable {
+    var name: String { get }
+    func greet() -> String
+}
+
+struct Student: Greetable {
+    let name: String
+    func greet() -> String {
+        return "Hello, my name is \(name)."
+    }
+}
+
+class Teacher: Greetable {
+    var name: String
+    init(name: String) {
+        self.name = name
+    }
+    
+    func greet() -> String {
+        return "Welcome class, I am Professor \(name)."
+    }
+}
+
+let members: [any Greetable] = [
+    Student(name: "Taylor"),
+    Teacher(name: "Anderson")
+]
+
+for member in members {
+    print(member.greet())
+}
+```
+
+```output
+Hello, my name is Taylor.
+Welcome class, I am Professor Anderson.
+```
+
+</CodeExample>
+
+This example shows the flexibility of protocols:
+- **Shared contract**: `Student` (a value type) and `Teacher` (a reference type) share a common interface.
+- **Read-only satisfaction**: `Student` fulfills `{ get }` with a constant `let name`.
+- **Existential collection**: `[any Greetable]` holds any conforming type, allowing clean polymorphic iteration.
+
+<CodeExample title="Mutating methods and class-only delegate protocols">
+
+```swift
+protocol Togglable {
+    mutating func toggle()
+}
+
+struct LightSwitch: Togglable {
+    var isOn = false
+    
+    mutating func toggle() {
+        isOn.toggle()
+    }
+}
+
+var bedroomSwitch = LightSwitch()
+bedroomSwitch.toggle()
+print("Switch is on: \(bedroomSwitch.isOn)")
+
+// Class-only protocol for delegates
+protocol TaskDelegate: AnyObject {
+    func taskDidFinish()
+}
+
+class Worker {
+    weak var delegate: TaskDelegate?
+    func completeWork() {
+        print("Work completed.")
+        delegate?.taskDidFinish()
+    }
+}
+
+class Supervisor: TaskDelegate {
+    func taskDidFinish() {
+        print("Supervisor received notification.")
+    }
+}
+
+let supervisor = Supervisor()
+let worker = Worker()
+worker.delegate = supervisor
+worker.completeWork()
+```
+
+```output
+Switch is on: true
+Work completed.
+Supervisor received notification.
+```
+
+</CodeExample>
+
+This code highlights two critical protocol patterns:
+- **`mutating` keyword**: Enables value types to modify their stored properties inside protocol methods. Classes omit `mutating`.
+- **`AnyObject` constraint**: Restricts `TaskDelegate` to classes. This enables `weak var delegate` to prevent retain cycles.
+
+<QuickCheck>
+  <Question>Why must a delegate protocol inherit from AnyObject when declared as weak var delegate?</Question>
+  <Option id="a">To enable fast array indexing.</Option>
+  <Option id="b" correct>Because weak references can only hold class instances.</Option>
+  <Option id="c">To allow structs to conform to the delegate.</Option>
+  <Explanation>weak references require reference semantics (classes). Structs cannot be held weakly by ARC.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Practice writing protocols and conforming value types in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Forgetting the mutating keyword on protocol methods for value types">
+If a protocol method alters properties on a conforming struct, you must declare it with `mutating func` in the protocol. If you omit `mutating`, structs cannot mutate `self` inside that method.
+</Trap>
+
+<Trap title="Declaring weak delegate references without AnyObject">
+ARC can only manage weak references on class instances. If a protocol does not inherit from `AnyObject`, writing `weak var delegate: MyDelegate?` causes a compiler error.
+</Trap>
+
+<Trap title="Assuming protocols can store property values directly">
+Protocols declare property requirements, not physical storage. They cannot allocate memory or store default property values on their own.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+A protocol in Swift is a contract defining required properties and methods. Classes, structs, and enums can conform to protocols by implementing those requirements. Protocols let different types share behavior without relying on class inheritance.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Protocols define blueprints for properties, methods, and initializers. Property requirements specify get or get set access. For value types, methods modifying self must be marked mutating. Class-only protocols inherit from AnyObject, which allows them to be used with weak references in delegate patterns.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Swift is a protocol-oriented language. Protocols decouple interfaces from concrete implementations, enabling horizontal composition across value types. Existential types using any Protocol introduce dynamic dispatch and boxing overhead. In contrast, opaque types with some Protocol and generic constraints allow static devirtualization and compiler optimizations.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Protocols define blueprints of properties, methods, and initializers without storage.
+- Classes, structs, and enumerations can all conform to protocols.
+- Properties specify `{ get }` or `{ get set }` requirements using `var`.
+- Methods modifying value types must use the `mutating` keyword in the protocol.
+- Non-final classes must mark protocol initializers with `required`.
+- Class-only protocols inherit from `AnyObject` to allow `weak` delegate references.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Protocols](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/protocols)
+- [Swift Standard Library: Identifiable](https://developer.apple.com/documentation/swift/identifiable)
