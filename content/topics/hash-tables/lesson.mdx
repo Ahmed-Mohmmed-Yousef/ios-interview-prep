@@ -1,0 +1,228 @@
+export const meta = {
+  id: "hash-tables",
+  summary: "Master hash tables in Swift, including Dictionary, Set, Hashable, and key interview algorithms like Two Sum.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Apple Developer Documentation: Dictionary", url: "https://developer.apple.com/documentation/swift/dictionary", kind: "official" },
+    { title: "Apple Developer Documentation: Set", url: "https://developer.apple.com/documentation/swift/set", kind: "official" },
+    { title: "Apple Developer Documentation: Hashable", url: "https://developer.apple.com/documentation/swift/hashable", kind: "official" },
+    { title: "Hash table cheatsheet for coding interviews | Tech Interview Handbook", url: "https://www.techinterviewhandbook.org/algorithms/hash-table/", kind: "community" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does looking up a value in a Swift Dictionary take O(1) average time, but O(n) worst-case time?</Question>
+  <Guess>
+    <Option id="a">Dictionary uses a binary search tree that rebalances on lookup.</Option>
+    <Option id="b" correct>A hash function maps keys to buckets, but collisions can place many keys in the same bucket.</Option>
+    <Option id="c">Swift searches an internal array from start to end on every query.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a hotel with numbered mailboxes in the lobby.
+
+When a letter arrives for room 402, the clerk does not check every mailbox one by one. The clerk walks straight to box 402 and drops the letter inside.
+
+If two guests share the same box number, the clerk places both letters inside that same box. This shared box is a collision.
+</Analogy>
+
+A **hash table** is a data structure that stores key-value pairs.
+
+In Swift, both `Dictionary` and `Set` use hash tables behind the scenes:
+1. **The Hash Function**:
+   - The key must conform to the `Hashable` protocol.
+   - Swift passes the key into a hash function.
+   - The hash function turns the key into an integer hash value.
+2. **Buckets**:
+   - Swift converts the hash value into an internal storage index called a bucket.
+   - Finding the bucket takes $O(1)$ constant time.
+3. **Collisions**:
+   - When two different keys produce the same bucket index, a **collision** happens.
+   - Swift resolves collisions by finding an alternate open bucket or chaining entries.
+   - In the worst case, many collisions force Swift to check multiple entries, taking $O(n)$ linear time.
+
+Because hash tables provide $O(1)$ average lookups, they are essential in coding interviews. They allow you to replace slow nested loops with instant dictionary checks.
+
+## See it
+
+<Diagram id="hash-tables-concept" caption="How a hash function maps keys to buckets and resolves collisions">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Keys: "apple", "banana", "cherry".
+    2. Hasher box with hash(into:) logic.
+    3. Bucket array: indices 0 through 4.
+    4. Code action line showing insertion and lookup steps.
+  - Steps:
+    Step 1: Key "apple" hashes to index 1. Stored in bucket 1.
+    Step 2: Key "banana" hashes to index 3. Stored in bucket 3.
+    Step 3: Key "cherry" also hashes to index 1 (collision). Handled by probing to bucket 2.
+    Step 4: Lookup for "apple" computes hash index 1 and finds the value in O(1) average time.
+  - Static version (reduced motion):
+    A 4-box layout showing keys, hash function flow, bucket slots, and collision handling.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What is the average time complexity to find an element in a Swift Set?</Question>
+  <Option id="a">O(n) time because it scans each element.</Option>
+  <Option id="b" correct>O(1) time because the element hash leads directly to its bucket.</Option>
+  <Option id="c">O(log n) time because it uses binary search.</Option>
+  <Explanation>A Set uses a hash table. Finding an element takes O(1) average time by computing its hash.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Frequency counting and fast Set membership in Swift">
+
+```swift
+// 1. Frequency counter with default dictionary subscript
+let phrase = "swift interview"
+var counts: [Character: Int] = [:]
+
+for char in phrase where char != " " {
+    counts[char, default: 0] += 1
+}
+
+print("Count of i: \(counts["i"] ?? 0)")
+print("Count of w: \(counts["w"] ?? 0)")
+
+// 2. Set for fast membership testing
+var visited = Set<String>()
+visited.insert("home")
+visited.insert("profile")
+
+print("Visited home: \(visited.contains("home"))")
+print("Visited settings: \(visited.contains("settings"))")
+```
+
+```output
+Count of i: 3
+Count of w: 2
+Visited home: true
+Visited settings: false
+```
+
+</CodeExample>
+
+In the first example, the `default` subscript parameter simplifies counting. You do not need optional unwrapping to increment missing keys.
+
+In the second example, `Set.contains` runs in $O(1)$ average time. Checking an `Array` would require $O(n)$ time.
+
+<CodeExample title="Solving Two Sum with a hash table in O(n) time">
+
+```swift
+// Two Sum problem using a hash table in O(n) time
+func twoSum(_ numbers: [Int], target: Int) -> [Int] {
+    var seenIndices: [Int: Int] = [:]
+    
+    for (index, number) in numbers.enumerated() {
+        let complement = target - number
+        if let previousIndex = seenIndices[complement] {
+            return [previousIndex, index]
+        }
+        seenIndices[number] = index
+    }
+    return []
+}
+
+let numbers = [2, 7, 11, 15]
+let result = twoSum(numbers, target: 9)
+print("Two Sum indices for 9: \(result)")
+
+let resultTwo = twoSum([3, 2, 4], target: 6)
+print("Two Sum indices for 6: \(resultTwo)")
+```
+
+```output
+Two Sum indices for 9: [0, 1]
+Two Sum indices for 6: [1, 2]
+```
+
+</CodeExample>
+
+In Two Sum, a brute-force solution checks every pair with two nested loops. That takes $O(n^2)$ time.
+
+By storing visited numbers in a dictionary, we check for the required complement in $O(1)$ time. This solves the problem in $O(n)$ time and $O(n)$ auxiliary space.
+
+<QuickCheck>
+  <Question>Why must types conforming to Hashable also conform to Equatable?</Question>
+  <Option id="a">To let Swift sort dictionary keys automatically.</Option>
+  <Option id="b" correct>To confirm if two keys with the same hash value are truly equal when resolving collisions.</Option>
+  <Option id="c">To convert keys into numbers for printing.</Option>
+  <Explanation>Hash collisions can occur. When two keys produce the same hash, Swift uses == to check if they are the exact same key.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming Dictionary maintains insertion order">
+Swift `Dictionary` and `Set` are unordered collections.
+
+When you loop over a dictionary, keys do not appear in the order you inserted them. Their order depends on bucket layout and hash seeds.
+
+If an interview problem requires preserving insertion order, use an array alongside your dictionary or use an ordered collection.
+</Trap>
+
+<Trap title="Persisting hashValue to disk or network">
+Swift uses SipHash with a per-process random seed.
+
+This random seed changes every time your application launches. The hash value of an object will not match across app restarts.
+
+Never save `hashValue` to UserDefaults, Core Data, SwiftData, or a server database.
+</Trap>
+
+<Trap title="Violating the Hashable contract">
+If two instances are equal with `==`, they must feed the exact same properties into `hasher.combine(...)`.
+
+If you check three properties in `==` but only hash one property in `hash(into:)`, or vice versa, the hash table will break.
+
+Inconsistent hashing causes dictionaries and sets to lose elements or report wrong lookups.
+</Trap>
+
+<Trap title="Mutating an object while it is inside a Set">
+If you store a reference type in a `Set` and change its properties later, its hash value can change.
+
+The set will still search the original bucket. Because the object now lives in the wrong bucket, lookups and deletions will fail.
+
+Always use immutable value types like structs for dictionary keys and set elements.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"A hash table is a data structure that stores key-value pairs with $O(1)$ average lookup, insertion, and deletion time. In Swift, `Dictionary` and `Set` use hash tables. Keys must conform to `Hashable`, which inherits from `Equatable`. In coding interviews, I use a dictionary to cache visited elements, such as in Two Sum. This reduces lookup time from $O(n^2)$ to $O(n)$."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"Swift implements `Dictionary` and `Set` using open-addressing hash tables with SipHash. Hashing maps keys to buckets, and `==` resolves collisions when two keys share a bucket. Swift randomizes hash seeds per process launch to protect against collision denial-of-service attacks. I make sure custom `Hashable` implementations hash the exact same properties used in `==`, and I use immutable keys so bucket positions remain valid."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"In production iOS apps, hash table performance depends on load factor, bucket allocation, and collision mitigation. Swift standard library uses flat hash tables with control bytes for high cache locality and SIMD probing. Because SipHash is randomized per process, `hashValue` is non-deterministic and must never be persisted. When optimizing high-throughput pipelines, I preallocate dictionary capacity using `reserveCapacity` to prevent expensive rehashing cycles."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `Dictionary` and `Set` use hash tables for $O(1)$ average lookup, insertion, and deletion.
+- Keys must conform to `Hashable`, which inherits from `Equatable` to resolve bucket collisions.
+- Equal objects (`a == b`) must produce identical hash values by hashing the same properties.
+- Swift uses SipHash with random per-process seeds; never save `hashValue` to disk or network.
+- Hash tables solve interview problems like Two Sum and frequency counting by trading $O(n)$ space for $O(n)$ time.
+</Recap>
+
+## Go deeper
+
+- [Apple Developer Documentation: Dictionary](https://developer.apple.com/documentation/swift/dictionary) — Details on dictionary initialization, mutation, and performance.
+- [Apple Developer Documentation: Set](https://developer.apple.com/documentation/swift/set) — Overview of unique element collections and set operations.
+- [Apple Developer Documentation: Hashable](https://developer.apple.com/documentation/swift/hashable) — Rules for synthesizing and implementing custom hashing.
+- [Tech Interview Handbook: Hash Table Cheatsheet](https://www.techinterviewhandbook.org/algorithms/hash-table/) — Popular coding interview patterns and edge cases.

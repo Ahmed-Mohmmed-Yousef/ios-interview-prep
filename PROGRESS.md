@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 7 remaining topics (15 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 6 remaining topics (16 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -92,12 +92,12 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **properties** (Properties) — published (lesson, diagram, 31 questions) → [docs/topics/properties/review.html](docs/topics/properties/review.html)
     - ✅ **methods-and-initialization** (Methods and Initialization) — published (lesson, diagram, 31 questions) → [docs/topics/methods-and-initialization/review.html](docs/topics/methods-and-initialization/review.html)
     - ✅ **error-handling** (Error Handling) — published (lesson, diagram, 31 questions) → [docs/topics/error-handling/review.html](docs/topics/error-handling/review.html)
-  - 🔄 **Batch 1C: Coding Interview (3 topics: `big-o` → `hash-tables`)**
+  - ✅ **Batch 1C: Coding Interview (3 topics: `big-o` → `hash-tables`)** — Complete
     - ✅ **big-o** (Big-O: Time and Space) — published (lesson, diagram, 31 questions) → [docs/topics/big-o/review.html](docs/topics/big-o/review.html)
     - ✅ **arrays-and-strings** (Arrays and Strings) — published (lesson, diagram, 31 questions) → [docs/topics/arrays-and-strings/review.html](docs/topics/arrays-and-strings/review.html)
-    - 🔄 **hash-tables** (Hash Tables) — starting research
-  - ⬜ **Batch 1D: SwiftUI Basics (5 topics: `swiftui-views-modifiers` → `swiftui-navigation`)**
-    - ⬜ **swiftui-views-modifiers** (Views and Modifiers)
+    - ✅ **hash-tables** (Hash Tables) — published (lesson, diagram, 31 questions) → [docs/topics/hash-tables/review.html](docs/topics/hash-tables/review.html)
+  - 🔄 **Batch 1D: SwiftUI Basics (5 topics: `swiftui-views-modifiers` → `swiftui-navigation`)**
+    - 🔄 **swiftui-views-modifiers** (Views and Modifiers) — starting research
     - ⬜ **swiftui-layout** (Stacks and Layout)
     - ⬜ **state-and-binding** (@State and @Binding)
     - ⬜ **swiftui-lists** (Lists and ForEach)
@@ -110,10 +110,21 @@ Write all lessons and question banks, level by level, with fact checks.
 - ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
 - ⬜ **4.6 Phase 4 summary and final verification**
 
-## Phase 5 — Web app MVP ⬜
+## Phase 5 — Web app MVP 🔄
+
+Plan: [docs/phase-5-plan.md](docs/phase-5-plan.md)
 
 Level picker, path, lessons, browser-graded exams, saved progress, results.
-- ⬜ Progress keeps working when a topic is edited, moved, retired or gets a new version (tested)
+- 🟡 **5.0 Plan Phase 5** — [docs/phase-5-plan.md](docs/phase-5-plan.md) waiting for your review
+- ⬜ **5.1 Setup & Scaffold** — Next.js 16 (App Router), TypeScript, Turbopack, Tailwind v4 tokens, agent tools
+- ⬜ **5.2 Content & Store Layer** — Zod schemas, MDX + Shiki compiler, Zustand versioned store with migrations, Vitest product rule tests
+- ⬜ **5.3 Screen 1: Welcome & Level Picker (S1, S2)** — first visit intro, level cards, interactive self-check
+- ⬜ **5.4 Screen 2: Winding Path Map (S3, S4)** — responsive road, 6 stop states, progress bar, path score, locked sheet
+- ⬜ **5.5 Screen 3: Lesson Reader & Diagrams (S5)** — section reader, embedded diagrams, text size switcher, QuickChecks
+- ⬜ **5.6 Screen 4: Exam Runner & Results (S6–S10)** — 10 questions, option shuffling, instant feedback, scoring, skip tests, path completion
+- ⬜ **5.7 Screen 5: Settings, Progress Export/Import & About (S11, S12)** — stage/unit breakdown, JSON export/import/reset, About page
+- ⬜ **5.8 Accessibility, Testing & Final Verification** — Vitest unit tests, Playwright E2E tests (375px & desktop), axe-core scans, VoiceOver test, reading-time test
+- ⬜ Progress keeps working when a topic is edited, moved, retired or gets a new version (tested in 5.2 and 5.8)
 - ⬜ **VoiceOver test by you** — one short flow on the real app (moved from step 3.8 on 2026-10-29); steps in [docs/design/a11y-check.md](docs/design/a11y-check.md)
 - ⬜ **Measure the real reading time** of lessons with real learners in the app (moved from step 3.8 on 2026-10-29). Lessons say "about 10 minutes" until then
 - ✅ **Agent rules, skills and helper agents for Phase 5** (2026-11-09, chosen by you from the setup recommender): rules [nextjs.md](.claude/rules/nextjs.md), [progress-store.md](.claude/rules/progress-store.md), [testing.md](.claude/rules/testing.md); skills [/build-screen](.claude/skills/build-screen/SKILL.md), [/ui-check](.claude/skills/ui-check/SKILL.md); agents [a11y-reviewer](.claude/agents/a11y-reviewer.md), [rules-tester](.claude/agents/rules-tester.md)
@@ -215,6 +226,8 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — Built and published topic hash-tables (Hash Tables): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/hash-tables/review.html`). All checks passed. Completed Batch 1C (Coding Interview). Starting Batch 1D: swiftui-views-modifiers.
+- **2026-11-09** — Planned Phase 5: Web App MVP (`docs/phase-5-plan.md`). Structured into 8 verifiable steps from scaffolding to a11y tests, running in parallel with Phase 4 content production. Status: waiting for your review.
 - **2026-11-09** — arrays-and-strings published. User authorized autonomous content production for remaining Phase 4 topics without pausing for manual approvals.
 - **2026-11-09** — Built topic arrays-and-strings (Arrays and Strings): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/arrays-and-strings/review.html`). Status: review, waiting for your approval.
 - **2026-11-09** — big-o approved and published by user. Started topic arrays-and-strings: researching two-pointer techniques, sliding window patterns, and Swift string indexing.

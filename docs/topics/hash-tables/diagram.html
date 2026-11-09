@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hash Tables: Hashing, Buckets, and Collision Handling</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --key-color: #0284c7; --key-soft: #e0f2fe;
+  --hash-color: #7c3aed; --hash-soft: #ede9fe;
+  --bucket-color: #0c765c; --bucket-soft: #dcf2ea;
+  --collision-color: #d97706; --collision-soft: #fef3c7;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --key-color: #38bdf8; --key-soft: #082f49;
+  --hash-color: #a78bfa; --hash-soft: #2e1065;
+  --bucket-color: #45cfa3; --bucket-soft: #13362c;
+  --collision-color: #fbbf24; --collision-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.bucket-slot { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 6px; }
+.bucket-slot.active { stroke: var(--bucket-color); fill: var(--bucket-soft); stroke-width: 2.5; }
+.bucket-slot.collision { stroke: var(--collision-color); fill: var(--collision-soft); stroke-width: 2.5; }
+
+.box-title { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--muted); }
+.slot-text { font-family: var(--font-code); font-size: 13px; font-weight: 600; fill: var(--ink); text-anchor: middle; }
+.slot-idx { font-family: var(--font-body); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+
+  <div class="interactive-diagram">
+    <div class="panels">
+      <!-- Left Panel: SVG Visualization -->
+      <div class="panel">
+        <h3>
+          <span id="vis-title">Insert "apple"</span>
+          <span class="kind" id="vis-tag" style="background:var(--key-soft);color:var(--key-color);">Step 1</span>
+        </h3>
+        
+        <svg viewBox="0 0 360 220" role="img" aria-label="Hash Table Buckets Animation">
+          <!-- Key / Hasher Section -->
+          <rect x="20" y="20" width="90" height="40" rx="8" fill="var(--key-soft)" stroke="var(--key-color)" stroke-width="2"/>
+          <text id="svg-key-text" x="65" y="45" font-family="var(--font-code)" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">"apple"</text>
+          
+          <!-- Arrow to Hasher -->
+          <path d="M 115 40 L 145 40" stroke="var(--muted)" stroke-width="2" marker-end="url(#arrowhead)"/>
+          
+          <!-- Hasher Box -->
+          <rect x="150" y="16" width="90" height="48" rx="8" fill="var(--hash-soft)" stroke="var(--hash-color)" stroke-width="2"/>
+          <text x="195" y="38" font-family="var(--font-body)" font-size="11" font-weight="700" fill="var(--hash-color)" text-anchor="middle">Hasher</text>
+          <text id="svg-hash-text" x="195" y="54" font-family="var(--font-code)" font-size="11" font-weight="600" fill="var(--ink)" text-anchor="middle">hash → 1</text>
+          
+          <!-- Arrow to Buckets -->
+          <path id="svg-arrow-bucket" d="M 245 40 L 275 60" stroke="var(--muted)" stroke-width="2"/>
+
+          <!-- Buckets Array -->
+          <g transform="translate(20, 85)">
+            <text x="0" y="0" class="box-title">Internal Storage (Buckets)</text>
+            
+            <!-- Bucket 0 -->
+            <rect id="b-0" x="0" y="12" width="60" height="42" class="bucket-slot"/>
+            <text x="30" y="68" class="slot-idx">Bucket 0</text>
+            <text id="val-0" x="30" y="38" class="slot-text">—</text>
+            
+            <!-- Bucket 1 -->
+            <rect id="b-1" x="70" y="12" width="60" height="42" class="bucket-slot active"/>
+            <text x="100" y="68" class="slot-idx">Bucket 1</text>
+            <text id="val-1" x="100" y="38" class="slot-text">"apple"</text>
+            
+            <!-- Bucket 2 -->
+            <rect id="b-2" x="140" y="12" width="60" height="42" class="bucket-slot"/>
+            <text x="170" y="68" class="slot-idx">Bucket 2</text>
+            <text id="val-2" x="170" y="38" class="slot-text">—</text>
+            
+            <!-- Bucket 3 -->
+            <rect id="b-3" x="210" y="12" width="60" height="42" class="bucket-slot"/>
+            <text x="240" y="68" class="slot-idx">Bucket 3</text>
+            <text id="val-3" x="240" y="38" class="slot-text">—</text>
+            
+            <!-- Bucket 4 -->
+            <rect id="b-4" x="280" y="12" width="60" height="42" class="bucket-slot"/>
+            <text x="310" y="68" class="slot-idx">Bucket 4</text>
+            <text id="val-4" x="310" y="38" class="slot-text">—</text>
+          </g>
+        </svg>
+
+        <p class="caption" id="vis-desc">Key "apple" passes into Hasher. The calculated hash leads directly to bucket index 1.</p>
+      </div>
+
+      <!-- Right Panel: Code & Operation Details -->
+      <div class="panel">
+        <h3>
+          <span id="right-title">Insertion Operation</span>
+          <span class="kind" id="right-tag" style="background:var(--code-bg);color:var(--muted);">O(1)</span>
+        </h3>
+        <div class="code" id="right-code">var inventory: [String: Int] = [:]
+inventory["apple"] = 5
+
+// hash("apple") % 5 == 1</div>
+        <p class="caption" id="right-desc">Computing the hash value maps "apple" directly to bucket 1. The value is stored in constant O(1) time.</p>
+        <div class="metrics">
+          <div class="metric-col"><span>Operation</span><strong id="m-op">Insert</strong></div>
+          <div class="metric-col"><span>Time</span><strong id="m-time">O(1)</strong></div>
+          <div class="metric-col"><span>Collisions</span><strong id="m-collisions">0</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1: Insert apple" onclick="goToStep(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2: Insert banana" onclick="goToStep(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3: Collision with cherry" onclick="goToStep(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4: Lookup apple" onclick="goToStep(3)"></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()" aria-label="Next step">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-Motion Static Fallback -->
+  <div class="static-fallback" aria-label="Static explanation of hash table operations">
+    <div class="comp-card" style="border-left: 4px solid var(--key-color);">
+      <h4>Step 1: First Key Insertion</h4>
+      <p>Key <code>"apple"</code> is hashed by Swift's <code>Hasher</code>. It maps to bucket index 1 in <code>O(1)</code> time.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--hash-color);">
+      <h4>Step 2: Second Key Insertion</h4>
+      <p>Key <code>"banana"</code> is hashed and maps to bucket index 3 with no collision.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--collision-color);">
+      <h4>Step 3: Collision Resolution</h4>
+      <p>Key <code>"cherry"</code> hashes to bucket index 1 (occupied by <code>"apple"</code>). Probing resolves the collision by placing it into the next free slot (bucket 2).</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--bucket-color);">
+      <h4>Step 4: Constant Time Lookup</h4>
+      <p>Looking up <code>inventory["apple"]</code> recomputes hash index 1. Swift checks equality (<code>"apple" == "apple"</code>) and returns the value in <code>O(1)</code> average time.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    visTitle: 'Insert "apple"',
+    visTag: "Step 1",
+    keyText: '"apple"',
+    hashText: "hash → 1",
+    bClasses: ["", "active", "", "", ""],
+    vals: ["—", '"apple"', "—", "—", "—"],
+    visDesc: 'Key "apple" passes into Hasher. The calculated hash leads directly to bucket index 1.',
+    rightTitle: "Insertion Operation",
+    rightTag: "O(1)",
+    rightCode: 'var inventory: [String: Int] = [:]\ninventory["apple"] = 5\n\n// hash("apple") % 5 == 1',
+    rightDesc: 'Computing the hash value maps "apple" directly to bucket 1. The value is stored in constant O(1) time.',
+    mOp: "Insert",
+    mTime: "O(1)",
+    mCollisions: "0"
+  },
+  {
+    visTitle: 'Insert "banana"',
+    visTag: "Step 2",
+    keyText: '"banana"',
+    hashText: "hash → 3",
+    bClasses: ["", "", "", "active", ""],
+    vals: ["—", '"apple"', "—", '"banana"', "—"],
+    visDesc: 'Key "banana" hashes to bucket index 3. It occupies an empty slot without collision.',
+    rightTitle: "Second Insertion",
+    rightTag: "O(1)",
+    rightCode: 'inventory["banana"] = 8\n\n// hash("banana") % 5 == 3\n// Stored directly in bucket 3',
+    rightDesc: 'Different keys typically map to different buckets when the hash function is uniform.',
+    mOp: "Insert",
+    mTime: "O(1)",
+    mCollisions: "0"
+  },
+  {
+    visTitle: 'Collision: "cherry"',
+    visTag: "Step 3",
+    keyText: '"cherry"',
+    hashText: "hash → 1 !",
+    bClasses: ["", "collision", "active", "", ""],
+    vals: ["—", '"apple"', '"cherry"', '"banana"', "—"],
+    visDesc: 'Key "cherry" also hashes to bucket 1! Bucket 1 is occupied. Probing places "cherry" into bucket 2.',
+    rightTitle: "Collision Resolution",
+    rightTag: "Probing",
+    rightCode: 'inventory["cherry"] = 3\n// hash("cherry") % 5 == 1 (Occupied!)\n// Probes next open slot -> Bucket 2',
+    rightDesc: 'When two keys produce the same bucket index, a collision happens. Open addressing probes for the next available slot.',
+    mOp: "Collision",
+    mTime: "O(1) avg",
+    mCollisions: "1"
+  },
+  {
+    visTitle: 'Lookup "apple"',
+    visTag: "Step 4",
+    keyText: '"apple"',
+    hashText: "hash → 1",
+    bClasses: ["", "active", "", "", ""],
+    vals: ["—", '"apple"', '"cherry"', '"banana"', "—"],
+    visDesc: 'Lookup for "apple" computes hash index 1. Swift uses == to confirm the key and retrieves the value.',
+    rightTitle: "Fast Lookup",
+    rightTag: "O(1) avg",
+    rightCode: 'let qty = inventory["apple"]\n// Recomputes hash -> Bucket 1\n// Matches key via == and returns 5',
+    rightDesc: 'Lookup is O(1) average time. Swift computes the hash, inspects bucket 1, and verifies key equality with Equatable.',
+    mOp: "Lookup",
+    mTime: "O(1) avg",
+    mCollisions: "0"
+  }
+];
+
+let curStep = 0;
+
+function updateDiagram() {
+  const s = steps[curStep];
+  
+  document.getElementById("vis-title").textContent = s.visTitle;
+  document.getElementById("vis-tag").textContent = s.visTag;
+  document.getElementById("vis-desc").textContent = s.visDesc;
+  document.getElementById("svg-key-text").textContent = s.keyText;
+  document.getElementById("svg-hash-text").textContent = s.hashText;
+
+  for (let i = 0; i < 5; i++) {
+    const el = document.getElementById("b-" + i);
+    el.className.baseVal = "bucket-slot" + (s.bClasses[i] ? " " + s.bClasses[i] : "");
+    document.getElementById("val-" + i).textContent = s.vals[i];
+  }
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+  document.getElementById("m-op").textContent = s.mOp;
+  document.getElementById("m-time").textContent = s.mTime;
+  document.getElementById("m-collisions").textContent = s.mCollisions;
+
+  const dots = document.querySelectorAll(".steps-dots .dot");
+  dots.forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = (curStep === 0);
+  document.getElementById("btn-next").disabled = (curStep === steps.length - 1);
+}
+
+function prevStep() { if (curStep > 0) { curStep--; updateDiagram(); } }
+function nextStep() { if (curStep < steps.length - 1) { curStep++; updateDiagram(); } }
+function goToStep(i) { curStep = i; updateDiagram(); }
+</script>
+
+</body>
+</html>
