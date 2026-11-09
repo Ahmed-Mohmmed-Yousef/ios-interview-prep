@@ -1,0 +1,601 @@
+<title>Navigation in UIKit Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --stack-color: #0284c7; --stack-soft: #e0f2fe;
+  --push-color: #16a34a; --push-soft: #dcfce7;
+  --pop-color: #ea580c; --pop-soft: #ffedd5;
+  --modal-color: #7c3aed; --modal-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --stack-color: #38bdf8; --stack-soft: #082f49;
+  --push-color: #4ade80; --push-soft: #052e16;
+  --pop-color: #fb923c; --pop-soft: #431407;
+  --modal-color: #a78bfa; --modal-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.stack { background: var(--stack-soft); color: var(--stack-color); }
+.kind.push { background: var(--push-soft); color: var(--push-color); }
+.kind.pop { background: var(--pop-soft); color: var(--pop-color); }
+.kind.modal { background: var(--modal-soft); color: var(--modal-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--stack-color); color: #ffffff; border-color: var(--stack-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--stack-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · UIKit · Topic 4 of 5 · Prototype</p>
+    <h1>Navigation in UIKit</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can move between screens with navigation controllers and presentation.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">When dismissing an iOS card sheet modal, why might the presenting view controller fail to run <code>viewWillAppear</code>?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Card sheets deallocate the presenting controller during presentation.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The presenting view remains in the view hierarchy under page sheet presentation.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">UIKit disables lifecycle events during touch gestures.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine exploring a deep filing cabinet.</p><p>You open a folder to read a document. When you want more detail, you place another folder on top.</p><p>You can keep adding folders to go deeper. To go back, you lift the top folder off.</p><p>That folder stack is a <strong>navigation controller</strong>.</p><p>If someone hands you a clipboard to sign right now, you set the folders aside. You sign the paper and return it.</p><p>That temporary interrupt is a <strong>modal presentation</strong>.</p></aside>
+<p>In UIKit, screen transitions fall into two main categories:</p>
+<ol>
+<li><strong>Hierarchical Navigation (<code>UINavigationController</code>)</strong>:
+<ul>
+<li>Manages a stack of screens in a Last-In, First-Out order.</li>
+<li>Pushing adds a new screen to the top of the stack.</li>
+<li>Popping removes the top screen to reveal the screen below.</li>
+<li>Provides a navigation bar with a back button automatically.</li>
+</ul>
+</li>
+<li><strong>Modal Presentation (<code>present</code>)</strong>:
+<ul>
+<li>Slides or fades a new screen over current content.</li>
+<li>Interrupts the user to complete a focused task.</li>
+<li>Supports different presentation styles like <code>.pageSheet</code> and <code>.fullScreen</code>.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which method removes the top view controller from a navigation stack in UIKit?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>dismiss(animated:)</code></span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>popViewController(animated:)</code></span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text"><code>removeFromParent()</code></span></button><p class="qc-explain" hidden="">popViewController removes the top screen from the navigation stack and returns to the previous screen.</p></div>
+<h2>In code</h2>
+<p>Here is how you push and pop screens on a <code>UINavigationController</code>.</p>
+<p>Notice how the <code>viewControllers</code> array updates as screens are pushed and popped.</p>
+<figure class="code-example"><figcaption>Managing the navigation stack with push and pop</figcaption><pre class="block swift"><code class="language-swift">import UIKit
+
+let rootVC = UIViewController()
+let nav = UINavigationController(rootViewController: rootVC)
+
+let detailVC = UIViewController()
+nav.pushViewController(detailVC, animated: false)
+
+print(&quot;Stack count: \(nav.viewControllers.count)&quot;)
+print(&quot;Top is detail: \(nav.topViewController === detailVC)&quot;)
+
+nav.popViewController(animated: false)
+print(&quot;After pop count: \(nav.viewControllers.count)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Stack count: 2
+Top is detail: true
+After pop count: 1
+</code></pre></figure>
+<p>Next, observe how to pass data back safely using the delegate pattern.</p>
+<p>Using a <code>weak</code> reference prevents memory retain cycles between view controllers.</p>
+<figure class="code-example"><figcaption>Passing data back with a weak delegate protocol</figcaption><pre class="block swift"><code class="language-swift">import UIKit
+
+@MainActor
+protocol SelectionDelegate: AnyObject {
+    func didSelect(item: String)
+}
+
+class ParentVC: UIViewController, SelectionDelegate {
+    var selectedItem: String = &quot;none&quot;
+
+    func didSelect(item: String) {
+        selectedItem = item
+    }
+}
+
+class PickerVC: UIViewController {
+    weak var delegate: SelectionDelegate?
+
+    func choose(item: String) {
+        delegate?.didSelect(item: item)
+    }
+}
+
+let parent = ParentVC()
+let picker = PickerVC()
+picker.delegate = parent
+picker.choose(item: &quot;Coffee&quot;)
+
+print(&quot;Selected: \(parent.selectedItem)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Selected: Coffee
+</code></pre></figure>
+<p>Marking the delegate protocol as <code>AnyObject</code> allows declaring the delegate property as <code>weak</code>.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why must delegate properties on view controllers be declared with the <code>weak</code> keyword?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Weak properties load faster on background threads.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Weak properties prevent retain cycles between presenting and child controllers.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">UIKit prohibits strong variables inside view controllers.</span></button><p class="qc-explain" hidden="">A weak reference prevents a strong retain cycle, allowing controllers to deallocate cleanly.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Pushing without a navigation controller</p><p>Calling <code>navigationController?.pushViewController(...)</code> does nothing if no navigation controller exists.</p><p>If your view controller is not embedded in a <code>UINavigationController</code>, the optional evaluates to <code>nil</code>.</p><p>Initialize <code>UINavigationController(rootViewController: vc)</code> when starting the app window.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming viewWillAppear runs after pageSheet dismiss</p><p>On iOS 13 and later, modal presentations use <code>.pageSheet</code> by default.</p><p>Because the presenting view never leaves the screen hierarchy, <code>viewWillAppear</code> does not run upon dismissal.</p><p>Use delegate callbacks or <code>.fullScreen</code> presentation if you need appearance refresh events.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Creating retain cycles with strong delegates</p><p>If a child view controller retains its parent delegate strongly, neither controller can deallocate.</p><p>The popped controller stays leaked in memory forever.</p><p>Always declare delegate properties as <code>weak var delegate: DelegateType?</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Presenting before the view enters window hierarchy</p><p>Calling <code>present()</code> inside <code>viewDidLoad</code> triggers a UIKit runtime warning.</p><p>The view is not attached to the window yet, and the presentation fails.</p><p>Call <code>present()</code> inside <code>viewDidAppear</code> or in response to a user action button tap.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;In UIKit, we push and pop screens using <code>UINavigationController</code> for drill-down flows. For focused tasks, we present screens modally using <code>present</code>. We pass data forward by setting properties on the next view controller before pushing.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;We choose navigation patterns based on user intent. We use <code>UINavigationController</code> for hierarchical stacks and <code>present</code> for modal tasks. We use weak delegate protocols to pass data back without retain cycles. In iOS 13+, default <code>.pageSheet</code> modals do not trigger <code>viewWillAppear</code> on presenting views, so we use delegates or completion blocks for updates.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;We decouple view controllers from navigation by implementing Coordinator patterns. This keeps view controllers reusable and testable. For complex workflows, we manipulate the navigation stack using <code>setViewControllers</code> and handle custom transition animations with <code>UIViewControllerAnimatedTransitioning</code>.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>UINavigationController</code> manages a LIFO stack of screens with automatic back buttons.</li>
+<li>Call <code>pushViewController</code> to add a screen, and <code>popViewController</code> to go back.</li>
+<li>Call <code>present</code> to display modal screens for focused tasks.</li>
+<li><code>.pageSheet</code> modals keep the presenting view in the hierarchy on modern iOS.</li>
+<li>Always use <code>weak</code> delegates to prevent retain cycles when passing data backwards.</li>
+<li>Call <code>present</code> only after the view is attached to the window hierarchy.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/uikit/uinavigationcontroller">UINavigationController (UIKit)</a> — Official Apple guide for navigation stacks and bars.</li>
+<li><a href="https://developer.apple.com/documentation/uikit/uiviewcontroller/present(_:animated:completion:)">present(_:animated:completion:) (UIKit)</a> — Apple documentation on modal presentations.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    badge: '1. Root Navigation Stack',
+    badgeClass: 'kind stack',
+    navCode: 'let homeVC = HomeViewController()\nlet nav = UINavigationController(rootViewController: homeVC)',
+    ruleCode: '// Stack Hierarchy:\nnav.viewControllers // [HomeVC]\nnav.topViewController === homeVC // true',
+    navCap: 'Step 1: Root view controller is embedded in UINavigationController.',
+    ruleCap: 'The root screen has no back button. It remains at the bottom of the stack.',
+    topText: 'HomeViewController',
+    depthText: '1 screen [Root]',
+    backText: 'Hidden (Root screen)',
+    overlaySvg: `
+      <!-- Navigation Bar -->
+      <rect x="50" y="20" width="180" height="34" rx="4" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">Home</text>
+      <!-- Content Area -->
+      <rect x="65" y="70" width="150" height="90" rx="8" fill="var(--stack-soft)" stroke="var(--stack-color)" stroke-width="1.5"/>
+      <text x="140" y="105" text-anchor="middle" font-size="11" font-weight="600" fill="var(--stack-color)">Home Screen</text>
+      <rect x="80" y="120" width="120" height="24" rx="6" fill="var(--stack-color)"/>
+      <text x="140" y="136" text-anchor="middle" font-size="10" font-weight="600" fill="#ffffff">Push Detail &gt;</text>
+    `
+  },
+  {
+    step: 2,
+    badge: '2. Push Transition',
+    badgeClass: 'kind push',
+    navCode: 'let detailVC = DetailViewController()\ndetailVC.item = selectedItem\nnavigationController?.pushViewController(detailVC, animated: true)',
+    ruleCode: '// Stack Hierarchy:\nnav.viewControllers // [HomeVC, DetailVC]\n// Data passed forward by property injection',
+    navCap: 'Step 2: pushViewController slides in the new screen from the trailing edge.',
+    ruleCap: 'UIKit automatically renders a system Back button to return to the parent.',
+    topText: 'DetailViewController',
+    depthText: '2 screens [Home, Detail]',
+    backText: 'Visible: < Home',
+    overlaySvg: `
+      <!-- Navigation Bar -->
+      <rect x="50" y="20" width="180" height="34" rx="4" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="75" y="42" font-size="10" font-weight="600" fill="var(--stack-color)">&lt; Home</text>
+      <text x="140" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">Detail</text>
+      <!-- Pushed Detail Card -->
+      <rect x="65" y="70" width="150" height="90" rx="8" fill="var(--push-soft)" stroke="var(--push-color)" stroke-width="2"/>
+      <text x="140" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="var(--push-color)">Detail Screen</text>
+      <text x="140" y="125" text-anchor="middle" font-size="9" fill="var(--muted)">Data: Coffee</text>
+      <text x="140" y="175" text-anchor="middle" font-size="9" font-weight="600" fill="var(--push-color)">Pushed onto Stack</text>
+    `
+  },
+  {
+    step: 3,
+    badge: '3. Pop Transition',
+    badgeClass: 'kind pop',
+    navCode: 'navigationController?.popViewController(animated: true)\n// Or user taps the < Home back button',
+    ruleCode: '// Stack Hierarchy:\nnav.viewControllers // [HomeVC]\n// DetailVC deallocates if no retain cycles',
+    navCap: 'Step 3: popViewController removes the top screen and restores the parent.',
+    ruleCap: 'The popped view controller is deallocated from heap memory by ARC.',
+    topText: 'HomeViewController',
+    depthText: '1 screen [Home]',
+    backText: 'Hidden (Restored root)',
+    overlaySvg: `
+      <!-- Navigation Bar -->
+      <rect x="50" y="20" width="180" height="34" rx="4" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">Home</text>
+      <!-- Restored Home Card -->
+      <rect x="65" y="70" width="150" height="90" rx="8" fill="var(--surface)" stroke="var(--pop-color)" stroke-width="2"/>
+      <text x="140" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="var(--pop-color)">Home Restored</text>
+      <text x="140" y="125" text-anchor="middle" font-size="9" fill="var(--muted)">Detail popped & freed</text>
+      <text x="140" y="175" text-anchor="middle" font-size="9" font-weight="600" fill="var(--pop-color)">Popped from Stack</text>
+    `
+  },
+  {
+    step: 4,
+    badge: '4. Modal Presentation',
+    badgeClass: 'kind modal',
+    navCode: 'let modalVC = SettingsViewController()\nmodalVC.modalPresentationStyle = .pageSheet\npresent(modalVC, animated: true)',
+    ruleCode: '// Modal Behavior:\n// Interruptive task\n// pageSheet keeps presenting view visible beneath\n// dismiss() to return',
+    navCap: 'Step 4: present() slides a card modal over the existing view hierarchy.',
+    ruleCap: 'On iOS 13+, .pageSheet keeps presenting view in hierarchy (no viewWillAppear).',
+    topText: 'SettingsViewController (Modal)',
+    depthText: 'Overlay over stack',
+    backText: 'None (Swipe down to dismiss)',
+    overlaySvg: `
+      <!-- Dimmed Background -->
+      <rect x="50" y="20" width="180" height="180" rx="10" fill="rgba(0,0,0,0.2)"/>
+      <!-- Modal Card -->
+      <rect x="55" y="65" width="170" height="135" rx="12" fill="var(--surface)" stroke="var(--modal-color)" stroke-width="2"/>
+      <rect x="125" y="72" width="30" height="4" rx="2" fill="var(--muted)"/>
+      <text x="140" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="var(--modal-color)">Modal .pageSheet</text>
+      <text x="140" y="120" text-anchor="middle" font-size="9" fill="var(--muted)">Focused Task Overlay</text>
+      <rect x="90" y="140" width="100" height="24" rx="6" fill="var(--modal-color)"/>
+      <text x="140" y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#ffffff">Done (Dismiss)</text>
+    `
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('navCode').textContent = s.navCode;
+  document.getElementById('ruleCode').textContent = s.ruleCode;
+  document.getElementById('navCaption').textContent = s.navCap;
+  document.getElementById('ruleCaption').textContent = s.ruleCap;
+  document.getElementById('stageBadge').textContent = s.badge;
+  document.getElementById('stageBadge').setAttribute('class', s.badgeClass);
+
+  document.getElementById('topText').textContent = s.topText;
+  document.getElementById('depthText').textContent = s.depthText;
+  document.getElementById('backText').textContent = s.backText;
+
+  document.getElementById('navSvgG').innerHTML = s.overlaySvg;
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"uikit-navigation","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"uikit-navigation-q1","type":"mcq","difficulty":1,"prompt":"Which method adds a new view controller onto a `UINavigationController` stack?","options":[{"id":"a","text":"The `pushViewController(_:animated:)` navigation stack method.","explanation":"Right. PushViewController adds a screen to the navigation stack."},{"id":"b","text":"The `present(_:animated:)` modal view controller method.","explanation":"Present displays modal screens rather than pushing onto a stack."},{"id":"c","text":"The `addChild(_:)` container containment registration method.","explanation":"AddChild embeds child view controllers without push animations."},{"id":"d","text":"The `insertSubview(_:at:)` view hierarchy index method.","explanation":"InsertSubview manipulates raw views, not view controllers."}],"answer":"a"},{"id":"uikit-navigation-q2","type":"mcq","difficulty":1,"prompt":"Which method removes the top view controller from the stack and returns to the previous screen?","options":[{"id":"a","text":"The `dismiss(animated:)` modal view controller method.","explanation":"Dismiss closes modal views, not navigation stack controllers."},{"id":"b","text":"The `popViewController(animated:)` stack pop method.","explanation":"Right. PopViewController removes the top screen from the stack."},{"id":"c","text":"The `removeFromParent()` container detachment method.","explanation":"RemoveFromParent is for custom container controllers."},{"id":"d","text":"The `removeFromSuperview()` view hierarchy removal method.","explanation":"RemoveFromSuperview removes a UIView, not a view controller."}],"answer":"b"},{"id":"uikit-navigation-q3","type":"mcq","difficulty":1,"prompt":"Which method removes all pushed view controllers except the bottom root controller?","options":[{"id":"a","text":"The `popViewController(animated:)` single-step method.","explanation":"PopViewController pops only the immediate top controller."},{"id":"b","text":"The `dismiss(animated:)` root presentation method.","explanation":"Dismiss operates on modal presentations, not navigation stacks."},{"id":"c","text":"The `popToRootViewController(animated:)` stack reset method.","explanation":"Right. PopToRootViewController pops all screens back to the root."},{"id":"d","text":"The `clearAllControllers(animated:)` cleanup method.","explanation":"ClearAllControllers does not exist in standard UIKit."}],"answer":"c"},{"id":"uikit-navigation-q4","type":"mcq","difficulty":1,"prompt":"Which method presents a view controller modally over the current screen in UIKit?","options":[{"id":"a","text":"The `showDetailViewController(_:sender:)` split method.","explanation":"ShowDetailViewController is for split view secondary columns."},{"id":"b","text":"The `pushViewController(_:animated:)` stack method.","explanation":"PushViewController is for hierarchical stacks, not modal dialogs."},{"id":"c","text":"The `embedChild(_:in:)` custom container method.","explanation":"EmbedChild is not a built-in UIKit presentation method."},{"id":"d","text":"The `present(_:animated:completion:)` presentation method.","explanation":"Right. Present displays view controllers modally above current views."}],"answer":"d"},{"id":"uikit-navigation-q5","type":"mcq","difficulty":2,"prompt":"Why does `viewWillAppear` not run when dismissing a `.pageSheet` modal in modern iOS?","options":[{"id":"a","text":"The presenting view remains visible in the view hierarchy underneath.","explanation":"Right. Page sheets keep the presenting view attached to the hierarchy."},{"id":"b","text":"UIKit permanently deallocates the presenting controller during presentation.","explanation":"The presenting controller stays allocated and alive in memory."},{"id":"c","text":"The operating system pauses all main thread execution loops.","explanation":"The main thread continues running active layout and user events."},{"id":"d","text":"The modal sheet automatically steals all window gesture recognizers.","explanation":"Gesture recognizers are unrelated to view lifecycle callbacks."}],"answer":"a"},{"id":"uikit-navigation-q6","type":"mcq","difficulty":2,"prompt":"How should delegate properties on view controllers be declared to prevent retain cycles?","options":[{"id":"a","text":"As a strong `unowned(unsafe)` variable reference.","explanation":"Unowned unsafe references risk dangling pointers and memory crashes."},{"id":"b","text":"As a `weak` optional property conforming to `AnyObject`.","explanation":"Right. Weak references prevent strong retain cycles between controllers."},{"id":"c","text":"As a static global constant stored in an enum.","explanation":"Global state leaks memory and violates encapsulation principles."},{"id":"d","text":"As a non-optional immutable let constant property.","explanation":"Non-optional strong lets create circular reference cycles."}],"answer":"b"},{"id":"uikit-navigation-q7","type":"mcq","difficulty":1,"prompt":"Which property on a view controller configures its title and bar buttons in the navigation bar?","options":[{"id":"a","text":"The `tabBarItem` property from UITabBarController.","explanation":"TabBarItem configures icons and titles for tab bar screens."},{"id":"b","text":"The `toolbarItems` array from the bottom toolbar.","explanation":"ToolbarItems configures actions on the bottom tool bar."},{"id":"c","text":"The `navigationItem` property of the child controller.","explanation":"Right. NavigationItem manages the title and buttons in the top bar."},{"id":"d","text":"The `navigationBar` class from ApplicationKit.","explanation":"NavigationBar is owned by the navigation controller container."}],"answer":"c"},{"id":"uikit-navigation-q8","type":"mcq","difficulty":2,"prompt":"What happens if you call `navigationController?.pushViewController(...)` when no navigation controller exists?","options":[{"id":"a","text":"The application crashes immediately with a fatal null pointer exception.","explanation":"Optional chaining safely evaluates to nil instead of crashing."},{"id":"b","text":"UIKit converts the push request into a full-screen modal presentation.","explanation":"UIKit does not convert push operations into modal presentations."},{"id":"c","text":"The operating system restarts the root application lifecycle.","explanation":"Failed pushes do not restart the application lifecycle."},{"id":"d","text":"The optional evaluates to `nil` and the statement has no effect.","explanation":"Right. Because navigationController is nil, the push call is skipped."}],"answer":"d"},{"id":"uikit-navigation-q9","type":"mcq","difficulty":2,"prompt":"Which presentation style completely replaces the view, triggering `viewWillDisappear` on presenting views?","options":[{"id":"a","text":"The `.fullScreen` modal presentation style.","explanation":"Right. FullScreen covers everything and triggers disappearance calls."},{"id":"b","text":"The `.pageSheet` modal card presentation style.","explanation":"PageSheet keeps the presenting view visible and attached."},{"id":"c","text":"The `.overCurrentContext` transparent overlay style.","explanation":"OverCurrentContext preserves the underlying view in the tree."},{"id":"d","text":"The `.popover` floating card presentation style.","explanation":"Popovers float above the presenting view without removing it."}],"answer":"a"},{"id":"uikit-navigation-q10","type":"mcq","difficulty":1,"prompt":"What is the default modal presentation style on iPhone in iOS 13 and later?","options":[{"id":"a","text":"The `.fullScreen` presentation style.","explanation":"FullScreen was default before iOS 13, but pageSheet is now default."},{"id":"b","text":"The `.pageSheet` card presentation style.","explanation":"Right. In iOS 13+, modals present as card sheets by default on iPhone."},{"id":"c","text":"The `.custom` interactive presentation style.","explanation":"Custom requires setting a custom transition delegate object."},{"id":"d","text":"The `.popover` anchored presentation style.","explanation":"Popovers adapt to pageSheet on iPhone by default."}],"answer":"b"},{"id":"uikit-navigation-q11","type":"mcq","difficulty":2,"prompt":"Where should you call `present(...)` to avoid \"whose view is not in the window hierarchy\" warnings?","options":[{"id":"a","text":"Inside `loadView()` before root subview creation.","explanation":"Views are not loaded or in the window during loadView."},{"id":"b","text":"Inside `init(coder:)` during class deserialization.","explanation":"Class initializers run before any view is placed in a window."},{"id":"c","text":"Inside `viewDidAppear(_:)` or in a user button action.","explanation":"Right. Presenting requires the controller view to be on the window."},{"id":"d","text":"Inside `viewWillDisappear(_:)` during dismissal.","explanation":"ViewWillDisappear runs when leaving, not for presenting new screens."}],"answer":"c"},{"id":"uikit-navigation-q12","type":"mcq","difficulty":1,"prompt":"How do you pass data forward to a view controller before pushing or presenting it?","options":[{"id":"a","text":"Save the data in a temporary text file on the local disk.","explanation":"Disk storage is unnecessary and slow for in-memory navigation."},{"id":"b","text":"Emit a global NotificationCenter notification across the app.","explanation":"Notifications are for broad decoupled broadcasts, not screen parameters."},{"id":"c","text":"Store the data in static properties on the AppDelegate instance.","explanation":"Global state on AppDelegate creates tight coupling and bugs."},{"id":"d","text":"Set stored properties on the destination controller before navigation.","explanation":"Right. Property injection is the clean standard way to pass data forward."}],"answer":"d"},{"id":"uikit-navigation-q13","type":"mcq","difficulty":1,"prompt":"Which method dismisses a presented modal view controller in UIKit?","options":[{"id":"a","text":"The `dismiss(animated:completion:)` method.","explanation":"Right. Dismiss closes the active modal view controller."},{"id":"b","text":"The `popViewController(animated:)` method.","explanation":"PopViewController removes screens from navigation stacks, not modals."},{"id":"c","text":"The `closeWindow(animated:)` method.","explanation":"CloseWindow is not a standard UIKit view controller method."},{"id":"d","text":"The `removeFromParent()` method.","explanation":"RemoveFromParent is for child controller containment hierarchies."}],"answer":"a"},{"id":"uikit-navigation-q14","type":"mcq","difficulty":1,"prompt":"Which property on `UINavigationController` stores the full array of controllers on the stack?","options":[{"id":"a","text":"The `childScreens` array property.","explanation":"ChildScreens is not a valid property on UINavigationController."},{"id":"b","text":"The `viewControllers` array property.","explanation":"Right. ViewControllers holds the full stack in LIFO order."},{"id":"c","text":"The `screenStack` collection property.","explanation":"ScreenStack is not a standard UIKit navigation property."},{"id":"d","text":"The `subviews` array property.","explanation":"Subviews holds UIViews, not UIViewController instances."}],"answer":"b"},{"id":"uikit-navigation-q15","type":"mcq","difficulty":1,"prompt":"Which container view controller allows users to switch between root screens using bottom tabs?","options":[{"id":"a","text":"The `UIPageViewController` paging container.","explanation":"UIPageViewController manages swipe gestures between pages."},{"id":"b","text":"The `UISplitViewController` multi-column container.","explanation":"UISplitViewController manages master and detail side-by-side columns."},{"id":"c","text":"The `UITabBarController` tab navigation container.","explanation":"Right. UITabBarController provides a bottom bar with tab items."},{"id":"d","text":"The `UINavigationController` push stack container.","explanation":"UINavigationController manages hierarchical stacks, not tab bars."}],"answer":"c"},{"id":"uikit-navigation-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print after pushing the detail controller?","code":"import UIKit\n\nlet r = UIViewController()\nlet n = UINavigationController(rootViewController: r)\nlet d = UIViewController()\nn.pushViewController(d, animated: false)\nprint(\"Top is d: \\(n.topViewController === d)\")","options":[{"id":"a","text":"Top is d: false","explanation":"PushViewController placed d on top of the navigation stack."},{"id":"b","text":"Top is d: nil","explanation":"The identity comparison === returns a boolean value."},{"id":"c","text":"Top is d: Optional(true)","explanation":"The expression evaluates to a plain Bool, not an optional."},{"id":"d","text":"Top is d: true","explanation":"Right. Pushing d makes it the topViewController on the stack."}],"answer":"d"},{"id":"uikit-navigation-q17","type":"code-reading","difficulty":1,"prompt":"What is the stack count after pushing two controllers and popping one?","code":"import UIKit\n\nlet root = UIViewController()\nlet nav = UINavigationController(rootViewController: root)\nlet c1 = UIViewController()\nlet c2 = UIViewController()\nnav.pushViewController(c1, animated: false)\nnav.pushViewController(c2, animated: false)\nnav.popViewController(animated: false)\nprint(\"Count: \\(nav.viewControllers.count)\")","options":[{"id":"a","text":"Count: 2","explanation":"Right. Started with root (1), pushed 2 (total 3), popped 1 (leaving 2)."},{"id":"b","text":"Count: 3","explanation":"One controller was popped, reducing the count from 3 to 2."},{"id":"c","text":"Count: 1","explanation":"Only c2 was popped; root and c1 remain in the stack."},{"id":"d","text":"Count: 0","explanation":"Navigation stacks retain the root controller until replaced."}],"answer":"a"},{"id":"uikit-navigation-q18","type":"code-reading","difficulty":1,"prompt":"What is the stack count after calling popToRootViewController?","code":"import UIKit\n\nlet rVC = UIViewController()\nlet navC = UINavigationController(rootViewController: rVC)\nlet v1 = UIViewController()\nlet v2 = UIViewController()\nnavC.pushViewController(v1, animated: false)\nnavC.pushViewController(v2, animated: false)\nnavC.popToRootViewController(animated: false)\nprint(\"Root count: \\(navC.viewControllers.count)\")","options":[{"id":"a","text":"Root count: 0","explanation":"PopToRoot preserves the root view controller on the stack."},{"id":"b","text":"Root count: 1","explanation":"Right. PopToRoot removes all screens except the bottom root."},{"id":"c","text":"Root count: 2","explanation":"Both pushed screens were popped back to the single root."},{"id":"d","text":"Root count: 3","explanation":"All child controllers were popped off the stack."}],"answer":"b"},{"id":"uikit-navigation-q19","type":"code-reading","difficulty":1,"prompt":"What does this code print when accessing the navigation item title?","code":"import UIKit\n\nlet vc = UIViewController()\nvc.navigationItem.title = \"Settings\"\nprint(\"Title: \\(vc.navigationItem.title ?? \"none\")\")","options":[{"id":"a","text":"Title: none","explanation":"The title was assigned the string Settings."},{"id":"b","text":"Title: nil","explanation":"The title is not nil because it was set to Settings."},{"id":"c","text":"Title: Settings","explanation":"Right. NavigationItem.title stores and prints Settings."},{"id":"d","text":"Title: Back","explanation":"Back button title is separate from navigationItem.title."}],"answer":"c"},{"id":"uikit-navigation-q20","type":"code-reading","difficulty":1,"prompt":"What is printed when verifying the modal presentation style?","code":"import UIKit\n\nlet base = UIViewController()\nlet modal = UIViewController()\nmodal.modalPresentationStyle = .fullScreen\nprint(\"Style: \\(modal.modalPresentationStyle == .fullScreen)\")","options":[{"id":"a","text":"Style: false","explanation":"ModalPresentationStyle was explicitly assigned .fullScreen."},{"id":"b","text":"Style: pageSheet","explanation":"The comparison checks equality against .fullScreen, returning a Bool."},{"id":"c","text":"Style: nil","explanation":"The equality expression produces a non-optional Boolean."},{"id":"d","text":"Style: true","explanation":"Right. The assigned style matches .fullScreen, returning true."}],"answer":"d"},{"id":"uikit-navigation-q21","type":"code-reading","difficulty":2,"prompt":"What does this coordinator print after pushing a controller onto the navigation stack?","code":"import UIKit\n\n@MainActor\nclass MockCoordinator {\n    var pushedCount = 0\n    func push(vc: UIViewController, onto nav: UINavigationController) {\n        nav.pushViewController(vc, animated: false)\n        pushedCount = nav.viewControllers.count\n    }\n}\nlet navTest = UINavigationController(rootViewController: UIViewController())\nlet coord = MockCoordinator()\ncoord.push(vc: UIViewController(), onto: navTest)\nprint(\"Pushed count: \\(coord.pushedCount)\")","options":[{"id":"a","text":"Pushed count: 2","explanation":"Right. The stack had 1 root controller, and pushing added 1 more."},{"id":"b","text":"Pushed count: 1","explanation":"The root controller was already in the stack before pushing."},{"id":"c","text":"Pushed count: 0","explanation":"Two controllers are present on the stack."},{"id":"d","text":"Pushed count: 3","explanation":"Only one controller was pushed onto the root."}],"answer":"a"},{"id":"uikit-navigation-q22","type":"code-reading","difficulty":1,"prompt":"What does this code print after executing the delegate callback?","code":"import UIKit\n\nclass NavDelegateHolder {\n    var isPopped = false\n    func didPop() {\n        isPopped = true\n    }\n}\nlet holder = NavDelegateHolder()\nholder.didPop()\nprint(\"Popped: \\(holder.isPopped)\")","options":[{"id":"a","text":"Popped: false","explanation":"Calling didPop sets isPopped to true."},{"id":"b","text":"Popped: true","explanation":"Right. DidPop updates the boolean property to true."},{"id":"c","text":"Popped: nil","explanation":"IsPopped is a non-optional Boolean property."},{"id":"d","text":"Popped: 1","explanation":"Swift outputs boolean true as true."}],"answer":"b"},{"id":"uikit-navigation-q23","type":"code-reading","difficulty":1,"prompt":"What is the stack count after replacing the controllers array using setViewControllers?","code":"import UIKit\n\nlet topVC = UIViewController()\nlet stack = [UIViewController(), UIViewController(), topVC]\nlet navStack = UINavigationController()\nnavStack.setViewControllers(stack, animated: false)\nprint(\"Set count: \\(navStack.viewControllers.count)\")","options":[{"id":"a","text":"Set count: 1","explanation":"The stack array contains three view controllers."},{"id":"b","text":"Set count: 2","explanation":"Three controllers were passed into setViewControllers."},{"id":"c","text":"Set count: 3","explanation":"Right. SetViewControllers sets the stack to the 3 provided controllers."},{"id":"d","text":"Set count: 0","explanation":"The controllers were successfully assigned to the stack."}],"answer":"c"},{"id":"uikit-navigation-q24","type":"written","difficulty":2,"prompt":"Compare push navigation with modal presentation in UIKit. When should an iOS developer pick each?","modelAnswer":"Push navigation via `UINavigationController` is designed for hierarchical drill-down workflows, such as moving from a list to item details. It provides an automatic top navigation bar with a back button. Modal presentation via `present` is designed for focused interruptions, such as composing a message or changing settings. Modals temporarily break navigation flow until dismissed.","rubric":[{"id":"push-navigation-usage","criterion":"Describes push navigation for hierarchical drill-down with automatic back buttons.","weight":50,"key":true},{"id":"modal-presentation-usage","criterion":"Describes modal presentation for focused temporary tasks that interrupt current flow.","weight":50,"key":true}]},{"id":"uikit-navigation-q25","type":"written","difficulty":2,"prompt":"Explain why `viewWillAppear` does not run on the presenting view controller when dismissing a `.pageSheet` modal in modern iOS.","modelAnswer":"In iOS 13 and later, `.pageSheet` is the default presentation style on iPhone. Under `.pageSheet`, the presenting view controller's view is not removed from the window hierarchy; it remains visible scaled slightly beneath the card sheet. Because the view never left the hierarchy or disappeared, UIKit does not fire `viewWillAppear` upon dismissal.","rubric":[{"id":"pagesheet-default-hierarchy","criterion":"Explains .pageSheet keeps presenting view attached and visible in window hierarchy.","weight":50,"key":true},{"id":"lifecycle-omission-impact","criterion":"Explains absence of view removal means viewWillAppear does not fire on dismissal.","weight":50,"key":true}]},{"id":"uikit-navigation-q26","type":"written","difficulty":2,"prompt":"Why should delegate properties in UIKit view controllers be declared as `weak`? What happens if they are strong?","modelAnswer":"When a parent view controller presents or pushes a child controller, the parent retains the child. If the child also holds a strong reference to the parent via a delegate property, a retain cycle is created. Neither controller can be deallocated by ARC when popped or dismissed. Declaring the delegate `weak` breaks the retain cycle, enabling clean deallocation.","rubric":[{"id":"retain-cycle-explanation","criterion":"Explains parent retaining child and child strongly retaining parent creates a retain cycle.","weight":50,"key":true},{"id":"weak-prevention","criterion":"Explains declaring delegate weak breaks the reference cycle, preventing memory leaks.","weight":50,"key":true}]},{"id":"uikit-navigation-q27","type":"written","difficulty":2,"prompt":"What is `navigationItem` and how does it differ from `navigationBar` in `UINavigationController`?","modelAnswer":"`navigationBar` is the visual toolbar view owned by the `UINavigationController` container. It renders the top bar across all pushed screens. `navigationItem` is a configuration object owned by each individual child view controller. It defines the specific title, prompt, back button, and bar button items that display while that child is active on top of the stack.","rubric":[{"id":"navigationbar-ownership","criterion":"Describes navigationBar as the container toolbar view shared across the stack.","weight":50,"key":true},{"id":"navigationitem-customization","criterion":"Describes navigationItem as per-controller configuration for title and bar buttons.","weight":50,"key":true}]},{"id":"uikit-navigation-q28","type":"written","difficulty":2,"prompt":"What causes the UIKit warning \"Attempt to present whose view is not in the window hierarchy\" and how do you resolve it?","modelAnswer":"This warning occurs when you call `present()` before a view controller is attached to an active window, such as inside `viewDidLoad()`. At that moment, the presenting controller is not visible and cannot host a modal presentation. To resolve it, call `present()` inside `viewDidAppear()`, or trigger it from a user button action after display.","rubric":[{"id":"cause-timing-explanation","criterion":"Explains warning occurs when calling present before controller view is in active window.","weight":50,"key":true},{"id":"resolution-timing","criterion":"Identifies moving present call to viewDidAppear or user tap action as the solution.","weight":50,"key":true}]},{"id":"uikit-navigation-q29","type":"code-write","difficulty":2,"prompt":"Create a class `PushNavigator` with method `@MainActor static func pushDetail(onto nav: UINavigationController, title: String)`. Instantiate a `UIViewController`, set `navigationItem.title = title`, and push it onto `nav`.","starterCode":"import UIKit\n\n// Implement PushNavigator with pushDetail method\n","modelAnswer":"import UIKit\n\nclass PushNavigator {\n    @MainActor\n    static func pushDetail(onto nav: UINavigationController, title: String) {\n        let detail = UIViewController()\n        detail.navigationItem.title = title\n        nav.pushViewController(detail, animated: false)\n    }\n}\n\nlet navInst = UINavigationController(rootViewController: UIViewController())\nPushNavigator.pushDetail(onto: navInst, title: \"Profile\")\nprint(\"Top title: \\(navInst.topViewController?.navigationItem.title ?? \"none\")\")","rubric":[{"id":"method-signature","criterion":"Declares PushNavigator with @MainActor static func pushDetail(onto:title:).","weight":40,"key":true},{"id":"setup-and-push","criterion":"Creates UIViewController, sets navigationItem.title, and calls pushViewController.","weight":60,"key":true}]},{"id":"uikit-navigation-q30","type":"code-write","difficulty":2,"prompt":"Create a class `ModalPresenter` with method `@MainActor static func presentSheet(from parent: UIViewController, modal: UIViewController)`. Configure `modal.modalPresentationStyle = .pageSheet` and call `parent.present(modal, animated: false)`.","starterCode":"import UIKit\n\n// Implement ModalPresenter with presentSheet method\n","modelAnswer":"import UIKit\n\nclass ModalPresenter {\n    @MainActor\n    static func presentSheet(from parent: UIViewController, modal: UIViewController) {\n        modal.modalPresentationStyle = .pageSheet\n        parent.present(modal, animated: false)\n    }\n}\n\nlet pVC = UIViewController()\nlet mVC = UIViewController()\nModalPresenter.presentSheet(from: pVC, modal: mVC)\nprint(\"Presented style: \\(mVC.modalPresentationStyle == .pageSheet)\")","rubric":[{"id":"class-and-signature","criterion":"Declares ModalPresenter with @MainActor static func presentSheet(from:modal:).","weight":40,"key":true},{"id":"presentation-logic","criterion":"Sets modalPresentationStyle to .pageSheet and calls parent.present.","weight":60,"key":true}]},{"id":"uikit-navigation-q31","type":"code-write","difficulty":2,"prompt":"Declare a protocol `@MainActor protocol DismissNotifier: AnyObject` with `func didDismiss()`. Create a class `ModalController: UIViewController` with a property `weak var delegate: DismissNotifier?` and a method `func close()` that calls `delegate?.didDismiss()`.","starterCode":"import UIKit\n\n// Declare DismissNotifier protocol and ModalController class\n","modelAnswer":"import UIKit\n\n@MainActor\nprotocol DismissNotifier: AnyObject {\n    func didDismiss()\n}\n\nclass NotifierManager: DismissNotifier {\n    var dismissed = false\n    func didDismiss() {\n        dismissed = true\n    }\n}\n\nclass ModalController: UIViewController {\n    weak var delegate: DismissNotifier?\n    func close() {\n        delegate?.didDismiss()\n    }\n}\n\nlet mgr = NotifierManager()\nlet mController = ModalController()\nmController.delegate = mgr\nmController.close()\nprint(\"Dismissed: \\(mgr.dismissed)\")","rubric":[{"id":"protocol-declaration","criterion":"Declares DismissNotifier conforming to AnyObject with func didDismiss().","weight":50,"key":true},{"id":"controller-delegate","criterion":"Declares ModalController with weak delegate property and close method invoking delegate.","weight":50,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

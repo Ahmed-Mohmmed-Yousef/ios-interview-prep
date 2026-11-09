@@ -1,0 +1,230 @@
+export const meta = {
+  id: "uikit-navigation",
+  summary: "Move between UIKit screens using navigation controllers and modal presentation.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "UINavigationController (UIKit)", url: "https://developer.apple.com/documentation/uikit/uinavigationcontroller", kind: "official" },
+    { title: "present(_:animated:completion:) (UIKit)", url: "https://developer.apple.com/documentation/uikit/uiviewcontroller/present(_:animated:completion:)", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>When dismissing an iOS card sheet modal, why might the presenting view controller fail to run `viewWillAppear`?</Question>
+  <Guess>
+    <Option id="a">Card sheets deallocate the presenting controller during presentation.</Option>
+    <Option id="b" correct>The presenting view remains in the view hierarchy under page sheet presentation.</Option>
+    <Option id="c">UIKit disables lifecycle events during touch gestures.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine exploring a deep filing cabinet.
+
+You open a folder to read a document. When you want more detail, you place another folder on top.
+
+You can keep adding folders to go deeper. To go back, you lift the top folder off.
+
+That folder stack is a **navigation controller**.
+
+If someone hands you a clipboard to sign right now, you set the folders aside. You sign the paper and return it.
+
+That temporary interrupt is a **modal presentation**.
+</Analogy>
+
+In UIKit, screen transitions fall into two main categories:
+
+1. **Hierarchical Navigation (`UINavigationController`)**:
+   - Manages a stack of screens in a Last-In, First-Out order.
+   - Pushing adds a new screen to the top of the stack.
+   - Popping removes the top screen to reveal the screen below.
+   - Provides a navigation bar with a back button automatically.
+2. **Modal Presentation (`present`)**:
+   - Slides or fades a new screen over current content.
+   - Interrupts the user to complete a focused task.
+   - Supports different presentation styles like `.pageSheet` and `.fullScreen`.
+
+## See it
+
+<Diagram id="uikit-navigation-diagram" caption="Comparing Hierarchical Push/Pop Stacks and Modal Presentations in UIKit">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. UINavigationController stack with root and pushed child controllers.
+    2. Navigation bar showing back button and title.
+    3. Modal presentation overlay showing pageSheet card and fullScreen styles.
+    4. Data passing arrows (forward property injection, backward weak delegate).
+  - Steps:
+    Step 1: Root view controller embedded in UINavigationController.
+    Step 2: pushViewController slides in child controller from trailing edge.
+    Step 3: popViewController removes top controller and restores parent.
+    Step 4: present() slides up a modal card sheet over the navigation stack.
+  - Static version (reduced motion):
+    A 4-step diagram showing navigation stack push/pop transitions and modal presentation layers.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which method removes the top view controller from a navigation stack in UIKit?</Question>
+  <Option id="a">`dismiss(animated:)`</Option>
+  <Option id="b" correct>`popViewController(animated:)`</Option>
+  <Option id="c">`removeFromParent()`</Option>
+  <Explanation>popViewController removes the top screen from the navigation stack and returns to the previous screen.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is how you push and pop screens on a `UINavigationController`.
+
+Notice how the `viewControllers` array updates as screens are pushed and popped.
+
+<CodeExample title="Managing the navigation stack with push and pop">
+
+```swift
+import UIKit
+
+let rootVC = UIViewController()
+let nav = UINavigationController(rootViewController: rootVC)
+
+let detailVC = UIViewController()
+nav.pushViewController(detailVC, animated: false)
+
+print("Stack count: \(nav.viewControllers.count)")
+print("Top is detail: \(nav.topViewController === detailVC)")
+
+nav.popViewController(animated: false)
+print("After pop count: \(nav.viewControllers.count)")
+```
+
+```output
+Stack count: 2
+Top is detail: true
+After pop count: 1
+```
+
+</CodeExample>
+
+Next, observe how to pass data back safely using the delegate pattern.
+
+Using a `weak` reference prevents memory retain cycles between view controllers.
+
+<CodeExample title="Passing data back with a weak delegate protocol">
+
+```swift
+import UIKit
+
+@MainActor
+protocol SelectionDelegate: AnyObject {
+    func didSelect(item: String)
+}
+
+class ParentVC: UIViewController, SelectionDelegate {
+    var selectedItem: String = "none"
+
+    func didSelect(item: String) {
+        selectedItem = item
+    }
+}
+
+class PickerVC: UIViewController {
+    weak var delegate: SelectionDelegate?
+
+    func choose(item: String) {
+        delegate?.didSelect(item: item)
+    }
+}
+
+let parent = ParentVC()
+let picker = PickerVC()
+picker.delegate = parent
+picker.choose(item: "Coffee")
+
+print("Selected: \(parent.selectedItem)")
+```
+
+```output
+Selected: Coffee
+```
+
+</CodeExample>
+
+Marking the delegate protocol as `AnyObject` allows declaring the delegate property as `weak`.
+
+<QuickCheck>
+  <Question>Why must delegate properties on view controllers be declared with the `weak` keyword?</Question>
+  <Option id="a">Weak properties load faster on background threads.</Option>
+  <Option id="b" correct>Weak properties prevent retain cycles between presenting and child controllers.</Option>
+  <Option id="c">UIKit prohibits strong variables inside view controllers.</Option>
+  <Explanation>A weak reference prevents a strong retain cycle, allowing controllers to deallocate cleanly.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Pushing without a navigation controller">
+Calling `navigationController?.pushViewController(...)` does nothing if no navigation controller exists.
+
+If your view controller is not embedded in a `UINavigationController`, the optional evaluates to `nil`.
+
+Initialize `UINavigationController(rootViewController: vc)` when starting the app window.
+</Trap>
+
+<Trap title="Assuming viewWillAppear runs after pageSheet dismiss">
+On iOS 13 and later, modal presentations use `.pageSheet` by default.
+
+Because the presenting view never leaves the screen hierarchy, `viewWillAppear` does not run upon dismissal.
+
+Use delegate callbacks or `.fullScreen` presentation if you need appearance refresh events.
+</Trap>
+
+<Trap title="Creating retain cycles with strong delegates">
+If a child view controller retains its parent delegate strongly, neither controller can deallocate.
+
+The popped controller stays leaked in memory forever.
+
+Always declare delegate properties as `weak var delegate: DelegateType?`.
+</Trap>
+
+<Trap title="Presenting before the view enters window hierarchy">
+Calling `present()` inside `viewDidLoad` triggers a UIKit runtime warning.
+
+The view is not attached to the window yet, and the presentation fails.
+
+Call `present()` inside `viewDidAppear` or in response to a user action button tap.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"In UIKit, we push and pop screens using `UINavigationController` for drill-down flows. For focused tasks, we present screens modally using `present`. We pass data forward by setting properties on the next view controller before pushing."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"We choose navigation patterns based on user intent. We use `UINavigationController` for hierarchical stacks and `present` for modal tasks. We use weak delegate protocols to pass data back without retain cycles. In iOS 13+, default `.pageSheet` modals do not trigger `viewWillAppear` on presenting views, so we use delegates or completion blocks for updates."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"We decouple view controllers from navigation by implementing Coordinator patterns. This keeps view controllers reusable and testable. For complex workflows, we manipulate the navigation stack using `setViewControllers` and handle custom transition animations with `UIViewControllerAnimatedTransitioning`."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `UINavigationController` manages a LIFO stack of screens with automatic back buttons.
+- Call `pushViewController` to add a screen, and `popViewController` to go back.
+- Call `present` to display modal screens for focused tasks.
+- `.pageSheet` modals keep the presenting view in the hierarchy on modern iOS.
+- Always use `weak` delegates to prevent retain cycles when passing data backwards.
+- Call `present` only after the view is attached to the window hierarchy.
+</Recap>
+
+## Go deeper
+
+- [UINavigationController (UIKit)](https://developer.apple.com/documentation/uikit/uinavigationcontroller) — Official Apple guide for navigation stacks and bars.
+- [present(_:animated:completion:) (UIKit)](https://developer.apple.com/documentation/uikit/uiviewcontroller/present(_:animated:completion:)) — Apple documentation on modal presentations.

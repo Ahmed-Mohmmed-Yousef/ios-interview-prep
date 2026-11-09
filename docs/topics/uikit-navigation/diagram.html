@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UIKit Navigation: Push, Pop & Modal Presentation</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --stack-color: #0284c7; --stack-soft: #e0f2fe;
+  --push-color: #16a34a; --push-soft: #dcfce7;
+  --pop-color: #ea580c; --pop-soft: #ffedd5;
+  --modal-color: #7c3aed; --modal-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --stack-color: #38bdf8; --stack-soft: #082f49;
+  --push-color: #4ade80; --push-soft: #052e16;
+  --pop-color: #fb923c; --pop-soft: #431407;
+  --modal-color: #a78bfa; --modal-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.stack { background: var(--stack-soft); color: var(--stack-color); }
+.kind.push { background: var(--push-soft); color: var(--push-color); }
+.kind.pop { background: var(--pop-soft); color: var(--pop-color); }
+.kind.modal { background: var(--modal-soft); color: var(--modal-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--stack-color); color: #ffffff; border-color: var(--stack-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--stack-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="UIKit Navigation Transitions Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span>Screen Transition</span> <span class="kind stack" id="stageBadge">Step 1</span></h3>
+      <div class="code" id="navCode">let nav = UINavigationController(rootViewController: homeVC)</div>
+      <svg viewBox="0 0 280 220" aria-hidden="true">
+        <!-- Device Outer Frame -->
+        <rect class="device-frame" x="40" y="10" width="200" height="200"/>
+        <!-- Screen Content Area -->
+        <rect class="base-screen" x="50" y="20" width="180" height="180" rx="10"/>
+
+        <!-- Dynamic Visual Layers -->
+        <g id="navSvgG"></g>
+      </svg>
+      <p class="caption" id="navCaption" aria-live="polite">Step 1: Root view controller is embedded in UINavigationController.</p>
+    </div>
+
+    <div class="panel">
+      <h3><span>Stack State & Rules</span> <span class="kind stack" id="ruleBadge">Stack</span></h3>
+      <div class="code" id="ruleCode">// Navigation Stack:
+nav.viewControllers = [HomeVC]</div>
+      <div style="font-size: 13px; display: grid; gap: 8px; padding-top: 6px;">
+        <div><strong>Top Controller:</strong> <span id="topText">HomeVC</span></div>
+        <div><strong>Stack Depth:</strong> <span id="depthText">1 screen</span></div>
+        <div><strong>Back Button:</strong> <span id="backText">Hidden (Root screen)</span></div>
+      </div>
+      <p class="caption" id="ruleCaption" aria-live="polite">UINavigationController manages screens in a Last-In First-Out order.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    badge: '1. Root Navigation Stack',
+    badgeClass: 'kind stack',
+    navCode: 'let homeVC = HomeViewController()\nlet nav = UINavigationController(rootViewController: homeVC)',
+    ruleCode: '// Stack Hierarchy:\nnav.viewControllers // [HomeVC]\nnav.topViewController === homeVC // true',
+    navCap: 'Step 1: Root view controller is embedded in UINavigationController.',
+    ruleCap: 'The root screen has no back button. It remains at the bottom of the stack.',
+    topText: 'HomeViewController',
+    depthText: '1 screen [Root]',
+    backText: 'Hidden (Root screen)',
+    overlaySvg: `
+      <!-- Navigation Bar -->
+      <rect x="50" y="20" width="180" height="34" rx="4" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">Home</text>
+      <!-- Content Area -->
+      <rect x="65" y="70" width="150" height="90" rx="8" fill="var(--stack-soft)" stroke="var(--stack-color)" stroke-width="1.5"/>
+      <text x="140" y="105" text-anchor="middle" font-size="11" font-weight="600" fill="var(--stack-color)">Home Screen</text>
+      <rect x="80" y="120" width="120" height="24" rx="6" fill="var(--stack-color)"/>
+      <text x="140" y="136" text-anchor="middle" font-size="10" font-weight="600" fill="#ffffff">Push Detail &gt;</text>
+    `
+  },
+  {
+    step: 2,
+    badge: '2. Push Transition',
+    badgeClass: 'kind push',
+    navCode: 'let detailVC = DetailViewController()\ndetailVC.item = selectedItem\nnavigationController?.pushViewController(detailVC, animated: true)',
+    ruleCode: '// Stack Hierarchy:\nnav.viewControllers // [HomeVC, DetailVC]\n// Data passed forward by property injection',
+    navCap: 'Step 2: pushViewController slides in the new screen from the trailing edge.',
+    ruleCap: 'UIKit automatically renders a system Back button to return to the parent.',
+    topText: 'DetailViewController',
+    depthText: '2 screens [Home, Detail]',
+    backText: 'Visible: < Home',
+    overlaySvg: `
+      <!-- Navigation Bar -->
+      <rect x="50" y="20" width="180" height="34" rx="4" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="75" y="42" font-size="10" font-weight="600" fill="var(--stack-color)">&lt; Home</text>
+      <text x="140" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">Detail</text>
+      <!-- Pushed Detail Card -->
+      <rect x="65" y="70" width="150" height="90" rx="8" fill="var(--push-soft)" stroke="var(--push-color)" stroke-width="2"/>
+      <text x="140" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="var(--push-color)">Detail Screen</text>
+      <text x="140" y="125" text-anchor="middle" font-size="9" fill="var(--muted)">Data: Coffee</text>
+      <text x="140" y="175" text-anchor="middle" font-size="9" font-weight="600" fill="var(--push-color)">Pushed onto Stack</text>
+    `
+  },
+  {
+    step: 3,
+    badge: '3. Pop Transition',
+    badgeClass: 'kind pop',
+    navCode: 'navigationController?.popViewController(animated: true)\n// Or user taps the < Home back button',
+    ruleCode: '// Stack Hierarchy:\nnav.viewControllers // [HomeVC]\n// DetailVC deallocates if no retain cycles',
+    navCap: 'Step 3: popViewController removes the top screen and restores the parent.',
+    ruleCap: 'The popped view controller is deallocated from heap memory by ARC.',
+    topText: 'HomeViewController',
+    depthText: '1 screen [Home]',
+    backText: 'Hidden (Restored root)',
+    overlaySvg: `
+      <!-- Navigation Bar -->
+      <rect x="50" y="20" width="180" height="34" rx="4" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">Home</text>
+      <!-- Restored Home Card -->
+      <rect x="65" y="70" width="150" height="90" rx="8" fill="var(--surface)" stroke="var(--pop-color)" stroke-width="2"/>
+      <text x="140" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="var(--pop-color)">Home Restored</text>
+      <text x="140" y="125" text-anchor="middle" font-size="9" fill="var(--muted)">Detail popped & freed</text>
+      <text x="140" y="175" text-anchor="middle" font-size="9" font-weight="600" fill="var(--pop-color)">Popped from Stack</text>
+    `
+  },
+  {
+    step: 4,
+    badge: '4. Modal Presentation',
+    badgeClass: 'kind modal',
+    navCode: 'let modalVC = SettingsViewController()\nmodalVC.modalPresentationStyle = .pageSheet\npresent(modalVC, animated: true)',
+    ruleCode: '// Modal Behavior:\n// Interruptive task\n// pageSheet keeps presenting view visible beneath\n// dismiss() to return',
+    navCap: 'Step 4: present() slides a card modal over the existing view hierarchy.',
+    ruleCap: 'On iOS 13+, .pageSheet keeps presenting view in hierarchy (no viewWillAppear).',
+    topText: 'SettingsViewController (Modal)',
+    depthText: 'Overlay over stack',
+    backText: 'None (Swipe down to dismiss)',
+    overlaySvg: `
+      <!-- Dimmed Background -->
+      <rect x="50" y="20" width="180" height="180" rx="10" fill="rgba(0,0,0,0.2)"/>
+      <!-- Modal Card -->
+      <rect x="55" y="65" width="170" height="135" rx="12" fill="var(--surface)" stroke="var(--modal-color)" stroke-width="2"/>
+      <rect x="125" y="72" width="30" height="4" rx="2" fill="var(--muted)"/>
+      <text x="140" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="var(--modal-color)">Modal .pageSheet</text>
+      <text x="140" y="120" text-anchor="middle" font-size="9" fill="var(--muted)">Focused Task Overlay</text>
+      <rect x="90" y="140" width="100" height="24" rx="6" fill="var(--modal-color)"/>
+      <text x="140" y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#ffffff">Done (Dismiss)</text>
+    `
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('navCode').textContent = s.navCode;
+  document.getElementById('ruleCode').textContent = s.ruleCode;
+  document.getElementById('navCaption').textContent = s.navCap;
+  document.getElementById('ruleCaption').textContent = s.ruleCap;
+  document.getElementById('stageBadge').textContent = s.badge;
+  document.getElementById('stageBadge').setAttribute('class', s.badgeClass);
+
+  document.getElementById('topText').textContent = s.topText;
+  document.getElementById('depthText').textContent = s.depthText;
+  document.getElementById('backText').textContent = s.backText;
+
+  document.getElementById('navSvgG').innerHTML = s.overlaySvg;
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>
