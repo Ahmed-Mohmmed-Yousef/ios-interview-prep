@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI @State and @Binding Data Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --state-color: #0284c7; --state-soft: #e0f2fe;
+  --binding-color: #7c3aed; --binding-soft: #ede9fe;
+  --active-color: #0c765c; --active-soft: #dcf2ea;
+  --sync-color: #d97706;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --state-color: #38bdf8; --state-soft: #082f49;
+  --binding-color: #a78bfa; --binding-soft: #2e1065;
+  --active-color: #45cfa3; --active-soft: #13362c;
+  --sync-color: #fbbf24;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-box { rx: 8px; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--state-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+
+  <div class="interactive-diagram">
+    <div class="panels">
+      <!-- Left Panel: SVG Visualization -->
+      <div class="panel">
+        <h3>
+          <span id="vis-title">1. Parent View Holds @State</span>
+          <span class="kind" id="vis-tag" style="background:var(--state-soft);color:var(--state-color);">Source of Truth</span>
+        </h3>
+        
+        <svg viewBox="0 0 340 220" role="img" aria-label="State and Binding Data Flow Animation">
+          <!-- Parent View Card -->
+          <rect x="20" y="20" width="135" height="175" class="card-box" fill="var(--surface)" stroke="var(--state-color)" stroke-width="2"/>
+          <text x="32" y="42" font-family="var(--font-body)" font-size="12" font-weight="700" fill="var(--state-color)">ParentView</text>
+          
+          <!-- Persistent State Storage Box -->
+          <rect x="30" y="60" width="115" height="50" rx="6" fill="var(--state-soft)" stroke="var(--state-color)" stroke-width="1.5"/>
+          <text x="38" y="78" font-family="var(--font-code)" font-size="10" font-weight="700" fill="var(--state-color)">@State isOn</text>
+          <text id="val-state" x="38" y="98" font-family="var(--font-code)" font-size="12" font-weight="700" fill="var(--ink)">false</text>
+
+          <text x="32" y="145" font-family="var(--font-body)" font-size="10" font-weight="500" fill="var(--muted)">Persistent Memory</text>
+          <text x="32" y="160" font-family="var(--font-body)" font-size="10" font-weight="500" fill="var(--muted)">(Lives outside struct)</text>
+
+          <!-- Two-Way Connection Arrow -->
+          <g id="grp-arrow" transform="translate(160, 95)" opacity="0">
+            <path d="M 0 0 L 20 0" stroke="var(--sync-color)" stroke-width="2.5" stroke-dasharray="3 2"/>
+            <text x="10" y="-8" font-family="var(--font-code)" font-size="11" font-weight="700" fill="var(--sync-color)" text-anchor="middle">$</text>
+          </g>
+
+          <!-- Child View Card -->
+          <rect id="card-child" x="185" y="20" width="135" height="175" class="card-box" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" opacity="0.3"/>
+          <text id="lbl-child" x="197" y="42" font-family="var(--font-body)" font-size="12" font-weight="700" fill="var(--muted)">ToggleSwitch</text>
+
+          <!-- Binding Box in Child -->
+          <rect id="rect-binding" x="195" y="60" width="115" height="50" rx="6" fill="var(--code-bg)" stroke="var(--line)" stroke-width="1.5"/>
+          <text id="lbl-binding-name" x="203" y="78" font-family="var(--font-code)" font-size="10" font-weight="700" fill="var(--muted)">@Binding isOn</text>
+          <text id="val-binding" x="203" y="98" font-family="var(--font-code)" font-size="12" font-weight="700" fill="var(--muted)">—</text>
+
+          <text id="t-child-note1" x="197" y="145" font-family="var(--font-body)" font-size="10" font-weight="500" fill="var(--muted)">Owns no data</text>
+          <text id="t-child-note2" x="197" y="160" font-family="var(--font-body)" font-size="10" font-weight="500" fill="var(--muted)">Direct reference</text>
+        </svg>
+
+        <p class="caption" id="vis-desc">ParentView owns the @State variable. SwiftUI stores the value in persistent memory outside the struct.</p>
+      </div>
+
+      <!-- Right Panel: Code & Operation Details -->
+      <div class="panel">
+        <h3>
+          <span id="right-title">Source of Truth</span>
+          <span class="kind" id="right-tag" style="background:var(--code-bg);color:var(--muted);">@State</span>
+        </h3>
+        <div class="code" id="right-code">struct ParentView: View {
+    @State private var isOn: Bool = false
+    var body: some View { ... }
+}</div>
+        <p class="caption" id="right-desc">@State creates a local piece of persistent data. Marking it private ensures clean encapsulation.</p>
+        <div class="metrics">
+          <div class="metric-col"><span>Value</span><strong id="m-val">false</strong></div>
+          <div class="metric-col"><span>Owner</span><strong id="m-owner">Parent</strong></div>
+          <div class="metric-col"><span>Connection</span><strong id="m-conn">None</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1: State setup" onclick="goToStep(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2: Pass binding" onclick="goToStep(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3: Toggle interaction" onclick="goToStep(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4: View invalidation" onclick="goToStep(3)"></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()" aria-label="Next step">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-Motion Static Fallback -->
+  <div class="static-fallback" aria-label="Static explanation of @State and @Binding">
+    <div class="comp-card" style="border-left: 4px solid var(--state-color);">
+      <h4>Step 1: Local Source of Truth</h4>
+      <p><code>@State private var isOn = false</code> allocates persistent memory managed by SwiftUI outside the transient view struct.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--binding-color);">
+      <h4>Step 2: Two-Way Connection</h4>
+      <p>Passing <code>$isOn</code> creates a <code>Binding&lt;Bool&gt;</code> reference to the parent's data without copying memory.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--sync-color);">
+      <h4>Step 3: Child Mutation</h4>
+      <p>When the child modifies <code>isOn.toggle()</code>, it writes directly to the parent's original persistent storage.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--active-color);">
+      <h4>Step 4: View Invalidation & Redraw</h4>
+      <p>SwiftUI detects the mutation, invalidates all dependent views, and redraws the UI with the updated value (<code>true</code>).</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    visTitle: "1. Parent View Holds @State",
+    visTag: "Source of Truth",
+    visDesc: "ParentView owns the @State variable. SwiftUI stores the value in persistent memory outside the struct.",
+    stateVal: "false",
+    showChild: false,
+    showArrow: false,
+    bindingVal: "—",
+    rightTitle: "Source of Truth",
+    rightTag: "@State",
+    rightCode: "struct ParentView: View {\n    @State private var isOn: Bool = false\n    var body: some View { ... }\n}",
+    rightDesc: "@State creates a local piece of persistent data. Marking it private ensures clean encapsulation.",
+    mVal: "false",
+    mOwner: "Parent",
+    mConn: "None"
+  },
+  {
+    visTitle: "2. Pass Binding via $isOn",
+    visTag: "Projected Value",
+    visDesc: "Parent passes $isOn to ToggleSwitch. The $ prefix accesses the projected Binding reference.",
+    stateVal: "false",
+    showChild: true,
+    showArrow: true,
+    bindingVal: "ref(isOn)",
+    rightTitle: "Pass Projected Value",
+    rightTag: "$ Prefix",
+    rightCode: "ToggleSwitch(isOn: $isOn)\n\n// $isOn returns Binding<Bool>\n// Passes reference without copying data",
+    rightDesc: "A Binding acts like a reference pointer. It creates a two-way synchronization bridge.",
+    mVal: "false",
+    mOwner: "Parent",
+    mConn: "Binding ($)"
+  },
+  {
+    visTitle: "3. Child Toggles Value",
+    visTag: "Direct Mutation",
+    visDesc: "User taps the button in ToggleSwitch. Writing to the binding updates the parent storage to true.",
+    stateVal: "true",
+    showChild: true,
+    showArrow: true,
+    bindingVal: "true (write)",
+    rightTitle: "Two-Way Write",
+    rightTag: "Mutate",
+    rightCode: "Button(\"Toggle\") {\n    isOn.toggle() // writes directly to parent\n}",
+    rightDesc: "Because the child holds a binding, the write bypasses local memory and mutates parent state.",
+    mVal: "true",
+    mOwner: "Parent",
+    mConn: "Writing"
+  },
+  {
+    visTitle: "4. SwiftUI Redraws UI",
+    visTag: "Invalidation",
+    visDesc: "SwiftUI observes the state mutation, invalidates the views, and re-evaluates body on the main thread.",
+    stateVal: "true",
+    showChild: true,
+    showArrow: true,
+    bindingVal: "true (active)",
+    rightTitle: "View Invalidation",
+    rightTag: "Redraw",
+    rightCode: "// State changed: false -> true\n// SwiftUI calls var body on ParentView\n// Screen updates with new state",
+    rightDesc: "Views are pure functions of state. When state changes, SwiftUI re-evaluates the view description.",
+    mVal: "true",
+    mOwner: "Parent",
+    mConn: "Synchronized"
+  }
+];
+
+let curStep = 0;
+
+function updateDiagram() {
+  const s = steps[curStep];
+  
+  document.getElementById("vis-title").textContent = s.visTitle;
+  document.getElementById("vis-tag").textContent = s.visTag;
+  document.getElementById("vis-desc").textContent = s.visDesc;
+  document.getElementById("val-state").textContent = s.stateVal;
+
+  const arrow = document.getElementById("grp-arrow");
+  arrow.style.opacity = s.showArrow ? "1" : "0";
+
+  const cardChild = document.getElementById("card-child");
+  cardChild.style.opacity = s.showChild ? "1" : "0.2";
+  cardChild.setAttribute("stroke", s.showChild ? "var(--binding-color)" : "var(--line)");
+
+  const lblChild = document.getElementById("lbl-child");
+  lblChild.setAttribute("fill", s.showChild ? "var(--binding-color)" : "var(--muted)");
+
+  const rectBinding = document.getElementById("rect-binding");
+  rectBinding.setAttribute("fill", s.showChild ? "var(--binding-soft)" : "var(--code-bg)");
+  rectBinding.setAttribute("stroke", s.showChild ? "var(--binding-color)" : "var(--line)");
+
+  const lblBindingName = document.getElementById("lbl-binding-name");
+  lblBindingName.setAttribute("fill", s.showChild ? "var(--binding-color)" : "var(--muted)");
+
+  const valBinding = document.getElementById("val-binding");
+  valBinding.textContent = s.bindingVal;
+  valBinding.setAttribute("fill", s.showChild ? "var(--ink)" : "var(--muted)");
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+  document.getElementById("m-val").textContent = s.mVal;
+  document.getElementById("m-owner").textContent = s.mOwner;
+  document.getElementById("m-conn").textContent = s.mConn;
+
+  const dots = document.querySelectorAll(".steps-dots .dot");
+  dots.forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = (curStep === 0);
+  document.getElementById("btn-next").disabled = (curStep === steps.length - 1);
+}
+
+function prevStep() { if (curStep > 0) { curStep--; updateDiagram(); } }
+function nextStep() { if (curStep < steps.length - 1) { curStep++; updateDiagram(); } }
+function goToStep(i) { curStep = i; updateDiagram(); }
+</script>
+
+</body>
+</html>

@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 4 remaining topics (18 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 3 remaining topics (19 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`, `state-and-binding`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -99,7 +99,8 @@ Write all lessons and question banks, level by level, with fact checks.
   - 🔄 **Batch 1D: SwiftUI Basics (5 topics: `swiftui-views-modifiers` → `swiftui-navigation`)**
     - ✅ **swiftui-views-modifiers** (Views and Modifiers) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-views-modifiers/review.html](docs/topics/swiftui-views-modifiers/review.html)
     - ✅ **swiftui-layout** (Stacks and Layout) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-layout/review.html](docs/topics/swiftui-layout/review.html)
-    - 🔄 **state-and-binding** (@State and @Binding) — starting research
+    - ✅ **state-and-binding** (@State and @Binding) — published (lesson, diagram, 31 questions) → [docs/topics/state-and-binding/review.html](docs/topics/state-and-binding/review.html)
+    - 🔄 **swiftui-lists** (Lists and ForEach) — starting research
     - ⬜ **swiftui-layout** (Stacks and Layout)
     - ⬜ **state-and-binding** (@State and @Binding)
     - ⬜ **swiftui-lists** (Lists and ForEach)
@@ -121,8 +122,8 @@ Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ✅ **5.1 Setup & Scaffold** — Next.js 16 (App Router), TypeScript, Turbopack, Tailwind v4 tokens, agent tools
 - ✅ **5.2 Content & Store Layer** — Zod schemas, MDX + Shiki compiler, Zustand versioned store with migrations, Vitest product rule tests
 - ✅ **5.3 Screen 1: Welcome & Level Picker (S1, S2)** — first visit intro, level cards, interactive self-check
-- 🔄 **5.4 Screen 2: Winding Path Map (S3, S4)** — responsive road, 6 stop states, progress bar, path score, locked sheet
-- ⬜ **5.5 Screen 3: Lesson Reader & Diagrams (S5)** — section reader, embedded diagrams, text size switcher, QuickChecks
+- ✅ **5.4 Screen 2: Winding Path Map (S3, S4)** — responsive road, 6 stop states, progress bar, path score, locked sheet
+- 🔄 **5.5 Screen 3: Lesson Reader & Diagrams (S5)** — section reader, embedded diagrams, text size switcher, QuickChecks
 - ⬜ **5.6 Screen 4: Exam Runner & Results (S6–S10)** — 10 questions, option shuffling, instant feedback, scoring, skip tests, path completion
 - ⬜ **5.7 Screen 5: Settings, Progress Export/Import & About (S11, S12)** — stage/unit breakdown, JSON export/import/reset, About page
 - ⬜ **5.8 Accessibility, Testing & Final Verification** — Vitest unit tests, Playwright E2E tests (375px & desktop), axe-core scans, VoiceOver test, reading-time test
@@ -227,6 +228,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic state-and-binding (@State and @Binding): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/state-and-binding/review.html`). All checks passed. Starting swiftui-lists.
 
 - **2026-11-09** — Step 5.3 done: Built Screen 1 (Welcome) and Screen 2 (Level Picker) with interactive self-check checklist, unbroken run suggestion algorithm, radio level cards, cumulative topic counts, responsive 375px/desktop styling, and seamless store hydration. 26 Vitest unit tests passing, Next.js build clean. Starting Step 5.4: Winding Path Map.
 
