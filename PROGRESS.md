@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 11 remaining topics (11 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 10 remaining topics (12 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -90,8 +90,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **closures-basics** (Closures: The Basics) — published (lesson, diagram, 31 questions) → [docs/topics/closures-basics/review.html](docs/topics/closures-basics/review.html)
     - ✅ **enumerations** (Enumerations) — published (lesson, diagram, 31 questions) → [docs/topics/enumerations/review.html](docs/topics/enumerations/review.html)
     - ✅ **properties** (Properties) — published (lesson, diagram, 31 questions) → [docs/topics/properties/review.html](docs/topics/properties/review.html)
-    - 🔄 **methods-and-initialization** — starting research
-    - ⬜ **error-handling**
+    - ✅ **methods-and-initialization** (Methods and Initialization) — published (lesson, diagram, 31 questions) → [docs/topics/methods-and-initialization/review.html](docs/topics/methods-and-initialization/review.html)
+    - 🔄 **error-handling** — starting research
     - ⬜ **optional-chaining**
   - ⬜ Batch 1C: Object-Oriented & Protocols (5 topics: `inheritance` → `access-control`)
   - ⬜ Batch 1D: Platform & UI Basics (3 topics: `xcode-and-git-basics`, `view-controller-lifecycle`, `swiftui-views-modifiers`)
@@ -203,6 +203,10 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — methods-and-initialization approved and published by user. Started topic error-handling: researching official documentation and Swift 6 compiler behavior.
+
+- **2026-11-09** — Built topic methods-and-initialization (Methods and Initialization): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/methods-and-initialization/review.html`). Status: review, waiting for your approval.
 
 - **2026-11-09** — properties approved and published by user (also aligned structs-vs-classes topic.json status to published). Started topic methods-and-initialization: researching official documentation and Swift 6 compiler behavior.
 

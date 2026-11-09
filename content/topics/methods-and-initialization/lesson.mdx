@@ -1,0 +1,198 @@
+export const meta = {
+  id: "methods-and-initialization",
+  summary: "Understand Swift instance and type methods, the mutating keyword for value types, memberwise initializers, and failable inits.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Methods", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/methods", kind: "official" },
+    { title: "The Swift Programming Language: Initialization", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/initialization", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why must methods that modify struct properties be marked with the mutating keyword?</Question>
+  <Guess>
+    <Option id="a">Because structs are reference types allocated on the system heap.</Option>
+    <Option id="b" correct>Because structs are value types, and their instance methods cannot modify properties by default.</Option>
+    <Option id="c">Because mutating methods execute asynchronously on background threads.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a digital watch. The buttons on the side are methods. Pressing a button to view the date reads data. Pressing a button to adjust the time mutates the watch state. When you insert a new battery, the watch runs its initialization sequence to make sure all numbers start at a valid time.
+</Analogy>
+
+In Swift, **methods** are functions associated with a particular type. **Initializers** are special methods that prepare a new instance for use.
+
+Swift types provide two primary kinds of methods:
+1. **Instance methods**: Functions called on an instance of a class, structure, or enumeration. They read and modify instance data.
+2. **Type methods**: Functions called directly on the type itself using the `static` keyword.
+
+Because structures and enumerations are **value types**, their properties cannot be changed inside an instance method by default. To allow modification, you must add the **`mutating`** keyword before the method name. Classes do not need `mutating` because classes are reference types.
+
+**Initialization** guarantees that all stored properties have valid values before an instance is used:
+- Initializers use the **`init`** keyword and have no return type.
+- Structures automatically receive a **memberwise initializer** that lists all stored properties as parameters.
+- A **failable initializer** (`init?`) returns an optional instance and returns `nil` if setup fails.
+
+## See it
+
+<Diagram id="methods-and-initialization-main" caption="How Swift handles methods and initialization across value and reference types">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Instance Method card: Standard func reading instance state.
+    2. Mutating Method card: mutating func modifying struct properties or reassigning self.
+    3. Memberwise Init card: Synthesized init(x:y:) mapping directly to stored properties.
+    4. Failable Init card: init?(value:) returning Optional(instance) or nil on bad input.
+  - Steps:
+    Step 1: Normal instance methods read properties freely across classes and structs.
+    Step 2: Struct methods modifying properties require the mutating keyword to unlock mutations.
+    Step 3: Structs automatically synthesize memberwise initializers unless overridden.
+    Step 4: Failable initializers return nil when input data cannot form a valid instance.
+  - Static version (reduced motion):
+    A 4-step flowchart showing method types, mutating requirements, memberwise synthesis, and failable init lifecycle.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens if you define a custom initializer inside the main body of a struct?</Question>
+  <Option id="a">The struct automatically gains a second memberwise initializer.</Option>
+  <Option id="b" correct>The automatic memberwise initializer is removed.</Option>
+  <Option id="c">The compiler produces a fatal syntax error.</Option>
+  <Explanation>Adding a custom initializer inside the main struct body suppresses the automatic memberwise initializer. Use an extension to keep both.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Using mutating methods and memberwise initializers">
+
+```swift
+struct Point {
+    var x: Double
+    var y: Double
+
+    mutating func moveBy(deltaX: Double, deltaY: Double) {
+        x += deltaX
+        y += deltaY
+    }
+}
+
+// Automatic memberwise initializer
+var location = Point(x: 2.0, y: 3.0)
+location.moveBy(deltaX: 5.0, deltaY: 7.0)
+
+print("Updated location: (\(location.x), \(location.y))")
+```
+
+```output
+Updated location: (7.0, 10.0)
+```
+
+</CodeExample>
+
+This example shows two key Swift behaviors:
+- **Memberwise initializer**: `Point` automatically gets `init(x:y:)` without writing boilerplate code.
+- **`mutating` keyword**: `moveBy` modifies `x` and `y`. Without `mutating`, the Swift compiler produces an error.
+
+<CodeExample title="Custom initializers in extensions and failable initializers">
+
+```swift
+struct Size {
+    var width: Double
+    var height: Double
+}
+
+// Custom initializer declared in extension to preserve memberwise init
+extension Size {
+    init(square: Double) {
+        self.init(width: square, height: square)
+    }
+}
+
+let customSquare = Size(square: 12.0)
+let memberwiseBox = Size(width: 8.0, height: 16.0)
+print("Square: \(customSquare.width)x\(customSquare.height)")
+print("Box: \(memberwiseBox.width)x\(memberwiseBox.height)")
+
+struct Temperature {
+    let celsius: Double
+
+    init?(fahrenheit: Double) {
+        if fahrenheit < -459.67 {
+            return nil
+        }
+        self.celsius = (fahrenheit - 32.0) / 1.8
+    }
+}
+
+let validTemp = Temperature(fahrenheit: 32.0)
+let invalidTemp = Temperature(fahrenheit: -500.0)
+print("Freezing: \(validTemp?.celsius ?? 0.0) C")
+print("Invalid is nil: \(invalidTemp == nil)")
+```
+
+```output
+Square: 12.0x12.0
+Box: 8.0x16.0
+Freezing: 0.0 C
+Invalid is nil: true
+```
+
+</CodeExample>
+
+This example shows how initializers provide flexibility:
+- **Initializer delegation**: `init(square:)` calls `self.init(width:height:)` to avoid duplicating assignment logic.
+- **Extensions**: Putting custom initializers in an `extension` preserves the automatic memberwise initializer.
+- **Failable initializer**: `init?(fahrenheit:)` returns an optional instance, returning `nil` when the temperature falls below absolute zero.
+
+<QuickCheck>
+  <Question>What type does a failable initializer init?(value: Int) return?</Question>
+  <Option id="a">A non-optional instance that throws a runtime error on failure.</Option>
+  <Option id="b" correct>An optional instance that evaluates to nil if initialization fails.</Option>
+  <Option id="c">A Boolean flag indicating whether the memory was allocated.</Option>
+  <Explanation>Failable initializers return an Optional. If the initialization condition fails, the initializer returns nil.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Calling a mutating method on a let struct instance">
+Even if a struct method is marked `mutating`, you cannot call it on a struct declared with `let`. Because structs are value types, a constant instance freezes all properties completely. You must declare the instance with `var`.
+</Trap>
+
+<Trap title="Losing the memberwise initializer by defining custom inits in the struct body">
+If you define a custom initializer inside the struct declaration, Swift removes the automatic memberwise initializer. To retain both initializers, declare your custom initializer inside an `extension`.
+</Trap>
+
+<Trap title="Expecting classes to require the mutating keyword">
+The `mutating` keyword is only for value types (structures and enumerations). Classes are reference types. Methods inside a class can mutate variable properties freely without the `mutating` keyword.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Methods in Swift are functions associated with a type. Struct methods that modify properties require the mutating keyword because structs are value types. Swift structs automatically receive a memberwise initializer for all stored properties. Initializers prepare an instance for use, and failable initializers can return nil when provided with invalid data.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Swift enforces value semantics through mutating methods on structs and enums. When a mutating method runs, Swift allows mutating properties or reassigning self, but calling mutating methods requires a mutable var instance. Structs synthesize memberwise initializers by default, which can be preserved alongside custom initializers by declaring custom inits in extensions. Failable initializers return an Optional type, allowing clean error handling during construction without throwing exceptions.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Instance methods belong to instances; type methods use the `static` keyword.
+- Methods on value types (structs and enums) need `mutating` to modify properties.
+- Mutating methods cannot be called on `let` constant struct instances.
+- Initializers (`init`) prepare an instance and guarantee all properties are initialized.
+- Structs get an automatic memberwise initializer listing all stored properties.
+- Declaring custom initializers in an `extension` preserves the automatic memberwise initializer.
+- Failable initializers (`init?`) return an Optional and return `nil` on failure.
+</Recap>
