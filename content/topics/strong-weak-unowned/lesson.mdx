@@ -1,0 +1,243 @@
+export const meta = {
+  id: "strong-weak-unowned",
+  summary: "Master the differences between strong, weak, and unowned references in Swift to prevent retain cycles and memory leaks.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Automatic Reference Counting", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting", kind: "official" },
+    { title: "WWDC21: ARC in Swift: Basics and beyond", url: "https://developer.apple.com/videos/play/wwdc2021/10216/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why must a weak reference in Swift always be declared as a variable (`var`) and an optional?</Question>
+  <Guess>
+    <Option id="a">Constants in Swift do not support heap memory allocations.</Option>
+    <Option id="b" correct>ARC sets the reference to nil when the target object is deallocated.</Option>
+    <Option id="c">Weak variables are required to be public in all classes.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a balloon held by strings.
+
+A **strong** reference is a tight rope in your hand. The balloon cannot fly away while you hold it.
+
+A **weak** reference is like looking at the balloon through a window. You see it, but you do not hold it.
+
+If the owner cuts the rope, the balloon floats away. Your window view becomes empty.
+
+An **unowned** reference is like pointing at the balloon without holding it, assuming it never leaves while you point.
+</Analogy>
+
+In Swift, every reference to a class instance has a type: **strong**, **weak**, or **unowned**.
+
+1. **Strong references**:
+   - The default reference type in Swift.
+   - Increases the strong reference count by 1.
+   - Keeps the object alive as long as the reference exists.
+2. **Weak references**:
+   - Does not increase the reference count.
+   - Must always be declared as `weak var` and must be optional (`?`).
+   - Swift automatically sets the reference to `nil` when the object deallocates.
+   - Use `weak` when the referenced object has a shorter lifetime or can become `nil`.
+3. **Unowned references**:
+   - Does not increase the reference count.
+   - Declared as `unowned let` or `unowned var`.
+   - Never automatically set to `nil`.
+   - Expects the referenced object to always exist while the reference is in use.
+   - Accessing an unowned reference after the object is freed causes a runtime crash.
+
+## See it
+
+<Diagram id="strong-weak-unowned-diagram" caption="Comparing how strong, weak, and unowned references behave during object deallocation">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Tenant object (Person) on the heap.
+    2. Apartment object on the heap with a weak reference pointing to Tenant.
+    3. Strong variable holding Tenant.
+  - Steps:
+    Step 1: Strong reference holds Tenant. Apartment has a weak reference to Tenant. Strong count is 1.
+    Step 2: Tenant strong reference is set to nil. Strong count drops to 0.
+    Step 3: Tenant deallocates immediately. ARC sets Apartment.tenant weak reference to nil.
+    Step 4: Reading Apartment.tenant safely returns nil without crashes or memory leaks.
+  - Static version (reduced motion):
+    A 4-panel comparison of strong, weak, and unowned reference lifecycles.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens if you read an unowned reference after the target object is deallocated?</Question>
+  <Option id="a">Swift returns nil safely.</Option>
+  <Option id="b" correct>Swift crashes at runtime with a fatal error.</Option>
+  <Option id="c">The object is re-created on the heap automatically.</Option>
+  <Explanation>Unlike weak references, unowned references are not set to nil. Reading a deallocated unowned reference causes a runtime crash.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Weak references become nil automatically when target is freed">
+
+```swift
+class Person {
+    let name: String
+    init(name: String) { self.name = name }
+    deinit { print("\(name) deinitialized") }
+}
+
+class Apartment {
+    let unit: String
+    weak var tenant: Person?
+    init(unit: String) { self.unit = unit }
+    deinit { print("Apartment \(unit) deinitialized") }
+}
+
+var apt: Apartment? = Apartment(unit: "4A")
+var tenant: Person? = Person(name: "Alex")
+
+apt?.tenant = tenant
+print("Tenant name: \(apt?.tenant?.name ?? "none")")
+
+tenant = nil
+print("Tenant after nil: \(apt?.tenant?.name ?? "none")")
+```
+
+```output
+Tenant name: Alex
+Alex deinitialized
+Tenant after nil: none
+```
+
+</CodeExample>
+
+In this example, `apt.tenant` holds a `weak` reference to `tenant`.
+
+When `tenant` is set to `nil`, its strong count drops to 0.
+
+Swift frees `Alex` immediately and runs its deinitializer.
+
+ARC automatically sets `apt.tenant` to `nil`.
+
+<CodeExample title="Unowned reference links objects with matching lifetimes">
+
+```swift
+class Customer {
+    let name: String
+    var card: CreditCard?
+    init(name: String) { self.name = name }
+    deinit { print("Customer \(name) deinitialized") }
+}
+
+class CreditCard {
+    let number: String
+    unowned let customer: Customer
+    init(number: String, customer: Customer) {
+        self.number = number
+        self.customer = customer
+    }
+    deinit { print("Card \(number) deinitialized") }
+}
+
+var alex: Customer? = Customer(name: "Alex")
+alex?.card = CreditCard(number: "1234-5678", customer: alex!)
+
+print("Card owner: \(alex?.card?.customer.name ?? "none")")
+
+alex = nil
+print("After customer nil")
+```
+
+```output
+Card owner: Alex
+Customer Alex deinitialized
+Card 1234-5678 deinitialized
+After customer nil
+```
+
+</CodeExample>
+
+A credit card cannot exist without a customer.
+
+`CreditCard` uses an `unowned let customer` reference because the customer outlives or matches the card lifetime.
+
+When `alex = nil` runs, both `Customer` and `CreditCard` are deallocated cleanly.
+
+<QuickCheck>
+  <Question>When should you choose weak instead of unowned?</Question>
+  <Option id="a">When you want to prevent variables from being mutated.</Option>
+  <Option id="b" correct>When the referenced object can be deallocated first or become nil.</Option>
+  <Option id="c">When both objects are guaranteed to exist for the exact same duration.</Option>
+  <Explanation>Use weak whenever the other object can become nil during execution. This prevents dangling pointer crashes.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Declaring weak references with let">
+Writing `weak let` causes a compile-time error.
+
+Because ARC must set weak references to `nil` when the target is freed, weak variables must be mutable `var`.
+
+They must also always have an optional type.
+</Trap>
+
+<Trap title="Assuming unowned is always better than weak">
+Some candidates prefer `unowned` because it avoids optional unwrapping.
+
+However, if asynchronous network calls or user navigation free the object first, reading `unowned` crashes your app.
+
+If lifetime cannot be guaranteed with 100 percent certainty, choose `weak` for safety.
+</Trap>
+
+<Trap title="Believing weak references keep objects alive">
+A weak reference has no holding power on an object.
+
+If the last strong reference disappears, the object is deallocated immediately.
+
+All weak references to that object turn into `nil` right away.
+</Trap>
+
+<Trap title="Using strong references for delegates">
+Declaring delegate properties as `strong` is one of the most common causes of retain cycles in iOS apps.
+
+View controllers usually hold their subviews or services strongly.
+
+If the service holds the view controller strongly through a delegate, neither is ever freed. Always use `weak var delegate`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"In Swift, strong references increase the reference count and keep objects in memory. Weak references do not increase the count, must be optional variables, and turn into nil when the object is freed. Unowned references also do not increase the count, but they expect the object to always exist."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"I choose weak when the referenced object has a shorter lifetime or can become nil, such as delegate properties or closures. I choose unowned when two objects have the same lifetime or the referenced object outlives the owner, like a credit card and its customer. Unowned avoids optional unwrapping, but accessing it after deallocation causes a runtime crash."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"At runtime, Swift implements weak references using side tables. When an object acquires a weak reference, Swift allocates a lightweight side table to track weak counts. When the strong count hits zero, the object deinitializes, but the side table persists until all weak references are zeroed. In production architectures, I favor weak self over unowned self in closures to prevent crashes caused by unexpected asynchronous execution timing."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Strong references increase the reference count by 1 and keep objects alive.
+- Weak references do not increase the count, must be `var`, and become `nil` when the object is freed.
+- Unowned references do not increase the count, can be `let`, and do not zero out on deallocation.
+- Accessing an unowned reference after the object is deallocated triggers a runtime crash.
+- Use `weak` for delegates, parent pointers, and closures where the object may disappear.
+- Use `unowned` only when the referenced object is guaranteed to outlive the reference holder.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Automatic Reference Counting](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting) — Official documentation on strong, weak, and unowned reference types.
+- [WWDC21: ARC in Swift: Basics and beyond](https://developer.apple.com/videos/play/wwdc2021/10216/) — Detailed breakdown of object lifetimes, weak reference side tables, and compiler safety.

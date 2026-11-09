@@ -1,0 +1,586 @@
+<title>Strong, Weak and Unowned Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --strong-color: #0284c7; --strong-soft: #e0f2fe;
+  --weak-color: #8b5cf6; --weak-soft: #ede9fe;
+  --alive-color: #16a34a; --alive-soft: #dcfce7;
+  --freed-color: #dc2626; --freed-soft: #fee2e2;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --strong-color: #38bdf8; --strong-soft: #082f49;
+  --weak-color: #a78bfa; --weak-soft: #2e1065;
+  --alive-color: #4ade80; --alive-soft: #14532d;
+  --freed-color: #f87171; --freed-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.strong { background: var(--strong-soft); color: var(--strong-color); }
+.kind.weak { background: var(--weak-soft); color: var(--weak-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 10px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.active { fill: var(--strong-soft); stroke: var(--strong-color); }
+.box-rect.weak-box { fill: var(--weak-soft); stroke: var(--weak-color); }
+.box-rect.freed { fill: var(--freed-soft); stroke: var(--freed-color); stroke-dasharray: 4 4; }
+
+.text-title { font-family: var(--font-body); font-size: 14px; font-weight: 700; fill: var(--ink); }
+.text-val { font-family: var(--font-code); font-size: 13px; font-weight: 600; fill: var(--ink); }
+.text-muted { font-family: var(--font-body); font-size: 12px; fill: var(--muted); }
+
+.count-badge { font-family: var(--font-code); font-size: 15px; font-weight: 700; }
+.count-badge.alive { fill: var(--alive-color); }
+.count-badge.freed { fill: var(--freed-color); }
+
+.arrow { stroke-width: 2.5; marker-end: url(#arrowhead); transition: opacity 0.3s, stroke 0.3s; }
+.arrow.strong-arrow { stroke: var(--strong-color); }
+.arrow.weak-arrow { stroke: var(--weak-color); stroke-dasharray: 6 4; }
+.arrow.inactive { stroke: var(--muted); opacity: 0.15; stroke-dasharray: 4 4; }
+
+.controls {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 16px;
+}
+.btn {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  font: 600 13px var(--font-body); padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 999px; background: var(--line);
+  cursor: pointer; border: none; padding: 0;
+}
+.dot.active { background: var(--strong-color); transform: scale(1.2); }
+
+.reduced-static { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-stepper { display: none; }
+  .reduced-static { display: grid; gap: 12px; }
+  .static-step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .static-step h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--strong-color); }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Memory · Topic 2 of 3 · Prototype</p>
+    <h1>Strong, Weak and Unowned</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can choose between strong, weak and unowned references.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Why must a weak reference in Swift always be declared as a variable (<code>var</code>) and an optional?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Constants in Swift do not support heap memory allocations.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">ARC sets the reference to nil when the target object is deallocated.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Weak variables are required to be public in all classes.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine a balloon held by strings.</p><p>A <strong>strong</strong> reference is a tight rope in your hand. The balloon cannot fly away while you hold it.</p><p>A <strong>weak</strong> reference is like looking at the balloon through a window. You see it, but you do not hold it.</p><p>If the owner cuts the rope, the balloon floats away. Your window view becomes empty.</p><p>An <strong>unowned</strong> reference is like pointing at the balloon without holding it, assuming it never leaves while you point.</p></aside>
+<p>In Swift, every reference to a class instance has a type: <strong>strong</strong>, <strong>weak</strong>, or <strong>unowned</strong>.</p>
+<ol>
+<li><strong>Strong references</strong>:
+<ul>
+<li>The default reference type in Swift.</li>
+<li>Increases the strong reference count by 1.</li>
+<li>Keeps the object alive as long as the reference exists.</li>
+</ul>
+</li>
+<li><strong>Weak references</strong>:
+<ul>
+<li>Does not increase the reference count.</li>
+<li>Must always be declared as <code>weak var</code> and must be optional (<code>?</code>).</li>
+<li>Swift automatically sets the reference to <code>nil</code> when the object deallocates.</li>
+<li>Use <code>weak</code> when the referenced object has a shorter lifetime or can become <code>nil</code>.</li>
+</ul>
+</li>
+<li><strong>Unowned references</strong>:
+<ul>
+<li>Does not increase the reference count.</li>
+<li>Declared as <code>unowned let</code> or <code>unowned var</code>.</li>
+<li>Never automatically set to <code>nil</code>.</li>
+<li>Expects the referenced object to always exist while the reference is in use.</li>
+<li>Accessing an unowned reference after the object is freed causes a runtime crash.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens if you read an unowned reference after the target object is deallocated?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Swift returns nil safely.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Swift crashes at runtime with a fatal error.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The object is re-created on the heap automatically.</span></button><p class="qc-explain" hidden="">Unlike weak references, unowned references are not set to nil. Reading a deallocated unowned reference causes a runtime crash.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Weak references become nil automatically when target is freed</figcaption><pre class="block swift"><code class="language-swift">class Person {
+    let name: String
+    init(name: String) { self.name = name }
+    deinit { print(&quot;\(name) deinitialized&quot;) }
+}
+
+class Apartment {
+    let unit: String
+    weak var tenant: Person?
+    init(unit: String) { self.unit = unit }
+    deinit { print(&quot;Apartment \(unit) deinitialized&quot;) }
+}
+
+var apt: Apartment? = Apartment(unit: &quot;4A&quot;)
+var tenant: Person? = Person(name: &quot;Alex&quot;)
+
+apt?.tenant = tenant
+print(&quot;Tenant name: \(apt?.tenant?.name ?? &quot;none&quot;)&quot;)
+
+tenant = nil
+print(&quot;Tenant after nil: \(apt?.tenant?.name ?? &quot;none&quot;)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Tenant name: Alex
+Alex deinitialized
+Tenant after nil: none
+</code></pre></figure>
+<p>In this example, <code>apt.tenant</code> holds a <code>weak</code> reference to <code>tenant</code>.</p>
+<p>When <code>tenant</code> is set to <code>nil</code>, its strong count drops to 0.</p>
+<p>Swift frees <code>Alex</code> immediately and runs its deinitializer.</p>
+<p>ARC automatically sets <code>apt.tenant</code> to <code>nil</code>.</p>
+<figure class="code-example"><figcaption>Unowned reference links objects with matching lifetimes</figcaption><pre class="block swift"><code class="language-swift">class Customer {
+    let name: String
+    var card: CreditCard?
+    init(name: String) { self.name = name }
+    deinit { print(&quot;Customer \(name) deinitialized&quot;) }
+}
+
+class CreditCard {
+    let number: String
+    unowned let customer: Customer
+    init(number: String, customer: Customer) {
+        self.number = number
+        self.customer = customer
+    }
+    deinit { print(&quot;Card \(number) deinitialized&quot;) }
+}
+
+var alex: Customer? = Customer(name: &quot;Alex&quot;)
+alex?.card = CreditCard(number: &quot;1234-5678&quot;, customer: alex!)
+
+print(&quot;Card owner: \(alex?.card?.customer.name ?? &quot;none&quot;)&quot;)
+
+alex = nil
+print(&quot;After customer nil&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Card owner: Alex
+Customer Alex deinitialized
+Card 1234-5678 deinitialized
+After customer nil
+</code></pre></figure>
+<p>A credit card cannot exist without a customer.</p>
+<p><code>CreditCard</code> uses an <code>unowned let customer</code> reference because the customer outlives or matches the card lifetime.</p>
+<p>When <code>alex = nil</code> runs, both <code>Customer</code> and <code>CreditCard</code> are deallocated cleanly.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">When should you choose weak instead of unowned?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">When you want to prevent variables from being mutated.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">When the referenced object can be deallocated first or become nil.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">When both objects are guaranteed to exist for the exact same duration.</span></button><p class="qc-explain" hidden="">Use weak whenever the other object can become nil during execution. This prevents dangling pointer crashes.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Declaring weak references with let</p><p>Writing <code>weak let</code> causes a compile-time error.</p><p>Because ARC must set weak references to <code>nil</code> when the target is freed, weak variables must be mutable <code>var</code>.</p><p>They must also always have an optional type.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming unowned is always better than weak</p><p>Some candidates prefer <code>unowned</code> because it avoids optional unwrapping.</p><p>However, if asynchronous network calls or user navigation free the object first, reading <code>unowned</code> crashes your app.</p><p>If lifetime cannot be guaranteed with 100 percent certainty, choose <code>weak</code> for safety.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Believing weak references keep objects alive</p><p>A weak reference has no holding power on an object.</p><p>If the last strong reference disappears, the object is deallocated immediately.</p><p>All weak references to that object turn into <code>nil</code> right away.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using strong references for delegates</p><p>Declaring delegate properties as <code>strong</code> is one of the most common causes of retain cycles in iOS apps.</p><p>View controllers usually hold their subviews or services strongly.</p><p>If the service holds the view controller strongly through a delegate, neither is ever freed. Always use <code>weak var delegate</code>.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;In Swift, strong references increase the reference count and keep objects in memory. Weak references do not increase the count, must be optional variables, and turn into nil when the object is freed. Unowned references also do not increase the count, but they expect the object to always exist.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;I choose weak when the referenced object has a shorter lifetime or can become nil, such as delegate properties or closures. I choose unowned when two objects have the same lifetime or the referenced object outlives the owner, like a credit card and its customer. Unowned avoids optional unwrapping, but accessing it after deallocation causes a runtime crash.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;At runtime, Swift implements weak references using side tables. When an object acquires a weak reference, Swift allocates a lightweight side table to track weak counts. When the strong count hits zero, the object deinitializes, but the side table persists until all weak references are zeroed. In production architectures, I favor weak self over unowned self in closures to prevent crashes caused by unexpected asynchronous execution timing.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Strong references increase the reference count by 1 and keep objects alive.</li>
+<li>Weak references do not increase the count, must be <code>var</code>, and become <code>nil</code> when the object is freed.</li>
+<li>Unowned references do not increase the count, can be <code>let</code>, and do not zero out on deallocation.</li>
+<li>Accessing an unowned reference after the object is deallocated triggers a runtime crash.</li>
+<li>Use <code>weak</code> for delegates, parent pointers, and closures where the object may disappear.</li>
+<li>Use <code>unowned</code> only when the referenced object is guaranteed to outlive the reference holder.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting">The Swift Programming Language: Automatic Reference Counting</a> — Official documentation on strong, weak, and unowned reference types.</li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2021/10216/">WWDC21: ARC in Swift: Basics and beyond</a> — Detailed breakdown of object lifetimes, weak reference side tables, and compiler safety.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    code: 'apt.tenant = tenant // weak reference assigned',
+    caption: 'Step 1: Apartment holds a weak reference to Alex. Strong count is 1 from the local variable. Weak does not increment strong count.',
+    tenantVal: 'Person("Alex")',
+    personTitle: 'Person("Alex")',
+    personStatus: 'Strong: 1 | Weak: 1',
+    badgeText: 'Alive',
+    freed: false
+  },
+  {
+    code: 'tenant = nil // release strong reference',
+    caption: 'Step 2: The only strong reference is cleared. Person strong count drops to 0.',
+    tenantVal: 'Person("Alex")',
+    personTitle: 'Person("Alex")',
+    personStatus: 'Strong: 0 | Weak: 1',
+    badgeText: 'Deallocating...',
+    freed: false
+  },
+  {
+    code: 'Person deinit executes',
+    caption: 'Step 3: Swift runs Person deinit immediately. Heap memory for Alex is reclaimed.',
+    tenantVal: 'Zeroing...',
+    personTitle: 'Person (Freed)',
+    personStatus: 'Memory reclaimed by ARC',
+    badgeText: 'Deallocated',
+    freed: true
+  },
+  {
+    code: 'print(apt.tenant) // prints "nil"',
+    caption: 'Step 4: ARC automatically zeroes apt.tenant to nil. Accessing it is safe and never crashes.',
+    tenantVal: 'nil',
+    personTitle: 'Person (Deallocated)',
+    personStatus: 'Zeroed by Swift ARC',
+    badgeText: 'nil',
+    freed: true
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+  document.getElementById("apt-tenant-val").textContent = s.tenantVal;
+  document.getElementById("person-title").textContent = s.personTitle;
+  document.getElementById("person-status").textContent = s.personStatus;
+
+  const badge = document.getElementById("person-badge");
+  badge.textContent = s.badgeText;
+  badge.className.baseVal = "count-badge " + (s.freed ? "freed" : "alive");
+
+  const rect = document.getElementById("person-rect");
+  rect.className.baseVal = "box-rect " + (s.freed ? "freed" : "weak-box");
+
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"strong-weak-unowned","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"strong-weak-unowned-q1","type":"mcq","difficulty":1,"prompt":"What is the default reference type for class instance variables in Swift?","options":[{"id":"a","text":"Strong references.","explanation":"Right. Swift properties and variables default to strong references."},{"id":"b","text":"Weak references.","explanation":"Weak references must be explicitly marked with the weak keyword."},{"id":"c","text":"Unowned references.","explanation":"Unowned references require the explicit unowned keyword."},{"id":"d","text":"Inout references.","explanation":"Inout is a parameter passing convention, not a property reference type."}],"answer":"a"},{"id":"strong-weak-unowned-q2","type":"mcq","difficulty":1,"prompt":"Why must a weak reference always be declared as a variable (var) in Swift?","options":[{"id":"a","text":"Because Swift forbids constant let declarations inside classes.","explanation":"Classes allow constant properties freely."},{"id":"b","text":"Because ARC changes the value to nil when the target is deallocated.","explanation":"Right. ARC mutates weak variables to nil when objects are freed."},{"id":"c","text":"Because weak variables are copied to disk on low memory warnings.","explanation":"Weak variables live in memory and are not copied to disk."},{"id":"d","text":"Because weak variables must conform to the Equatable protocol.","explanation":"Weak variables do not require Equatable conformance."}],"answer":"b"},{"id":"strong-weak-unowned-q3","type":"mcq","difficulty":1,"prompt":"What happens when the object pointed to by an unowned reference is deallocated?","options":[{"id":"a","text":"ARC automatically converts the unowned reference to nil.","explanation":"Only weak references are automatically converted to nil."},{"id":"b","text":"The reference keeps the object in memory as a ghost instance.","explanation":"Unowned references do not prevent object deallocation."},{"id":"c","text":"The reference is not zeroed; reading it triggers a runtime crash.","explanation":"Right. Accessing a deallocated unowned reference crashes with a fatal error."},{"id":"d","text":"The Swift compiler generates a warning and exits the application.","explanation":"This failure happens at runtime with a fatal error, not a compile warning."}],"answer":"c"},{"id":"strong-weak-unowned-q4","type":"mcq","difficulty":2,"prompt":"Which keyword allows declaring a non-optional constant that avoids strong retain cycles?","options":[{"id":"a","text":"weak","explanation":"Weak references must always be optional var variables."},{"id":"b","text":"lazy","explanation":"Lazy properties are computed on first access and are strong by default."},{"id":"c","text":"dynamic","explanation":"Dynamic enables Objective-C message dispatch, not cycle prevention."},{"id":"d","text":"unowned","explanation":"Right. Unowned references can be declared as constants using let."}],"answer":"d"},{"id":"strong-weak-unowned-q5","type":"mcq","difficulty":2,"prompt":"When is it appropriate to use an unowned reference instead of weak?","options":[{"id":"a","text":"When the other instance has the same lifetime or a longer lifetime.","explanation":"Right. Unowned is intended for instances that will not be freed first."},{"id":"b","text":"When the referenced instance can become nil during normal execution.","explanation":"When an instance can become nil, you must use weak."},{"id":"c","text":"When implementing delegation between unrelated view controllers.","explanation":"Delegates should use weak because either controller can be dismissed."},{"id":"d","text":"When creating a background thread task with Grand Central Dispatch.","explanation":"Background threads usually capture weak self to avoid crashes on dismissal."}],"answer":"a"},{"id":"strong-weak-unowned-q6","type":"mcq","difficulty":2,"prompt":"Why are delegate properties in iOS commonly marked with the weak modifier?","options":[{"id":"a","text":"Because Swift protocols cannot be stored as strong references.","explanation":"Protocols can be stored as strong references unless constrained."},{"id":"b","text":"To prevent retain cycles between the delegate owner and the delegate.","explanation":"Right. Both objects pointing strongly to each other causes a retain cycle."},{"id":"c","text":"Because weak references speed up method invocations in protocols.","explanation":"Weak references do not accelerate protocol method calls."},{"id":"d","text":"Because UIKit forces all delegates to be stored on the stack.","explanation":"Delegates are reference objects stored on the heap."}],"answer":"b"},{"id":"strong-weak-unowned-q7","type":"mcq","difficulty":2,"prompt":"What protocol constraint is required to declare a weak delegate property in Swift?","options":[{"id":"a","text":"The protocol must inherit from Codable.","explanation":"Codable is for data serialization, not reference types."},{"id":"b","text":"The protocol must conform to Sendable.","explanation":"Sendable indicates thread safety, not class constraint."},{"id":"c","text":"The protocol must be class-bound, inheriting from AnyObject.","explanation":"Right. Weak references can only point to class types conforming to AnyObject."},{"id":"d","text":"The protocol must inherit from Equatable.","explanation":"Equatable is for value comparison, not class reference storage."}],"answer":"c"},{"id":"strong-weak-unowned-q8","type":"mcq","difficulty":2,"prompt":"What effect does creating a weak reference have on the target strong reference count?","options":[{"id":"a","text":"It increments the strong count by one.","explanation":"Strong references increment the count, but weak references do not."},{"id":"b","text":"It decrements the strong count by one.","explanation":"Creating a reference never reduces the count."},{"id":"c","text":"It sets the strong count to zero immediately.","explanation":"Weak references do not affect or reset the strong count."},{"id":"d","text":"It has zero effect on the strong reference count.","explanation":"Right. Weak references do not increase or modify the strong reference count."}],"answer":"d"},{"id":"strong-weak-unowned-q9","type":"mcq","difficulty":3,"prompt":"How does the Swift runtime manage weak reference counts under the surface?","options":[{"id":"a","text":"By allocating a separate side table to hold weak and unowned counts.","explanation":"Right. Swift side tables manage weak references independently of object payload."},{"id":"b","text":"By scanning all active CPU registers on every frame draw.","explanation":"Swift does not scan CPU registers to track weak references."},{"id":"c","text":"By storing weak pointers directly inside the user default storage.","explanation":"User defaults are for small app settings, not runtime pointers."},{"id":"d","text":"By stopping all threads whenever a weak variable is read.","explanation":"Weak reference access does not halt threads or pause the process."}],"answer":"a"},{"id":"strong-weak-unowned-q10","type":"mcq","difficulty":2,"prompt":"What is the primary risk of using unowned self in an asynchronous closure callback?","options":[{"id":"a","text":"The closure executes twice if network connection is slow.","explanation":"Closure execution count depends on caller logic, not reference capture."},{"id":"b","text":"The app crashes if self deallocates before the callback completes.","explanation":"Right. If the screen is dismissed before callback, unowned self crashes."},{"id":"c","text":"The closure creates an unbreakable retain cycle that leaks memory.","explanation":"Unowned capture breaks retain cycles; the risk is a dangling pointer crash."},{"id":"d","text":"The Swift compiler rejects asynchronous closures capturing unowned values.","explanation":"The compiler permits unowned capture in asynchronous closures."}],"answer":"b"},{"id":"strong-weak-unowned-q11","type":"mcq","difficulty":1,"prompt":"What compile error occurs if you declare a property as `weak let cache: Cache?`?","options":[{"id":"a","text":"Cache must conform to the Identifiable protocol.","explanation":"Identifiable conformance has no bearing on weak declarations."},{"id":"b","text":"Constants cannot be optional in Swift.","explanation":"Constants can be optional in Swift."},{"id":"c","text":"Weak properties cannot be declared as constants using let.","explanation":"Right. Weak references must be mutable variables declared with var."},{"id":"d","text":"Classes must implement a deinit before using weak properties.","explanation":"Deinit is optional on all Swift classes."}],"answer":"c"},{"id":"strong-weak-unowned-q12","type":"mcq","difficulty":2,"prompt":"In a tree data structure with Parent and Child nodes, how should relationships be configured?","options":[{"id":"a","text":"Parent holds weak references to children; Child holds strong references to parent.","explanation":"If parents hold children weakly, children deallocate immediately."},{"id":"b","text":"Parent and Child both hold strong references to each other.","explanation":"Mutual strong references create retain cycles and memory leaks."},{"id":"c","text":"Both Parent and Child hold weak references to each other.","explanation":"If both references are weak, nodes deallocate immediately upon creation."},{"id":"d","text":"Parent holds strong references to children; Child holds a weak reference to parent.","explanation":"Right. The parent owns children strongly, and children reference parent weakly."}],"answer":"d"},{"id":"strong-weak-unowned-q13","type":"mcq","difficulty":2,"prompt":"What is unowned(unsafe) in Swift?","options":[{"id":"a","text":"A raw pointer reference without runtime safety checks on deallocation.","explanation":"Right. Accessing unowned(unsafe) after deallocation results in undefined behavior."},{"id":"b","text":"A reference that automatically encrypts memory values on disk.","explanation":"Unowned(unsafe) has nothing to do with disk encryption."},{"id":"c","text":"A reference type restricted exclusively to Swift actor classes.","explanation":"Unowned(unsafe) is not restricted to actors."},{"id":"d","text":"A deprecated alias for Objective-C retain properties.","explanation":"It corresponds to Objective-C assign, not retain."}],"answer":"a"},{"id":"strong-weak-unowned-q14","type":"mcq","difficulty":2,"prompt":"If an object has 0 strong references and 2 weak references, what is its state?","options":[{"id":"a","text":"It remains alive in memory until both weak references are accessed.","explanation":"Weak references never keep objects alive."},{"id":"b","text":"It is deinitialized and deallocated; weak references become nil.","explanation":"Right. Zero strong references triggers immediate deinitialization."},{"id":"c","text":"It enters a paused state until strong references are added again.","explanation":"Deinitialization is permanent; dead objects cannot be resurrected."},{"id":"d","text":"The Swift runtime throws a runtime memory warning alert.","explanation":"Normal deallocation does not generate memory warning alerts."}],"answer":"b"},{"id":"strong-weak-unowned-q15","type":"mcq","difficulty":3,"prompt":"Why is [weak self] considered safer than [unowned self] in view controller closures?","options":[{"id":"a","text":"Because weak self automatically cancels running URLSession tasks.","explanation":"Weak self does not cancel active network sessions."},{"id":"b","text":"Because weak self guarantees faster thread context switching.","explanation":"Weak self does not affect thread context switching speed."},{"id":"c","text":"Because if the controller is popped from navigation, unowned self crashes.","explanation":"Right. If the user leaves the screen before response, unowned self crashes."},{"id":"d","text":"Because unowned self forces the closure to run on the main thread.","explanation":"Capture syntax does not alter the execution thread of a closure."}],"answer":"c"},{"id":"strong-weak-unowned-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"class Device {\n    let name: String\n    init(_ name: String) { self.name = name }\n    deinit { print(\"\\(name) deallocated\") }\n}\n\nvar phone: Device? = Device(\"iPhone\")\nweak var weakPhone = phone\nphone = nil\nprint(\"Is nil: \\(weakPhone == nil)\")","options":[{"id":"a","text":"Is nil: false\niPhone deallocated","explanation":"Setting phone to nil immediately deallocates the instance."},{"id":"b","text":"Is nil: false","explanation":"The deinit method executes and prints its message."},{"id":"c","text":"iPhone deallocated\nIs nil: false","explanation":"Weak references are set to nil when the target is deallocated."},{"id":"d","text":"iPhone deallocated\nIs nil: true","explanation":"Right. Releasing phone frees iPhone, so weakPhone becomes nil."}],"answer":"d"},{"id":"strong-weak-unowned-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"class Speaker {\n    let model: String\n    init(_ model: String) { self.model = model }\n    deinit { print(\"Speaker \\(model) freed\") }\n}\n\nvar s: Speaker? = Speaker(\"Mini\")\nweak var ref = s\nprint(\"Weak read: \\(ref?.model ?? \"none\")\")\ns = nil\nprint(\"Weak read after: \\(ref?.model ?? \"none\")\")","options":[{"id":"a","text":"Weak read: Mini\nSpeaker Mini freed\nWeak read after: none","explanation":"Right. ref reads Mini while alive, then none after s is set to nil."},{"id":"b","text":"Weak read: Mini\nWeak read after: none\nSpeaker Mini freed","explanation":"Speaker Mini deallocates as soon as s = nil, before the second print."},{"id":"c","text":"Speaker Mini freed\nWeak read: Mini\nWeak read after: none","explanation":"The instance is alive for the first read and does not deallocate early."},{"id":"d","text":"Weak read: Mini\nWeak read after: Mini","explanation":"ref becomes nil when s becomes nil because ref is a weak reference."}],"answer":"a"},{"id":"strong-weak-unowned-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class TaskItem {\n    let title: String\n    init(title: String) { self.title = title }\n    deinit { print(\"Task \\(title) done\") }\n}\n\nclass Project {\n    unowned let task: TaskItem\n    init(task: TaskItem) { self.task = task }\n}\n\nvar item: TaskItem? = TaskItem(title: \"Design\")\nvar proj: Project? = Project(task: item!)\nprint(\"Task in project: \\(proj?.task.title ?? \"\")\")\nproj = nil\nitem = nil","options":[{"id":"a","text":"Task in project: Design\nFatal error: Attempted to read an unowned reference","explanation":"The unowned reference is not accessed after item is freed."},{"id":"b","text":"Task in project: Design\nTask Design done","explanation":"Right. proj is cleared first, then item deallocates cleanly."},{"id":"c","text":"Task Design done\nTask in project: Design","explanation":"The task is deallocated only after both references are released."},{"id":"d","text":"Task in project: Design","explanation":"Deinit prints when item is set to nil."}],"answer":"b"},{"id":"strong-weak-unowned-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Element {\n    let tag: String\n    init(tag: String) { self.tag = tag }\n    deinit { print(\"Element \\(tag) freed\") }\n}\n\nvar e1: Element? = Element(tag: \"button\")\nvar e2 = e1\nweak var w = e1\ne1 = nil\nprint(\"After e1 nil: \\(w?.tag ?? \"nil\")\")\ne2 = nil\nprint(\"After e2 nil: \\(w?.tag ?? \"nil\")\")","options":[{"id":"a","text":"After e1 nil: nil\nElement button freed\nAfter e2 nil: nil","explanation":"e2 still holds a strong reference after e1 is set to nil."},{"id":"b","text":"After e1 nil: button\nAfter e2 nil: button","explanation":"When e2 is nil, the object is deallocated and w becomes nil."},{"id":"c","text":"After e1 nil: button\nElement button freed\nAfter e2 nil: nil","explanation":"Right. e2 keeps the instance alive until e2 = nil, which zeroes w."},{"id":"d","text":"Element button freed\nAfter e1 nil: button\nAfter e2 nil: nil","explanation":"The element is not freed before e1 is set to nil."}],"answer":"c"},{"id":"strong-weak-unowned-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Job {\n    var title = \"Engineer\"\n    deinit { print(\"Job freed\") }\n}\n\nvar job: Job? = Job()\nweak var w1 = job\nweak var w2 = job\nprint(\"Counts check\")\njob = nil\nprint(\"w1 is nil: \\(w1 == nil), w2 is nil: \\(w2 == nil)\")","options":[{"id":"a","text":"Counts check\nw1 is nil: false, w2 is nil: false\nJob freed","explanation":"Job is freed when job is set to nil, zeroing both weak references."},{"id":"b","text":"Job freed\nCounts check\nw1 is nil: true, w2 is nil: true","explanation":"Counts check is printed before job is set to nil."},{"id":"c","text":"Counts check\nw1 is nil: true, w2 is nil: false\nJob freed","explanation":"Both weak references are zeroed simultaneously by ARC."},{"id":"d","text":"Counts check\nJob freed\nw1 is nil: true, w2 is nil: true","explanation":"Right. Setting job to nil frees the object and zeroes all weak references."}],"answer":"d"},{"id":"strong-weak-unowned-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Owner {\n    let name: String\n    init(name: String) { self.name = name }\n    deinit { print(\"Owner \\(name) gone\") }\n}\n\nclass Dog {\n    let name: String\n    weak var owner: Owner?\n    init(name: String) { self.name = name }\n    deinit { print(\"Dog \\(name) gone\") }\n}\n\nvar d: Dog? = Dog(name: \"Rover\")\nvar o: Owner? = Owner(name: \"Sam\")\nd?.owner = o\no = nil\nprint(\"Owner is \\(d?.owner?.name ?? \"none\")\")\nd = nil","options":[{"id":"a","text":"Owner Sam gone\nOwner is none\nDog Rover gone","explanation":"Right. o is freed, d.owner becomes nil, and finally d deallocates."},{"id":"b","text":"Owner is Sam\nOwner Sam gone\nDog Rover gone","explanation":"o = nil runs before printing, so owner reads as none."},{"id":"c","text":"Dog Rover gone\nOwner Sam gone\nOwner is none","explanation":"d is deallocated on the final line, not before."},{"id":"d","text":"Owner is none\nOwner Sam gone\nDog Rover gone","explanation":"Owner Sam deallocates immediately when o is set to nil."}],"answer":"a"},{"id":"strong-weak-unowned-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Order {\n    let id: Int\n    init(id: Int) { self.id = id }\n    deinit { print(\"Order \\(id) released\") }\n}\n\nvar order: Order? = Order(id: 101)\nvar copy = order\nweak var weakOrder = order\norder = nil\nprint(\"Holding: \\(copy?.id ?? 0)\")\nprint(\"Weak is nil: \\(weakOrder == nil)\")\ncopy = nil","options":[{"id":"a","text":"Holding: 101\nWeak is nil: true\nOrder 101 released","explanation":"copy maintains a strong reference, so weakOrder is not nil yet."},{"id":"b","text":"Holding: 101\nWeak is nil: false\nOrder 101 released","explanation":"Right. copy keeps the instance alive until copy = nil at the end."},{"id":"c","text":"Order 101 released\nHolding: 0\nWeak is nil: true","explanation":"The order is kept alive by copy and does not deallocate early."},{"id":"d","text":"Holding: 101\nWeak is nil: false","explanation":"Setting copy to nil frees the object and prints the deinit message."}],"answer":"b"},{"id":"strong-weak-unowned-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Passport {\n    let code: String\n    unowned let citizen: Citizen\n    init(code: String, citizen: Citizen) {\n        self.code = code\n        self.citizen = citizen\n    }\n    deinit { print(\"Passport \\(code) revoked\") }\n}\n\nclass Citizen {\n    let name: String\n    var passport: Passport?\n    init(name: String) { self.name = name }\n    deinit { print(\"Citizen \\(name) passed\") }\n}\n\nvar c: Citizen? = Citizen(name: \"Maria\")\nc?.passport = Passport(code: \"US123\", citizen: c!)\nprint(\"Citizen has passport: \\(c?.passport?.code ?? \"\")\")\nc = nil","options":[{"id":"a","text":"Citizen has passport: US123\nPassport US123 revoked\nCitizen Maria passed","explanation":"Maria is released first, cascading deallocation to Passport."},{"id":"b","text":"Citizen has passport: US123\nFatal error: Attempted to read an unowned reference","explanation":"There are no invalid accesses after deallocation."},{"id":"c","text":"Citizen has passport: US123\nCitizen Maria passed\nPassport US123 revoked","explanation":"Right. c = nil deallocates Citizen Maria, which releases Passport US123."},{"id":"d","text":"Citizen has passport: US123","explanation":"Both deinitializers run and print when c becomes nil."}],"answer":"c"},{"id":"strong-weak-unowned-q24","type":"written","difficulty":1,"prompt":"Why must weak references in Swift always be declared as variables (`var`) and optionals? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that ARC automatically changes weak references to nil when the referenced instance deallocates.","weight":50,"key":true},{"criterion":"Explains that mutability (var) is required because the value changes during runtime.","weight":30,"key":true},{"criterion":"Mentions that optionality is required because nil indicates the absence of an object.","weight":20}],"modelAnswer":"Weak references must be declared as `var` because ARC mutates them to `nil` whenever the referenced instance is deallocated. A constant `let` cannot be changed after initialization. They must also have an optional type because they start or become `nil` when the target is freed."},{"id":"strong-weak-unowned-q25","type":"written","difficulty":2,"prompt":"What happens when code attempts to access an unowned reference whose target has already been deallocated? Answer in 2 to 4 sentences.","rubric":[{"criterion":"States that accessing a deallocated unowned reference results in a runtime crash or fatal error.","weight":50,"key":true},{"criterion":"Explains that unlike weak references, unowned references are not zeroed out by ARC.","weight":30,"key":true},{"criterion":"Mentions unowned(safe) assertion check behavior in Swift.","weight":20}],"modelAnswer":"Accessing an unowned reference after its target has deallocated causes a runtime crash with a fatal error. Unlike weak references, ARC does not set unowned references to `nil`. In Swift, `unowned(safe)` verifies that the target is still alive and traps immediately if it has been freed."},{"id":"strong-weak-unowned-q26","type":"written","difficulty":2,"prompt":"What practical rule helps you decide whether to use a weak or an unowned reference? Answer in 2 to 4 sentences.","rubric":[{"criterion":"States that weak should be used when the referenced instance has a shorter lifetime or can become nil.","weight":50,"key":true},{"criterion":"States that unowned should be used when the referenced instance has the same or longer lifetime.","weight":30,"key":true},{"criterion":"Notes that weak is safer for asynchronous tasks and delegate patterns.","weight":20}],"modelAnswer":"Use a weak reference whenever the referenced object can become nil or has a shorter lifetime than the referencing object. Use an unowned reference only when both objects have the exact same lifetime or the target is guaranteed to outlive the reference. For asynchronous callbacks and delegates, weak is generally safer to avoid runtime crashes."},{"id":"strong-weak-unowned-q27","type":"written","difficulty":2,"prompt":"Why are delegate properties in iOS UIKit and SwiftUI coordinator patterns declared as weak? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that the parent object usually holds a strong reference to the child or service.","weight":50,"key":true},{"criterion":"Explains that a strong delegate reference creates a bidirectional retain cycle.","weight":30,"key":true},{"criterion":"Mentions that marking the delegate weak breaks the cycle and allows clean deallocation.","weight":20}],"modelAnswer":"Delegates are marked `weak` to prevent retain cycles between objects. Typically, a view controller holds a strong reference to a subview or helper service. If that helper also holds a strong reference back to the view controller via its delegate, neither can ever be deallocated."},{"id":"strong-weak-unowned-q28","type":"written","difficulty":3,"prompt":"How does Swift manage weak reference zeroing at runtime without corrupting memory? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that Swift runtime uses side tables to store weak reference counts.","weight":50,"key":true},{"criterion":"Notes that the object payload is deallocated when strong count hits zero while the side table persists until weak references are resolved.","weight":30,"key":true},{"criterion":"States that reading a weak reference to a deallocated instance automatically yields nil.","weight":20}],"modelAnswer":"The Swift runtime manages weak references using side tables allocated separately from the object payload. When the strong reference count drops to zero, the object deinitializes and frees its stored properties. The side table remains alive to safely direct any remaining weak pointers to nil, preventing memory corruption."},{"id":"strong-weak-unowned-q29","type":"code-write","difficulty":2,"prompt":"Write a class `Profile` with `name: String` and a class `Subscription` with a `weak var user: Profile?`. Create an optional `Profile` named `\"Taylor\"`, initialize `Subscription`, and print `\"Before: \\(sub.user?.name ?? \"none\")\"`. Set profile to `nil`, and print `\"After: \\(sub.user?.name ?? \"none\")\"`.","starterCode":null,"modelAnswer":"class Profile {\n    let name: String\n    init(name: String) {\n        self.name = name\n    }\n    deinit {\n        print(\"Profile \\(name) freed\")\n    }\n}\n\nclass Subscription {\n    weak var user: Profile?\n    init(user: Profile?) {\n        self.user = user\n    }\n}\n\nvar p: Profile? = Profile(name: \"Taylor\")\nlet sub = Subscription(user: p)\nprint(\"Before: \\(sub.user?.name ?? \"none\")\")\np = nil\nprint(\"After: \\(sub.user?.name ?? \"none\")\")","rubric":[{"criterion":"Declares Subscription with weak var user: Profile? property.","weight":40,"key":true},{"criterion":"Declares Profile class with name property and deinit.","weight":30,"key":true},{"criterion":"Demonstrates automatic nil zeroing after setting strong reference to nil.","weight":30}]},{"id":"strong-weak-unowned-q30","type":"code-write","difficulty":2,"prompt":"Write a class `Author` with `name: String` and `var book: Book?`. Write a class `Book` with `title: String` and `unowned let author: Author`. Create an author named `\"Jane\"` with a book named `\"Novel\"`. Print `\"Author has book: \\(author?.book?.title ?? \"\")\"`. Set `author = nil` and print `\"Finished author test\"`.","starterCode":null,"modelAnswer":"class Author {\n    let name: String\n    var book: Book?\n    init(name: String) {\n        self.name = name\n    }\n    deinit {\n        print(\"Author \\(name) deallocated\")\n    }\n}\n\nclass Book {\n    let title: String\n    unowned let author: Author\n    init(title: String, author: Author) {\n        self.title = title\n        self.author = author\n    }\n    deinit {\n        print(\"Book \\(title) deallocated\")\n    }\n}\n\nvar author: Author? = Author(name: \"Jane\")\nauthor?.book = Book(title: \"Novel\", author: author!)\nprint(\"Author has book: \\(author?.book?.title ?? \"\")\")\nauthor = nil\nprint(\"Finished author test\")","rubric":[{"criterion":"Declares Book with unowned let author: Author reference.","weight":40,"key":true},{"criterion":"Declares Author with optional book property and deinitializers on both classes.","weight":30,"key":true},{"criterion":"Demonstrates cascading deallocation of both instances without a retain cycle.","weight":30}]},{"id":"strong-weak-unowned-q31","type":"code-write","difficulty":2,"prompt":"Create a protocol `TaskDelegate: AnyObject` with `func taskDidFinish()`. Write a class `TaskRunner` with `weak var delegate: TaskDelegate?` and `func complete() { delegate?.taskDidFinish() }`. Write a class `Coordinator: TaskDelegate`. Assign coordinator to runner, call `complete()`, set coordinator to `nil`, and print `\"Delegate after nil: \\(runner.delegate == nil)\"`.","starterCode":null,"modelAnswer":"protocol TaskDelegate: AnyObject {\n    func taskDidFinish()\n}\n\nclass TaskRunner {\n    weak var delegate: TaskDelegate?\n    func complete() {\n        delegate?.taskDidFinish()\n    }\n}\n\nclass Coordinator: TaskDelegate {\n    func taskDidFinish() {\n        print(\"Task finished callback received\")\n    }\n    deinit {\n        print(\"Coordinator deallocated\")\n    }\n}\n\nlet runner = TaskRunner()\nvar coordinator: Coordinator? = Coordinator()\nrunner.delegate = coordinator\nrunner.complete()\ncoordinator = nil\nprint(\"Delegate after nil: \\(runner.delegate == nil)\")","rubric":[{"criterion":"Defines class-bound protocol TaskDelegate using AnyObject constraint.","weight":30,"key":true},{"criterion":"Declares TaskRunner with weak var delegate property.","weight":40,"key":true},{"criterion":"Demonstrates assigning delegate, calling callback, and confirming weak delegate becomes nil.","weight":30}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

@@ -124,8 +124,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **matrix-problems** (Matrix Problems) — published (lesson, diagram, 31 questions) → [docs/topics/matrix-problems/review.html](docs/topics/matrix-problems/review.html)
   - 🔄 **Batch 2C: Memory & Concurrency (6 topics)**
     - ✅ **arc-basics** (How ARC Works) — published (lesson, diagram, 31 questions) → [docs/topics/arc-basics/review.html](docs/topics/arc-basics/review.html)
-    - 🔄 **strong-weak-unowned** (Strong, Weak and Unowned) — starting research
-    - ⬜ **retain-cycles** (Retain Cycles)
+    - ✅ **strong-weak-unowned** (Strong, Weak and Unowned) — published (lesson, diagram, 31 questions) → [docs/topics/strong-weak-unowned/review.html](docs/topics/strong-weak-unowned/review.html)
+    - 🔄 **retain-cycles** (Retain Cycles) — starting research
     - ⬜ **main-thread** (The Main Thread)
     - ⬜ **gcd-basics** (GCD Basics)
     - ⬜ **async-await** (async/await)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic strong-weak-unowned (Strong, Weak and Unowned): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/strong-weak-unowned/review.html`). All checks passed. Starting retain-cycles.
 
 - **2026-11-09** — Built and published topic arc-basics (How ARC Works): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/arc-basics/review.html`). All checks passed. Starting strong-weak-unowned.
 
