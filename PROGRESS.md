@@ -165,7 +165,14 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **key-paths** (Key Paths) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/key-paths/review.html](docs/topics/key-paths/review.html)
     - ✅ **property-wrappers** (Property Wrappers) — published (lesson, diagram, 31 questions) → [docs/topics/property-wrappers/review.html](docs/topics/property-wrappers/review.html)
     - ✅ **result-builders** (Result Builders) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/result-builders/review.html](docs/topics/result-builders/review.html)
-  - ⬜ **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)**
+  - 🔄 **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)**
+    - 🔄 **trees-bfs-dfs** (Trees: BFS and DFS) — starting research
+    - ⬜ **graphs** (Graphs)
+    - ⬜ **heaps** (Heaps)
+    - ⬜ **tries** (Tries) [bonus]
+    - ⬜ **intervals** (Intervals)
+    - ⬜ **dynamic-programming** (Dynamic Programming) [bonus]
+    - ⬜ **bits-math-geometry** (Bits, Math and Geometry) [bonus]
   - ⬜ **Batch 3C: Memory Profiling & Swift Concurrency (8 topics: 1 memory + 7 concurrency)**
   - ⬜ **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)**
   - ⬜ **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
@@ -321,6 +328,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Completed Batch 3A (Swift Language Deep Dive: 7 topics published). Starting Batch 3B (Advanced Algorithms & Data Structures: 7 topics: `trees-bfs-dfs` through `bits-math-geometry`). Launching dedicated autonomous subagent.
 
 - **2026-11-09** — Completed Batch 3A (Swift Language Deep Dive: all 7 topics published and committed). Mid level progress is now 7 of 53 published (74 total published topics across curriculum: 22 Fresh, 45 Junior, 7 Mid).
 
