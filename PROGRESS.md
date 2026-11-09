@@ -122,8 +122,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **linked-lists** (Linked Lists) — published (lesson, diagram, 31 questions) → [docs/topics/linked-lists/review.html](docs/topics/linked-lists/review.html)
     - ✅ **recursion** (Recursion) — published (lesson, diagram, 31 questions) → [docs/topics/recursion/review.html](docs/topics/recursion/review.html)
     - ✅ **matrix-problems** (Matrix Problems) — published (lesson, diagram, 31 questions) → [docs/topics/matrix-problems/review.html](docs/topics/matrix-problems/review.html)
-  - ⬜ **Batch 2C: Memory & Concurrency (6 topics)**
-    - ⬜ **arc-basics** (How ARC Works)
+  - 🔄 **Batch 2C: Memory & Concurrency (6 topics)**
+    - 🔄 **arc-basics** (How ARC Works) — starting research
     - ⬜ **strong-weak-unowned** (Strong, Weak and Unowned)
     - ⬜ **retain-cycles** (Retain Cycles)
     - ⬜ **main-thread** (The Main Thread)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Completed Batch 2B (Coding Interview Algorithms: 6 topics published and committed). Launching dedicated autonomous subagent for Batch 2C (Memory & Concurrency: 6 topics, `arc-basics` through `async-await`).
 
 - **2026-11-09** — Built and published topic matrix-problems (Matrix Problems): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/matrix-problems/review.html`). All checks passed. Batch 2B (Coding Interview Algorithms - 6 topics) is now 100% complete and published!
 
