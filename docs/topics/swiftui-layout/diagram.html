@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI Stacks and Layout Negotiation</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --vstack-color: #0284c7; --vstack-soft: #e0f2fe;
+  --hstack-color: #7c3aed; --hstack-soft: #ede9fe;
+  --spacer-color: #d97706; --spacer-soft: #fef3c7;
+  --zstack-color: #0c765c; --zstack-soft: #dcf2ea;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --vstack-color: #38bdf8; --vstack-soft: #082f49;
+  --hstack-color: #a78bfa; --hstack-soft: #2e1065;
+  --spacer-color: #fbbf24; --spacer-soft: #451a03;
+  --zstack-color: #45cfa3; --zstack-soft: #13362c;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-elem { rx: 6px; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+
+  <div class="interactive-diagram">
+    <div class="panels">
+      <!-- Left Panel: SVG Layout Visualization -->
+      <div class="panel">
+        <h3>
+          <span id="vis-title">1. Vertical Stacking: VStack</span>
+          <span class="kind" id="vis-tag" style="background:var(--vstack-soft);color:var(--vstack-color);">VStack</span>
+        </h3>
+        
+        <svg viewBox="0 0 340 220" role="img" aria-label="SwiftUI Stacks Animation">
+          <!-- Canvas Container / Screen Boundary -->
+          <rect x="20" y="20" width="300" height="170" rx="10" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+          <text x="35" y="42" font-family="var(--font-body)" font-size="11" font-weight="600" fill="var(--muted)">Row Container (Width 300)</text>
+
+          <!-- Avatar Group (ZStack) -->
+          <g id="grp-avatar" transform="translate(35, 65)">
+            <circle id="c-avatar" cx="24" cy="24" r="22" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+            <text id="t-avatar" x="24" y="28" font-family="var(--font-body)" font-size="10" font-weight="600" fill="var(--muted)" text-anchor="middle">Avatar</text>
+            <!-- Badge Overlay in Step 4 -->
+            <circle id="c-badge" cx="38" cy="38" r="7" fill="none" stroke="none"/>
+          </g>
+
+          <!-- Text Details Column (VStack) -->
+          <g id="grp-text" transform="translate(95, 62)">
+            <rect id="rect-title" x="0" y="0" width="110" height="20" class="box-elem" fill="var(--vstack-soft)" stroke="var(--vstack-color)" stroke-width="1.5"/>
+            <text id="txt-title" x="10" y="14" font-family="var(--font-body)" font-size="11" font-weight="700" fill="var(--ink)">Jane Doe</text>
+
+            <rect id="rect-sub" x="0" y="25" width="130" height="18" class="box-elem" fill="var(--vstack-soft)" stroke="var(--vstack-color)" stroke-width="1.5"/>
+            <text id="txt-sub" x="10" y="38" font-family="var(--font-body)" font-size="10" font-weight="500" fill="var(--muted)">iOS Engineer</text>
+          </g>
+
+          <!-- Spacer Axis Expansion Indicator -->
+          <g id="grp-spacer" transform="translate(235, 75)" opacity="0">
+            <path d="M 0 10 L 40 10" stroke="var(--spacer-color)" stroke-width="2" stroke-dasharray="4 2"/>
+            <text x="20" y="6" font-family="var(--font-code)" font-size="9" font-weight="700" fill="var(--spacer-color)" text-anchor="middle">Spacer</text>
+          </g>
+
+          <!-- Action Button -->
+          <g id="grp-btn" transform="translate(230, 68)">
+            <rect id="rect-btn" x="0" y="0" width="70" height="34" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+            <text id="txt-btn" x="35" y="21" font-family="var(--font-body)" font-size="11" font-weight="600" fill="var(--muted)" text-anchor="middle">Follow</text>
+          </g>
+        </svg>
+
+        <p class="caption" id="vis-desc">VStack stacks Jane Doe and iOS Engineer vertically with 5pt spacing along the Y-axis.</p>
+      </div>
+
+      <!-- Right Panel: Code & Operation Details -->
+      <div class="panel">
+        <h3>
+          <span id="right-title">Vertical Stack</span>
+          <span class="kind" id="right-tag" style="background:var(--code-bg);color:var(--muted);">Axis: Y</span>
+        </h3>
+        <div class="code" id="right-code">VStack(alignment: .leading, spacing: 5) {
+    Text("Jane Doe").bold()
+    Text("iOS Engineer")
+}</div>
+        <p class="caption" id="right-desc">VStack arranges children top-to-bottom. Alignment aligns children along the horizontal cross axis.</p>
+        <div class="metrics">
+          <div class="metric-col"><span>Container</span><strong id="m-cont">VStack</strong></div>
+          <div class="metric-col"><span>Primary Axis</span><strong id="m-axis">Vertical</strong></div>
+          <div class="metric-col"><span>Spacer</span><strong id="m-spacer">None</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1: VStack" onclick="goToStep(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2: HStack" onclick="goToStep(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3: Spacer" onclick="goToStep(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4: ZStack" onclick="goToStep(3)"></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()" aria-label="Next step">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-Motion Static Fallback -->
+  <div class="static-fallback" aria-label="Static explanation of SwiftUI stack layouts">
+    <div class="comp-card" style="border-left: 4px solid var(--vstack-color);">
+      <h4>Step 1: VStack</h4>
+      <p>Arranges views top-to-bottom along the Y-axis with customizable spacing and cross-axis alignment.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--hstack-color);">
+      <h4>Step 2: HStack</h4>
+      <p>Arranges elements horizontally side-by-side along the X-axis.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--spacer-color);">
+      <h4>Step 3: Spacer</h4>
+      <p>Expands to absorb all empty space along the stack's primary axis, pushing items to outer boundaries.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--zstack-color);">
+      <h4>Step 4: ZStack</h4>
+      <p>Layers views along the Z-axis (back-to-front), ideal for badges and overlays.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    visTitle: "1. Vertical Stacking: VStack",
+    visTag: "VStack",
+    visDesc: "VStack stacks Jane Doe and iOS Engineer vertically with 5pt spacing along the Y-axis.",
+    showAvatar: false,
+    showSpacer: false,
+    showBtn: false,
+    showBadge: false,
+    btnX: 230,
+    rightTitle: "Vertical Stack",
+    rightTag: "Axis: Y",
+    rightCode: "VStack(alignment: .leading, spacing: 5) {\n    Text(\"Jane Doe\").bold()\n    Text(\"iOS Engineer\")\n}",
+    rightDesc: "VStack arranges children top-to-bottom. Alignment aligns children along the horizontal cross axis.",
+    mCont: "VStack",
+    mAxis: "Vertical",
+    mSpacer: "None"
+  },
+  {
+    visTitle: "2. Horizontal Row: HStack",
+    visTag: "HStack",
+    visDesc: "HStack places the avatar circle and the text VStack side-by-side horizontally.",
+    showAvatar: true,
+    showSpacer: false,
+    showBtn: true,
+    showBadge: false,
+    btnX: 215,
+    rightTitle: "Horizontal Stack",
+    rightTag: "Axis: X",
+    rightCode: "HStack(spacing: 12) {\n    AvatarView()\n    VStack { ... }\n    Button(\"Follow\")\n}",
+    rightDesc: "HStack arranges children horizontally along the X-axis with default or explicit spacing.",
+    mCont: "HStack",
+    mAxis: "Horizontal",
+    mSpacer: "None"
+  },
+  {
+    visTitle: "3. Expanding with Spacer",
+    visTag: "Spacer()",
+    visDesc: "Spacer expands to absorb all remaining width, pushing the follow button to the far right edge.",
+    showAvatar: true,
+    showSpacer: true,
+    showBtn: true,
+    showBadge: false,
+    btnX: 240,
+    rightTitle: "Flexible Spacing",
+    rightTag: "Greedy View",
+    rightCode: "HStack {\n    AvatarView()\n    VStack { ... }\n    Spacer() // expands fully\n    Button(\"Follow\")\n}",
+    rightDesc: "Spacer consumes all remaining available space along the stack primary axis.",
+    mCont: "HStack + Spacer",
+    mAxis: "Horizontal",
+    mSpacer: "Active"
+  },
+  {
+    visTitle: "4. Depth Layering: ZStack",
+    visTag: "ZStack",
+    visDesc: "ZStack layers an active green badge over the avatar circle in the corner (back-to-front).",
+    showAvatar: true,
+    showSpacer: true,
+    showBtn: true,
+    showBadge: true,
+    btnX: 240,
+    rightTitle: "Depth Stacking",
+    rightTag: "Axis: Z",
+    rightCode: "ZStack(alignment: .bottomTrailing) {\n    AvatarCircle()\n    OnlineBadge() // layers on top\n}",
+    rightDesc: "ZStack layers views along the Z-axis. Earlier views sit behind; later views sit in front.",
+    mCont: "ZStack",
+    mAxis: "Depth (Z)",
+    mSpacer: "Active"
+  }
+];
+
+let curStep = 0;
+
+function updateDiagram() {
+  const s = steps[curStep];
+  
+  document.getElementById("vis-title").textContent = s.visTitle;
+  document.getElementById("vis-tag").textContent = s.visTag;
+  document.getElementById("vis-desc").textContent = s.visDesc;
+
+  // Avatar group
+  const grpAvatar = document.getElementById("grp-avatar");
+  grpAvatar.style.opacity = s.showAvatar ? "1" : "0.2";
+  document.getElementById("c-avatar").setAttribute("stroke", s.showAvatar ? "var(--hstack-color)" : "var(--line)");
+
+  // Badge overlay
+  const badge = document.getElementById("c-badge");
+  if (s.showBadge) {
+    badge.setAttribute("fill", "var(--zstack-color)");
+    badge.setAttribute("stroke", "var(--surface)");
+    badge.setAttribute("stroke-width", "2");
+  } else {
+    badge.setAttribute("fill", "none");
+    badge.setAttribute("stroke", "none");
+  }
+
+  // Spacer
+  const grpSpacer = document.getElementById("grp-spacer");
+  grpSpacer.style.opacity = s.showSpacer ? "1" : "0";
+
+  // Button
+  const grpBtn = document.getElementById("grp-btn");
+  grpBtn.style.opacity = s.showBtn ? "1" : "0.2";
+  grpBtn.setAttribute("transform", "translate(" + s.btnX + ", 68)");
+  document.getElementById("rect-btn").setAttribute("stroke", s.showBtn ? "var(--vstack-color)" : "var(--line)");
+  document.getElementById("txt-btn").setAttribute("fill", s.showBtn ? "var(--vstack-color)" : "var(--muted)");
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+  document.getElementById("m-cont").textContent = s.mCont;
+  document.getElementById("m-axis").textContent = s.mAxis;
+  document.getElementById("m-spacer").textContent = s.mSpacer;
+
+  const dots = document.querySelectorAll(".steps-dots .dot");
+  dots.forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = (curStep === 0);
+  document.getElementById("btn-next").disabled = (curStep === steps.length - 1);
+}
+
+function prevStep() { if (curStep > 0) { curStep--; updateDiagram(); } }
+function nextStep() { if (curStep < steps.length - 1) { curStep++; updateDiagram(); } }
+function goToStep(i) { curStep = i; updateDiagram(); }
+</script>
+
+</body>
+</html>

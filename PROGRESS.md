@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 5 remaining topics (17 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 4 remaining topics (18 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -98,7 +98,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **hash-tables** (Hash Tables) — published (lesson, diagram, 31 questions) → [docs/topics/hash-tables/review.html](docs/topics/hash-tables/review.html)
   - 🔄 **Batch 1D: SwiftUI Basics (5 topics: `swiftui-views-modifiers` → `swiftui-navigation`)**
     - ✅ **swiftui-views-modifiers** (Views and Modifiers) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-views-modifiers/review.html](docs/topics/swiftui-views-modifiers/review.html)
-    - 🔄 **swiftui-layout** (Stacks and Layout) — starting research
+    - ✅ **swiftui-layout** (Stacks and Layout) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-layout/review.html](docs/topics/swiftui-layout/review.html)
+    - 🔄 **state-and-binding** (@State and @Binding) — starting research
     - ⬜ **swiftui-layout** (Stacks and Layout)
     - ⬜ **state-and-binding** (@State and @Binding)
     - ⬜ **swiftui-lists** (Lists and ForEach)
@@ -226,6 +227,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic swiftui-layout (Stacks and Layout): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swiftui-layout/review.html`). All checks passed. Starting state-and-binding.
 
 - **2026-11-09** — Step 5.2 done: Content & Store Layer built. Zod schemas for levels, units, rules, topics, and questions; content loaders and path road builder; Shiki syntax highlighter; versioned Zustand progress store with sequential migrations, partialize, and SSR-safe hydration; 23 Vitest unit tests verifying 100% of product rules (pass marks, skip tests, score calculation, option shuffling, store resilience). Verified with clean build and passing tests. Starting Step 5.3: Welcome & Level Picker screens.
 

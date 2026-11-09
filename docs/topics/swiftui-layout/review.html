@@ -1,0 +1,616 @@
+<title>Stacks and Layout Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --vstack-color: #0284c7; --vstack-soft: #e0f2fe;
+  --hstack-color: #7c3aed; --hstack-soft: #ede9fe;
+  --spacer-color: #d97706; --spacer-soft: #fef3c7;
+  --zstack-color: #0c765c; --zstack-soft: #dcf2ea;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --vstack-color: #38bdf8; --vstack-soft: #082f49;
+  --hstack-color: #a78bfa; --hstack-soft: #2e1065;
+  --spacer-color: #fbbf24; --spacer-soft: #451a03;
+  --zstack-color: #45cfa3; --zstack-soft: #13362c;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-elem { rx: 6px; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Fresh · SwiftUI · Topic 2 of 5 · Prototype</p>
+    <h1>Stacks and Layout</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can place views with stacks, spacing and alignment.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Can a parent view in SwiftUI force a child view to have a specific size?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, parent constraints always override child sizes completely.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, the parent proposes a size, but the child always decides its own final size.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Only when views are embedded inside an HStack or a VStack.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine a tailor offering clothes to a customer.</p><p>The tailor offers a coat of a certain size. The customer tries on the coat and decides whether it fits. Finally, the tailor positions the coat onto the customer shoulders.</p><p>In SwiftUI, the parent view is the tailor, and the child view is the customer. The parent proposes, but the child decides.</p></aside>
+<p>SwiftUI builds layouts using a clear <strong>three-step negotiation process</strong>:</p>
+<ol>
+<li><strong>Step 1: Parent Proposes a Size</strong>:
+<ul>
+<li>The parent view offers an available width and height to its child view.</li>
+</ul>
+</li>
+<li><strong>Step 2: Child Chooses Its Size</strong>:
+<ul>
+<li>The child inspects its own content, images, or constraints.</li>
+<li>The child tells the parent its final chosen size.</li>
+<li>A parent cannot force a size on a child against its will.</li>
+</ul>
+</li>
+<li><strong>Step 3: Parent Positions the Child</strong>:
+<ul>
+<li>The parent places the child inside its coordinate space.</li>
+</ul>
+</li>
+</ol>
+<p>To compose layouts, SwiftUI provides three fundamental stack containers:</p>
+<ul>
+<li><strong><code>VStack</code></strong>: Arranges views vertically from top to bottom.</li>
+<li><strong><code>HStack</code></strong>: Arranges views horizontally from left to right.</li>
+<li><strong><code>ZStack</code></strong>: Layers views on top of each other from back to front.</li>
+</ul>
+<p>You can also use a <strong><code>Spacer</code></strong> view. A <code>Spacer</code> is a flexible view that expands to consume all empty space along the primary axis of a stack.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">How does a Spacer behave inside an HStack?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It expands vertically to fill all available screen height.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It expands horizontally to push neighboring views apart.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It maintains a fixed width of fifty points on all devices.</span></button><p class="qc-explain" hidden="">A Spacer expands along the primary axis of its stack. In an HStack, it expands horizontally.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Arranging profile elements with HStack and VStack</figcaption><pre class="block swift"><code class="language-swift">import SwiftUI
+
+struct ProfileRow: View {
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Color.blue
+                .frame(width: 40, height: 40)
+                .cornerRadius(20)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(&quot;Jane Doe&quot;)
+                    .bold()
+                Text(&quot;Software Engineer&quot;)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Text(&quot;Follow&quot;)
+                .foregroundColor(.blue)
+        }
+    }
+}
+
+let row = ProfileRow()
+print(&quot;ProfileRow initialized: \(type(of: row))&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">ProfileRow initialized: ProfileRow
+</code></pre></figure>
+<p>In this example, the <code>HStack</code> lays out the circular avatar, the details column, and the follow button.</p>
+<p>The <code>VStack</code> aligns the name and role to the <code>.leading</code> edge. The <code>Spacer</code> expands horizontally, pushing the follow button to the far right.</p>
+<figure class="code-example"><figcaption>Layering views back-to-front with ZStack</figcaption><pre class="block swift"><code class="language-swift">import SwiftUI
+
+struct CardOverlay: View {
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            Color.purple
+                .frame(width: 200, height: 120)
+                .cornerRadius(12)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(&quot;Featured Item&quot;)
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.8))
+                Text(&quot;SwiftUI Mastery&quot;)
+                    .foregroundColor(.white)
+                    .bold()
+            }
+            .padding(12)
+        }
+    }
+}
+
+let card = CardOverlay()
+print(&quot;CardOverlay initialized: \(type(of: card))&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">CardOverlay initialized: CardOverlay
+</code></pre></figure>
+<p><code>ZStack</code> draws its children in order from back to front.</p>
+<p>The purple <code>Color</code> sits at the back. The <code>VStack</code> with text labels renders on top, aligned to the bottom-leading corner.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens if you omit the spacing parameter in a VStack?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The stack sets the spacing between all children to exactly zero points.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">SwiftUI applies an adaptive platform default spacing between child views.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The compiler rejects the view with an argument missing error.</span></button><p class="qc-explain" hidden="">When spacing is nil or omitted, SwiftUI applies system HIG default margins automatically.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming .frame() clips child content automatically</p><p>Applying <code>.frame(width: 50, height: 50)</code> on a view does not clip content that overflows the frame.</p><p>The frame defines proposed dimensions and layout boundaries. Any text or graphics larger than the frame will bleed outside.</p><p>To cut off overflowing graphics, always chain the <code>.clipped()</code> modifier right after the frame.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Expecting Spacer to have a fixed size</p><p>A <code>Spacer</code> is greedy. It will expand to consume all available remaining space along its stack axis.</p><p>If an interview task asks for a fixed gap between two views, do not use an empty <code>Spacer</code>.</p><p>Use the <code>spacing</code> parameter on the stack, or apply <code>.padding()</code> to create exact point distances.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Misunderstanding ZStack drawing order</p><p>In a <code>ZStack</code>, views declared earlier appear behind views declared later.</p><p>If you place an interactive button first and a solid background color second, the color covers the button completely.</p><p>Always declare background layers first and foreground content last.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing frame alignment with stack alignment</p><p>Stack alignment positions children relative to each other along the cross axis.</p><p>Frame alignment positions a child within the bounds of its own proposed container box.</p><p>Confusing the two leads to unexpected view positions when building custom layouts.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;SwiftUI layout follows a three-step process: the parent proposes a size, the child determines its own final size, and the parent positions the child. To place views, we use stacks: <code>VStack</code> for vertical layouts, <code>HStack</code> for horizontal layouts, and <code>ZStack</code> for layering views back to front. A <code>Spacer</code> expands along the stack axis to push neighboring views apart.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;SwiftUI avoids layout loops by guaranteeing a single layout pass. In an <code>HStack</code> or <code>VStack</code>, SwiftUI divides space by offering it to the least flexible children first. Once unconstrained views take their required size, remaining space is offered to flexible views like <code>Spacer</code> or flexible text. We can influence this space distribution using <code>.layoutPriority(_:)</code>, which allocates space to high-priority children first.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;Unlike UIKit Auto Layout, which resolves systems of linear equality and inequality equations via the Cassowary solver, SwiftUI uses a purely functional layout tree. Sizing proposals flow downward, and resolved sizes flow upward in $O(n)$ linear time. When building complex responsive screens, we combine stacks with <code>.frame(maxWidth: .infinity)</code> and custom alignment guides. For multi-element grids requiring cross-axis geometry synchronization, we implement custom layout engines conforming to the <code>Layout</code> protocol.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>SwiftUI layout has 3 steps: parent proposes size, child decides size, parent positions child.</li>
+<li><strong><code>VStack</code></strong> arranges views vertically; <strong><code>HStack</code></strong> arranges views horizontally.</li>
+<li><strong><code>ZStack</code></strong> layers views back-to-front in the order they are declared in code.</li>
+<li><strong><code>Spacer</code></strong> expands to consume all available space along the primary axis of a stack.</li>
+<li>Frames do not clip content by default; use <code>.clipped()</code> to cut off overflowing graphics.</li>
+<li>Modifying <code>.layoutPriority</code> allows specific views to claim space before sibling views.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/swiftui/building-layouts-with-stack-views">Apple Developer Documentation: Building layouts with stack views</a> — Official guide on stacks, alignment, and spacing.</li>
+<li><a href="https://developer.apple.com/documentation/swiftui/vstack">Apple Developer Documentation: VStack</a> — Complete API reference for vertical stacks.</li>
+<li><a href="https://developer.apple.com/documentation/swiftui/hstack">Apple Developer Documentation: HStack</a> — Complete API reference for horizontal stacks.</li>
+<li><a href="https://developer.apple.com/documentation/swiftui/zstack">Apple Developer Documentation: ZStack</a> — Complete API reference for layered stacks.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    visTitle: "1. Vertical Stacking: VStack",
+    visTag: "VStack",
+    visDesc: "VStack stacks Jane Doe and iOS Engineer vertically with 5pt spacing along the Y-axis.",
+    showAvatar: false,
+    showSpacer: false,
+    showBtn: false,
+    showBadge: false,
+    btnX: 230,
+    rightTitle: "Vertical Stack",
+    rightTag: "Axis: Y",
+    rightCode: "VStack(alignment: .leading, spacing: 5) {\n    Text(\"Jane Doe\").bold()\n    Text(\"iOS Engineer\")\n}",
+    rightDesc: "VStack arranges children top-to-bottom. Alignment aligns children along the horizontal cross axis.",
+    mCont: "VStack",
+    mAxis: "Vertical",
+    mSpacer: "None"
+  },
+  {
+    visTitle: "2. Horizontal Row: HStack",
+    visTag: "HStack",
+    visDesc: "HStack places the avatar circle and the text VStack side-by-side horizontally.",
+    showAvatar: true,
+    showSpacer: false,
+    showBtn: true,
+    showBadge: false,
+    btnX: 215,
+    rightTitle: "Horizontal Stack",
+    rightTag: "Axis: X",
+    rightCode: "HStack(spacing: 12) {\n    AvatarView()\n    VStack { ... }\n    Button(\"Follow\")\n}",
+    rightDesc: "HStack arranges children horizontally along the X-axis with default or explicit spacing.",
+    mCont: "HStack",
+    mAxis: "Horizontal",
+    mSpacer: "None"
+  },
+  {
+    visTitle: "3. Expanding with Spacer",
+    visTag: "Spacer()",
+    visDesc: "Spacer expands to absorb all remaining width, pushing the follow button to the far right edge.",
+    showAvatar: true,
+    showSpacer: true,
+    showBtn: true,
+    showBadge: false,
+    btnX: 240,
+    rightTitle: "Flexible Spacing",
+    rightTag: "Greedy View",
+    rightCode: "HStack {\n    AvatarView()\n    VStack { ... }\n    Spacer() // expands fully\n    Button(\"Follow\")\n}",
+    rightDesc: "Spacer consumes all remaining available space along the stack primary axis.",
+    mCont: "HStack + Spacer",
+    mAxis: "Horizontal",
+    mSpacer: "Active"
+  },
+  {
+    visTitle: "4. Depth Layering: ZStack",
+    visTag: "ZStack",
+    visDesc: "ZStack layers an active green badge over the avatar circle in the corner (back-to-front).",
+    showAvatar: true,
+    showSpacer: true,
+    showBtn: true,
+    showBadge: true,
+    btnX: 240,
+    rightTitle: "Depth Stacking",
+    rightTag: "Axis: Z",
+    rightCode: "ZStack(alignment: .bottomTrailing) {\n    AvatarCircle()\n    OnlineBadge() // layers on top\n}",
+    rightDesc: "ZStack layers views along the Z-axis. Earlier views sit behind; later views sit in front.",
+    mCont: "ZStack",
+    mAxis: "Depth (Z)",
+    mSpacer: "Active"
+  }
+];
+
+let curStep = 0;
+
+function updateDiagram() {
+  const s = steps[curStep];
+  
+  document.getElementById("vis-title").textContent = s.visTitle;
+  document.getElementById("vis-tag").textContent = s.visTag;
+  document.getElementById("vis-desc").textContent = s.visDesc;
+
+  // Avatar group
+  const grpAvatar = document.getElementById("grp-avatar");
+  grpAvatar.style.opacity = s.showAvatar ? "1" : "0.2";
+  document.getElementById("c-avatar").setAttribute("stroke", s.showAvatar ? "var(--hstack-color)" : "var(--line)");
+
+  // Badge overlay
+  const badge = document.getElementById("c-badge");
+  if (s.showBadge) {
+    badge.setAttribute("fill", "var(--zstack-color)");
+    badge.setAttribute("stroke", "var(--surface)");
+    badge.setAttribute("stroke-width", "2");
+  } else {
+    badge.setAttribute("fill", "none");
+    badge.setAttribute("stroke", "none");
+  }
+
+  // Spacer
+  const grpSpacer = document.getElementById("grp-spacer");
+  grpSpacer.style.opacity = s.showSpacer ? "1" : "0";
+
+  // Button
+  const grpBtn = document.getElementById("grp-btn");
+  grpBtn.style.opacity = s.showBtn ? "1" : "0.2";
+  grpBtn.setAttribute("transform", "translate(" + s.btnX + ", 68)");
+  document.getElementById("rect-btn").setAttribute("stroke", s.showBtn ? "var(--vstack-color)" : "var(--line)");
+  document.getElementById("txt-btn").setAttribute("fill", s.showBtn ? "var(--vstack-color)" : "var(--muted)");
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+  document.getElementById("m-cont").textContent = s.mCont;
+  document.getElementById("m-axis").textContent = s.mAxis;
+  document.getElementById("m-spacer").textContent = s.mSpacer;
+
+  const dots = document.querySelectorAll(".steps-dots .dot");
+  dots.forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = (curStep === 0);
+  document.getElementById("btn-next").disabled = (curStep === steps.length - 1);
+}
+
+function prevStep() { if (curStep > 0) { curStep--; updateDiagram(); } }
+function nextStep() { if (curStep < steps.length - 1) { curStep++; updateDiagram(); } }
+function goToStep(i) { curStep = i; updateDiagram(); }
+
+}
+</script>
+<script>
+const DATA = {"topicId":"swiftui-layout","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"swiftui-layout-q1","type":"mcq","difficulty":1,"prompt":"What are the three steps in the SwiftUI layout negotiation process?","options":[{"id":"a","text":"Parent proposes size, child decides size, and parent positions child.","explanation":"Right. Parent proposes, child determines size, and parent positions."},{"id":"b","text":"Parent sets child size, GPU draws bitmaps, and Core Animation scales.","explanation":"SwiftUI layout is functional; parents propose rather than setting sizes."},{"id":"c","text":"Child claims screen bounds, parent resizes window, and layout caches.","explanation":"The layout negotiation starts from the parent proposing space."},{"id":"d","text":"UIKit calculates constraints, SwiftUI runs solver, and views update.","explanation":"SwiftUI does not use UIKit constraint solvers for native layouts."}],"answer":"a"},{"id":"swiftui-layout-q2","type":"mcq","difficulty":1,"prompt":"How does a Spacer behave when placed inside an HStack?","options":[{"id":"a","text":"It expands vertically to fill all available screen height.","explanation":"Spacers expand along the primary axis of their containing stack."},{"id":"b","text":"It expands horizontally to push neighboring views apart.","explanation":"Right. In an HStack, the primary axis is horizontal, so it expands sideways."},{"id":"c","text":"It stays fixed at twenty points on all iOS device displays.","explanation":"Spacer is a flexible greedy view, not a fixed point container."},{"id":"d","text":"It collapses to zero points unless given an explicit width.","explanation":"Spacer expands to absorb all available space without explicit widths."}],"answer":"b"},{"id":"swiftui-layout-q3","type":"mcq","difficulty":1,"prompt":"In what order does a ZStack layer its child views on the screen?","options":[{"id":"a","text":"Randomly, depending on which child view renders fastest on GPU.","explanation":"Drawing order is strictly deterministic based on source code order."},{"id":"b","text":"Front-to-back, where the first declared child sits on the top.","explanation":"The first declared child sits at the bottom, not on top."},{"id":"c","text":"Back-to-front, where earlier views sit behind later views.","explanation":"Right. Views declared first sit in the back; later views layer on top."},{"id":"d","text":"Alphabetically, sorted by the name of the child view struct.","explanation":"ZStack does not sort views alphabetically."}],"answer":"c"},{"id":"swiftui-layout-q4","type":"mcq","difficulty":2,"prompt":"What happens if child content exceeds the boundaries of a .frame() modifier?","options":[{"id":"a","text":"The application crashes immediately with a fatal layout exception.","explanation":"Layout overflow does not cause application crashes in SwiftUI."},{"id":"b","text":"SwiftUI scales down the child text until it fits inside the frame.","explanation":"Text only scales down if given minimumScaleFactor modifiers."},{"id":"c","text":"The frame automatically expands to fit the overflowing content.","explanation":"Fixed frames do not expand to accommodate overflowing child views."},{"id":"d","text":"The content bleeds outside the frame unless .clipped() is used.","explanation":"Right. Frames do not clip overflow content by default."}],"answer":"d"},{"id":"swiftui-layout-q5","type":"mcq","difficulty":1,"prompt":"What does a VStack do when its spacing parameter is omitted?","options":[{"id":"a","text":"It applies an adaptive platform default spacing between children.","explanation":"Right. SwiftUI uses system HIG default margins when spacing is nil."},{"id":"b","text":"It sets the distance between all stacked children to zero points.","explanation":"Setting distance to zero requires explicit spacing: 0."},{"id":"c","text":"It expands each child view to touch the edges of the screen.","explanation":"VStack does not stretch child frames to touch screen edges."},{"id":"d","text":"It fails to compile because spacing is a mandatory parameter.","explanation":"Spacing has a default value of nil and is optional."}],"answer":"a"},{"id":"swiftui-layout-q6","type":"mcq","difficulty":2,"prompt":"How can you make a view expand to fill the entire width of its parent?","options":[{"id":"a","text":"By adding the .fillParentWidth() modifier to the view struct.","explanation":"SwiftUI has no modifier named fillParentWidth."},{"id":"b","text":"By applying .frame(maxWidth: .infinity) to the view modifier chain.","explanation":"Right. Setting maxWidth to infinity causes the frame to accept all space."},{"id":"c","text":"By wrapping the entire view hierarchy inside a geometry reader class.","explanation":"GeometryReader is unnecessary when maxWidth: .infinity achieves this."},{"id":"d","text":"By setting the view layout priority value to negative ninety-nine.","explanation":"Negative layout priority deprioritizes views rather than expanding them."}],"answer":"b"},{"id":"swiftui-layout-q7","type":"mcq","difficulty":2,"prompt":"How does SwiftUI distribute limited horizontal space among views in an HStack?","options":[{"id":"a","text":"It truncates all views equally regardless of content flexibility.","explanation":"SwiftUI does not truncate views equally; it respects flexibility."},{"id":"b","text":"It assigns space randomly to whichever view was declared first.","explanation":"Space distribution is deterministic based on view flexibility."},{"id":"c","text":"It offers space to least flexible views first, then divides the rest.","explanation":"Right. Inflexible views take needed space, then flexible views share."},{"id":"d","text":"It wraps overflowing views automatically into a new bottom row.","explanation":"HStack never wraps views into a second row; use a grid for wrapping."}],"answer":"c"},{"id":"swiftui-layout-q8","type":"mcq","difficulty":2,"prompt":"What is the purpose of the .layoutPriority(_:) modifier in SwiftUI?","options":[{"id":"a","text":"It sets the thread priority for background data loading tasks.","explanation":"Layout priority affects view sizing, not thread scheduling."},{"id":"b","text":"It forces views to render sixty frames per second during scrolls.","explanation":"Layout priority does not manage display refresh rates."},{"id":"c","text":"It sorts views chronologically inside navigation stack paths.","explanation":"Navigation order is managed by navigation state, not layout priorities."},{"id":"d","text":"It gives higher priority views first claim to available space.","explanation":"Right. Higher priority views receive space proposals before lower ones."}],"answer":"d"},{"id":"swiftui-layout-q9","type":"mcq","difficulty":1,"prompt":"Which alignment option aligns text views by their typographic baseline in an HStack?","options":[{"id":"a","text":".firstTextBaseline, which aligns text using font baseline metrics.","explanation":"Right. .firstTextBaseline aligns text views by their first baseline."},{"id":"b","text":".centerLeading, which forces text to align to the screen boundary.","explanation":"centerLeading is not a valid VerticalAlignment on HStack."},{"id":"c","text":".topLeading, which aligns views to the upper left corner of the row.","explanation":"HStack vertical alignment uses VerticalAlignment, not 2D Alignment."},{"id":"d","text":".stretchToFill, which elongates font glyphs to fill stack height.","explanation":"SwiftUI does not distort font glyphs with stretch alignments."}],"answer":"a"},{"id":"swiftui-layout-q10","type":"mcq","difficulty":2,"prompt":"Why can an empty Spacer cause unexpected layout expansion inside a small card?","options":[{"id":"a","text":"Because Spacers automatically allocate background image textures.","explanation":"Spacers have no visual textures and do not draw images."},{"id":"b","text":"Because Spacers greedily expand to consume all remaining space.","explanation":"Right. Spacers expand fully, stretching card containers to screen width."},{"id":"c","text":"Because Spacers override parent corner radius clipping masks.","explanation":"Spacers do not remove or alter parent corner radius masks."},{"id":"d","text":"Because Spacers crash when embedded in custom view containers.","explanation":"Spacers run safely in all containers, but they expand aggressively."}],"answer":"b"},{"id":"swiftui-layout-q11","type":"mcq","difficulty":1,"prompt":"What does a Divider view produce when placed inside a VStack?","options":[{"id":"a","text":"A vertical dividing line that spans from the top to bottom edges.","explanation":"Inside a VStack, Divider creates a horizontal line across the width."},{"id":"b","text":"A dotted navigation line that triggers screen transition events.","explanation":"Divider is purely visual and does not trigger navigation transitions."},{"id":"c","text":"A thin horizontal separating line spanning the width of the stack.","explanation":"Right. In a vertical stack, Divider spans horizontally across the row."},{"id":"d","text":"An invisible spacer that doubles the height of neighboring views.","explanation":"Divider draws a visible separator line, not an invisible spacer."}],"answer":"c"},{"id":"swiftui-layout-q12","type":"mcq","difficulty":2,"prompt":"Why does SwiftUI layout never suffer from constraint conflicts or layout loops?","options":[{"id":"a","text":"Because SwiftUI views run on background threads without GPU access.","explanation":"SwiftUI layout runs on the main thread and uses GPU rendering."},{"id":"b","text":"Because all views are forced to render at fixed 320-point widths.","explanation":"SwiftUI is fully responsive and supports all dynamic screen widths."},{"id":"c","text":"Because constraints are resolved by solving systems of equations.","explanation":"UIKit Auto Layout solves equations; SwiftUI uses a single functional pass."},{"id":"d","text":"Because layout flows in a single pass: proposals down, sizes up.","explanation":"Right. Sizing proposals flow down and sizes flow up in a single pass."}],"answer":"d"},{"id":"swiftui-layout-q13","type":"mcq","difficulty":1,"prompt":"How do you align all children to the leading edge inside a VStack?","options":[{"id":"a","text":"By initializing the stack with VStack(alignment: .leading).","explanation":"Right. Setting alignment: .leading aligns children to the leading edge."},{"id":"b","text":"By adding the .leadingEdgeOnly() modifier to the parent window.","explanation":"SwiftUI has no modifier named leadingEdgeOnly."},{"id":"c","text":"By embedding each child view inside an individual ZStack wrapper.","explanation":"ZStack layers views depth-wise; it does not align vertical stacks."},{"id":"d","text":"By setting the stack frame width to zero points on the screen.","explanation":"Setting width to zero makes the stack disappear from the screen."}],"answer":"a"},{"id":"swiftui-layout-q14","type":"mcq","difficulty":2,"prompt":"What is the difference between frame alignment and stack alignment?","options":[{"id":"a","text":"Frame alignment manages Z-axis depth, while stack alignment manages X-axis.","explanation":"Frame alignment positions content inside its proposed box."},{"id":"b","text":"Frame aligns a child in its box; stack aligns children with each other.","explanation":"Right. Frame aligns within container; stack aligns children along cross axis."},{"id":"c","text":"Stack alignment only works on iPadOS, while frame alignment is for iOS.","explanation":"Both alignments work identically across all Apple platforms."},{"id":"d","text":"Frame alignment requires UIKit Auto Layout constraints to function.","explanation":"SwiftUI frame alignment is native and does not use UIKit constraints."}],"answer":"b"},{"id":"swiftui-layout-q15","type":"mcq","difficulty":2,"prompt":"How does SwiftUI handle views with different layout priorities in an HStack?","options":[{"id":"a","text":"It hides all views with priority 0 if any view has priority 1.","explanation":"Views with lower priority are resized or truncated, not hidden."},{"id":"b","text":"It forces high-priority views to render behind other views.","explanation":"Layout priority affects space allocation, not ZStack depth order."},{"id":"c","text":"It offers space to high-priority views before lower priority views.","explanation":"Right. Higher priority views receive space proposals first."},{"id":"d","text":"It ignores layout priority unless views are declared inside a List.","explanation":"Layout priority works in all stack layouts, including HStack and VStack."}],"answer":"c"},{"id":"swiftui-layout-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct TestLayout: View {\n    var body: some View {\n        HStack {\n            Text(\"A\")\n            Spacer()\n            Text(\"B\")\n        }\n    }\n}\n\nlet test = TestLayout()\nprint(type(of: test) == TestLayout.self)","options":[{"id":"a","text":"true, because test is an instance of the custom struct TestLayout.","explanation":"Right. test is an instance of TestLayout, so the comparison is true."},{"id":"b","text":"false, because SwiftUI wraps all stack structs into AnyView.","explanation":"SwiftUI preserves custom struct types without AnyView wrapping."},{"id":"c","text":"false, because HStack converts the entire struct into a UIView class.","explanation":"SwiftUI views are native structs, not converted UIView classes."},{"id":"d","text":"It fails to compile because Spacer cannot be placed inside an HStack.","explanation":"Spacer is designed specifically to expand inside HStack and VStack."}],"answer":"a"},{"id":"swiftui-layout-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct StackLayout: View {\n    var body: some View {\n        VStack(spacing: 0) {\n            Color.red.frame(height: 50)\n            Color.blue.frame(height: 50)\n        }\n    }\n}\n\nlet stack = StackLayout()\nprint(stack.body is Color)","options":[{"id":"a","text":"true, because the bottom blue color overrides the return type of body.","explanation":"The body returns a VStack container, not a single Color."},{"id":"b","text":"false, because VStack wraps its child views in a vertical stack layout.","explanation":"Right. The body type is a VStack container, so it is not a bare Color."},{"id":"c","text":"true, because Color is the only component declared inside the stack.","explanation":"VStack is the top-level container returned by body."},{"id":"d","text":"It crashes at runtime because Color frames cannot be placed in VStack.","explanation":"Color views are valid View elements and can be stacked freely."}],"answer":"b"},{"id":"swiftui-layout-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct LayeredView: View {\n    var body: some View {\n        ZStack {\n            Text(\"Back\")\n            Text(\"Front\")\n        }\n    }\n}\n\nlet layered = LayeredView()\nprint(layered.body is Text)","options":[{"id":"a","text":"true, because the front text replaces the entire stack on layout.","explanation":"ZStack layers views; it does not replace the stack container."},{"id":"b","text":"true, because Text is the primary child element inside the container.","explanation":"The container type is ZStack, not Text."},{"id":"c","text":"false, because ZStack wraps the views in a layered container.","explanation":"Right. The body returns a ZStack container, not a bare Text."},{"id":"d","text":"It fails to compile because ZStack requires an alignment parameter.","explanation":"ZStack has default center alignment and compiles without arguments."}],"answer":"c"},{"id":"swiftui-layout-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct FrameView: View {\n    var body: some View {\n        Text(\"Swift\")\n            .frame(width: 100, height: 40)\n    }\n}\n\nlet frameView = FrameView()\nprint(frameView.body is Text)","options":[{"id":"a","text":"true, because frame adjusts the dimensions of Text without wrapping it.","explanation":"frame wraps Text into a ModifiedContent struct."},{"id":"b","text":"true, because all frame modifiers conform directly to the Text class.","explanation":"frame is a View modifier that produces ModifiedContent."},{"id":"c","text":"It fails to compile because frame width and height cannot be constants.","explanation":"frame width and height accept standard CGFloat constants."},{"id":"d","text":"false, because the frame modifier wraps Text in a ModifiedContent struct.","explanation":"Right. Calling frame wraps Text into ModifiedContent\u003cText, _FrameLayout>."}],"answer":"d"},{"id":"swiftui-layout-q20","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct SpacingCheck: View {\n    var body: some View {\n        HStack(spacing: 10) {\n            Text(\"1\")\n            Text(\"2\")\n        }\n    }\n}\n\nlet check = SpacingCheck()\nprint(type(of: check) == SpacingCheck.self)","options":[{"id":"a","text":"true, because check is an instance of the custom struct SpacingCheck.","explanation":"Right. check is an instance of SpacingCheck, so the comparison is true."},{"id":"b","text":"false, because SwiftUI replaces custom views with layout trees.","explanation":"check retains its concrete Swift struct type in memory."},{"id":"c","text":"false, because spacing: 10 transforms the struct into a Layout class.","explanation":"spacing configures the stack inside body, not the parent struct type."},{"id":"d","text":"It fails to compile because HStack requires at least three subviews.","explanation":"HStack accepts any number of child views from one to ten in ViewBuilder."}],"answer":"a"},{"id":"swiftui-layout-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct AlignmentCheck: View {\n    var body: some View {\n        VStack(alignment: .trailing) {\n            Text(\"Title\")\n            Text(\"Subtitle\")\n        }\n    }\n}\n\nlet vstack = AlignmentCheck()\nprint(vstack.body is Text)","options":[{"id":"a","text":"true, because trailing alignment promotes the first child Text view.","explanation":"Alignment does not change the container type from VStack."},{"id":"b","text":"false, because VStack wraps its children in a vertical stack layout.","explanation":"Right. The body property evaluates to a VStack container, not Text."},{"id":"c","text":"true, because VStack automatically unwraps single-type hierarchies.","explanation":"VStack never unwraps itself into its child view types."},{"id":"d","text":"It crashes at runtime because trailing alignment is invalid on VStack.","explanation":"trailing alignment is valid on VStack (HorizontalAlignment)."}],"answer":"b"},{"id":"swiftui-layout-q22","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct StackCount: View {\n    var body: some View {\n        VStack {\n            Text(\"One\")\n            Text(\"Two\")\n            Text(\"Three\")\n        }\n    }\n}\n\nlet stack = StackCount()\nprint(stack.body is Text)","options":[{"id":"a","text":"true, because the three text views merge into a single Text instance.","explanation":"VStack keeps children separate; it does not concatenate text."},{"id":"b","text":"true, because the first child Text view represents the entire body.","explanation":"The body property returns the outer VStack container."},{"id":"c","text":"false, because VStack wraps multiple child views in a container.","explanation":"Right. The body type is a VStack container, so it is not Text."},{"id":"d","text":"It fails to compile because VStack requires an explicit spacing value.","explanation":"VStack spacing is optional and defaults to platform HIG margins."}],"answer":"c"},{"id":"swiftui-layout-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct GreedyView: View {\n    var body: some View {\n        Text(\"Expand\")\n            .frame(maxWidth: .infinity)\n    }\n}\n\nlet greedy = GreedyView()\nprint(greedy.body is Text)","options":[{"id":"a","text":"true, because maxWidth does not create a wrapping view container.","explanation":"The frame modifier wraps Text into a ModifiedContent container."},{"id":"b","text":"true, because infinity expands the text glyphs without altering types.","explanation":"maxWidth affects the frame layout wrapper, not the glyph types."},{"id":"c","text":"It fails to compile because infinity is not supported on frame widths.","explanation":"CGFloat.infinity is standard SwiftUI syntax for greedy frames."},{"id":"d","text":"false, because frame wraps Text in a ModifiedContent struct.","explanation":"Right. Calling frame wraps Text into a ModifiedContent layout struct."}],"answer":"d"},{"id":"swiftui-layout-q24","type":"written","difficulty":1,"prompt":"Explain the three steps of the SwiftUI layout negotiation process. Write 2 to 5 sentences.","rubric":[{"criterion":"Explains Step 1: the parent view proposes an available size to the child view.","weight":35,"key":true},{"criterion":"Explains Step 2: the child view determines its own final size and reports it back.","weight":35,"key":true},{"criterion":"Explains Step 3: the parent positions the child inside its coordinate space.","weight":30}],"modelAnswer":"SwiftUI layout follows a three-step negotiation process. First, the parent view proposes a size to its child view. Second, the child view determines its own size based on its contents and constraints, and reports that size back. Finally, the parent view positions the child in its coordinate space. The parent cannot force a size on the child; the child always decides its final dimensions."},{"id":"swiftui-layout-q25","type":"written","difficulty":1,"prompt":"Compare how Spacer behaves inside an HStack versus inside a VStack. Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that a Spacer expands along the primary axis of its containing stack.","weight":40,"key":true},{"criterion":"States that in an HStack, the Spacer expands horizontally to push siblings left and right.","weight":30},{"criterion":"States that in a VStack, the Spacer expands vertically to push siblings top and bottom.","weight":30}],"modelAnswer":"A Spacer is a flexible view that expands to consume all empty space along the primary axis of its containing stack. Inside an HStack, the primary axis is horizontal, so the Spacer expands sideways to push neighboring views apart to the left and right. Inside a VStack, the primary axis is vertical, so the Spacer expands vertically to push views to the top and bottom."},{"id":"swiftui-layout-q26","type":"written","difficulty":2,"prompt":"Explain what happens when content exceeds the size of a .frame() modifier, and describe how to clip it. Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that .frame() defines proposed dimensions and alignment but does not clip content by default.","weight":50,"key":true},{"criterion":"States that overflowing text or images will bleed visually outside the frame bounds.","weight":30},{"criterion":"Identifies the .clipped() modifier as the solution to cut off overflowing content.","weight":20}],"modelAnswer":"Applying .frame(width:height:) defines a layout container with specific proposed dimensions, but it does not clip content by default. If child text or images exceed those dimensions, they bleed visually outside the frame bounds. Other views will still position themselves based on the frame boundaries, leading to overlapping visual bugs. To prevent content from spilling outside, you must chain the .clipped() modifier after the frame."},{"id":"swiftui-layout-q27","type":"written","difficulty":2,"prompt":"How does SwiftUI distribute space among child views in an HStack when horizontal space is limited? Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that SwiftUI offers space to the least flexible views first.","weight":40,"key":true},{"criterion":"States that remaining space is divided among remaining flexible views.","weight":30},{"criterion":"Mentions that .layoutPriority(_:) can override default space allocation order.","weight":30}],"modelAnswer":"When space is limited in an HStack, SwiftUI does not divide space equally. Instead, it inspects view flexibility and offers space to the least flexible views first. Once rigid views claim their required sizes, SwiftUI divides remaining space among flexible views like Spacers or text. Developers can influence this behavior by setting .layoutPriority(_:), ensuring high-priority views receive their requested space first."},{"id":"swiftui-layout-q28","type":"written","difficulty":2,"prompt":"Explain how ZStack layers views and describe how its drawing order affects user interactions. Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that ZStack renders views in sequential order from back to front along the Z-axis.","weight":50,"key":true},{"criterion":"States that views declared earlier sit behind views declared later.","weight":30},{"criterion":"Explains that foreground views can block touches to background views unless configured properly.","weight":20}],"modelAnswer":"ZStack layers child views depth-wise along the Z-axis from back to front. Views declared earlier in code render behind views declared later. This drawing order directly affects hit testing and user touch events. If a solid view or overlay is declared last, it sits on top and can block user taps to underlying buttons. Always place background layers first and interactive controls on top."},{"id":"swiftui-layout-q29","type":"code-write","difficulty":1,"prompt":"Write a custom struct LabeledRow displaying Text(\"Username\") and Text(\"john_doe\") in an HStack with a Spacer pushing them apart.","rubric":[{"criterion":"Declares struct LabeledRow conforming to View with var body: some View.","weight":30,"key":true},{"criterion":"Places views inside an HStack.","weight":30,"key":true},{"criterion":"Includes Text(\"Username\"), Spacer(), and Text(\"john_doe\") in correct horizontal sequence.","weight":40,"key":true}],"modelAnswer":"import SwiftUI\n\nstruct LabeledRow: View {\n    var body: some View {\n        HStack {\n            Text(\"Username\")\n            Spacer()\n            Text(\"john_doe\")\n        }\n    }\n}\n\nlet row = LabeledRow()\nprint(\"LabeledRow created: \\(type(of: row))\")"},{"id":"swiftui-layout-q30","type":"code-write","difficulty":1,"prompt":"Write a custom struct StatusCard displaying a 150 by 80 Color.blue frame with Text(\"Active\") layered on top using a ZStack.","rubric":[{"criterion":"Declares struct StatusCard conforming to View with var body: some View.","weight":30,"key":true},{"criterion":"Layers elements using a ZStack with Color.blue in the background.","weight":40,"key":true},{"criterion":"Applies .frame(width: 150, height: 80) to the color and layers Text(\"Active\") on top.","weight":30}],"modelAnswer":"import SwiftUI\n\nstruct StatusCard: View {\n    var body: some View {\n        ZStack {\n            Color.blue\n                .frame(width: 150, height: 80)\n            Text(\"Active\")\n                .foregroundColor(.white)\n        }\n    }\n}\n\nlet card = StatusCard()\nprint(\"StatusCard created: \\(type(of: card))\")"},{"id":"swiftui-layout-q31","type":"code-write","difficulty":1,"prompt":"Write a custom struct HeaderStack stacking Text(\"Welcome\") and Text(\"Please log in\") in a VStack with .leading alignment and 6pt spacing.","rubric":[{"criterion":"Declares struct HeaderStack conforming to View with var body: some View.","weight":30,"key":true},{"criterion":"Uses VStack(alignment: .leading, spacing: 6) to arrange views.","weight":40,"key":true},{"criterion":"Displays Text(\"Welcome\") and Text(\"Please log in\") inside the stack.","weight":30,"key":true}],"modelAnswer":"import SwiftUI\n\nstruct HeaderStack: View {\n    var body: some View {\n        VStack(alignment: .leading, spacing: 6) {\n            Text(\"Welcome\")\n                .bold()\n            Text(\"Please log in\")\n        }\n    }\n}\n\nlet header = HeaderStack()\nprint(\"HeaderStack created: \\(type(of: header))\")"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
