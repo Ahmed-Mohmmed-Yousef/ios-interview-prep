@@ -139,8 +139,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **auto-layout** (Auto Layout) — published (lesson, diagram, 31 questions) → [docs/topics/auto-layout/review.html](docs/topics/auto-layout/review.html)
     - ✅ **uikit-navigation** (Navigation in UIKit) — published (lesson, diagram, 31 questions) → [docs/topics/uikit-navigation/review.html](docs/topics/uikit-navigation/review.html)
     - ✅ **table-collection-views** (Table and Collection Views) — published (lesson, diagram, 31 questions) → [docs/topics/table-collection-views/review.html](docs/topics/table-collection-views/review.html)
-  - ⬜ **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)**
-    - ⬜ **dark-mode-dynamic-type** (Dark Mode and Dynamic Type)
+  - 🔄 **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)**
+    - 🔄 **dark-mode-dynamic-type** (Dark Mode and Dynamic Type) — starting research
     - ⬜ **hig-liquid-glass** (Apple Design and Liquid Glass) [bonus]
     - ⬜ **app-lifecycle** (App and Scene Lifecycle)
     - ⬜ **permissions-privacy** (Permissions and Privacy)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Completed Batch 2D (SwiftUI & UIKit: 9 topics published and committed). Launching dedicated autonomous subagent for Batch 2E (Design, System & Data: 9 topics, `dark-mode-dynamic-type` through `keychain-basics`).
 
 - **2026-11-09** — Built and published topic table-collection-views (Table and Collection Views): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/table-collection-views/review.html`). All checks passed. Batch 2D (SwiftUI & UIKit - 9 topics) is now 100% complete and published!
 
