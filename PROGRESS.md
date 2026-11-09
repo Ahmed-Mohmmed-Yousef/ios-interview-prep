@@ -156,10 +156,10 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (0 of 53 published: 44 main + 9 bonus)
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (1 of 53 published: 44 main + 9 bonus)
   - 🔄 **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)**
-    - 🔄 **protocol-oriented-programming** (Protocol-Oriented Programming) — starting research
-    - ⬜ **generics-associated-types** (Generics: Associated Types and Where Clauses)
+    - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
+    - 🔄 **generics-associated-types** (Generics: Associated Types and Where Clauses) — starting research
     - ⬜ **opaque-and-boxed-types** (Opaque and Boxed Types: some vs any)
     - ⬜ **copy-on-write** (Copy-on-Write and Value Semantics)
     - ⬜ **key-paths** (Key Paths) [bonus]
@@ -321,6 +321,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic protocol-oriented-programming (Protocol-Oriented Programming): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/protocol-oriented-programming/review.html`). All checks passed. Starting generics-associated-types.
 
 - **2026-11-09** — Step 4.3 started: Mid level topics (Wave 3, 53 topics across 8 batches). Launching dedicated autonomous subagent for Batch 3A (Swift Language Deep Dive: `protocol-oriented-programming` through `result-builders`).
 

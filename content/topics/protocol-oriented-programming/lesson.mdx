@@ -1,0 +1,213 @@
+export const meta = {
+  id: "protocol-oriented-programming",
+  summary: "Design reusable systems with protocols, protocol extensions, default implementations, and composition.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Protocols", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/protocols", kind: "official" },
+    { title: "WWDC22: Design protocol interfaces in Swift", url: "https://developer.apple.com/videos/play/wwdc2022/110353/", kind: "official" },
+    { title: "WWDC15: Protocol-Oriented Programming in Swift", url: "https://developer.apple.com/videos/play/wwdc2015/408/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does Swift emphasize protocol-oriented programming instead of deep class inheritance?</Question>
+  <Guess>
+    <Option id="a">Because protocols run faster than class methods in all situations.</Option>
+    <Option id="b" correct>Because protocols allow flexible composition across value types without tight coupling.</Option>
+    <Option id="c">Because Swift does not support class inheritance or reference types.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of job skills on a resume. A person can have skills like driving, cooking, and speaking French. You do not force everyone into a single family tree to share skills. Instead, each person collects the skills they need. Protocols work the same way. Types collect capabilities by conforming to protocols instead of inheriting from one giant parent class.
+</Analogy>
+
+In object-oriented programming, classes share code through inheritance. This creates tight coupling. Every subclass inherits all properties and behaviors from its superclass, even things it does not need. Classes also force reference semantics, which can lead to shared mutable state bugs.
+
+**Protocol-oriented programming focuses on what types can do rather than what they are.**
+
+Protocols define a set of requirements. Structs, enums, and classes can all conform to protocols. Because value types can conform to protocols, you can write safe, decoupled code without class inheritance.
+
+Protocol extensions let you give default implementations to protocol requirements. When a type conforms to a protocol, it gets those default methods automatically. Conforming types can keep the default behavior or provide their own custom version.
+
+## See it
+
+<Diagram id="protocol-oriented-programming-main" caption="Comparing deep class inheritance with flexible protocol composition">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Rigid Class Hierarchy: Base Vehicle class forcing properties on Car and Boat subclasses.
+    2. Protocol Composition: Small traits Driveable and Floatable applied independently to value types.
+    3. Conforming Structs: Car conforming to Driveable, Boat conforming to Floatable, AmphibiousCar conforming to both.
+    4. Protocol Extension: Shared default implementation block providing reusable behavior.
+  - Steps:
+    Step 1: Deep class inheritance couples subclasses to rigid parent state.
+    Step 2: Protocols define independent abilities without forcing stored state.
+    Step 3: Structs adopt multiple protocols using composition (&).
+    Step 4: Protocol extensions provide shared default implementations across conforming types.
+  - Static version (reduced motion):
+    Side-by-side comparison diagram showing inheritance tree versus horizontal protocol composition.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What is a major advantage of protocol-oriented programming over class inheritance?</Question>
+  <Option id="a">Protocols only work with reference types.</Option>
+  <Option id="b" correct>Structs and enums can adopt multiple protocols without inheriting unwanted state.</Option>
+  <Option id="c">Protocols prevent any type from overriding default behavior.</Option>
+  <Explanation>Protocols work with structs, enums, and classes. They allow clean composition without forcing unwanted superclass state.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Protocol extensions providing default implementations and overrides">
+
+```swift
+protocol Greetable {
+    var name: String { get }
+    func greet() -> String
+}
+
+// Protocol extension provides a default implementation
+extension Greetable {
+    func greet() -> String {
+        return "Hello, \(name)!"
+    }
+}
+
+struct Student: Greetable {
+    let name: String
+}
+
+struct Teacher: Greetable {
+    let name: String
+    
+    // Custom override replaces the default implementation
+    func greet() -> String {
+        return "Good morning, class! My name is \(name)."
+    }
+}
+
+let student = Student(name: "Alex")
+let teacher = Teacher(name: "Ms. Davis")
+
+print(student.greet())
+print(teacher.greet())
+```
+
+```output
+Hello, Alex!
+Good morning, class! My name is Ms. Davis.
+```
+
+</CodeExample>
+
+This example shows how protocol extensions share code:
+- **Default implementation**: `Student` does not write `greet()`. It gets the default implementation from the extension.
+- **Customization**: `Teacher` provides its own `greet()` method, which replaces the default behavior.
+
+<CodeExample title="Method dispatch trap: protocol requirement versus extension-only method">
+
+```swift
+protocol Reportable {
+    func summary() -> String // Protocol requirement (dynamic dispatch)
+}
+
+extension Reportable {
+    func summary() -> String {
+        return "Default summary"
+    }
+    
+    // Extension-only method: not declared in protocol definition (static dispatch)
+    func detailedReport() -> String {
+        return "Default detailed report"
+    }
+}
+
+struct Audit: Reportable {
+    func summary() -> String {
+        return "Audit summary: All systems passed"
+    }
+    func detailedReport() -> String {
+        return "Audit detailed report: 100 checks verified"
+    }
+}
+
+let concreteAudit = Audit()
+let protocolAudit: Reportable = concreteAudit
+
+print(concreteAudit.summary())
+print(protocolAudit.summary())
+print(concreteAudit.detailedReport())
+print(protocolAudit.detailedReport())
+```
+
+```output
+Audit summary: All systems passed
+Audit summary: All systems passed
+Audit detailed report: 100 checks verified
+Default detailed report
+```
+
+</CodeExample>
+
+This example highlights an important Swift mechanic:
+- **Protocol requirements**: `summary()` is declared in the protocol. Swift uses dynamic dispatch through the witness table, so both calls reach the struct implementation.
+- **Extension-only methods**: `detailedReport()` is not declared in the protocol body. Swift uses static dispatch based on the variable type. Calling it on `protocolAudit` runs the extension method!
+
+<QuickCheck>
+  <Question>Why did protocolAudit.detailedReport() run the extension code instead of the struct method?</Question>
+  <Option id="a" correct>Because the method was not in the protocol declaration, so Swift used static dispatch.</Option>
+  <Option id="b">Because structs cannot implement methods that protocol extensions declare.</Option>
+  <Option id="c">Because the compiler could not find the Audit struct.</Option>
+  <Explanation>When a method is only in a protocol extension, Swift uses static dispatch. The type of the variable determines which implementation runs.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Experiment with protocols and protocol extensions in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Declaring a method only in a protocol extension">
+If you do not declare a method in the protocol header, Swift uses static dispatch. Calling that method through a protocol type runs the extension version. Conforming types cannot override it dynamically. Always declare methods in the protocol definition if conforming types need to customize them.
+</Trap>
+
+<Trap title="Creating giant monolithic protocols">
+Do not put twenty requirements into one protocol. This recreates the exact problem of deep class inheritance. Instead, create small, focused protocols with one or two requirements. Combine them with protocol composition when needed.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Protocol-oriented programming in Swift means designing systems around protocols instead of class inheritance. Protocols let structs, enums, and classes share behaviors. Protocol extensions provide default implementations so types do not need to repeat common code.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Swift is protocol-oriented because it prefers composition over inheritance. Structs and enums cannot inherit from superclasses, but they can adopt multiple protocols. We use protocol extensions to provide default implementations. Conforming types can override these defaults. If a method is declared in the protocol, Swift uses dynamic dispatch. If a method is only in the extension, Swift uses static dispatch.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Protocol-oriented programming decouples interfaces from concrete implementations while avoiding the fragile base class problem. By favoring value types and protocol composition, we prevent shared mutable state bugs. Architecturally, we keep protocols small and focused. Protocol requirements use witness table dynamic dispatch. Extension-only methods use static dispatch resolved at compile time.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Protocol-oriented programming favors composition over class inheritance.
+- Structs, enums, and classes can all conform to multiple protocols.
+- Protocol extensions provide default method implementations for conforming types.
+- Methods declared in the protocol definition use dynamic dispatch through witness tables.
+- Methods declared only in protocol extensions use static dispatch based on compile-time type.
+- Keep protocols small and combine them using composition with the ampersand operator.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Protocols](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/protocols)
+- [WWDC22: Design protocol interfaces in Swift](https://developer.apple.com/videos/play/wwdc2022/110353/)
+- [WWDC15: Protocol-Oriented Programming in Swift](https://developer.apple.com/videos/play/wwdc2015/408/)

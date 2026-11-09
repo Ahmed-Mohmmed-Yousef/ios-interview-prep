@@ -1,0 +1,568 @@
+<title>Protocol-Oriented Programming Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --oop-color: #ef4444; --oop-soft: #fee2e2;
+  --pop-color: #0284c7; --pop-soft: #e0f2fe;
+  --proto-color: #8b5cf6; --proto-soft: #ede9fe;
+  --ext-color: #059669; --ext-soft: #d1fae5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --oop-color: #f87171; --oop-soft: #450a0a;
+  --pop-color: #38bdf8; --pop-soft: #082f49;
+  --proto-color: #a78bfa; --proto-soft: #2e1065;
+  --ext-color: #34d399; --ext-soft: #064e3b;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--oop-soft); color: var(--oop-color); }
+.p-right .kind { background: var(--pop-soft); color: var(--pop-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-oop { stroke: var(--oop-color); stroke-width: 2.5; fill: var(--oop-soft); }
+.node-box.active-pop { stroke: var(--pop-color); stroke-width: 2.5; fill: var(--pop-soft); }
+.node-box.active-proto { stroke: var(--proto-color); stroke-width: 2.5; fill: var(--proto-soft); }
+.node-box.active-ext { stroke: var(--ext-color); stroke-width: 2.5; fill: var(--ext-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--pop-color); color: var(--pop-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Swift Language · Topic 1 of 7 · Prototype</p>
+    <h1>Protocol-Oriented Programming</h1>
+    <p class="meta-line"><span>About 12 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can design code with protocols and protocol extensions.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Why does Swift emphasize protocol-oriented programming instead of deep class inheritance?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because protocols run faster than class methods in all situations.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because protocols allow flexible composition across value types without tight coupling.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because Swift does not support class inheritance or reference types.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of job skills on a resume. A person can have skills like driving, cooking, and speaking French. You do not force everyone into a single family tree to share skills. Instead, each person collects the skills they need. Protocols work the same way. Types collect capabilities by conforming to protocols instead of inheriting from one giant parent class.</p></aside>
+<p>In object-oriented programming, classes share code through inheritance. This creates tight coupling. Every subclass inherits all properties and behaviors from its superclass, even things it does not need. Classes also force reference semantics, which can lead to shared mutable state bugs.</p>
+<p><strong>Protocol-oriented programming focuses on what types can do rather than what they are.</strong></p>
+<p>Protocols define a set of requirements. Structs, enums, and classes can all conform to protocols. Because value types can conform to protocols, you can write safe, decoupled code without class inheritance.</p>
+<p>Protocol extensions let you give default implementations to protocol requirements. When a type conforms to a protocol, it gets those default methods automatically. Conforming types can keep the default behavior or provide their own custom version.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What is a major advantage of protocol-oriented programming over class inheritance?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Protocols only work with reference types.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Structs and enums can adopt multiple protocols without inheriting unwanted state.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Protocols prevent any type from overriding default behavior.</span></button><p class="qc-explain" hidden="">Protocols work with structs, enums, and classes. They allow clean composition without forcing unwanted superclass state.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Protocol extensions providing default implementations and overrides</figcaption><pre class="block swift"><code class="language-swift">protocol Greetable {
+    var name: String { get }
+    func greet() -&gt; String
+}
+
+// Protocol extension provides a default implementation
+extension Greetable {
+    func greet() -&gt; String {
+        return &quot;Hello, \(name)!&quot;
+    }
+}
+
+struct Student: Greetable {
+    let name: String
+}
+
+struct Teacher: Greetable {
+    let name: String
+    
+    // Custom override replaces the default implementation
+    func greet() -&gt; String {
+        return &quot;Good morning, class! My name is \(name).&quot;
+    }
+}
+
+let student = Student(name: &quot;Alex&quot;)
+let teacher = Teacher(name: &quot;Ms. Davis&quot;)
+
+print(student.greet())
+print(teacher.greet())
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Hello, Alex!
+Good morning, class! My name is Ms. Davis.
+</code></pre></figure>
+<p>This example shows how protocol extensions share code:</p>
+<ul>
+<li><strong>Default implementation</strong>: <code>Student</code> does not write <code>greet()</code>. It gets the default implementation from the extension.</li>
+<li><strong>Customization</strong>: <code>Teacher</code> provides its own <code>greet()</code> method, which replaces the default behavior.</li>
+</ul>
+<figure class="code-example"><figcaption>Method dispatch trap: protocol requirement versus extension-only method</figcaption><pre class="block swift"><code class="language-swift">protocol Reportable {
+    func summary() -&gt; String // Protocol requirement (dynamic dispatch)
+}
+
+extension Reportable {
+    func summary() -&gt; String {
+        return &quot;Default summary&quot;
+    }
+    
+    // Extension-only method: not declared in protocol definition (static dispatch)
+    func detailedReport() -&gt; String {
+        return &quot;Default detailed report&quot;
+    }
+}
+
+struct Audit: Reportable {
+    func summary() -&gt; String {
+        return &quot;Audit summary: All systems passed&quot;
+    }
+    func detailedReport() -&gt; String {
+        return &quot;Audit detailed report: 100 checks verified&quot;
+    }
+}
+
+let concreteAudit = Audit()
+let protocolAudit: Reportable = concreteAudit
+
+print(concreteAudit.summary())
+print(protocolAudit.summary())
+print(concreteAudit.detailedReport())
+print(protocolAudit.detailedReport())
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Audit summary: All systems passed
+Audit summary: All systems passed
+Audit detailed report: 100 checks verified
+Default detailed report
+</code></pre></figure>
+<p>This example highlights an important Swift mechanic:</p>
+<ul>
+<li><strong>Protocol requirements</strong>: <code>summary()</code> is declared in the protocol. Swift uses dynamic dispatch through the witness table, so both calls reach the struct implementation.</li>
+<li><strong>Extension-only methods</strong>: <code>detailedReport()</code> is not declared in the protocol body. Swift uses static dispatch based on the variable type. Calling it on <code>protocolAudit</code> runs the extension method!</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why did protocolAudit.detailedReport() run the extension code instead of the struct method?</p><button type="button" class="opt" data-id="a" data-correct=""><span class="opt-id">A</span><span class="opt-text">Because the method was not in the protocol declaration, so Swift used static dispatch.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Because structs cannot implement methods that protocol extensions declare.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because the compiler could not find the Audit struct.</span></button><p class="qc-explain" hidden="">When a method is only in a protocol extension, Swift uses static dispatch. The type of the variable determines which implementation runs.</p></div>
+<p class="try-it"><p>Experiment with protocols and protocol extensions in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Declaring a method only in a protocol extension</p><p>If you do not declare a method in the protocol header, Swift uses static dispatch. Calling that method through a protocol type runs the extension version. Conforming types cannot override it dynamically. Always declare methods in the protocol definition if conforming types need to customize them.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Creating giant monolithic protocols</p><p>Do not put twenty requirements into one protocol. This recreates the exact problem of deep class inheritance. Instead, create small, focused protocols with one or two requirements. Combine them with protocol composition when needed.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>Protocol-oriented programming in Swift means designing systems around protocols instead of class inheritance. Protocols let structs, enums, and classes share behaviors. Protocol extensions provide default implementations so types do not need to repeat common code.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Swift is protocol-oriented because it prefers composition over inheritance. Structs and enums cannot inherit from superclasses, but they can adopt multiple protocols. We use protocol extensions to provide default implementations. Conforming types can override these defaults. If a method is declared in the protocol, Swift uses dynamic dispatch. If a method is only in the extension, Swift uses static dispatch.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Protocol-oriented programming decouples interfaces from concrete implementations while avoiding the fragile base class problem. By favoring value types and protocol composition, we prevent shared mutable state bugs. Architecturally, we keep protocols small and focused. Protocol requirements use witness table dynamic dispatch. Extension-only methods use static dispatch resolved at compile time.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Protocol-oriented programming favors composition over class inheritance.</li>
+<li>Structs, enums, and classes can all conform to multiple protocols.</li>
+<li>Protocol extensions provide default method implementations for conforming types.</li>
+<li>Methods declared in the protocol definition use dynamic dispatch through witness tables.</li>
+<li>Methods declared only in protocol extensions use static dispatch based on compile-time type.</li>
+<li>Keep protocols small and combine them using composition with the ampersand operator.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/protocols">The Swift Programming Language: Protocols</a></li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2022/110353/">WWDC22: Design protocol interfaces in Swift</a></li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2015/408/">WWDC15: Protocol-Oriented Programming in Swift</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    leftCode: `class Vehicle {\n    var speed: Double = 0\n    func drive() {}\n}\nclass Boat: Vehicle { /* forced speed */ }`,
+    leftCaption: "Single inheritance forces all subclasses to inherit parent state and methods.",
+    rightCode: `// Protocols start with zero stored state\nprotocol Driveable {\n    func drive()\n}`,
+    rightCaption: "Protocols only describe capabilities, not stored memory.",
+    activeBoxes: ["baseClassBox", "protoDriveBox"]
+  },
+  {
+    step: 2,
+    leftCode: `// How does an AmphibiousCar inherit\n// from both Car and Boat?\n// Swift classes do not allow multiple inheritance!`,
+    leftCaption: "Class hierarchies struggle when an entity needs behaviors from different trees.",
+    rightCode: `protocol Driveable { func drive() }\nprotocol Floatable { func float() }\n// Small, modular, focused protocols`,
+    rightCaption: "Protocols separate behaviors into independent, focused interfaces.",
+    activeBoxes: ["carSubBox", "boatSubBox", "protoDriveBox", "protoFloatBox"]
+  },
+  {
+    step: 3,
+    leftCode: `// Rigid inheritance tree:\nclass Amphibious: Vehicle {\n    // duplicate boat logic here?\n}`,
+    leftCaption: "OOP often leads to code duplication or messy base class bloat.",
+    rightCode: `struct AmphibiousCar: Driveable, Floatable {\n    func drive() { print("Driving") }\n    func float() { print("Floating") }\n}`,
+    rightCaption: "Structs compose multiple protocols cleanly with zero base-class baggage.",
+    activeBoxes: ["popStructBox"]
+  },
+  {
+    step: 4,
+    leftCode: `// Class override:\noverride func drive() {\n    super.drive()\n}`,
+    leftCaption: "Classes rely on superclass calls and runtime method tables.",
+    rightCode: `extension Driveable {\n    func drive() {\n        print("Cruising smoothly")\n    }\n}`,
+    rightCaption: "Protocol extensions provide shared default implementations for conforming types.",
+    activeBoxes: ["popStructBox", "protoDriveBox", "protoFloatBox"]
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.querySelectorAll(".node-box").forEach(el => {
+    el.classList.remove("active-oop", "active-pop", "active-proto", "active-ext");
+  });
+
+  if (idx === 0) {
+    document.getElementById("baseClassBox").classList.add("active-oop");
+    document.getElementById("protoDriveBox").classList.add("active-proto");
+  } else if (idx === 1) {
+    document.getElementById("carSubBox").classList.add("active-oop");
+    document.getElementById("boatSubBox").classList.add("active-oop");
+    document.getElementById("protoDriveBox").classList.add("active-proto");
+    document.getElementById("protoFloatBox").classList.add("active-proto");
+  } else if (idx === 2) {
+    document.getElementById("popStructBox").classList.add("active-pop");
+    document.getElementById("protoDriveBox").classList.add("active-proto");
+    document.getElementById("protoFloatBox").classList.add("active-proto");
+  } else if (idx === 3) {
+    document.getElementById("popStructBox").classList.add("active-ext");
+    document.getElementById("protoDriveBox").classList.add("active-ext");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"protocol-oriented-programming","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"pop-q1","type":"mcq","difficulty":1,"prompt":"What is the primary motivation for protocol-oriented programming in Swift?","options":[{"id":"a","text":"It lets value types and reference types share capabilities through composition.","explanation":"Protocols and protocol extensions let structs, enums, and classes share behavior without rigid class hierarchies."},{"id":"b","text":"It disables reference types completely across all application modules.","explanation":"Swift still supports classes and reference semantics whenever identity is needed."},{"id":"c","text":"It forces every struct to inherit stored properties from an abstract base class.","explanation":"Structs cannot inherit from classes, and protocols cannot hold stored properties."},{"id":"d","text":"It replaces Swift generics with dynamic Objective-C messaging.","explanation":"Protocol-oriented programming works directly with Swift strong typing and generics."}],"answer":"a"},{"id":"pop-q2","type":"mcq","difficulty":1,"prompt":"How do you provide a default implementation for a protocol requirement in Swift?","options":[{"id":"a","text":"By assigning a closure directly inside the protocol definition braces.","explanation":"Protocol definitions only declare requirements; they cannot contain method bodies."},{"id":"b","text":"By declaring the method body inside a protocol extension.","explanation":"Writing an extension on the protocol provides default method implementations for all conforming types."},{"id":"c","text":"By adding the default attribute to a class method declaration.","explanation":"Swift does not have an @default attribute for protocol methods."},{"id":"d","text":"By creating a subclass that inherits from the protocol.","explanation":"Protocols cannot be subclassed; types conform to protocols."}],"answer":"b"},{"id":"pop-q3","type":"mcq","difficulty":1,"prompt":"Can a Swift struct conform to multiple protocols at the same time?","options":[{"id":"a","text":"No, Swift structs can only conform to one single protocol.","explanation":"Swift structs can conform to any number of protocols separated by commas."},{"id":"b","text":"No, multiple conformance is only permitted for final classes.","explanation":"Any struct, enum, or class can conform to multiple protocols."},{"id":"c","text":"Yes, a struct can adopt multiple protocols separated by commas.","explanation":"Swift allows types to adopt multiple protocols, enabling horizontal code composition."},{"id":"d","text":"Yes, but only if all protocols share the exact same method names.","explanation":"Protocols do not need to share method names to be adopted together."}],"answer":"c"},{"id":"pop-q4","type":"mcq","difficulty":2,"prompt":"What happens when a conforming type implements a method that has a default in a protocol extension?","options":[{"id":"a","text":"The compiler issues an error for duplicate symbol declarations.","explanation":"Conforming types are allowed to provide their own custom implementations."},{"id":"b","text":"The protocol extension method always runs, ignoring the type version.","explanation":"If the method is declared in the protocol, the conforming type implementation takes precedence."},{"id":"c","text":"The developer must add the override keyword before the struct method.","explanation":"The override keyword is only used when subclassing classes, not conforming to protocols."},{"id":"d","text":"The conforming type implementation overrides the default implementation.","explanation":"The conforming type provides its own specific behavior, replacing the extension default."}],"answer":"d"},{"id":"pop-q5","type":"mcq","difficulty":2,"prompt":"Which dispatch mechanism does Swift use for methods declared ONLY in a protocol extension?","options":[{"id":"a","text":"Static dispatch, determined by the static type of the reference at compile time.","explanation":"Extension-only methods are not protocol requirements, so Swift resolves them statically at compile time."},{"id":"b","text":"Dynamic dispatch through a class virtual method table.","explanation":"Virtual tables are used for class inheritance hierarchies, not protocol extensions."},{"id":"c","text":"Dynamic dispatch through a protocol witness method table.","explanation":"Witness tables are only created for methods declared in the protocol definition."},{"id":"d","text":"Message sending through the Objective-C runtime dispatcher system.","explanation":"Swift protocol extensions use native direct static dispatch unless annotated with @objc."}],"answer":"a"},{"id":"pop-q6","type":"mcq","difficulty":2,"prompt":"What is the fragile base class problem that protocol composition avoids?","options":[{"id":"a","text":"The issue where structs cannot be allocated on the memory call stack.","explanation":"Struct stack allocation is unrelated to class inheritance problems."},{"id":"b","text":"The problem where changes to a superclass unexpectedly break subclasses.","explanation":"In deep inheritance, modifying superclass state or methods frequently causes side effects in child classes."},{"id":"c","text":"The problem where protocols require too much shared heap memory.","explanation":"Protocols define interfaces and do not allocate base memory."},{"id":"d","text":"The requirement that all classes must be marked final in Swift.","explanation":"Marking classes final is an optimization choice, not the fragile base class problem."}],"answer":"b"},{"id":"pop-q7","type":"mcq","difficulty":2,"prompt":"How does Swift represent protocol composition in type annotations?","options":[{"id":"a","text":"Using the plus operator between protocol names, such as A + B.","explanation":"The plus operator is used for arithmetic and string concatenation, not protocol composition."},{"id":"b","text":"Using a pipe symbol between protocol names, such as A | B.","explanation":"The pipe symbol is not used for protocol composition in Swift."},{"id":"c","text":"Using the ampersand operator between protocol names, such as A & B.","explanation":"The ampersand operator combines multiple protocols into a single composite type requirement."},{"id":"d","text":"Using double colons between protocol names, such as A::B.","explanation":"Double colons are not valid Swift syntax for type composition."}],"answer":"c"},{"id":"pop-q8","type":"mcq","difficulty":2,"prompt":"Can a protocol extension add stored properties to conforming types?","options":[{"id":"a","text":"Yes, protocol extensions can declare stored properties with default values.","explanation":"Protocol extensions cannot add stored properties because they cannot alter type memory layout."},{"id":"b","text":"Yes, but only if the stored property type conforms to Codable.","explanation":"Conforming to Codable does not grant protocol extensions the ability to add stored storage."},{"id":"c","text":"Yes, but only when extending protocols that inherit from AnyObject.","explanation":"Class-bound protocol extensions still cannot introduce stored properties."},{"id":"d","text":"No, extensions can only declare computed properties and methods.","explanation":"Extensions cannot add stored properties because they cannot change the in-memory size of conforming types."}],"answer":"d"},{"id":"pop-q9","type":"mcq","difficulty":2,"prompt":"How can you constrain a protocol extension so its methods only apply to certain types?","options":[{"id":"a","text":"By adding a where clause to the extension declaration header.","explanation":"A where clause like 'extension Collection where Element: Equatable' restricts extension methods to matching types."},{"id":"b","text":"By placing an if statement around the entire extension block.","explanation":"If statements cannot wrap top-level extension declarations."},{"id":"c","text":"By marking the protocol extension with the private keyword.","explanation":"Access control modifiers do not provide generic type constraints on extensions."},{"id":"d","text":"By subclassing the protocol inside a generic function body.","explanation":"Protocols cannot be subclassed."}],"answer":"a"},{"id":"pop-q10","type":"mcq","difficulty":2,"prompt":"Why does protocol composition support the Interface Segregation Principle?","options":[{"id":"a","text":"It forces every class to implement all methods in a single large interface.","explanation":"Interface Segregation advises against large, monolithic interfaces."},{"id":"b","text":"It encourages creating small, targeted protocols that clients combine as needed.","explanation":"Clients only depend on the specific small protocols they need, avoiding bloated contracts."},{"id":"c","text":"It eliminates the need for writing unit tests in production applications.","explanation":"Protocol composition actually makes unit testing easier through mocking."},{"id":"d","text":"It allows private stored properties to be accessed from outside modules.","explanation":"Access control rules are strictly enforced regardless of protocol usage."}],"answer":"b"},{"id":"pop-q11","type":"mcq","difficulty":3,"prompt":"What table does Swift use at runtime to find method implementations for protocol requirements?","options":[{"id":"a","text":"The Objective-C selector cache table.","explanation":"Pure Swift protocols do not use Objective-C selector caches."},{"id":"b","text":"The global heap allocation record table.","explanation":"Heap allocation tables track memory chunks, not method dispatches."},{"id":"c","text":"The protocol witness table.","explanation":"Each conforming type has a witness table mapping protocol requirements to concrete functions."},{"id":"d","text":"The virtual method dispatch table of the superclass.","explanation":"Class vtables handle class inheritance, whereas protocol requirements use witness tables."}],"answer":"c"},{"id":"pop-q12","type":"mcq","difficulty":3,"prompt":"Why can protocol-oriented design improve thread safety in concurrent applications?","options":[{"id":"a","text":"Because protocols automatically lock all threads during method execution.","explanation":"Protocols do not perform automatic thread locking."},{"id":"b","text":"Because Swift protocols prevent asynchronous functions from running concurrently.","explanation":"Protocols can declare async methods that run concurrently."},{"id":"c","text":"Because the compiler forbids protocols from being passed across actor boundaries.","explanation":"Sendable protocols can safely cross actor boundaries."},{"id":"d","text":"Because it encourages value types, eliminating shared mutable reference state.","explanation":"Value types have independent copies, preventing concurrent mutation bugs common in class hierarchies."}],"answer":"d"},{"id":"pop-q13","type":"mcq","difficulty":2,"prompt":"What is the best way to mock dependencies in unit tests using protocol-oriented programming?","options":[{"id":"a","text":"Define a protocol for the service and inject a mock conforming struct in tests.","explanation":"By depending on a protocol instead of a concrete class, tests can inject a fast, predictable mock."},{"id":"b","text":"Subclass the production class and swizzle its private Objective-C selectors.","explanation":"Method swizzling is brittle, unsafe, and does not work on Swift value types."},{"id":"c","text":"Disable strict concurrency checks in compiler build configuration settings.","explanation":"Disabling safety checks does not mock network or database services."},{"id":"d","text":"Store mock responses directly in static global variables across test suites.","explanation":"Global state causes test interference and race conditions."}],"answer":"a"},{"id":"pop-q14","type":"mcq","difficulty":1,"prompt":"Which keyword is used to restrict a protocol so that only classes can conform to it?","options":[{"id":"a","text":"classbound","explanation":"Swift does not have a keyword named classbound."},{"id":"b","text":"AnyObject","explanation":"Writing 'protocol MyProto: AnyObject' restricts conformance exclusively to reference types."},{"id":"c","text":"final","explanation":"The final keyword prevents class subclassing or method overrides; it does not restrict protocol conformance."},{"id":"d","text":"ReferenceOnly","explanation":"There is no ReferenceOnly keyword in the Swift language."}],"answer":"b"},{"id":"pop-q15","type":"mcq","difficulty":3,"prompt":"What is a key difference between polymorphism via class inheritance and polymorphism via protocols?","options":[{"id":"a","text":"Classes do not support runtime polymorphism in modern Swift.","explanation":"Classes support runtime polymorphism via vtable dynamic dispatch."},{"id":"b","text":"Protocols cannot be used as function parameter types.","explanation":"Protocols can be used as generic constraints or existential parameters."},{"id":"c","text":"Protocols enable polymorphism across unrelated value types and reference types.","explanation":"Unlike class hierarchies, protocols do not require types to share an inheritance ancestor."},{"id":"d","text":"Class inheritance allows multiple parents, while protocols only allow one.","explanation":"Classes in Swift only allow single inheritance, while types can conform to many protocols."}],"answer":"c"},{"id":"pop-q16","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"protocol Describable {\n    func describe() -> String\n}\n\nextension Describable {\n    func describe() -> String {\n        return \"Standard item\"\n    }\n}\n\nstruct Widget: Describable {}\n\nlet item = Widget()\nprint(item.describe())","options":[{"id":"a","text":"Widget","explanation":"Widget does not define its own describe() method, so it uses the extension default."},{"id":"b","text":"nil","explanation":"The return type is a non-optional String."},{"id":"c","text":"It causes a compiler error because Widget has no implementation.","explanation":"The protocol extension provides a valid default implementation."},{"id":"d","text":"Standard item","explanation":"Widget adopts the default implementation provided by the Describable extension."}],"answer":"d"},{"id":"pop-q17","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol Priceable {\n    func priceTag() -> String\n}\n\nextension Priceable {\n    func priceTag() -> String {\n        return \"$0.00\"\n    }\n}\n\nstruct Book: Priceable {\n    func priceTag() -> String {\n        return \"$15.99\"\n    }\n}\n\nlet book = Book()\nprint(book.priceTag())","options":[{"id":"a","text":"$15.99","explanation":"The custom implementation in Book overrides the default implementation from the protocol extension."},{"id":"b","text":"$0.00","explanation":"The default implementation is replaced by the conforming struct implementation."},{"id":"c","text":"$0.00: $15.99","explanation":"Only the Book implementation is executed."},{"id":"d","text":"It fails to compile because Book lacks the override keyword.","explanation":"Conforming types do not use the override keyword for protocol methods."}],"answer":"a"},{"id":"pop-q18","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"protocol Greeter {}\n\nextension Greeter {\n    func sayHello() -> String {\n        return \"Hello from protocol\"\n    }\n}\n\nstruct User: Greeter {\n    func sayHello() -> String {\n        return \"Hello from User\"\n    }\n}\n\nlet greeter: Greeter = User()\nprint(greeter.sayHello())","options":[{"id":"a","text":"Hello from User","explanation":"Because sayHello() is not in the protocol declaration, Swift uses static dispatch based on Greeter."},{"id":"b","text":"Hello from protocol","explanation":"Since sayHello() is only in the extension, Swift uses static dispatch and calls the Greeter extension."},{"id":"c","text":"It causes a compiler error because sayHello is not in Greeter.","explanation":"The extension provides sayHello() on Greeter, so the call compiles cleanly."},{"id":"d","text":"Fatal error: abstract method called","explanation":"Swift resolves the method call statically at compile time."}],"answer":"b"},{"id":"pop-q19","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol Formatter {\n    func format(value: Int) -> String\n}\n\nextension Formatter {\n    func format(value: Int) -> String {\n        return \"Value: \\(value)\"\n    }\n}\n\nstruct CustomFormatter: Formatter {}\n\nlet fmt: Formatter = CustomFormatter()\nprint(fmt.format(value: 42))","options":[{"id":"a","text":"42","explanation":"The extension returns the string 'Value: 42'."},{"id":"b","text":"CustomFormatter: 42","explanation":"The type name is not included in the return value."},{"id":"c","text":"Value: 42","explanation":"CustomFormatter inherits the default implementation from Formatter, printing 'Value: 42'."},{"id":"d","text":"It does not compile because CustomFormatter is empty.","explanation":"Empty structs can conform if all protocol requirements have default implementations."}],"answer":"c"},{"id":"pop-q20","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol Named {\n    var name: String { get }\n}\nprotocol Aged {\n    var age: Int { get }\n}\n\nstruct Person: Named, Aged {\n    let name: String\n    let age: Int\n}\n\nfunc display(entity: Named & Aged) {\n    print(\"\\(entity.name) is \\(entity.age)\")\n}\n\nlet person = Person(name: \"Taylor\", age: 30)\ndisplay(entity: person)","options":[{"id":"a","text":"Person: Taylor, 30","explanation":"The format string prints 'Taylor is 30'."},{"id":"b","text":"Taylor","explanation":"Both name and age are printed."},{"id":"c","text":"It fails to compile because functions cannot accept protocol compositions.","explanation":"Functions can accept composite protocol types using the ampersand syntax."},{"id":"d","text":"Taylor is 30","explanation":"The Person struct satisfies both Named and Aged, so display prints 'Taylor is 30'."}],"answer":"d"},{"id":"pop-q21","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol Scoreable {\n    var score: Int { get }\n    var isPassing: Bool { get }\n}\n\nextension Scoreable {\n    var isPassing: Bool {\n        return score >= 70\n    }\n}\n\nstruct ExamResult: Scoreable {\n    let score: Int\n}\n\nlet result = ExamResult(score: 85)\nprint(result.isPassing)","options":[{"id":"a","text":"true","explanation":"The score is 85, which is greater than or equal to 70, so the computed property returns true."},{"id":"b","text":"false","explanation":"85 is greater than or equal to 70, so isPassing is true."},{"id":"c","text":"85","explanation":"isPassing returns a Boolean value, not the score integer."},{"id":"d","text":"It causes a compiler error because extensions cannot define computed properties.","explanation":"Extensions can define computed properties that use other protocol requirements."}],"answer":"a"},{"id":"pop-q22","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"protocol Worker {\n    func work() -> String\n}\n\nextension Worker {\n    func work() -> String {\n        return \"General tasks\"\n    }\n    func takeBreak() -> String {\n        return \"15 minute break\"\n    }\n}\n\nstruct Developer: Worker {\n    func work() -> String {\n        return \"Writing Swift\"\n    }\n    func takeBreak() -> String {\n        return \"Coffee run\"\n    }\n}\n\nlet dev = Developer()\nprint(dev.takeBreak())","options":[{"id":"a","text":"15 minute break","explanation":"The variable dev is typed directly as Developer, so Swift calls the Developer method."},{"id":"b","text":"Coffee run","explanation":"Because dev is statically typed as Developer, calling dev.takeBreak() invokes Developer's own method."},{"id":"c","text":"General tasks","explanation":"takeBreak() does not invoke work()."},{"id":"d","text":"Writing Swift","explanation":"takeBreak() is called, not work()."}],"answer":"b"},{"id":"pop-q23","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"protocol IdentifiableEntity {\n    var id: String { get }\n}\n\nextension Collection where Element: IdentifiableEntity {\n    func allIDs() -> [String] {\n        return self.map { $0.id }\n    }\n}\n\nstruct UserItem: IdentifiableEntity {\n    let id: String\n}\n\nlet items = [UserItem(id: \"u1\"), UserItem(id: \"u2\")]\nprint(items.allIDs().joined(separator: \", \"))","options":[{"id":"a","text":"UserItem(id: u1), UserItem(id: u2)","explanation":"The allIDs() method maps elements to their id strings."},{"id":"b","text":"u1","explanation":"Both element IDs are collected and joined."},{"id":"c","text":"u1, u2","explanation":"The constrained extension applies to collections of IdentifiableEntity, returning and joining all IDs."},{"id":"d","text":"It fails to compile because arrays cannot be extended with protocol constraints.","explanation":"Swift fully supports constrained extensions on Collection where Element conforms to a protocol."}],"answer":"c"},{"id":"pop-q24","type":"written","difficulty":1,"prompt":"Explain what protocol-oriented programming is in Swift. In 2 to 5 sentences, describe why Swift developers prefer protocols and structs over deep class inheritance hierarchies.","rubric":[{"criterion":"Explains that protocol-oriented programming designs systems around protocols and capabilities rather than class inheritance trees","weight":35,"key":true},{"criterion":"Mentions that protocols allow structs and enums (value types) to share behaviors without inheritance","weight":35,"key":true},{"criterion":"Notes benefits such as avoiding tight coupling, avoiding shared mutable state, or avoiding rigid single-parent hierarchies","weight":30,"key":false}],"modelAnswer":"Protocol-oriented programming is an architectural style in Swift that organizes code around protocols rather than superclasses. It allows value types like structs and enums to share capabilities through composition. This approach avoids tight coupling and the fragile base class problem found in deep class inheritance trees. It also eliminates unintended shared mutable state bugs by encouraging value semantics."},{"id":"pop-q25","type":"written","difficulty":2,"prompt":"Explain how protocol extensions provide default implementations in Swift. In 2 to 5 sentences, describe how conforming types can use or override these default methods.","rubric":[{"criterion":"Explains that protocol extensions define method bodies that automatically apply to all conforming types","weight":40,"key":true},{"criterion":"Explains that conforming types can choose to keep the default or implement their own version to override it","weight":40,"key":true},{"criterion":"Mentions that conforming types do not use the override keyword when replacing a protocol default","weight":20,"key":false}],"modelAnswer":"A protocol extension provides a default implementation for a protocol requirement so conforming types do not need to repeat common code. When a type conforms to the protocol, it automatically receives this implementation. The conforming type can keep the default behavior or implement its own custom version. In Swift, conforming types do not use the override keyword when replacing a protocol default implementation."},{"id":"pop-q26","type":"written","difficulty":3,"prompt":"Explain the dispatch difference between a method declared in a protocol definition and a method declared only in a protocol extension. In 2 to 5 sentences, describe what happens when called through a protocol type.","rubric":[{"criterion":"Explains that methods declared in the protocol definition use dynamic dispatch through witness tables","weight":40,"key":true},{"criterion":"Explains that methods declared only in the extension use static dispatch resolved at compile time","weight":40,"key":true},{"criterion":"Explains the practical consequence: calling an extension-only method on a protocol reference invokes the extension implementation, ignoring custom type methods","weight":20,"key":false}],"modelAnswer":"Methods declared in the protocol definition use dynamic dispatch through protocol witness tables. When called on a protocol reference, Swift executes the conforming type implementation. In contrast, methods declared only in a protocol extension use static dispatch resolved at compile time. If code invokes an extension-only method on a protocol reference, the protocol extension implementation executes, ignoring any matching method on the concrete type."},{"id":"pop-q27","type":"written","difficulty":2,"prompt":"What is protocol composition in Swift, and how does it relate to the Interface Segregation Principle? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that protocol composition combines multiple protocols into a single requirement using the ampersand operator","weight":40,"key":true},{"criterion":"Explains that it supports the Interface Segregation Principle by favoring small, focused protocols over monolithic ones","weight":40,"key":true},{"criterion":"Mentions that consumers only require the specific combinations of capabilities they need","weight":20,"key":false}],"modelAnswer":"Protocol composition combines multiple protocols into a single requirement using the ampersand operator, such as Named & Identifiable. This directly supports the Interface Segregation Principle by encouraging developers to write small, focused protocols rather than giant ones. Consumers only require the specific combinations of capabilities they need. Conforming types can adopt multiple small protocols without carrying unused dependencies."},{"id":"pop-q28","type":"written","difficulty":3,"prompt":"How does protocol-oriented programming improve testability and dependency injection in iOS applications? In 2 to 5 sentences, give a concrete architectural example.","rubric":[{"criterion":"Explains that defining service protocols decouples view models or business logic from concrete implementations","weight":40,"key":true},{"criterion":"Describes how unit tests can inject mock conforming types that return stubbed data synchronously","weight":40,"key":true},{"criterion":"Mentions benefits like deterministic tests, speed, and avoiding live network or disk calls in tests","weight":20,"key":false}],"modelAnswer":"Protocol-oriented programming improves testability by decoupling components from concrete dependencies. For example, a ViewModel can depend on an APIClientProtocol rather than a concrete networking class. In production, we inject a real network service, while unit tests inject a mock conforming struct that returns stubbed data. This makes tests fast, deterministic, and independent of network availability."},{"id":"pop-q29","type":"code-write","difficulty":1,"prompt":"Write a Swift protocol named Describable with a method requirement 'func describe() -> String'. Write a protocol extension that provides a default implementation returning 'General item'. Then declare a struct named Item that conforms to Describable without implementing describe(). Create an instance of Item and print its describe() output.","starterCode":"protocol Describable {\n    // Declare method requirement\n}\n\n// Provide protocol extension default\n\n// Declare conforming struct Item\n\n// Create instance and print describe()","rubric":[{"criterion":"Declares protocol Describable with func describe() -> String requirement","weight":30,"key":true},{"criterion":"Provides an extension on Describable with func describe() returning 'General item'","weight":35,"key":true},{"criterion":"Declares struct Item conforming to Describable, creates an instance, and prints describe()","weight":35,"key":true}],"modelAnswer":"protocol Describable {\n    func describe() -> String\n}\n\nextension Describable {\n    func describe() -> String {\n        return \"General item\"\n    }\n}\n\nstruct Item: Describable {}\n\nlet item = Item()\nprint(item.describe())"},{"id":"pop-q30","type":"code-write","difficulty":2,"prompt":"Write a protocol named Payable with a method requirement 'func fee() -> Int'. Write a protocol extension providing a default implementation that returns 10. Then create a struct named PremiumInvoice conforming to Payable that overrides fee() to return 25. Create a PremiumInvoice instance and print its fee().","starterCode":"protocol Payable {\n    // Method requirement\n}\n\n// Protocol extension default\n\n// Struct overriding fee\n\n// Create instance and print fee()","rubric":[{"criterion":"Declares protocol Payable with fee() -> Int and provides extension default returning 10","weight":40,"key":true},{"criterion":"Declares struct PremiumInvoice conforming to Payable with custom fee() returning 25","weight":40,"key":true},{"criterion":"Instantiates PremiumInvoice and prints the result of fee()","weight":20,"key":true}],"modelAnswer":"protocol Payable {\n    func fee() -> Int\n}\n\nextension Payable {\n    func fee() -> Int {\n        return 10\n    }\n}\n\nstruct PremiumInvoice: Payable {\n    func fee() -> Int {\n        return 25\n    }\n}\n\nlet invoice = PremiumInvoice()\nprint(invoice.fee())"},{"id":"pop-q31","type":"code-write","difficulty":3,"prompt":"Write two protocols named Named (with get-only property 'name: String') and Tagged (with get-only property 'tag: String'). Write a function named logItem that takes a single parameter 'item: Named & Tagged' and prints '\\(item.name) [#\\(item.tag)]'. Create a struct Article conforming to both protocols with name 'Swift 6' and tag 'iOS', and call logItem with it.","starterCode":"protocol Named {\n    // name property\n}\nprotocol Tagged {\n    // tag property\n}\n\n// logItem function taking composite parameter\n\n// Article struct conforming to both\n\n// Call logItem","rubric":[{"criterion":"Declares Named and Tagged protocols with correct get-only String properties","weight":30,"key":true},{"criterion":"Declares logItem accepting Named & Tagged composition and prints formatted string","weight":40,"key":true},{"criterion":"Declares Article conforming to both protocols, creates instance with 'Swift 6' and 'iOS', and calls logItem","weight":30,"key":true}],"modelAnswer":"protocol Named {\n    var name: String { get }\n}\nprotocol Tagged {\n    var tag: String { get }\n}\n\nfunc logItem(item: Named & Tagged) {\n    print(\"\\(item.name) [#\\(item.tag)]\")\n}\n\nstruct Article: Named, Tagged {\n    let name: String\n    let tag: String\n}\n\nlet article = Article(name: \"Swift 6\", tag: \"iOS\")\nlogItem(item: article)"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
