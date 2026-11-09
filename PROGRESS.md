@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 8 remaining topics (14 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 7 remaining topics (15 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -94,9 +94,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **error-handling** (Error Handling) — published (lesson, diagram, 31 questions) → [docs/topics/error-handling/review.html](docs/topics/error-handling/review.html)
   - 🔄 **Batch 1C: Coding Interview (3 topics: `big-o` → `hash-tables`)**
     - ✅ **big-o** (Big-O: Time and Space) — published (lesson, diagram, 31 questions) → [docs/topics/big-o/review.html](docs/topics/big-o/review.html)
-    - 🔄 **arrays-and-strings** (Arrays and Strings) — starting research
-    - ⬜ **hash-tables** (Hash Tables)
-    - ⬜ **hash-tables** (Hash Tables)
+    - ✅ **arrays-and-strings** (Arrays and Strings) — published (lesson, diagram, 31 questions) → [docs/topics/arrays-and-strings/review.html](docs/topics/arrays-and-strings/review.html)
+    - 🔄 **hash-tables** (Hash Tables) — starting research
   - ⬜ **Batch 1D: SwiftUI Basics (5 topics: `swiftui-views-modifiers` → `swiftui-navigation`)**
     - ⬜ **swiftui-views-modifiers** (Views and Modifiers)
     - ⬜ **swiftui-layout** (Stacks and Layout)
@@ -210,11 +209,14 @@ New rules and changes you ask for are added here, with the date.
 | 2026-11-08 | Per-topic research, fact checks and rubric test notes live in `docs/topics/<topic-id>/` | [docs/phase-4-plan.md](docs/phase-4-plan.md) |
 | 2026-11-08 | Content production runs level by level, starting with Fresh level (21 remaining topics) | [docs/phase-4-plan.md](docs/phase-4-plan.md) |
 | 2026-11-09 | Complete all 22 Fresh level topics first (Coding Interview, SwiftUI, App and System); keep optional-chaining in Wave 2 (Junior) | ask_question decision |
+| 2026-11-09 | Delegate Phase 4 content production to autonomous workflow without manual approvals; each topic auto-publishes upon passing compiler and linter checks | User instruction |
 
 ## Change log
 
 Newest first.
 
+- **2026-11-09** — arrays-and-strings published. User authorized autonomous content production for remaining Phase 4 topics without pausing for manual approvals.
+- **2026-11-09** — Built topic arrays-and-strings (Arrays and Strings): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/arrays-and-strings/review.html`). Status: review, waiting for your approval.
 - **2026-11-09** — big-o approved and published by user. Started topic arrays-and-strings: researching two-pointer techniques, sliding window patterns, and Swift string indexing.
 - **2026-11-09** — Built topic big-o (Big-O: Time and Space): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/big-o/review.html`). Status: review, waiting for your approval.
 - **2026-11-09** — Clarified Fresh vs Junior batch sequence with user: Complete all 22 Fresh topics first, keeping optional-chaining for Wave 2 (Junior). Started topic big-o (Big-O: Time and Space): researching official sources, Swift collection complexities, and interview patterns.

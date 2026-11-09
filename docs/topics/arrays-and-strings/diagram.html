@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Two-Pointer In-Place Reversal in Swift</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --left-color: #0284c7; --left-soft: #e0f2fe;
+  --right-color: #d97706; --right-soft: #fef3c7;
+  --match-color: #0c765c; --match-soft: #dcf2ea;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --left-color: #38bdf8; --left-soft: #082f49;
+  --right-color: #fbbf24; --right-soft: #451a03;
+  --match-color: #45cfa3; --match-soft: #13362c;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.array-box { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 8px; }
+.array-box.active-left { stroke: var(--left-color); fill: var(--left-soft); stroke-width: 2.5; }
+.array-box.active-right { stroke: var(--right-color); fill: var(--right-soft); stroke-width: 2.5; }
+.array-box.active-meet { stroke: var(--match-color); fill: var(--match-soft); stroke-width: 2.5; }
+
+.box-val { font-family: var(--font-code); font-size: 15px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.box-idx { font-family: var(--font-body); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+.pointer-label { font-family: var(--font-body); font-size: 12px; font-weight: 700; text-anchor: middle; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div class="diagram-host" tabindex="0" role="region" aria-label="Interactive diagram: Two-Pointer In-Place Reversal">
+
+  <!-- Interactive Animator -->
+  <div class="anim-only" style="display: grid; gap: 16px;">
+    <div class="panels">
+      <!-- Left Panel: Graphic Array Visualizer -->
+      <div class="panel p-left">
+        <h3><span id="vis-title">Array State</span><span class="kind" id="vis-tag">Pointers at Ends</span></h3>
+        <p class="caption" id="vis-desc">Left pointer starts at index 0 and right pointer starts at index 4.</p>
+        
+        <svg viewBox="0 0 340 180" aria-hidden="true">
+          <!-- 5 Array Boxes -->
+          <!-- Box 0 -->
+          <rect id="box-0" x="15" y="70" width="56" height="50" class="array-box active-left" />
+          <text id="val-0" x="43" y="101" class="box-val">10</text>
+          <text x="43" y="138" class="box-idx">[0]</text>
+          
+          <!-- Box 1 -->
+          <rect id="box-1" x="79" y="70" width="56" height="50" class="array-box" />
+          <text id="val-1" x="107" y="101" class="box-val">20</text>
+          <text x="107" y="138" class="box-idx">[1]</text>
+          
+          <!-- Box 2 -->
+          <rect id="box-2" x="143" y="70" width="56" height="50" class="array-box" />
+          <text id="val-2" x="171" y="101" class="box-val">30</text>
+          <text x="171" y="138" class="box-idx">[2]</text>
+          
+          <!-- Box 3 -->
+          <rect id="box-3" x="207" y="70" width="56" height="50" class="array-box" />
+          <text id="val-3" x="235" y="101" class="box-val">40</text>
+          <text x="235" y="138" class="box-idx">[3]</text>
+          
+          <!-- Box 4 -->
+          <rect id="box-4" x="271" y="70" width="56" height="50" class="array-box active-right" />
+          <text id="val-4" x="299" y="101" class="box-val">50</text>
+          <text x="299" y="138" class="box-idx">[4]</text>
+
+          <!-- Pointer labels above boxes -->
+          <text id="ptr-left" x="43" y="45" class="pointer-label" fill="var(--left-color)">↓ left</text>
+          <text id="ptr-right" x="299" y="45" class="pointer-label" fill="var(--right-color)">↓ right</text>
+        </svg>
+
+        <div class="metrics">
+          <div class="metric-col"><span>left index</span><strong id="m-left">0</strong></div>
+          <div class="metric-col"><span>right index</span><strong id="m-right">4</strong></div>
+          <div class="metric-col"><span>Action</span><strong id="m-action">Ready to swap</strong></div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Code and Swift Action -->
+      <div class="panel p-right">
+        <h3><span id="right-title">Swift Code Execution</span><span class="kind" id="right-tag">Step 1</span></h3>
+        <div class="code" id="right-code">var left = 0
+var right = numbers.count - 1
+
+// Check condition: left < right (0 < 4)</div>
+        <p class="caption" id="right-desc">Pointers start at opposite ends. The loop condition left &lt; right is true, so we prepare to swap numbers[0] and numbers[4].</p>
+        <div class="metrics">
+          <div class="metric-col"><span>Time</span><strong>O(n)</strong></div>
+          <div class="metric-col"><span>Space</span><strong>O(1)</strong></div>
+          <div class="metric-col"><span>Swaps</span><strong id="r-swaps">0 of 2</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1: Pointers at ends" onclick="goToStep(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2: Swap first and last" onclick="goToStep(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3: Swap inner elements" onclick="goToStep(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4: Pointers meet" onclick="goToStep(3)"></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()" aria-label="Next step">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-Motion Static Fallback -->
+  <div class="static-fallback" aria-label="Static explanation of two-pointer array reversal">
+    <div class="comp-card" style="border-left: 4px solid var(--left-color);">
+      <h4>Step 1: Setup Pointers at Ends</h4>
+      <p>Initialize <code>left = 0</code> and <code>right = numbers.count - 1</code>. Array is <code>[10, 20, 30, 40, 50]</code>.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--right-color);">
+      <h4>Step 2: Swap Outer Elements</h4>
+      <p>Swap elements at index 0 and 4 using <code>numbers.swapAt(0, 4)</code>. Array becomes <code>[50, 20, 30, 40, 10]</code>. Increment <code>left</code> to 1 and decrement <code>right</code> to 3.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--left-color);">
+      <h4>Step 3: Swap Inner Elements</h4>
+      <p>Swap elements at index 1 and 3 using <code>numbers.swapAt(1, 3)</code>. Array becomes <code>[50, 40, 30, 20, 10]</code>. Increment <code>left</code> to 2 and decrement <code>right</code> to 2.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--match-color);">
+      <h4>Step 4: Pointers Meet at Center</h4>
+      <p><code>left == right == 2</code>. Loop condition <code>left &lt; right</code> evaluates to false. Array is reversed in <code>O(n)</code> time and <code>O(1)</code> space without extra memory.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    visTitle: "Initial Pointers",
+    visTag: "Ends",
+    visDesc: "Pointers initialize at opposite ends: left = 0 (10) and right = 4 (50).",
+    vals: ["10", "20", "30", "40", "50"],
+    boxClasses: ["active-left", "", "", "", "active-right"],
+    ptrLeftX: 43, ptrLeftText: "↓ left", ptrLeftShow: true,
+    ptrRightX: 299, ptrRightText: "↓ right", ptrRightShow: true,
+    mLeft: "0", mRight: "4", mAction: "Ready to swap",
+    rightTitle: "Setup & Condition",
+    rightTag: "left < right",
+    rightCode: "var left = 0\nvar right = numbers.count - 1\n// left (0) < right (4) -> true",
+    rightDesc: "Opposing pointers start at the outer boundaries. The loop condition is true, so execution enters the while body.",
+    rSwaps: "0 of 2"
+  },
+  {
+    visTitle: "First Swap Completed",
+    visTag: "swapAt(0, 4)",
+    visDesc: "Values 10 and 50 swapped. Pointers move inward: left becomes 1 and right becomes 3.",
+    vals: ["50", "20", "30", "40", "10"],
+    boxClasses: ["", "active-left", "", "active-right", ""],
+    ptrLeftX: 107, ptrLeftText: "↓ left", ptrLeftShow: true,
+    ptrRightX: 235, ptrRightText: "↓ right", ptrRightShow: true,
+    mLeft: "1", mRight: "3", mAction: "Swapped 0 & 4",
+    rightTitle: "Inward Advance",
+    rightTag: "left++, right--",
+    rightCode: "numbers.swapAt(0, 4)\nleft += 1  // now 1\nright -= 1 // now 3",
+    rightDesc: "swapAt mutates the array in-place without memory allocation. Incrementing left and decrementing right moves inward.",
+    rSwaps: "1 of 2"
+  },
+  {
+    visTitle: "Second Swap Completed",
+    visTag: "swapAt(1, 3)",
+    visDesc: "Values 20 and 40 swapped. Pointers move inward to index 2.",
+    vals: ["50", "40", "30", "20", "10"],
+    boxClasses: ["", "", "active-meet", "", ""],
+    ptrLeftX: 171, ptrLeftText: "↓ left & right", ptrLeftShow: true,
+    ptrRightX: 171, ptrRightText: "", ptrRightShow: false,
+    mLeft: "2", mRight: "2", mAction: "Swapped 1 & 3",
+    rightTitle: "Second Swap",
+    rightTag: "Complete",
+    rightCode: "numbers.swapAt(1, 3)\nleft += 1  // now 2\nright -= 1 // now 2",
+    rightDesc: "The second pair is swapped in-place. Pointers advance and now both point to the middle element (index 2).",
+    rSwaps: "2 of 2"
+  },
+  {
+    visTitle: "Reversal Complete",
+    visTag: "Finished",
+    visDesc: "left == right (2 == 2). The condition left < right is false, so the loop terminates cleanly.",
+    vals: ["50", "40", "30", "20", "10"],
+    boxClasses: ["active-meet", "active-meet", "active-meet", "active-meet", "active-meet"],
+    ptrLeftX: 171, ptrLeftText: "✓ Finished", ptrLeftShow: true,
+    ptrRightX: 171, ptrRightText: "", ptrRightShow: false,
+    mLeft: "2", mRight: "2", mAction: "Done",
+    rightTitle: "Loop Exits",
+    rightTag: "O(1) Space",
+    rightCode: "// while left < right terminates\n// numbers is now [50, 40, 30, 20, 10]\nprint(numbers)",
+    rightDesc: "The array is fully reversed with exactly 2 swaps. Total time complexity is O(n), and space complexity is O(1).",
+    rSwaps: "2 of 2"
+  }
+];
+
+let currentStep = 0;
+
+function updateView() {
+  const s = steps[currentStep];
+  
+  // Left panel titles
+  document.getElementById("vis-title").textContent = s.visTitle;
+  document.getElementById("vis-tag").textContent = s.visTag;
+  document.getElementById("vis-desc").textContent = s.visDesc;
+  
+  // Update box values & classes
+  for (let i = 0; i < 5; i++) {
+    document.getElementById("val-" + i).textContent = s.vals[i];
+    const box = document.getElementById("box-" + i);
+    box.className.baseVal = "array-box " + s.boxClasses[i];
+  }
+  
+  // Pointers
+  const pL = document.getElementById("ptr-left");
+  pL.setAttribute("x", s.ptrLeftX);
+  pL.textContent = s.ptrLeftText;
+  pL.style.display = s.ptrLeftShow ? "block" : "none";
+  if (currentStep === 2 || currentStep === 3) {
+    pL.setAttribute("fill", "var(--match-color)");
+  } else {
+    pL.setAttribute("fill", "var(--left-color)");
+  }
+  
+  const pR = document.getElementById("ptr-right");
+  pR.setAttribute("x", s.ptrRightX);
+  pR.textContent = s.ptrRightText;
+  pR.style.display = s.ptrRightShow ? "block" : "none";
+  
+  // Metrics
+  document.getElementById("m-left").textContent = s.mLeft;
+  document.getElementById("m-right").textContent = s.mRight;
+  document.getElementById("m-action").textContent = s.mAction;
+  
+  // Right panel
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+  document.getElementById("r-swaps").textContent = s.rSwaps;
+  
+  // Dots
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.classList.toggle("active", idx === currentStep);
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+  
+  document.getElementById("btn-prev").disabled = (currentStep === 0);
+  document.getElementById("btn-next").disabled = (currentStep === steps.length - 1);
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateView();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateView();
+  }
+}
+
+function goToStep(i) {
+  currentStep = i;
+  updateView();
+}
+
+// Keyboard arrow navigation
+document.querySelector(".diagram-host").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateView();
+</script>
+
+</body>
+</html>
