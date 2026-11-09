@@ -1,0 +1,232 @@
+export const meta = {
+  id: "table-collection-views",
+  summary: "Build high-performance lists and grids with diffable data sources and compositional layout.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Updating collection views using diffable data sources (UIKit)", url: "https://developer.apple.com/documentation/uikit/updating-collection-views-using-diffable-data-sources", kind: "official" },
+    { title: "UICollectionViewCompositionalLayout (UIKit)", url: "https://developer.apple.com/documentation/uikit/uicollectionviewcompositionallayout", kind: "official" },
+    { title: "UITableView (UIKit)", url: "https://developer.apple.com/documentation/uikit/uitableview", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does UIKit recycle off-screen cells instead of creating new cells for every item in a list?</Question>
+  <Guess>
+    <Option id="a">Recycled cells load data directly from the device disk storage.</Option>
+    <Option id="b" correct>Recycling limits memory usage and keeps scrolling smooth at sixty or one hundred twenty frames per second.</Option>
+    <Option id="c">Core Animation requires every list cell to share a single GPU texture.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a sushi restaurant with a conveyor belt.
+
+There are only ten seats at the counter. The chef does not buy ten thousand new plates for every guest.
+
+Instead, when a customer finishes eating, the chef washes the empty plate.
+
+The chef places fresh sushi on that clean plate and serves the next guest.
+
+That washed, reused plate is a **recycled cell**.
+</Analogy>
+
+In UIKit, `UITableView` displays single-column lists, while `UICollectionView` displays flexible grids and custom layouts.
+
+Both rely on cell reuse to maintain fast scrolling performance.
+
+Modern UIKit improves list building with two major technologies:
+
+1. **Diffable Data Sources**:
+   - Replaces manual index path calculations and batch reload crashes.
+   - You apply a snapshot with your data models.
+   - UIKit automatically calculates the differences and animates changes.
+2. **Compositional Layout**:
+   - Organizes layouts into four clear levels: Item, Group, Section, and Layout.
+   - Supports multi-column grids and horizontal scrolling carousels without nesting collection views.
+
+## See it
+
+<Diagram id="table-and-collection-views-diagram" caption="Cell Reuse Mechanics, Diffable Snapshots, and Compositional Layout Hierarchy in UIKit">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Visible viewport showing active cells on screen.
+    2. Reuse queue pool holding recycled off-screen cells.
+    3. NSDiffableDataSourceSnapshot with sections and unique items.
+    4. Compositional layout hierarchy: Item -> Group -> Section -> Layout.
+  - Steps:
+    Step 1: Cell scrolling off-screen into the reuse queue pool.
+    Step 2: dequeueReusableCell reclaiming an existing cell for incoming content.
+    Step 3: Diffable snapshot calculating insertions and deletions with animations.
+    Step 4: Compositional layout arranging items into groups and sections.
+  - Static version (reduced motion):
+    A 4-step diagram showing cell reuse queueing, diffable snapshots, and compositional layout.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which method should you override inside a custom cell to reset text and cancel pending downloads?</Question>
+  <Option id="a">`layoutSubviews()`</Option>
+  <Option id="b" correct>`prepareForReuse()`</Option>
+  <Option id="c">`removeFromSuperview()`</Option>
+  <Explanation>prepareForReuse runs right before a recycled cell is returned from the dequeue queue.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is how you populate a list using a diffable data source snapshot.
+
+Items must conform to `Hashable` with unique identifiers.
+
+<CodeExample title="Constructing a diffable data source snapshot">
+
+```swift
+import UIKit
+
+enum Section: Hashable {
+    case main
+}
+
+struct Item: Hashable {
+    let id: Int
+    let title: String
+}
+
+var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
+snapshot.appendSections([.main])
+snapshot.appendItems([
+    Item(id: 1, title: "SwiftUI"),
+    Item(id: 2, title: "UIKit")
+])
+
+print("Sections count: \(snapshot.numberOfSections)")
+print("Items count: \(snapshot.numberOfItems)")
+```
+
+```output
+Sections count: 1
+Items count: 2
+```
+
+</CodeExample>
+
+When you call `dataSource.apply(snapshot, animatingDifferences: true)`, UIKit animates the updates smoothly.
+
+Next, observe how to build a two-column grid using compositional layout.
+
+<CodeExample title="Building a grid with compositional layout">
+
+```swift
+import UIKit
+
+let itemSize = NSCollectionLayoutSize(
+    widthDimension: .fractionalWidth(0.5),
+    heightDimension: .fractionalHeight(1.0)
+)
+let item = NSCollectionLayoutItem(layoutSize: itemSize)
+
+let groupSize = NSCollectionLayoutSize(
+    widthDimension: .fractionalWidth(1.0),
+    heightDimension: .absolute(100)
+)
+let group = NSCollectionLayoutGroup.horizontal(
+    layoutSize: groupSize,
+    repeatingSubitem: item,
+    count: 2
+)
+let section = NSCollectionLayoutSection(group: group)
+let layout = UICollectionViewCompositionalLayout(section: section)
+
+print("Fractional width: \(itemSize.widthDimension.isFractionalWidth)")
+print("Group absolute height: \(groupSize.heightDimension.isAbsolute)")
+```
+
+```output
+Fractional width: true
+Group absolute height: true
+```
+
+</CodeExample>
+
+Fractional dimensions adapt automatically to screen size changes.
+
+<QuickCheck>
+  <Question>What requirement must item models fulfill to be used in diffable data sources?</Question>
+  <Option id="a">They must inherit from `NSObject`.</Option>
+  <Option id="b" correct>They must conform to `Hashable` with unique identity values.</Option>
+  <Option id="c">They must be declared as mutable reference classes.</Option>
+  <Explanation>Diffable data source snapshots require Hashable items with unique identifiers to compute diffs.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Non-unique items in diffable snapshots">
+Appending two items with the same identifier to a snapshot causes an assertion crash.
+
+Diffable data sources rely on unique hashes to calculate animations.
+
+Always provide unique identifiers for every item in the snapshot.
+</Trap>
+
+<Trap title="Missing prepareForReuse cleanup">
+If you do not cancel image downloads in `prepareForReuse`, fast scrolling shows wrong images.
+
+A delayed network task can complete and overwrite newly assigned content on a recycled cell.
+
+Cancel background tasks and clear image views inside `prepareForReuse`.
+</Trap>
+
+<Trap title="Heavy computation in cell provider closures">
+Parsing JSON or calculating expensive data inside cell providers drops the scrolling frame rate.
+
+Cell configuration must run fast on the main thread.
+
+Prepare your data models before applying the snapshot.
+</Trap>
+
+<Trap title="Nesting collection views for carousels">
+Embedding a collection view inside a table cell creates complex gesture and memory bugs.
+
+Use `UICollectionViewCompositionalLayout` instead.
+
+Set `section.orthogonalScrollingBehavior = .continuous` to add horizontal scrolling rows easily.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"In UIKit, table views display vertical lists and collection views display grids. Cells are recycled using `dequeueReusableCell` to save memory and keep scrolling smooth. In modern iOS, we manage data with diffable data sources and reset recycled cells in `prepareForReuse`."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"We use cell reuse to prevent memory spikes by recycling off-screen views. For data, we prefer `UICollectionViewDiffableDataSource` over legacy reload methods because snapshots eliminate batch update crashes. For layouts, we use `UICollectionViewCompositionalLayout` composed of Items, Groups, and Sections, with orthogonal scrolling for carousels."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Modern collection views separate data, layout, and presentation cleanly. Diffable data sources calculate background diffs via the Myers algorithm, avoiding main thread hitches. We build declarative layouts with `UICollectionViewCompositionalLayout` and configure cells using `UIListContentConfiguration`. For image-heavy feeds, we pair cell reuse with prefetching APIs."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Cell reuse recycles off-screen views to maintain high scrolling performance.
+- Clean up previous cell state and cancel pending downloads in `prepareForReuse`.
+- Diffable data sources replace index path math with type-safe `Hashable` snapshots.
+- `NSDiffableDataSourceSnapshot` computes insertions, deletions, and moves automatically.
+- Compositional layout organizes screens into Items, Groups, Sections, and Layouts.
+- Orthogonal scrolling creates horizontal carousels without nesting collection views.
+</Recap>
+
+## Go deeper
+
+- [Updating collection views using diffable data sources](https://developer.apple.com/documentation/uikit/updating-collection-views-using-diffable-data-sources) — Official Apple guide for diffable data sources.
+- [UICollectionViewCompositionalLayout (UIKit)](https://developer.apple.com/documentation/uikit/uicollectionviewcompositionallayout) — Apple documentation on compositional layout.
+- [UITableView (UIKit)](https://developer.apple.com/documentation/uikit/uitableview) — Apple guide for table views and cells.

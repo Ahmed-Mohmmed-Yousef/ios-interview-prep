@@ -129,7 +129,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **main-thread** (The Main Thread) — published (lesson, diagram, 31 questions) → [docs/topics/main-thread/review.html](docs/topics/main-thread/review.html)
     - ✅ **gcd-basics** (GCD Basics) — published (lesson, diagram, 31 questions) → [docs/topics/gcd-basics/review.html](docs/topics/gcd-basics/review.html)
     - ✅ **async-await** (async/await) — published (lesson, diagram, 31 questions) → [docs/topics/async-await/review.html](docs/topics/async-await/review.html)
-  - 🔄 **Batch 2D: SwiftUI & UIKit (9 topics)**
+  - ✅ **Batch 2D: SwiftUI & UIKit (9 topics)** — all 9 topics published
     - ✅ **swiftui-observation** (Data Flow with @Observable) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-observation/review.html](docs/topics/swiftui-observation/review.html)
     - ✅ **observable-object** (ObservableObject and @StateObject) — published (lesson, diagram, 31 questions) → [docs/topics/observable-object/review.html](docs/topics/observable-object/review.html)
     - ✅ **forms-and-input** (Forms and User Input) — published (lesson, diagram, 31 questions) → [docs/topics/forms-and-input/review.html](docs/topics/forms-and-input/review.html)
@@ -138,7 +138,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **view-controller-lifecycle** (View Controller Lifecycle) — published (lesson, diagram, 31 questions) → [docs/topics/view-controller-lifecycle/review.html](docs/topics/view-controller-lifecycle/review.html)
     - ✅ **auto-layout** (Auto Layout) — published (lesson, diagram, 31 questions) → [docs/topics/auto-layout/review.html](docs/topics/auto-layout/review.html)
     - ✅ **uikit-navigation** (Navigation in UIKit) — published (lesson, diagram, 31 questions) → [docs/topics/uikit-navigation/review.html](docs/topics/uikit-navigation/review.html)
-    - 🔄 **table-collection-views** (Table and Collection Views) — starting research
+    - ✅ **table-collection-views** (Table and Collection Views) — published (lesson, diagram, 31 questions) → [docs/topics/table-collection-views/review.html](docs/topics/table-collection-views/review.html)
   - ⬜ **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)**
     - ⬜ **dark-mode-dynamic-type** (Dark Mode and Dynamic Type)
     - ⬜ **hig-liquid-glass** (Apple Design and Liquid Glass) [bonus]
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic table-collection-views (Table and Collection Views): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/table-collection-views/review.html`). All checks passed. Batch 2D (SwiftUI & UIKit - 9 topics) is now 100% complete and published!
 
 - **2026-11-09** — Built and published topic uikit-navigation (Navigation in UIKit): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/uikit-navigation/review.html`). All checks passed. Starting table-collection-views.
 
