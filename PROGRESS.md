@@ -213,7 +213,7 @@ Written answers and code answers graded by AI, with limits against abuse.
 ## Phase 7 — Launch ⬜
 
 Search engine setup, privacy-friendly analytics, deploy, feedback button.
-- ⬜ **Public GitHub repo + CI (do now)** — push the project to a **public** repo on your personal account (free GitHub Actions minutes; works with Vercel Hobby). A CI workflow runs `validate-curriculum`, `check-plain-english`, `run-swift-examples`, `check-brand`, the Vitest tests and `next build` on every push and pull request, so agents without hooks cannot skip them. Choose a license for the content and code before the first push. No secrets in the repo
+- ✅ **Public GitHub repo + CI** (2026-11-09) — [github.com/Ahmed-Mohmmed-Yousef/ios-interview-prep](https://github.com/Ahmed-Mohmmed-Yousef/ios-interview-prep). Licenses: MIT for code (`LICENSE`), CC BY-NC-SA 4.0 for content (`LICENSE-CONTENT.md`). CI (`.github/workflows/checks.yml`) runs curriculum, brand, lesson and plain-English checks, unit tests and `next build` on every push and pull request; first run passed. Swift examples run on macOS for changed topics, advisory until the runner has Xcode 27 (it has 26.6 now)
 - ⬜ **Analytics: Cloudflare Web Analytics** — free, no personal data (decided 2026-11-09)
 - ⬜ **"Report a problem" on each question + anonymous question stats** in Cloudflare D1 through a small Worker, right after launch. Shows which questions confuse learners, to improve them (decided 2026-11-09)
 - ⬜ **Content dashboard, part 1 (view)** — private `/admin` page: Firebase login + an allow-list of admin emails, checked on the server. Screens: overview of every topic (status, version, questions, sources, last fact-check, open reports), topic preview as learners see it with per-question stats from D1, and the reports inbox. Reports stay private in D1
@@ -308,6 +308,7 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — Pushed the project to a public GitHub repo with MIT (code) and CC BY-NC-SA 4.0 (content) licenses, and added CI. The first CI run passed. Added `/main` (a stray compiled Swift file) to `.gitignore`.
 - **2026-11-09** — Built and published topic solid-basics (SOLID Basics): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/solid-basics/review.html`). All checks passed. Starting debugging-lldb.
 
 - **2026-11-09** — Built and published topic mvc (MVC and Its Problems): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/mvc/review.html`). All checks passed. Starting solid-basics.
