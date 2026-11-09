@@ -1,0 +1,634 @@
+<title>App and Scene Lifecycle Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --launch-color: #0284c7; --launch-soft: #e0f2fe;
+  --active-color: #16a34a; --active-soft: #dcfce7;
+  --inactive-color: #ea580c; --inactive-soft: #ffedd5;
+  --bg-color: #7c3aed; --bg-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --launch-color: #38bdf8; --launch-soft: #082f49;
+  --active-color: #4ade80; --active-soft: #052e16;
+  --inactive-color: #fb923c; --inactive-soft: #431407;
+  --bg-color: #a78bfa; --bg-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.launch { background: var(--launch-soft); color: var(--launch-color); }
+.kind.active { background: var(--active-soft); color: var(--active-color); }
+.kind.inactive { background: var(--inactive-soft); color: var(--inactive-color); }
+.kind.background { background: var(--bg-soft); color: var(--bg-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--launch-color); color: #ffffff; border-color: var(--launch-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--launch-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · App and System · Topic 1 of 3 · Prototype</p>
+    <h1>App and Scene Lifecycle</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain how an app starts, goes to the background and comes back.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Where should you save important user changes so data is not lost if iOS runs low on memory?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Inside <code>applicationWillTerminate(_:)</code> right before the operating system closes the app.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">When the scene transitions into the background, before the system suspends the process.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Inside <code>viewDidDisappear(_:)</code> of the root view controller.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine an actor performing on a theater stage.</p><p>When the actor stands under the spotlight speaking lines, the actor is <strong>active</strong>.</p><p>If a phone rings in the audience and pauses the show, the actor stands frozen on stage.</p><p>The actor is still visible, but the show is <strong>inactive</strong>.</p><p>When the scene ends, the actor walks backstage. The actor is now in the <strong>background</strong>.</p><p>After a few minutes backstage, the actor sits quietly in the dressing room.</p><p>The actor uses zero energy while resting. That resting state is <strong>suspended</strong>.</p><p>If the theater closes for the night, the actor leaves the building without another curtain call.</p></aside>
+<p>In modern iOS, Apple splits lifecycle management into two separate layers:</p>
+<ol>
+<li><strong>The App Process Layer (<code>UIApplicationDelegate</code>)</strong>:
+<ul>
+<li>Manages the single operating system process.</li>
+<li>Handles app launch options, push notifications, and background task registration.</li>
+</ul>
+</li>
+<li><strong>The Scene Layer (<code>UISceneDelegate</code> and SwiftUI <code>ScenePhase</code>)</strong>:
+<ul>
+<li>Manages individual on-screen windows.</li>
+<li>On iPadOS and macOS, one app process can display multiple scenes side by side.</li>
+<li>Each scene moves through its own lifecycle independently.</li>
+</ul>
+</li>
+</ol>
+<p>A scene moves through four primary states:</p>
+<ul>
+<li><strong>Not Running</strong>: The scene is not in memory or has disconnected.</li>
+<li><strong>Inactive</strong>: The scene is visible on screen but cannot receive touch input (for example, during a phone call banner).</li>
+<li><strong>Active</strong>: The scene is visible and actively receiving user taps and typing.</li>
+<li><strong>Background</strong>: The scene is hidden from view.</li>
+<li><strong>Suspended</strong>: The app stays in memory with zero processor execution until resumed or purged.</li>
+</ul>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens to a scene when an incoming phone call banner appears across the top of the screen?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The scene is terminated immediately by the operating system.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The scene transitions from Active to Inactive while remaining visible.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The scene enters the background and disconnects all network sockets.</span></button><p class="qc-explain" hidden="">Incoming phone calls and system alerts move the scene to the Inactive state, pausing user input without moving it to the background.</p></div>
+<h2>In code</h2>
+<p>In SwiftUI, you monitor scene changes using the <code>@Environment(\.scenePhase)</code> property wrapper.</p>
+<p>You inspect whether the scene is <code>.active</code>, <code>.inactive</code>, or <code>.background</code>.</p>
+<figure class="code-example"><figcaption>Observing ScenePhase in SwiftUI</figcaption><pre class="block swift"><code class="language-swift">import SwiftUI
+
+let currentPhase = ScenePhase.active
+var statusDescription = &quot;&quot;
+
+switch currentPhase {
+case .active:
+    statusDescription = &quot;Scene is interactive in foreground&quot;
+case .inactive:
+    statusDescription = &quot;Scene is paused by an interruption&quot;
+case .background:
+    statusDescription = &quot;Scene is hidden and saving data&quot;
+@unknown default:
+    statusDescription = &quot;Unknown phase&quot;
+}
+
+print(&quot;Active phase check: \(currentPhase == .active)&quot;)
+print(&quot;Status: \(statusDescription)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Active phase check: true
+Status: Scene is interactive in foreground
+</code></pre></figure>
+<p>In your SwiftUI view, use <code>.onChange(of: scenePhase)</code> to save pending user input whenever the phase becomes <code>.background</code>.</p>
+<p>Next, see how UIKit represents scene activation states.</p>
+<p>The <code>UIScene.ActivationState</code> enum indicates whether a window is active, inactive, or in the background.</p>
+<figure class="code-example"><figcaption>Checking activation states in UIKit</figcaption><pre class="block swift"><code class="language-swift">import UIKit
+
+let sceneState = UIScene.ActivationState.foregroundActive
+let isInteractive = sceneState == .foregroundActive
+let isHidden = sceneState == .background
+
+print(&quot;Is interactive: \(isInteractive)&quot;)
+print(&quot;Is hidden in background: \(isHidden)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Is interactive: true
+Is hidden in background: false
+</code></pre></figure>
+<p>In UIKit, <code>UISceneDelegate</code> methods like <code>sceneDidEnterBackground(_:)</code> provide the exact point to flush unsaved changes to disk.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why is it risky to wait for <code>applicationWillTerminate(_:)</code> to save user data?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Swift 6 forbids calling disk storage APIs from AppDelegate.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Suspended apps in the background can be killed silently by iOS without calling termination methods.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The method only executes when the user restarts their phone.</span></button><p class="qc-explain" hidden="">When memory is needed, iOS purges suspended background processes without calling applicationWillTerminate.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Relying on applicationWillTerminate</p><p>Many developers assume <code>applicationWillTerminate(_:)</code> is always called before an app exits.</p><p>In reality, when an app sits suspended in the background, iOS frees memory by killing the process silently.</p><p><code>applicationWillTerminate(_:)</code> never executes in that common scenario.</p><p>Always save essential user state when the scene enters the background.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Heavy work during app launch</p><p>Running slow network calls or synchronous database migrations in <code>didFinishLaunchingWithOptions</code> blocks the main thread.</p><p>iOS uses a watchdog timer that terminates any app that fails to finish launching within about twenty seconds.</p><p>Keep app launch fast and dispatch long tasks to background queues.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing Inactive with Background</p><p>An app does not move to the background when an incoming phone call or Face ID alert appears.</p><p>It transitions to the Inactive state.</p><p>The view is still visible, but touch interaction is temporarily paused.</p><p>Do not discard temporary screen state or cancel active connections during brief interruptions.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Storing window state in AppDelegate</p><p>Since iOS 13, iPadOS supports multiple windows for the same application.</p><p>If you store window-specific view controllers or navigation paths in <code>AppDelegate</code>, windows overwrite each other.</p><p>Keep window-specific state inside each individual <code>SceneDelegate</code> or SwiftUI <code>Scene</code>.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;The app lifecycle manages how an app moves between active, inactive, background, and suspended states. Active means the user is tapping and typing. Inactive means it is visible but paused by an alert. Background means it is hidden. I save user data when moving to the background because suspended apps can be killed without warning.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;Apple separates process lifecycle in <code>AppDelegate</code> from UI scene lifecycle in <code>SceneDelegate</code>. This allows iPadOS to support multiple windows for a single process. Scenes transition from unattached to inactive, active, and background. In SwiftUI, we observe these transitions with <code>@Environment(\.scenePhase)</code> and persist state when entering <code>.background</code>.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;We isolate process-level services like push notifications in <code>UIApplicationDelegate</code>, while managing multi-window UI state through <code>UISceneDelegate</code>. We treat background transitions as our boundary for persisting state and releasing volatile caches. We also keep launch routines asynchronous to avoid watchdog timer crashes. In SwiftUI, observing <code>ScenePhase</code> at the App level allows coordinated multi-scene persistence.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>UIApplicationDelegate</code> manages the process; <code>UISceneDelegate</code> manages individual windows.</li>
+<li>Inactive means the scene is visible on screen but paused from user touch input.</li>
+<li>Active means the scene is in the foreground and responding to interactions.</li>
+<li>Background means the scene is hidden; iOS gives a brief window to save data.</li>
+<li>Suspended apps sit in RAM with zero CPU usage and can be killed silently without notice.</li>
+<li>Never rely on <code>applicationWillTerminate</code> to save critical user data.</li>
+<li>In SwiftUI, observe <code>@Environment(\.scenePhase)</code> to handle state changes cleanly.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/uikit/managing-your-app-s-life-cycle">Managing your app’s life cycle (UIKit)</a> — Official Apple guide for app lifecycle.</li>
+<li><a href="https://developer.apple.com/documentation/swiftui/scenephase">ScenePhase (SwiftUI)</a> — Apple documentation on SwiftUI scene phases.</li>
+<li><a href="https://developer.apple.com/documentation/uikit/uiscenedelegate">UISceneDelegate (UIKit)</a> — Apple documentation for scene delegates.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    badge: "Process Launch",
+    badgeClass: "launch",
+    sceneBadge: "Not Running → Inactive",
+    sceneClass: "launch",
+    engineCode: "// UIApplicationDelegate\nfunc application(\n    didFinishLaunchingWithOptions: ...\n) -> Bool",
+    sceneCode: "// UISceneDelegate\nfunc scene(\n    _ scene: UIScene,\n    willConnectTo session: UISceneSession\n)",
+    engineCaption: "Step 1: The app process launches into RAM. Must stay under the 20-second watchdog limit.",
+    sceneCaption: "Step 1: UIKit connects a scene window to display the initial user interface.",
+    processSvg: `
+      <!-- Process Launch Diagram -->
+      <rect x="55" y="45" width="170" height="130" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <circle cx="85" cy="80" r="18" fill="#e0f2fe"/>
+      <text x="85" y="86" font-size="14" font-weight="700" fill="#0284c7" text-anchor="middle">OS</text>
+      <path d="M 110 80 L 165 80" stroke="#0284c7" stroke-width="3" stroke-dasharray="4,4"/>
+      <circle cx="185" cy="80" r="18" fill="#dcfce7"/>
+      <text x="185" y="86" font-size="14" font-weight="700" fill="#16a34a" text-anchor="middle">APP</text>
+      <text x="140" y="130" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Process Created</text>
+      <text x="140" y="150" font-size="11" fill="#64748b" text-anchor="middle">Watchdog timer active</text>
+    `,
+    sceneSvg: `
+      <!-- Scene Connecting Box -->
+      <rect x="55" y="45" width="170" height="130" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <rect x="70" y="60" width="140" height="30" rx="6" fill="#e0f2fe"/>
+      <text x="140" y="80" font-size="12" font-weight="600" fill="#0284c7" text-anchor="middle">State: Inactive</text>
+      <rect x="70" y="105" width="140" height="50" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="140" y="128" font-size="11" fill="#64748b" text-anchor="middle">Window loading root view</text>
+      <text x="140" y="145" font-size="11" font-weight="600" fill="#0f172a" text-anchor="middle">0 Touches Allowed Yet</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Foreground Active",
+    badgeClass: "active",
+    sceneBadge: "Active (Interactive)",
+    sceneClass: "active",
+    engineCode: "// Process: Running in Foreground\n// CPU cycles allocated normally\n// Push notifications delivered",
+    sceneCode: "// Scene: Active & Interactive\nfunc sceneDidBecomeActive(_ scene: UIScene)\n// SwiftUI: scenePhase == .active",
+    engineCaption: "Step 2: The scene becomes Active. User touches, taps, and gestures are processed in real time.",
+    sceneCaption: "Step 2: The window is in the foreground, receiving touches and rendering at 120 FPS.",
+    processSvg: `
+      <!-- Running Active Diagram -->
+      <rect x="55" y="45" width="170" height="130" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <rect x="70" y="60" width="140" height="40" rx="6" fill="#dcfce7"/>
+      <text x="140" y="85" font-size="13" font-weight="700" fill="#15803d" text-anchor="middle">ACTIVE & RUNNING</text>
+      <rect x="70" y="115" width="140" height="45" rx="6" fill="#f0fdf4" stroke="#bbf7d0"/>
+      <text x="140" y="136" font-size="11" fill="#166534" text-anchor="middle">Full CPU allocation</text>
+      <text x="140" y="152" font-size="11" fill="#166534" text-anchor="middle">Real-time touch delivery</text>
+    `,
+    sceneSvg: `
+      <!-- Interactive Window Canvas -->
+      <rect x="55" y="45" width="170" height="130" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+      <rect x="70" y="55" width="140" height="20" rx="4" fill="#3b82f6"/>
+      <circle cx="85" cy="95" r="14" fill="#10b981"/>
+      <circle cx="140" cy="95" r="14" fill="#6366f1"/>
+      <circle cx="195" cy="95" r="14" fill="#ec4899"/>
+      <text x="140" y="145" font-size="12" font-weight="600" fill="#15803d" text-anchor="middle">Touch Input: ENABLED</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Interrupted",
+    badgeClass: "inactive",
+    sceneBadge: "Foreground Inactive",
+    sceneClass: "inactive",
+    engineCode: "// Temporary System Alert\n// Phone call banner, Siri, or Face ID\nsceneWillResignActive(_:)",
+    sceneCode: "// Inactive State\n// View is still visible on screen\n// Touch events paused by iOS",
+    engineCaption: "Step 3: An interruption occurs. The scene shifts to Inactive: visible but touches are paused.",
+    sceneCaption: "Step 3: Do not tear down network sockets or discard temporary state during Inactive pauses.",
+    processSvg: `
+      <!-- Interruption Alert Overlay -->
+      <rect x="55" y="45" width="170" height="130" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <rect x="65" y="55" width="150" height="36" rx="6" fill="#ffedd5" stroke="#ea580c"/>
+      <text x="140" y="78" font-size="11" font-weight="700" fill="#c2410c" text-anchor="middle">CALL BANNER / SIRI</text>
+      <text x="140" y="125" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">State: INACTIVE</text>
+      <text x="140" y="145" font-size="11" fill="#64748b" text-anchor="middle">View visible, touches paused</text>
+    `,
+    sceneSvg: `
+      <!-- Interrupted Scene Frame -->
+      <rect x="55" y="45" width="170" height="130" rx="8" fill="#f8fafc" stroke="#ea580c" stroke-dasharray="4,4"/>
+      <rect x="70" y="65" width="140" height="24" rx="4" fill="#e2e8f0"/>
+      <text x="140" y="82" font-size="11" fill="#64748b" text-anchor="middle">Controls Frozen</text>
+      <rect x="70" y="105" width="140" height="50" rx="6" fill="#ffedd5"/>
+      <text x="140" y="128" font-size="11" font-weight="600" fill="#9a3412" text-anchor="middle">Preserve active screen</text>
+      <text x="140" y="145" font-size="10" fill="#9a3412" text-anchor="middle">Do not disconnect sockets</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Background & Save",
+    badgeClass: "background",
+    sceneBadge: "Background → Suspended",
+    sceneClass: "background",
+    engineCode: "// Background Persistence\nfunc sceneDidEnterBackground(_ scene: UIScene)\n// Persist unsaved data to disk now",
+    sceneCode: "// Suspended in Memory\n// 0 CPU execution\n// OS may kill silently if RAM low",
+    engineCaption: "Step 4: The app moves to the background. Save critical data immediately before suspension.",
+    sceneCaption: "Step 4: Once suspended, iOS can terminate the app without calling applicationWillTerminate.",
+    processSvg: `
+      <!-- Background Save Diagram -->
+      <rect x="55" y="45" width="170" height="130" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+      <rect x="70" y="58" width="140" height="32" rx="6" fill="#f5f3ff"/>
+      <text x="140" y="78" font-size="12" font-weight="700" fill="#6d28d9" text-anchor="middle">Flushing to Disk</text>
+      <rect x="70" y="100" width="140" height="55" rx="6" fill="#faf5ff" stroke="#e9d5ff"/>
+      <text x="140" y="120" font-size="11" font-weight="600" fill="#581c87" text-anchor="middle">State: SUSPENDED</text>
+      <text x="140" y="138" font-size="10" fill="#6b21a8" text-anchor="middle">RAM kept • 0 CPU usage</text>
+    `,
+    sceneSvg: `
+      <!-- Hidden Scene Warning -->
+      <rect x="55" y="45" width="170" height="130" rx="8" fill="#18181b" stroke="#3f3f46"/>
+      <text x="140" y="80" font-size="13" font-weight="700" fill="#f4f4f5" text-anchor="middle">SCENE HIDDEN</text>
+      <rect x="70" y="100" width="140" height="55" rx="6" fill="#27272a"/>
+      <text x="140" y="122" font-size="11" font-weight="600" fill="#ef4444" text-anchor="middle">Silent Kill Risk</text>
+      <text x="140" y="140" font-size="10" fill="#a1a1aa" text-anchor="middle">WillTerminate NOT called</text>
+    `
+  }
+];
+
+let currentStep = 1;
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const stageBadge = document.getElementById("stageBadge");
+const sceneBadge = document.getElementById("sceneBadge");
+const engineCode = document.getElementById("engineCode");
+const sceneCode = document.getElementById("sceneCode");
+const engineCaption = document.getElementById("engineCaption");
+const sceneCaption = document.getElementById("sceneCaption");
+const processSvgG = document.getElementById("processSvgG");
+const sceneSvgG = document.getElementById("sceneSvgG");
+const dots = document.querySelectorAll(".step-dot");
+
+function renderStep(idx) {
+  const data = steps[idx - 1];
+  currentStep = idx;
+
+  stageBadge.textContent = data.badge;
+  stageBadge.className = "kind " + data.badgeClass;
+  sceneBadge.textContent = data.sceneBadge;
+  sceneBadge.className = "kind " + data.sceneClass;
+
+  engineCode.textContent = data.engineCode;
+  sceneCode.textContent = data.sceneCode;
+
+  engineCaption.textContent = data.engineCaption;
+  sceneCaption.textContent = data.sceneCaption;
+
+  processSvgG.innerHTML = data.processSvg;
+  sceneSvgG.innerHTML = data.sceneSvg;
+
+  dots.forEach(d => {
+    const s = parseInt(d.dataset.step, 10);
+    const active = s === idx;
+    d.classList.toggle("active", active);
+    d.setAttribute("aria-selected", active ? "true" : "false");
+  });
+
+  prevBtn.disabled = idx === 1;
+  nextBtn.disabled = idx === steps.length;
+}
+
+prevBtn.addEventListener("click", () => {
+  if (currentStep > 1) renderStep(currentStep - 1);
+});
+nextBtn.addEventListener("click", () => {
+  if (currentStep < steps.length) renderStep(currentStep + 1);
+});
+dots.forEach(d => {
+  d.addEventListener("click", () => {
+    renderStep(parseInt(d.dataset.step, 10));
+  });
+});
+
+renderStep(1);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"app-lifecycle","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"app-lifecycle-q1","type":"mcq","difficulty":1,"prompt":"Which delegate manages process-level events like push notifications and background launch options?","options":[{"id":"a","text":"UIApplicationDelegate handles app-level process events.","explanation":"Right. UIApplicationDelegate handles app-level process events like notifications and launch options."},{"id":"b","text":"UISceneDelegate manages all system-wide notification tokens.","explanation":"UISceneDelegate manages window scenes, not global push notification tokens."},{"id":"c","text":"UIViewController manages operating system background tasks.","explanation":"UIViewController manages a single view hierarchy, not process lifecycles."},{"id":"d","text":"UIWindowScene controls process termination across all devices.","explanation":"UIWindowScene represents a display window, not the underlying system process."}],"answer":"a"},{"id":"app-lifecycle-q2","type":"mcq","difficulty":1,"prompt":"What state is an app in when an incoming phone call banner temporarily interrupts user touches?","options":[{"id":"a","text":"The app enters the background state immediately.","explanation":"The app is still visible on screen, so it is not in the background."},{"id":"b","text":"The app remains visible in the inactive state.","explanation":"Right. Inactive means the scene is visible but cannot receive touch events."},{"id":"c","text":"The app is suspended with zero memory allocation.","explanation":"Suspended apps are completely hidden and consume zero CPU."},{"id":"d","text":"The app is terminated by the system watchdog.","explanation":"System alerts do not trigger watchdog crashes."}],"answer":"b"},{"id":"app-lifecycle-q3","type":"mcq","difficulty":1,"prompt":"Which SwiftUI environment value tracks whether the current scene is active, inactive, or in the background?","options":[{"id":"a","text":"The horizontalSizeClass environment key.","explanation":"HorizontalSizeClass tracks screen dimensions, not lifecycle state."},{"id":"b","text":"The colorScheme dynamic theme environment key.","explanation":"ColorScheme reports Light Mode or Dark Mode appearance."},{"id":"c","text":"The scenePhase declarative environment key.","explanation":"Right. ScenePhase provides the current active, inactive, or background state."},{"id":"d","text":"The isEnabled user interaction environment key.","explanation":"IsEnabled indicates whether a control responds to user interaction."}],"answer":"c"},{"id":"app-lifecycle-q4","type":"mcq","difficulty":2,"prompt":"Why is it unsafe to rely on `applicationWillTerminate(_:)` for saving unsaved user data?","options":[{"id":"a","text":"Swift 6 strict concurrency marks this delegate callback private.","explanation":"The method is a standard public delegate method in UIKit."},{"id":"b","text":"Modern flash storage requires async actor writes in SwiftUI.","explanation":"Synchronous file writes work in UIKit delegates if executed before suspension."},{"id":"c","text":"iPadOS disables termination notifications for multitasking windows.","explanation":"Termination notifications fail across all iOS devices when suspended."},{"id":"d","text":"The system kills suspended background apps without any notification.","explanation":"Right. iOS purges suspended processes under memory pressure without calling termination."}],"answer":"d"},{"id":"app-lifecycle-q5","type":"mcq","difficulty":1,"prompt":"What does the active lifecycle state mean for an iOS application?","options":[{"id":"a","text":"The scene is visible in foreground and receives user input.","explanation":"Right. Active means the app is running in the foreground and receiving touch events."},{"id":"b","text":"The app is performing silent background asset downloads.","explanation":"Background downloads happen while the app is in the background state."},{"id":"c","text":"The scene is disconnected from any physical display screen.","explanation":"Disconnected scenes are in the unattached state."},{"id":"d","text":"The operating system watchdog timer is currently counting down.","explanation":"The watchdog monitors launch and unresponsive freezes, not normal active runtime."}],"answer":"a"},{"id":"app-lifecycle-q6","type":"mcq","difficulty":2,"prompt":"What happens if an app takes twenty seconds to finish launching inside `didFinishLaunchingWithOptions`?","options":[{"id":"a","text":"iOS displays a system modal alert asking the user to wait.","explanation":"iOS does not show a system modal wait alert for slow launches."},{"id":"b","text":"The system watchdog timer terminates the application process.","explanation":"Right. Blocking launch on the main thread triggers watchdog termination."},{"id":"c","text":"The app automatically enters the suspended state until ready.","explanation":"An unlaunched app cannot enter the suspended state."},{"id":"d","text":"The compiler moves blocking tasks to an actor automatically.","explanation":"The compiler does not alter synchronous code execution paths automatically."}],"answer":"b"},{"id":"app-lifecycle-q7","type":"mcq","difficulty":2,"prompt":"Why was `UISceneDelegate` introduced in iOS 13 alongside `UIApplicationDelegate`?","options":[{"id":"a","text":"To replace Core Data persistence with SwiftData models.","explanation":"UISceneDelegate is a UI windowing lifecycle API, unrelated to data models."},{"id":"b","text":"To remove the need for storyboard files in interface design.","explanation":"Scenes work with both storyboards and programmatic code."},{"id":"c","text":"To support multiple independent windows in one application.","explanation":"Right. Scene delegates manage separate UI instances on iPadOS and macOS."},{"id":"d","text":"To allow Swift 6 actors to execute non-isolated closures.","explanation":"SceneDelegate was introduced long before Swift 6 concurrency."}],"answer":"c"},{"id":"app-lifecycle-q8","type":"mcq","difficulty":2,"prompt":"What characterizes the suspended state in the iOS lifecycle model?","options":[{"id":"a","text":"The app executes background tasks at reduced CPU priority.","explanation":"Suspended apps execute zero code and receive no CPU time."},{"id":"b","text":"The app continues rendering visible animations at 30 fps.","explanation":"Suspended apps are hidden and cannot render interface frames."},{"id":"c","text":"The app writes temporary caches to disk on an active thread.","explanation":"Apps must finish disk writes before entering the suspended state."},{"id":"d","text":"The app stays in RAM with zero CPU usage until resumed.","explanation":"Right. Suspended apps reside in memory but execute zero instructions."}],"answer":"d"},{"id":"app-lifecycle-q9","type":"mcq","difficulty":2,"prompt":"What is the best practice for saving unsaved edits when a user switches away from your app?","options":[{"id":"a","text":"Save data as soon as the scene moves into the background.","explanation":"Right. Saving on background entry protects against silent process termination."},{"id":"b","text":"Save data inside deinit of the root navigation controller.","explanation":"Root controllers are rarely deallocated before app termination."},{"id":"c","text":"Save data only when receiving low-memory warning callbacks.","explanation":"Low-memory warnings are meant for releasing caches, not pending user edits."},{"id":"d","text":"Save data each time an interruption causes an inactive state.","explanation":"Brief interruptions like incoming calls do not require flushing to disk."}],"answer":"a"},{"id":"app-lifecycle-q10","type":"mcq","difficulty":2,"prompt":"Where should window-specific navigation and presentation state be stored in modern iOS apps?","options":[{"id":"a","text":"In static properties on the global UIApplicationDelegate.","explanation":"Static properties in AppDelegate will be shared and overwritten by multiple windows."},{"id":"b","text":"In the individual UISceneDelegate or SwiftUI Scene graph.","explanation":"Right. Keeping window state in each scene prevents window collisions on iPadOS."},{"id":"c","text":"In a shared UserDefaults dictionary keyed by bundle identifier.","explanation":"UserDefaults is shared across all scenes and causes conflicts."},{"id":"d","text":"In the system Info.plist under default window configurations.","explanation":"Info.plist holds static metadata, not dynamic runtime navigation state."}],"answer":"b"},{"id":"app-lifecycle-q11","type":"mcq","difficulty":1,"prompt":"Which delegate method in `UISceneDelegate` informs your app that a window is moving to the background?","options":[{"id":"a","text":"The sceneDidDisconnect method in your scene delegate.","explanation":"SceneDidDisconnect is called when the scene is released from memory."},{"id":"b","text":"The sceneWillResignActive method in your scene delegate.","explanation":"SceneWillResignActive marks a transition to inactive, not background."},{"id":"c","text":"The sceneDidEnterBackground method in your scene delegate.","explanation":"Right. SceneDidEnterBackground signals that the window is now hidden."},{"id":"d","text":"The sceneDidBecomeActive method in your scene delegate.","explanation":"SceneDidBecomeActive runs when the scene becomes active in foreground."}],"answer":"c"},{"id":"app-lifecycle-q12","type":"mcq","difficulty":2,"prompt":"What happens when a user swipes down Control Center while playing an interactive game?","options":[{"id":"a","text":"The game process is immediately terminated by iOS.","explanation":"Swiping Control Center is a temporary interruption, not a termination event."},{"id":"b","text":"The game moves to background and releases all memory.","explanation":"The scene remains visible beneath the overlay, so it does not enter background."},{"id":"c","text":"The game continues receiving touch events normally.","explanation":"Touch events are redirected to Control Center while the scene is inactive."},{"id":"d","text":"The game moves to the inactive state and pauses input.","explanation":"Right. The scene becomes inactive until Control Center is dismissed."}],"answer":"d"},{"id":"app-lifecycle-q13","type":"mcq","difficulty":2,"prompt":"What occurs when observing `scenePhase` at the root SwiftUI `App` struct rather than a specific `View`?","options":[{"id":"a","text":"It reflects an aggregate lifecycle status across all scenes.","explanation":"Right. At the App level, scenePhase reflects the combined state of all scenes."},{"id":"b","text":"It throws a Swift runtime crash on iPadOS multi-window apps.","explanation":"Observing scenePhase in App is valid and fully supported."},{"id":"c","text":"It forces all open scenes to immediately close and save.","explanation":"Observing an environment property does not mutate scene state."},{"id":"d","text":"It defaults permanently to inactive on modern iPhone devices.","explanation":"The aggregate phase updates dynamically to active, inactive, or background."}],"answer":"a"},{"id":"app-lifecycle-q14","type":"mcq","difficulty":3,"prompt":"Which method in `UISceneDelegate` is called when a scene transitions from background to active foreground?","options":[{"id":"a","text":"The sceneDidDisconnect method runs before entering active.","explanation":"SceneDidDisconnect is called when UIKit destroys a scene."},{"id":"b","text":"The sceneWillEnterForeground method runs before becoming active.","explanation":"Right. SceneWillEnterForeground runs as the scene transitions out of background."},{"id":"c","text":"The sceneDidEnterBackground method runs in reverse order.","explanation":"SceneDidEnterBackground is only invoked when leaving the foreground."},{"id":"d","text":"The applicationWillTerminate method reinitializes the window.","explanation":"Termination methods are not part of returning from the background."}],"answer":"b"},{"id":"app-lifecycle-q15","type":"mcq","difficulty":3,"prompt":"What should an app do when its scene enters `sceneDidEnterBackground(_:)`?","options":[{"id":"a","text":"Spawn heavy background threads to recalculate analytics caches.","explanation":"Background execution time is limited; heavy background work can cause termination."},{"id":"b","text":"Delete all cached user preferences stored inside UserDefaults.","explanation":"UserDefaults should be preserved, not wiped, when backgrounding."},{"id":"c","text":"Save unsaved user changes and release volatile image caches.","explanation":"Right. Saving user state and shedding memory reduces termination risk in the background."},{"id":"d","text":"Force immediate termination to avoid memory pressure from iOS.","explanation":"Apps should never voluntarily exit when backgrounded."}],"answer":"c"},{"id":"app-lifecycle-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking if the current phase is active?","code":"import SwiftUI\n\nlet phase: ScenePhase = .active\nlet isActive = phase == .active\nprint(\"Phase active: \\(isActive)\")","options":[{"id":"a","text":"Phase active: false","explanation":"The phase is assigned to .active, so the check returns true."},{"id":"b","text":"Phase active: nil","explanation":"The equality operator produces a concrete boolean, not an optional."},{"id":"c","text":"Phase active: ScenePhase","explanation":"The code prints a boolean string value, not the enum type name."},{"id":"d","text":"Phase active: true","explanation":"Right. Phase is .active so isActive evaluates to true."}],"answer":"d"},{"id":"app-lifecycle-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking the UIKit activation state?","code":"import UIKit\n\nlet state = UIScene.ActivationState.background\nlet isBg = state == .background\nprint(\"Is background: \\(isBg)\")","options":[{"id":"a","text":"Is background: true","explanation":"Right. The activation state matches .background exactly."},{"id":"b","text":"Is background: false","explanation":"The value of state is .background, so the comparison evaluates to true."},{"id":"c","text":"Is background: foregroundActive","explanation":"The code outputs the boolean result of the equality expression."},{"id":"d","text":"Is background: 2","explanation":"Swift prints the boolean description true, not an integer raw value."}],"answer":"a"},{"id":"app-lifecycle-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print when matching the inactive scene phase?","code":"import SwiftUI\n\nlet phase: ScenePhase = .inactive\nlet msg: String\nswitch phase {\ncase .active:\n    msg = \"active\"\ncase .inactive:\n    msg = \"inactive\"\ncase .background:\n    msg = \"background\"\n@unknown default:\n    msg = \"unknown\"\n}\nprint(\"Current status: \\(msg)\")","options":[{"id":"a","text":"Current status: active","explanation":"The phase is .inactive, so the active case does not match."},{"id":"b","text":"Current status: inactive","explanation":"Right. The switch statement matches .inactive and assigns the corresponding string."},{"id":"c","text":"Current status: background","explanation":"The phase is .inactive, so it does not enter the background branch."},{"id":"d","text":"Current status: unknown","explanation":"The enum value matches known case .inactive, so @unknown default is skipped."}],"answer":"b"},{"id":"app-lifecycle-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when inspecting the foreground active scene state?","code":"import UIKit\n\nlet state = UIScene.ActivationState.foregroundActive\nlet description: String\nswitch state {\ncase .foregroundActive:\n    description = \"receiving touches\"\ncase .foregroundInactive:\n    description = \"interrupted\"\ncase .background:\n    description = \"hidden\"\ncase .unattached:\n    description = \"unattached\"\n@unknown default:\n    description = \"other\"\n}\nprint(\"Scene: \\(description)\")","options":[{"id":"a","text":"Scene: interrupted","explanation":"The state is foregroundActive, not foregroundInactive."},{"id":"b","text":"Scene: hidden","explanation":"Hidden corresponds to the background state."},{"id":"c","text":"Scene: receiving touches","explanation":"Right. The state matches foregroundActive, which maps to receiving touches."},{"id":"d","text":"Scene: other","explanation":"The case is handled directly by foregroundActive and does not fall back to other."}],"answer":"c"},{"id":"app-lifecycle-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when querying `isSavingAllowed` on the tracker struct?","code":"import SwiftUI\n\nstruct AppStateTracker {\n    var phase: ScenePhase = .background\n    var isSavingAllowed: Bool {\n        phase == .background\n    }\n}\nlet tracker = AppStateTracker()\nprint(\"Can save data: \\(tracker.isSavingAllowed)\")","options":[{"id":"a","text":"Can save data: false","explanation":"The phase is initialized to .background, so isSavingAllowed returns true."},{"id":"b","text":"Can save data: nil","explanation":"The computed property is a non-optional Bool."},{"id":"c","text":"Can save data: 1","explanation":"Swift prints boolean literals as true or false, not integers."},{"id":"d","text":"Can save data: true","explanation":"Right. Because phase is .background, the computed property returns true."}],"answer":"d"},{"id":"app-lifecycle-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when handling the `willResignActive` event?","code":"import UIKit\n\nenum MockLifecycleEvent {\n    case didBecomeActive\n    case willResignActive\n    case didEnterBackground\n}\n\nfunc handle(event: MockLifecycleEvent) -> String {\n    switch event {\n    case .didBecomeActive:\n        return \"resume animations\"\n    case .willResignActive:\n        return \"pause game timer\"\n    case .didEnterBackground:\n        return \"persist state\"\n    }\n}\nprint(\"Action: \\(handle(event: .willResignActive))\")","options":[{"id":"a","text":"Action: pause game timer","explanation":"Right. The switch statement matches willResignActive and returns pause game timer."},{"id":"b","text":"Action: resume animations","explanation":"Resume animations is returned for didBecomeActive."},{"id":"c","text":"Action: persist state","explanation":"Persist state is returned for didEnterBackground."},{"id":"d","text":"Action: nil","explanation":"The function returns a non-optional String."}],"answer":"a"},{"id":"app-lifecycle-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when checking if any window is active?","code":"import UIKit\n\nlet scene1 = UIScene.ActivationState.foregroundInactive\nlet scene2 = UIScene.ActivationState.foregroundActive\nlet hasActiveWindow = scene1 == .foregroundActive || scene2 == .foregroundActive\nprint(\"Has active window: \\(hasActiveWindow)\")","options":[{"id":"a","text":"Has active window: false","explanation":"The logical OR condition is satisfied because scene2 is foregroundActive."},{"id":"b","text":"Has active window: true","explanation":"Right. Since scene2 is foregroundActive, the expression evaluates to true."},{"id":"c","text":"Has active window: foregroundActive","explanation":"The code prints a boolean value, not the activation state enum case."},{"id":"d","text":"Has active window: nil","explanation":"The result is a non-optional boolean value."}],"answer":"b"},{"id":"app-lifecycle-q23","type":"code-reading","difficulty":1,"prompt":"What does this code print when evaluating the scene phase in the helper function?","code":"import SwiftUI\n\nfunc checkPhase(_ phase: ScenePhase) -> String {\n    if phase == .background {\n        return \"save to disk\"\n    } else {\n        return \"keep running\"\n    }\n}\nprint(\"Action on background: \\(checkPhase(.background))\")","options":[{"id":"a","text":"Action on background: keep running","explanation":"The input argument is .background, so the if condition evaluates to true."},{"id":"b","text":"Action on background: suspended","explanation":"Suspended is not one of the strings returned by the function."},{"id":"c","text":"Action on background: save to disk","explanation":"Right. When phase is .background, the if branch returns save to disk."},{"id":"d","text":"Action on background: nil","explanation":"The function returns a concrete non-optional String."}],"answer":"c"},{"id":"app-lifecycle-q24","type":"written","difficulty":2,"prompt":"Explain the difference between the Foreground Inactive and Background lifecycle states in iOS. Include an example of what causes an app to enter Foreground Inactive.","modelAnswer":"In Foreground Inactive, the app is visible on screen but paused from receiving user touch events. This happens during interruptions such as an incoming phone call banner, Control Center swipe, or Face ID prompt. In contrast, the Background state means the app is no longer visible on screen. In the background, the app receives a brief execution window to persist data before entering suspension.","rubric":[{"id":"inactive-definition-and-example","criterion":"Explains that Inactive is visible without touch events, and gives an example like an incoming call or notification banner.","weight":50,"key":true},{"id":"background-definition-and-role","criterion":"Explains that Background means hidden from view and allows saving data before suspension.","weight":50,"key":true}]},{"id":"app-lifecycle-q25","type":"written","difficulty":2,"prompt":"Why did Apple introduce `UISceneDelegate` in iOS 13, and how does it divide duties with `UIApplicationDelegate`?","modelAnswer":"Apple introduced `UISceneDelegate` to support multiple independent windows for a single application process, which is common on iPadOS and macOS. `UIApplicationDelegate` handles process-level events such as app initialization, push notifications, and background task registration. `UISceneDelegate` manages individual window scenes, handling window state transitions like active, inactive, and background independently for each visible window.","rubric":[{"id":"multi-window-motivation","criterion":"Explains that UISceneDelegate was introduced to support multiple independent windows or scenes.","weight":50,"key":true},{"id":"responsibility-division","criterion":"Contrasts process duties in UIApplicationDelegate with window UI lifecycle duties in UISceneDelegate.","weight":50,"key":true}]},{"id":"app-lifecycle-q26","type":"written","difficulty":2,"prompt":"Why should developers never rely on `applicationWillTerminate(_:)` to save important user data? Explain when data should be persisted instead.","modelAnswer":"Developers should not rely on `applicationWillTerminate(_:)` because iOS frequently terminates background apps without notice. When an app enters the background, the operating system suspends it; under memory pressure, iOS kills suspended processes silently without calling termination methods. Developers should persist essential state immediately when the scene enters the background state instead.","rubric":[{"id":"silent-suspension-purge","criterion":"Explains that suspended apps in the background can be terminated silently by the system without warning.","weight":50,"key":true},{"id":"background-persistence-timing","criterion":"States that critical data should be saved when transitioning into the background state.","weight":50,"key":true}]},{"id":"app-lifecycle-q27","type":"written","difficulty":2,"prompt":"How does SwiftUI handle scene lifecycle management, and how do you monitor transitions between active and background states?","modelAnswer":"SwiftUI manages lifecycle declaratively through the `@Environment(\\.scenePhase)` property wrapper. The `scenePhase` value provides three main states: `.active`, `.inactive`, and `.background`. Developers monitor transitions by attaching an `.onChange(of: scenePhase)` modifier to a view or the main App struct to trigger actions like saving data on `.background`.","rubric":[{"id":"scenephase-environment","criterion":"Mentions the @Environment(\\.scenePhase) property wrapper and its states (active, inactive, background).","weight":50,"key":true},{"id":"onchange-handling","criterion":"Explains using .onChange(of: scenePhase) to respond to state changes and persist state.","weight":50,"key":true}]},{"id":"app-lifecycle-q28","type":"written","difficulty":3,"prompt":"What is the iOS watchdog timer, what causes it to trigger during app launch, and how can developers prevent it?","modelAnswer":"The iOS watchdog timer is a system monitor that tracks app responsiveness during startup and runtime. If an app blocks the main thread during launch for longer than approximately twenty seconds, the watchdog kills the process immediately. Developers prevent this by keeping `didFinishLaunchingWithOptions` minimal and dispatching slow initialization tasks asynchronously to background queues.","rubric":[{"id":"watchdog-definition-and-limit","criterion":"Defines the watchdog timer and explains that blocking the main thread during startup causes process termination.","weight":50,"key":true},{"id":"prevention-strategy","criterion":"Explains keeping launch work minimal and dispatching heavy operations asynchronously.","weight":50,"key":true}]},{"id":"app-lifecycle-q29","type":"code-write","difficulty":1,"prompt":"Create a struct named `SceneStatusChecker` with a static method `static func isInteractive(phase: ScenePhase) -> Bool`. Return `true` if `phase` equals `.active`, and `false` otherwise.","starterCode":"import SwiftUI\n\n// Implement SceneStatusChecker struct\n","modelAnswer":"import SwiftUI\n\nstruct SceneStatusChecker {\n    static func isInteractive(phase: ScenePhase) -> Bool {\n        return phase == .active\n    }\n}\n\nlet activeCheck = SceneStatusChecker.isInteractive(phase: .active)\nlet inactiveCheck = SceneStatusChecker.isInteractive(phase: .inactive)\nprint(\"Interactive check: \\(activeCheck && !inactiveCheck)\")","rubric":[{"id":"struct-and-signature","criterion":"Declares struct SceneStatusChecker with static func isInteractive(phase: ScenePhase) -> Bool.","weight":50,"key":true},{"id":"phase-equality-logic","criterion":"Checks whether phase == .active and returns the boolean result.","weight":50,"key":true}]},{"id":"app-lifecycle-q30","type":"code-write","difficulty":2,"prompt":"Create a struct named `LifecycleCoordinator` with a stored property `var isSaved: Bool = false` and a mutating method `mutating func updateState(event: String) -> String`. When `event` is equal to `\"background\"`, set `isSaved` to `true` and return `\"saved\"`. Otherwise, return `\"running\"`.","starterCode":"// Implement LifecycleCoordinator struct\n","modelAnswer":"struct LifecycleCoordinator {\n    var isSaved: Bool = false\n    \n    mutating func updateState(event: String) -> String {\n        if event == \"background\" {\n            isSaved = true\n            return \"saved\"\n        }\n        return \"running\"\n    }\n}\n\nvar coordinator = LifecycleCoordinator()\nlet res = coordinator.updateState(event: \"background\")\nprint(\"Result: \\(res), Saved: \\(coordinator.isSaved)\")","rubric":[{"id":"coordinator-declaration-and-state","criterion":"Declares LifecycleCoordinator with stored property isSaved: Bool defaulting to false.","weight":40,"key":true},{"id":"mutating-method-behavior","criterion":"Implements mutating func updateState(event: String) -> String setting isSaved = true on background.","weight":60,"key":true}]},{"id":"app-lifecycle-q31","type":"code-write","difficulty":2,"prompt":"Create a class named `MultiWindowManager` with a method `func countActiveScenes(states: [UIScene.ActivationState]) -> Int`. Count and return the number of elements in the `states` array that equal `.foregroundActive`.","starterCode":"import UIKit\n\n// Implement MultiWindowManager class\n","modelAnswer":"import UIKit\n\nclass MultiWindowManager {\n    func countActiveScenes(states: [UIScene.ActivationState]) -> Int {\n        return states.filter { $0 == .foregroundActive }.count\n    }\n}\n\nlet manager = MultiWindowManager()\nlet states: [UIScene.ActivationState] = [.foregroundActive, .foregroundInactive, .background, .foregroundActive]\nprint(\"Active count: \\(manager.countActiveScenes(states: states))\")","rubric":[{"id":"class-and-method-signature","criterion":"Declares class MultiWindowManager with func countActiveScenes(states: [UIScene.ActivationState]) -> Int.","weight":40,"key":true},{"id":"counting-active-scenes","criterion":"Filters or iterates states counting instances equal to .foregroundActive and returns total.","weight":60,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

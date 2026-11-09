@@ -1,0 +1,233 @@
+export const meta = {
+  id: "app-lifecycle",
+  summary: "Understand app and scene lifecycles, state transitions, and background data persistence in iOS.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Managing your app’s life cycle (UIKit)", url: "https://developer.apple.com/documentation/uikit/managing-your-app-s-life-cycle", kind: "official" },
+    { title: "ScenePhase (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/scenephase", kind: "official" },
+    { title: "UISceneDelegate (UIKit)", url: "https://developer.apple.com/documentation/uikit/uiscenedelegate", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Where should you save important user changes so data is not lost if iOS runs low on memory?</Question>
+  <Guess>
+    <Option id="a">Inside `applicationWillTerminate(_:)` right before the operating system closes the app.</Option>
+    <Option id="b" correct>When the scene transitions into the background, before the system suspends the process.</Option>
+    <Option id="c">Inside `viewDidDisappear(_:)` of the root view controller.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine an actor performing on a theater stage.
+
+When the actor stands under the spotlight speaking lines, the actor is **active**.
+
+If a phone rings in the audience and pauses the show, the actor stands frozen on stage.
+
+The actor is still visible, but the show is **inactive**.
+
+When the scene ends, the actor walks backstage. The actor is now in the **background**.
+
+After a few minutes backstage, the actor sits quietly in the dressing room.
+
+The actor uses zero energy while resting. That resting state is **suspended**.
+
+If the theater closes for the night, the actor leaves the building without another curtain call.
+</Analogy>
+
+In modern iOS, Apple splits lifecycle management into two separate layers:
+
+1. **The App Process Layer (`UIApplicationDelegate`)**:
+   - Manages the single operating system process.
+   - Handles app launch options, push notifications, and background task registration.
+2. **The Scene Layer (`UISceneDelegate` and SwiftUI `ScenePhase`)**:
+   - Manages individual on-screen windows.
+   - On iPadOS and macOS, one app process can display multiple scenes side by side.
+   - Each scene moves through its own lifecycle independently.
+
+A scene moves through four primary states:
+
+- **Not Running**: The scene is not in memory or has disconnected.
+- **Inactive**: The scene is visible on screen but cannot receive touch input (for example, during a phone call banner).
+- **Active**: The scene is visible and actively receiving user taps and typing.
+- **Background**: The scene is hidden from view.
+- **Suspended**: The app stays in memory with zero processor execution until resumed or purged.
+
+## See it
+
+<Diagram id="app-lifecycle-diagram" caption="App and Scene Lifecycle State Machine and Background Persistence Pipeline">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Not Running state bubble.
+    2. Inactive state (foreground interrupted, e.g. Siri or call banner).
+    3. Active state (foreground interactive, receiving touches).
+    4. Background & Suspended state (hidden, memory save, zero CPU).
+  - Steps:
+    Step 1: App launches from Not Running into Foreground Inactive.
+    Step 2: Scene becomes Foreground Active and interactive.
+    Step 3: Interruption shifts scene into Inactive temporarily.
+    Step 4: Scene enters Background, saves data, and becomes Suspended in RAM.
+  - Static version (reduced motion):
+    A 4-step state machine showing transitions between Not Running, Inactive, Active, and Background.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens to a scene when an incoming phone call banner appears across the top of the screen?</Question>
+  <Option id="a">The scene is terminated immediately by the operating system.</Option>
+  <Option id="b" correct>The scene transitions from Active to Inactive while remaining visible.</Option>
+  <Option id="c">The scene enters the background and disconnects all network sockets.</Option>
+  <Explanation>Incoming phone calls and system alerts move the scene to the Inactive state, pausing user input without moving it to the background.</Explanation>
+</QuickCheck>
+
+## In code
+
+In SwiftUI, you monitor scene changes using the `@Environment(\.scenePhase)` property wrapper.
+
+You inspect whether the scene is `.active`, `.inactive`, or `.background`.
+
+<CodeExample title="Observing ScenePhase in SwiftUI">
+
+```swift
+import SwiftUI
+
+let currentPhase = ScenePhase.active
+var statusDescription = ""
+
+switch currentPhase {
+case .active:
+    statusDescription = "Scene is interactive in foreground"
+case .inactive:
+    statusDescription = "Scene is paused by an interruption"
+case .background:
+    statusDescription = "Scene is hidden and saving data"
+@unknown default:
+    statusDescription = "Unknown phase"
+}
+
+print("Active phase check: \(currentPhase == .active)")
+print("Status: \(statusDescription)")
+```
+
+```output
+Active phase check: true
+Status: Scene is interactive in foreground
+```
+
+</CodeExample>
+
+In your SwiftUI view, use `.onChange(of: scenePhase)` to save pending user input whenever the phase becomes `.background`.
+
+Next, see how UIKit represents scene activation states.
+
+The `UIScene.ActivationState` enum indicates whether a window is active, inactive, or in the background.
+
+<CodeExample title="Checking activation states in UIKit">
+
+```swift
+import UIKit
+
+let sceneState = UIScene.ActivationState.foregroundActive
+let isInteractive = sceneState == .foregroundActive
+let isHidden = sceneState == .background
+
+print("Is interactive: \(isInteractive)")
+print("Is hidden in background: \(isHidden)")
+```
+
+```output
+Is interactive: true
+Is hidden in background: false
+```
+
+</CodeExample>
+
+In UIKit, `UISceneDelegate` methods like `sceneDidEnterBackground(_:)` provide the exact point to flush unsaved changes to disk.
+
+<QuickCheck>
+  <Question>Why is it risky to wait for `applicationWillTerminate(_:)` to save user data?</Question>
+  <Option id="a">Swift 6 forbids calling disk storage APIs from AppDelegate.</Option>
+  <Option id="b" correct>Suspended apps in the background can be killed silently by iOS without calling termination methods.</Option>
+  <Option id="c">The method only executes when the user restarts their phone.</Option>
+  <Explanation>When memory is needed, iOS purges suspended background processes without calling applicationWillTerminate.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Relying on applicationWillTerminate">
+Many developers assume `applicationWillTerminate(_:)` is always called before an app exits.
+
+In reality, when an app sits suspended in the background, iOS frees memory by killing the process silently.
+
+`applicationWillTerminate(_:)` never executes in that common scenario.
+
+Always save essential user state when the scene enters the background.
+</Trap>
+
+<Trap title="Heavy work during app launch">
+Running slow network calls or synchronous database migrations in `didFinishLaunchingWithOptions` blocks the main thread.
+
+iOS uses a watchdog timer that terminates any app that fails to finish launching within about twenty seconds.
+
+Keep app launch fast and dispatch long tasks to background queues.
+</Trap>
+
+<Trap title="Confusing Inactive with Background">
+An app does not move to the background when an incoming phone call or Face ID alert appears.
+
+It transitions to the Inactive state.
+
+The view is still visible, but touch interaction is temporarily paused.
+
+Do not discard temporary screen state or cancel active connections during brief interruptions.
+</Trap>
+
+<Trap title="Storing window state in AppDelegate">
+Since iOS 13, iPadOS supports multiple windows for the same application.
+
+If you store window-specific view controllers or navigation paths in `AppDelegate`, windows overwrite each other.
+
+Keep window-specific state inside each individual `SceneDelegate` or SwiftUI `Scene`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"The app lifecycle manages how an app moves between active, inactive, background, and suspended states. Active means the user is tapping and typing. Inactive means it is visible but paused by an alert. Background means it is hidden. I save user data when moving to the background because suspended apps can be killed without warning."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"Apple separates process lifecycle in `AppDelegate` from UI scene lifecycle in `SceneDelegate`. This allows iPadOS to support multiple windows for a single process. Scenes transition from unattached to inactive, active, and background. In SwiftUI, we observe these transitions with `@Environment(\.scenePhase)` and persist state when entering `.background`."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"We isolate process-level services like push notifications in `UIApplicationDelegate`, while managing multi-window UI state through `UISceneDelegate`. We treat background transitions as our boundary for persisting state and releasing volatile caches. We also keep launch routines asynchronous to avoid watchdog timer crashes. In SwiftUI, observing `ScenePhase` at the App level allows coordinated multi-scene persistence."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `UIApplicationDelegate` manages the process; `UISceneDelegate` manages individual windows.
+- Inactive means the scene is visible on screen but paused from user touch input.
+- Active means the scene is in the foreground and responding to interactions.
+- Background means the scene is hidden; iOS gives a brief window to save data.
+- Suspended apps sit in RAM with zero CPU usage and can be killed silently without notice.
+- Never rely on `applicationWillTerminate` to save critical user data.
+- In SwiftUI, observe `@Environment(\.scenePhase)` to handle state changes cleanly.
+</Recap>
+
+## Go deeper
+
+- [Managing your app’s life cycle (UIKit)](https://developer.apple.com/documentation/uikit/managing-your-app-s-life-cycle) — Official Apple guide for app lifecycle.
+- [ScenePhase (SwiftUI)](https://developer.apple.com/documentation/swiftui/scenephase) — Apple documentation on SwiftUI scene phases.
+- [UISceneDelegate (UIKit)](https://developer.apple.com/documentation/uikit/uiscenedelegate) — Apple documentation for scene delegates.
