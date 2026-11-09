@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Communication Patterns: Delegates, Closures and Notifications</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #16a34a; --step2-soft: #dcfce7;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #7c3aed; --step4-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #4ade80; --step2-soft: #052e16;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #a78bfa; --step4-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 12px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Interactive Communication Patterns Stepper">
+  <div class="panels">
+    <div class="panel">
+      <h3>
+        <span class="kind s1" id="badge">Step 1</span>
+        <span id="title">Delegation: 1-to-1 Protocol Contract</span>
+      </h3>
+      <p class="caption" id="desc">
+        A sender object communicates with a single delegate conforming to an AnyObject protocol using a weak reference.
+      </p>
+      <div class="code" id="codeSnippet">protocol OrderDelegate: AnyObject { ... }
+weak var delegate: OrderDelegate?</div>
+    </div>
+    <div class="panel">
+      <svg viewBox="0 0 320 200" aria-hidden="true">
+        <rect x="0" y="0" width="320" height="200" class="device-frame" />
+        <g id="visualScene"></g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="stepper">
+    <div class="step-indicators" role="tablist">
+      <div class="step-dot active" role="tab" aria-selected="true" tabindex="0">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" tabindex="0">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" tabindex="0">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" tabindex="0">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled>Back</button>
+      <button id="nextBtn">Next</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "Delegation: 1-to-1 Protocol Contract",
+    desc: "A sender object communicates with a single delegate conforming to an AnyObject protocol using a weak reference.",
+    code: `protocol OrderDelegate: AnyObject {\n  func orderDidComplete(id: Int)\n}\nweak var delegate: OrderDelegate?`,
+    svg: `
+      <rect x="25" y="45" width="110" height="110" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="80" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">OrderProcessor</text>
+      <text x="80" y="95" text-anchor="middle" font-size="9" fill="var(--ink)">Sender Object</text>
+      <text x="80" y="125" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step1-color)">weak var delegate</text>
+
+      <line x1="135" y1="100" x2="180" y2="100" stroke="var(--step1-color)" stroke-width="2" stroke-dasharray="3,3" />
+      <polygon points="180,97 187,100 180,103" fill="var(--step1-color)" />
+      <text x="160" y="85" text-anchor="middle" font-size="8" fill="var(--muted)">Protocol</text>
+
+      <rect x="187" y="45" width="110" height="110" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+      <text x="242" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">Coordinator</text>
+      <text x="242" y="95" text-anchor="middle" font-size="9" fill="var(--muted)">Conforms to</text>
+      <text x="242" y="115" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step1-color)">OrderDelegate</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">1-to-1 two-way typed contract</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "Closures: 1-to-1 Callback",
+    desc: "A caller passes a closure block directly to a task. Escaping closures stored on an object capture [weak self] to avoid retain cycles.",
+    code: `authService.signOut { [weak self] success in\n  self?.updateUI(success: success)\n}`,
+    svg: `
+      <rect x="25" y="45" width="110" height="110" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+      <text x="80" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">Caller Object</text>
+      <text x="80" y="95" text-anchor="middle" font-size="9" fill="var(--muted)">Owns task</text>
+      <text x="80" y="125" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step2-color)">[weak self]</text>
+
+      <line x1="135" y1="90" x2="180" y2="90" stroke="var(--step2-color)" stroke-width="2" />
+      <polygon points="180,87 187,90 180,93" fill="var(--step2-color)" />
+      <text x="160" y="80" text-anchor="middle" font-size="8" fill="var(--muted)">Task call</text>
+
+      <line x1="187" y1="115" x2="142" y2="115" stroke="var(--step2-color)" stroke-width="2" stroke-dasharray="3,3" />
+      <polygon points="142,112 135,115 142,118" fill="var(--step2-color)" />
+      <text x="160" y="130" text-anchor="middle" font-size="8" fill="var(--step2-color)">Callback</text>
+
+      <rect x="187" y="45" width="110" height="110" rx="8" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="242" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step2-color)">AuthService</text>
+      <text x="242" y="95" text-anchor="middle" font-size="9" fill="var(--ink)">Runs async</text>
+      <text x="242" y="125" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step2-color)">completion(true)</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Lightweight 1-to-1 event callback</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "NotificationCenter: 1-to-Many Broadcast",
+    desc: "A sender posts an event through NotificationCenter. Multiple independent observers receive it without knowing who sent it.",
+    code: `NotificationCenter.default.post(\n  name: .userDidSignOut, object: nil\n)\n// Runs synchronously on caller thread`,
+    svg: `
+      <rect x="20" y="70" width="85" height="60" rx="6" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="62" y="95" text-anchor="middle" font-size="10" font-weight="700" fill="var(--step3-color)">Sender</text>
+      <text x="62" y="112" text-anchor="middle" font-size="8" fill="var(--muted)">post(name:)</text>
+
+      <rect x="125" y="55" width="70" height="90" rx="6" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="160" y="85" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step3-color)">Notification</text>
+      <text x="160" y="100" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step3-color)">Center</text>
+      <text x="160" y="125" text-anchor="middle" font-size="8" fill="var(--muted)">Hub</text>
+
+      <line x1="105" y1="100" x2="125" y2="100" stroke="var(--step3-color)" stroke-width="2" />
+
+      <line x1="195" y1="80" x2="225" y2="60" stroke="var(--step3-color)" stroke-width="1.5" stroke-dasharray="2,2" />
+      <rect x="225" y="40" width="75" height="32" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="262" y="60" text-anchor="middle" font-size="8" font-weight="600" fill="var(--ink)">ProfileView</text>
+
+      <line x1="195" y1="100" x2="225" y2="100" stroke="var(--step3-color)" stroke-width="1.5" stroke-dasharray="2,2" />
+      <rect x="225" y="84" width="75" height="32" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="262" y="104" text-anchor="middle" font-size="8" font-weight="600" fill="var(--ink)">CartManager</text>
+
+      <line x1="195" y1="120" x2="225" y2="140" stroke="var(--step3-color)" stroke-width="1.5" stroke-dasharray="2,2" />
+      <rect x="225" y="128" width="75" height="32" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="262" y="148" text-anchor="middle" font-size="8" font-weight="600" fill="var(--ink)">Analytics</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">1-to-many decoupled broadcast</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Pattern Decision Guide",
+    desc: "Pick delegates for multi-method contracts, closures for single tasks, and notifications for decoupled broadcasts.",
+    code: `// Multi-method contract -> Delegate (weak)\n// Single action/result  -> Closure ([weak self])\n// App-wide broadcast    -> NotificationCenter`,
+    svg: `
+      <rect x="25" y="40" width="270" height="32" rx="6" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="1.5" />
+      <text x="35" y="60" font-size="10" font-weight="700" fill="var(--step1-color)">Delegate</text>
+      <text x="120" y="60" font-size="9" fill="var(--ink)">1-to-1, two-way contract, weak var</text>
+
+      <rect x="25" y="80" width="270" height="32" rx="6" fill="var(--step2-soft)" stroke="var(--step2-color)" stroke-width="1.5" />
+      <text x="35" y="100" font-size="10" font-weight="700" fill="var(--step2-color)">Closure</text>
+      <text x="120" y="100" font-size="9" fill="var(--ink)">1-to-1, single task/callback, [weak self]</text>
+
+      <rect x="25" y="120" width="270" height="32" rx="6" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="1.5" />
+      <text x="35" y="140" font-size="10" font-weight="700" fill="var(--step3-color)">Notification</text>
+      <text x="120" y="140" font-size="9" fill="var(--ink)">1-to-many, broadcast, thread synchronous</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Choose the right pattern for each job</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+</script>
+</body>
+</html>

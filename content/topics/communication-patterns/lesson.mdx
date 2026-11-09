@@ -1,0 +1,247 @@
+export const meta = {
+  id: "communication-patterns",
+  summary: "Choose between delegates, closures, and notifications for communication between objects.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Protocols", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/protocols", kind: "official" },
+    { title: "NotificationCenter (Foundation)", url: "https://developer.apple.com/documentation/foundation/notificationcenter", kind: "official" },
+    { title: "The Swift Programming Language: Closures", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/closures", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>When should an iOS developer use a delegate instead of a closure or notification?</Question>
+  <Guess>
+    <Option id="a">Whenever two objects run on different background threads.</Option>
+    <Option id="b" correct>When communication has multiple related methods and needs two-way questions.</Option>
+    <Option id="c">Only when sending messages across different app processes.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine three different ways people share information at work.
+
+First, imagine a manager and a personal assistant.
+They have a clear contract with several duties.
+The manager can ask questions, and the assistant replies with answers.
+This is like a **delegate**.
+
+Second, imagine calling a courier service to deliver a package.
+You give the driver a single instruction: call me when the delivery finishes.
+Once the task finishes, you receive one callback.
+This is like a **closure**.
+
+Third, imagine a company loudspeaker on the office ceiling.
+The office manager announces that the building closes in ten minutes.
+Anyone with ears can hear the announcement.
+The speaker does not know who is listening.
+This is like a **notification**.
+</Analogy>
+
+iOS apps use these three patterns to send messages between objects:
+
+1. **Delegates**: One-to-one communication with a formal protocol. The sender can ask for decisions and receive values back.
+2. **Closures**: One-to-one communication with a quick block of code. Great for a single callback or event.
+3. **NotificationCenter**: One-to-many broadcast. The sender broadcasts an event to any object that registered as an observer.
+
+## See it
+
+<Diagram id="communication-patterns-diagram">
+{/*
+  Interactive 4-step diagram of iOS communication patterns:
+  1. Delegation Contract: One-to-one two-way contract via weak protocol reference.
+  2. Closure Callback: One-to-one inline handler with capture list to prevent retain cycles.
+  3. Notification Broadcast: One-to-many decoupled dispatch to multiple observers.
+  4. Decision Matrix: Trade-offs in coupling, return values, and memory management.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why must a delegate reference usually be marked with the weak keyword?</Question>
+  <Option id="a">Because weak variables run code faster on the main thread.</Option>
+  <Option id="b" correct>Because a strong reference creates a retain cycle when both objects hold each other.</Option>
+  <Option id="c">Because Swift protocols cannot hold strong reference types.</Option>
+  <Explanation>A parent object often owns its child view or service. If the child also holds a strong reference to the parent delegate, neither object can deallocate.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is how to set up the delegate pattern.
+The protocol inherits from `AnyObject` so the delegate property can be marked `weak`.
+
+<CodeExample title="One-to-one communication with a delegate">
+
+```swift
+import Foundation
+
+protocol OrderDelegate: AnyObject {
+    func orderDidComplete(orderId: Int)
+}
+
+final class OrderProcessor {
+    weak var delegate: OrderDelegate?
+
+    func process(orderId: Int) {
+        print("Processing order \(orderId)")
+        delegate?.orderDidComplete(orderId: orderId)
+    }
+}
+
+final class OrderCoordinator: OrderDelegate {
+    func orderDidComplete(orderId: Int) {
+        print("Coordinator notified: order \(orderId) finished")
+    }
+}
+
+let processor = OrderProcessor()
+let coordinator = OrderCoordinator()
+processor.delegate = coordinator
+processor.process(orderId: 42)
+```
+
+```output
+Processing order 42
+Coordinator notified: order 42 finished
+```
+
+</CodeExample>
+
+Now compare a closure callback with a broadcast notification.
+A closure handles the direct reply.
+At the same time, `NotificationCenter` informs any other part of the app.
+
+<CodeExample title="Comparing a closure callback with a notification broadcast">
+
+```swift
+import Foundation
+
+extension Notification.Name {
+    static let userDidSignOut = Notification.Name("userDidSignOut")
+}
+
+final class AuthService {
+    func signOut(completion: (Bool) -> Void) {
+        print("AuthService: signed out")
+        completion(true)
+        NotificationCenter.default.post(name: .userDidSignOut, object: nil)
+    }
+}
+
+final class ProfileView {
+    var token: NSObjectProtocol?
+
+    func startListening() {
+        token = NotificationCenter.default.addObserver(
+            forName: .userDidSignOut,
+            object: nil,
+            queue: nil
+        ) { _ in
+            print("ProfileView: reset screen")
+        }
+    }
+
+    func stopListening() {
+        if let token = token {
+            NotificationCenter.default.removeObserver(token)
+        }
+    }
+}
+
+let auth = AuthService()
+let profile = ProfileView()
+profile.startListening()
+
+auth.signOut { success in
+    print("Sign out callback returned \(success)")
+}
+profile.stopListening()
+```
+
+```output
+AuthService: signed out
+Sign out callback returned true
+ProfileView: reset screen
+```
+
+</CodeExample>
+
+<TryIt>
+Open Xcode and create a macOS or iOS playground. Create a protocol with two delegate methods, a closure callback, and a notification observer.
+</TryIt>
+
+<QuickCheck>
+  <Question>On which thread does NotificationCenter execute observer blocks by default?</Question>
+  <Option id="a">Always on the main thread, regardless of the posting thread.</Option>
+  <Option id="b" correct>On the thread that called the post method.</Option>
+  <Option id="c">On a private global background queue created by Foundation.</Option>
+  <Explanation>NotificationCenter delivers notifications synchronously on the thread where post was called. Always dispatch UI updates to the main thread.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Retain cycles in closures">
+When an escaping closure refers to properties or methods on `self`, it captures `self` strongly.
+If `self` also stores that closure, a retain cycle forms.
+Neither object can ever free its memory.
+Always use `[weak self]` in stored closures when self owns the closure.
+</Trap>
+
+<Trap title="Missing weak on delegates">
+Forgetting `weak` on a delegate variable is one of the most common mistakes in iOS interviews.
+If a view controller creates a child view and assigns itself as the delegate, a strong property creates a leak.
+Always constrain delegate protocols to `AnyObject` and mark the delegate variable `weak`.
+</Trap>
+
+<Trap title="Zombie observer tokens">
+When you add an observer using the block-based `NotificationCenter` method, it returns an observer token.
+If you do not store and remove this token, the observer continues listening.
+The closure may capture dead views and waste memory.
+Store the token and remove it when the object deallocates.
+</Trap>
+
+<Trap title="Background notification posts">
+`NotificationCenter.default.post` delivers notifications on the caller thread.
+If a network service posts a notification on a background thread, the observer runs on that background thread.
+Updating user interface elements directly inside that observer causes race conditions and crashes.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+iOS provides three main ways for objects to talk to each other.
+A delegate is a one-to-one link that uses a protocol.
+We mark delegate variables with `weak` to avoid retain cycles.
+Closures are blocks of code passed as callbacks for single tasks.
+Notifications broadcast events from one sender to many listeners across the app.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+I choose patterns based on the number of listeners and whether two-way communication is needed.
+For one-to-one communication with multiple related methods or back-and-forth questions, I use a delegate protocol with `AnyObject` and a `weak` reference.
+For a single completion event, I use a closure with `[weak self]`.
+For one-to-many communication where the sender does not know the listeners, like user logout, I use `NotificationCenter`.
+I remember that notifications run synchronously on the posting thread, so UI work must dispatch to the main queue.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+I evaluate coupling, type safety, and memory management.
+Delegates provide strict compile-time contracts and are easy to mock in unit tests.
+Closures minimize boilerplate for asynchronous completion handlers and flow naturally into Swift concurrency.
+NotificationCenter decouples components completely, but payload dictionaries lack compile-time safety and make the data flow harder to trace.
+In modern Swift, I prefer typed async sequences with `NotificationCenter.default.notifications(named:)` instead of manual token removal.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- **Delegates** provide one-to-one, two-way communication with a typed protocol contract.
+- Always constrain delegate protocols to `AnyObject` and declare delegate properties as `weak`.
+- **Closures** provide lightweight one-to-one callbacks, ideal for single asynchronous events.
+- Capture `[weak self]` in escaping closures stored on an object to prevent retain cycles.
+- **NotificationCenter** broadcasts one-to-many events across unrelated parts of the app.
+- Notifications run synchronously on the posting thread and block-based tokens require cleanup.
+</Recap>

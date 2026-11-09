@@ -1,0 +1,655 @@
+<title>Delegates, Closures and Notifications Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #16a34a; --step2-soft: #dcfce7;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #7c3aed; --step4-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #4ade80; --step2-soft: #052e16;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #a78bfa; --step4-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 12px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Architecture · Topic 1 of 3 · Prototype</p>
+    <h1>Delegates, Closures and Notifications</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can choose between delegates, closures and notifications.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">When should an iOS developer use a delegate instead of a closure or notification?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Whenever two objects run on different background threads.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">When communication has multiple related methods and needs two-way questions.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Only when sending messages across different app processes.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine three different ways people share information at work.</p><p>First, imagine a manager and a personal assistant.
+They have a clear contract with several duties.
+The manager can ask questions, and the assistant replies with answers.
+This is like a <strong>delegate</strong>.</p><p>Second, imagine calling a courier service to deliver a package.
+You give the driver a single instruction: call me when the delivery finishes.
+Once the task finishes, you receive one callback.
+This is like a <strong>closure</strong>.</p><p>Third, imagine a company loudspeaker on the office ceiling.
+The office manager announces that the building closes in ten minutes.
+Anyone with ears can hear the announcement.
+The speaker does not know who is listening.
+This is like a <strong>notification</strong>.</p></aside>
+<p>iOS apps use these three patterns to send messages between objects:</p>
+<ol>
+<li><strong>Delegates</strong>: One-to-one communication with a formal protocol. The sender can ask for decisions and receive values back.</li>
+<li><strong>Closures</strong>: One-to-one communication with a quick block of code. Great for a single callback or event.</li>
+<li><strong>NotificationCenter</strong>: One-to-many broadcast. The sender broadcasts an event to any object that registered as an observer.</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why must a delegate reference usually be marked with the weak keyword?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because weak variables run code faster on the main thread.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because a strong reference creates a retain cycle when both objects hold each other.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because Swift protocols cannot hold strong reference types.</span></button><p class="qc-explain" hidden="">A parent object often owns its child view or service. If the child also holds a strong reference to the parent delegate, neither object can deallocate.</p></div>
+<h2>In code</h2>
+<p>Here is how to set up the delegate pattern.
+The protocol inherits from <code>AnyObject</code> so the delegate property can be marked <code>weak</code>.</p>
+<figure class="code-example"><figcaption>One-to-one communication with a delegate</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+protocol OrderDelegate: AnyObject {
+    func orderDidComplete(orderId: Int)
+}
+
+final class OrderProcessor {
+    weak var delegate: OrderDelegate?
+
+    func process(orderId: Int) {
+        print(&quot;Processing order \(orderId)&quot;)
+        delegate?.orderDidComplete(orderId: orderId)
+    }
+}
+
+final class OrderCoordinator: OrderDelegate {
+    func orderDidComplete(orderId: Int) {
+        print(&quot;Coordinator notified: order \(orderId) finished&quot;)
+    }
+}
+
+let processor = OrderProcessor()
+let coordinator = OrderCoordinator()
+processor.delegate = coordinator
+processor.process(orderId: 42)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Processing order 42
+Coordinator notified: order 42 finished
+</code></pre></figure>
+<p>Now compare a closure callback with a broadcast notification.
+A closure handles the direct reply.
+At the same time, <code>NotificationCenter</code> informs any other part of the app.</p>
+<figure class="code-example"><figcaption>Comparing a closure callback with a notification broadcast</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+extension Notification.Name {
+    static let userDidSignOut = Notification.Name(&quot;userDidSignOut&quot;)
+}
+
+final class AuthService {
+    func signOut(completion: (Bool) -&gt; Void) {
+        print(&quot;AuthService: signed out&quot;)
+        completion(true)
+        NotificationCenter.default.post(name: .userDidSignOut, object: nil)
+    }
+}
+
+final class ProfileView {
+    var token: NSObjectProtocol?
+
+    func startListening() {
+        token = NotificationCenter.default.addObserver(
+            forName: .userDidSignOut,
+            object: nil,
+            queue: nil
+        ) { _ in
+            print(&quot;ProfileView: reset screen&quot;)
+        }
+    }
+
+    func stopListening() {
+        if let token = token {
+            NotificationCenter.default.removeObserver(token)
+        }
+    }
+}
+
+let auth = AuthService()
+let profile = ProfileView()
+profile.startListening()
+
+auth.signOut { success in
+    print(&quot;Sign out callback returned \(success)&quot;)
+}
+profile.stopListening()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">AuthService: signed out
+Sign out callback returned true
+ProfileView: reset screen
+</code></pre></figure>
+<p class="try-it"><p>Open Xcode and create a macOS or iOS playground. Create a protocol with two delegate methods, a closure callback, and a notification observer.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">On which thread does NotificationCenter execute observer blocks by default?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Always on the main thread, regardless of the posting thread.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">On the thread that called the post method.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">On a private global background queue created by Foundation.</span></button><p class="qc-explain" hidden="">NotificationCenter delivers notifications synchronously on the thread where post was called. Always dispatch UI updates to the main thread.</p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Retain cycles in closures</p><p>When an escaping closure refers to properties or methods on <code>self</code>, it captures <code>self</code> strongly.
+If <code>self</code> also stores that closure, a retain cycle forms.
+Neither object can ever free its memory.
+Always use <code>[weak self]</code> in stored closures when self owns the closure.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Missing weak on delegates</p><p>Forgetting <code>weak</code> on a delegate variable is one of the most common mistakes in iOS interviews.
+If a view controller creates a child view and assigns itself as the delegate, a strong property creates a leak.
+Always constrain delegate protocols to <code>AnyObject</code> and mark the delegate variable <code>weak</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Zombie observer tokens</p><p>When you add an observer using the block-based <code>NotificationCenter</code> method, it returns an observer token.
+If you do not store and remove this token, the observer continues listening.
+The closure may capture dead views and waste memory.
+Store the token and remove it when the object deallocates.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Background notification posts</p><p><code>NotificationCenter.default.post</code> delivers notifications on the caller thread.
+If a network service posts a notification on a background thread, the observer runs on that background thread.
+Updating user interface elements directly inside that observer causes race conditions and crashes.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>iOS provides three main ways for objects to talk to each other.
+A delegate is a one-to-one link that uses a protocol.
+We mark delegate variables with <code>weak</code> to avoid retain cycles.
+Closures are blocks of code passed as callbacks for single tasks.
+Notifications broadcast events from one sender to many listeners across the app.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>I choose patterns based on the number of listeners and whether two-way communication is needed.
+For one-to-one communication with multiple related methods or back-and-forth questions, I use a delegate protocol with <code>AnyObject</code> and a <code>weak</code> reference.
+For a single completion event, I use a closure with <code>[weak self]</code>.
+For one-to-many communication where the sender does not know the listeners, like user logout, I use <code>NotificationCenter</code>.
+I remember that notifications run synchronously on the posting thread, so UI work must dispatch to the main queue.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>I evaluate coupling, type safety, and memory management.
+Delegates provide strict compile-time contracts and are easy to mock in unit tests.
+Closures minimize boilerplate for asynchronous completion handlers and flow naturally into Swift concurrency.
+NotificationCenter decouples components completely, but payload dictionaries lack compile-time safety and make the data flow harder to trace.
+In modern Swift, I prefer typed async sequences with <code>NotificationCenter.default.notifications(named:)</code> instead of manual token removal.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><strong>Delegates</strong> provide one-to-one, two-way communication with a typed protocol contract.</li>
+<li>Always constrain delegate protocols to <code>AnyObject</code> and declare delegate properties as <code>weak</code>.</li>
+<li><strong>Closures</strong> provide lightweight one-to-one callbacks, ideal for single asynchronous events.</li>
+<li>Capture <code>[weak self]</code> in escaping closures stored on an object to prevent retain cycles.</li>
+<li><strong>NotificationCenter</strong> broadcasts one-to-many events across unrelated parts of the app.</li>
+<li>Notifications run synchronously on the posting thread and block-based tokens require cleanup.</li>
+</ul></div></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "Delegation: 1-to-1 Protocol Contract",
+    desc: "A sender object communicates with a single delegate conforming to an AnyObject protocol using a weak reference.",
+    code: `protocol OrderDelegate: AnyObject {\n  func orderDidComplete(id: Int)\n}\nweak var delegate: OrderDelegate?`,
+    svg: `
+      <rect x="25" y="45" width="110" height="110" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="80" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">OrderProcessor</text>
+      <text x="80" y="95" text-anchor="middle" font-size="9" fill="var(--ink)">Sender Object</text>
+      <text x="80" y="125" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step1-color)">weak var delegate</text>
+
+      <line x1="135" y1="100" x2="180" y2="100" stroke="var(--step1-color)" stroke-width="2" stroke-dasharray="3,3" />
+      <polygon points="180,97 187,100 180,103" fill="var(--step1-color)" />
+      <text x="160" y="85" text-anchor="middle" font-size="8" fill="var(--muted)">Protocol</text>
+
+      <rect x="187" y="45" width="110" height="110" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+      <text x="242" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">Coordinator</text>
+      <text x="242" y="95" text-anchor="middle" font-size="9" fill="var(--muted)">Conforms to</text>
+      <text x="242" y="115" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step1-color)">OrderDelegate</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">1-to-1 two-way typed contract</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "Closures: 1-to-1 Callback",
+    desc: "A caller passes a closure block directly to a task. Escaping closures stored on an object capture [weak self] to avoid retain cycles.",
+    code: `authService.signOut { [weak self] success in\n  self?.updateUI(success: success)\n}`,
+    svg: `
+      <rect x="25" y="45" width="110" height="110" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+      <text x="80" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">Caller Object</text>
+      <text x="80" y="95" text-anchor="middle" font-size="9" fill="var(--muted)">Owns task</text>
+      <text x="80" y="125" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step2-color)">[weak self]</text>
+
+      <line x1="135" y1="90" x2="180" y2="90" stroke="var(--step2-color)" stroke-width="2" />
+      <polygon points="180,87 187,90 180,93" fill="var(--step2-color)" />
+      <text x="160" y="80" text-anchor="middle" font-size="8" fill="var(--muted)">Task call</text>
+
+      <line x1="187" y1="115" x2="142" y2="115" stroke="var(--step2-color)" stroke-width="2" stroke-dasharray="3,3" />
+      <polygon points="142,112 135,115 142,118" fill="var(--step2-color)" />
+      <text x="160" y="130" text-anchor="middle" font-size="8" fill="var(--step2-color)">Callback</text>
+
+      <rect x="187" y="45" width="110" height="110" rx="8" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="242" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step2-color)">AuthService</text>
+      <text x="242" y="95" text-anchor="middle" font-size="9" fill="var(--ink)">Runs async</text>
+      <text x="242" y="125" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step2-color)">completion(true)</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Lightweight 1-to-1 event callback</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "NotificationCenter: 1-to-Many Broadcast",
+    desc: "A sender posts an event through NotificationCenter. Multiple independent observers receive it without knowing who sent it.",
+    code: `NotificationCenter.default.post(\n  name: .userDidSignOut, object: nil\n)\n// Runs synchronously on caller thread`,
+    svg: `
+      <rect x="20" y="70" width="85" height="60" rx="6" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="62" y="95" text-anchor="middle" font-size="10" font-weight="700" fill="var(--step3-color)">Sender</text>
+      <text x="62" y="112" text-anchor="middle" font-size="8" fill="var(--muted)">post(name:)</text>
+
+      <rect x="125" y="55" width="70" height="90" rx="6" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="160" y="85" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step3-color)">Notification</text>
+      <text x="160" y="100" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step3-color)">Center</text>
+      <text x="160" y="125" text-anchor="middle" font-size="8" fill="var(--muted)">Hub</text>
+
+      <line x1="105" y1="100" x2="125" y2="100" stroke="var(--step3-color)" stroke-width="2" />
+
+      <line x1="195" y1="80" x2="225" y2="60" stroke="var(--step3-color)" stroke-width="1.5" stroke-dasharray="2,2" />
+      <rect x="225" y="40" width="75" height="32" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="262" y="60" text-anchor="middle" font-size="8" font-weight="600" fill="var(--ink)">ProfileView</text>
+
+      <line x1="195" y1="100" x2="225" y2="100" stroke="var(--step3-color)" stroke-width="1.5" stroke-dasharray="2,2" />
+      <rect x="225" y="84" width="75" height="32" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="262" y="104" text-anchor="middle" font-size="8" font-weight="600" fill="var(--ink)">CartManager</text>
+
+      <line x1="195" y1="120" x2="225" y2="140" stroke="var(--step3-color)" stroke-width="1.5" stroke-dasharray="2,2" />
+      <rect x="225" y="128" width="75" height="32" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="262" y="148" text-anchor="middle" font-size="8" font-weight="600" fill="var(--ink)">Analytics</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">1-to-many decoupled broadcast</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Pattern Decision Guide",
+    desc: "Pick delegates for multi-method contracts, closures for single tasks, and notifications for decoupled broadcasts.",
+    code: `// Multi-method contract -> Delegate (weak)\n// Single action/result  -> Closure ([weak self])\n// App-wide broadcast    -> NotificationCenter`,
+    svg: `
+      <rect x="25" y="40" width="270" height="32" rx="6" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="1.5" />
+      <text x="35" y="60" font-size="10" font-weight="700" fill="var(--step1-color)">Delegate</text>
+      <text x="120" y="60" font-size="9" fill="var(--ink)">1-to-1, two-way contract, weak var</text>
+
+      <rect x="25" y="80" width="270" height="32" rx="6" fill="var(--step2-soft)" stroke="var(--step2-color)" stroke-width="1.5" />
+      <text x="35" y="100" font-size="10" font-weight="700" fill="var(--step2-color)">Closure</text>
+      <text x="120" y="100" font-size="9" fill="var(--ink)">1-to-1, single task/callback, [weak self]</text>
+
+      <rect x="25" y="120" width="270" height="32" rx="6" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="1.5" />
+      <text x="35" y="140" font-size="10" font-weight="700" fill="var(--step3-color)">Notification</text>
+      <text x="120" y="140" font-size="9" fill="var(--ink)">1-to-many, broadcast, thread synchronous</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Choose the right pattern for each job</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"communication-patterns","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"communication-patterns-q1","type":"mcq","difficulty":1,"prompt":"What kind of communication relationship does the delegate pattern create?","options":[{"id":"a","text":"A one-to-one link between a sender and a single receiver.","explanation":"Delegation connects one sender directly to one delegate object."},{"id":"b","text":"A one-to-many broadcast to all active view controllers.","explanation":"A one-to-many broadcast describes NotificationCenter, not delegation."},{"id":"c","text":"A global queue that stores messages on disk until read.","explanation":"Delegation is an immediate in-memory pattern, not a disk queue."},{"id":"d","text":"A many-to-many mesh network between all data models.","explanation":"Delegation is strictly a one-to-one relationship."}],"answer":"a"},{"id":"communication-patterns-q2","type":"mcq","difficulty":2,"prompt":"Why should a delegate property almost always be marked with the weak keyword?","options":[{"id":"a","text":"Because weak references execute their methods on background threads.","explanation":"Weak references do not affect the thread on which methods run."},{"id":"b","text":"Because a strong reference creates a retain cycle when both objects hold each other.","explanation":"When an owner holds a child and the child holds a strong delegate to the owner, a retain cycle occurs."},{"id":"c","text":"Because Swift protocols cannot be used with strong property references.","explanation":"Swift protocols can be strong, but doing so for delegates creates memory leaks."},{"id":"d","text":"Because weak properties automatically convert all return values into optionals.","explanation":"Weak refers to memory ownership, not method signature return types."}],"answer":"b"},{"id":"communication-patterns-q3","type":"mcq","difficulty":2,"prompt":"When is a closure callback preferred over setting up a full delegate protocol?","options":[{"id":"a","text":"When sending messages between two separate running applications on iOS.","explanation":"Closures cannot cross process boundaries between separate apps."},{"id":"b","text":"When the communication requires five different lifecycle callback methods.","explanation":"When handling multiple related callbacks, a delegate protocol is cleaner."},{"id":"c","text":"When handling a single asynchronous response or simple user action callback.","explanation":"Closures are ideal for quick, single-action completion handlers."},{"id":"d","text":"When the caller must receive broadcast events from ten different sources.","explanation":"Broadcasting to multiple sources is best handled by NotificationCenter."}],"answer":"c"},{"id":"communication-patterns-q4","type":"mcq","difficulty":2,"prompt":"Which pattern is best suited for broadcasting user logout to multiple unrelated screens?","options":[{"id":"a","text":"A delegate protocol assigned to every visible view controller.","explanation":"A delegate can only link to one object at a time, not broadcast to many."},{"id":"b","text":"A chain of nested closures passed down through every subview.","explanation":"Passing closures down deep view hierarchies creates tight coupling."},{"id":"c","text":"A global variable that all views poll every second using a timer.","explanation":"Polling global variables with timers wastes battery and adds latency."},{"id":"d","text":"A notification broadcast posted through NotificationCenter to all observers.","explanation":"NotificationCenter provides decoupled one-to-many broadcast messaging."}],"answer":"d"},{"id":"communication-patterns-q5","type":"mcq","difficulty":2,"prompt":"Why must a delegate protocol inherit from AnyObject in Swift?","options":[{"id":"a","text":"To allow the delegate property to be declared with the weak keyword.","explanation":"Only class-bound protocols conforming to AnyObject can be marked weak."},{"id":"b","text":"To allow struct types to conform to the delegate protocol as values.","explanation":"Conforming to AnyObject forbids value types like structs from conforming."},{"id":"c","text":"To force all delegate methods to run on the main thread automatically.","explanation":"AnyObject does not influence thread scheduling."},{"id":"d","text":"To enable Objective-C runtime compatibility across older operating systems.","explanation":"Use @objc for Objective-C compatibility; AnyObject is pure Swift."}],"answer":"a"},{"id":"communication-patterns-q6","type":"mcq","difficulty":2,"prompt":"On which thread does NotificationCenter execute observer callbacks by default?","options":[{"id":"a","text":"Always on the main queue to keep user interfaces responsive.","explanation":"NotificationCenter does not automatically dispatch to the main queue."},{"id":"b","text":"On the thread that called the post method to broadcast the notification.","explanation":"NotificationCenter delivers notifications synchronously on the poster thread."},{"id":"c","text":"On a private background thread managed directly by the kernel.","explanation":"NotificationCenter does not switch threads on its own during post."},{"id":"d","text":"On the thread where the observer originally registered its listener block.","explanation":"The observer block runs on the caller thread unless specified via an operation queue."}],"answer":"b"},{"id":"communication-patterns-q7","type":"mcq","difficulty":2,"prompt":"What happens if you do not remove a block-based notification observer token?","options":[{"id":"a","text":"The compiler issues a warning and prevents the app bundle from building.","explanation":"The Swift compiler does not enforce token removal at compile time."},{"id":"b","text":"iOS automatically purges the token whenever the device enters low power mode.","explanation":"iOS does not purge NotificationCenter observer tokens automatically."},{"id":"c","text":"The observer closure remains active in memory and continues receiving events.","explanation":"Block-based observer tokens persist until explicitly removed or released."},{"id":"d","text":"The posting object throws an exception during its next notification post.","explanation":"Posting never throws exceptions for unremoved observer tokens."}],"answer":"c"},{"id":"communication-patterns-q8","type":"mcq","difficulty":2,"prompt":"How can an escaping closure that references self avoid creating a retain cycle?","options":[{"id":"a","text":"By wrapping the closure body inside an autoreleasepool block.","explanation":"Autoreleasepool manages Objective-C autoreleased objects, not Swift ARC cycles."},{"id":"b","text":"By marking the enclosing class instance with the final keyword modifier.","explanation":"The final keyword prevents subclassing, but does not alter ARC capture."},{"id":"c","text":"By calling DispatchQueue.main.async inside every closure statement.","explanation":"Dispatching asynchronously does not break strong capture cycles."},{"id":"d","text":"By adding [weak self] or [unowned self] to the closure capture list.","explanation":"Capture lists tell ARC to capture self weakly, preventing retain cycles."}],"answer":"d"},{"id":"communication-patterns-q9","type":"mcq","difficulty":1,"prompt":"Can a notification observer return a value directly back to the notification sender?","options":[{"id":"a","text":"No, notifications are a one-way fire-and-forget broadcast mechanism.","explanation":"NotificationCenter posts events one-way and cannot return values to the caller."},{"id":"b","text":"Yes, by specifying a non-void return type in the notification name.","explanation":"Notification names are string identifiers and do not have return types."},{"id":"c","text":"Yes, by writing a synchronous completion handler in the userInfo dictionary.","explanation":"Posting does not wait for or return values from observer closures."},{"id":"d","text":"No, unless both sender and observer run on the same actor isolation.","explanation":"Notifications are one-way regardless of concurrency or actor isolation."}],"answer":"a"},{"id":"communication-patterns-q10","type":"mcq","difficulty":2,"prompt":"Which communication pattern allows two-way questions, such as asking if a row may be deleted?","options":[{"id":"a","text":"NotificationCenter broadcast posts.","explanation":"NotificationCenter is one-way and cannot return decision answers."},{"id":"b","text":"The delegate pattern using protocol methods.","explanation":"Delegates can return values (such as Bool) back to the sender."},{"id":"c","text":"UserDefaults key-value change notifications.","explanation":"UserDefaults KVO is an observation tool, not a two-way question protocol."},{"id":"d","text":"Global error handling with try and catch.","explanation":"Throwing errors handles failures, not conversational decision questions."}],"answer":"b"},{"id":"communication-patterns-q11","type":"mcq","difficulty":2,"prompt":"What is a major architectural downside of relying heavily on NotificationCenter?","options":[{"id":"a","text":"It prevents unit tests from compiling in Xcode projects.","explanation":"Unit tests can easily post and observe notifications."},{"id":"b","text":"It uses up to ten times more device battery than closures.","explanation":"NotificationCenter has negligible battery impact compared to closures."},{"id":"c","text":"It hides control flow and makes dependencies hard to trace.","explanation":"Broadcasting obscures which components listen and react to specific events."},{"id":"d","text":"It forces all data models to be written as Objective-C classes.","explanation":"NotificationCenter works natively with Swift structs and classes."}],"answer":"c"},{"id":"communication-patterns-q12","type":"mcq","difficulty":2,"prompt":"Why does a table view use a delegate instead of multiple individual closures for row actions?","options":[{"id":"a","text":"Because closures cannot accept integer index parameters in Swift.","explanation":"Closures can accept any valid parameters, including integers and index paths."},{"id":"b","text":"Because Apple forbids closure properties on UIKit view subclasses.","explanation":"UIKit views frequently use closure properties for modern actions."},{"id":"c","text":"Because delegates load table rows asynchronously in the background.","explanation":"Table view delegates run synchronously during layout passes."},{"id":"d","text":"Because a delegate groups many related lifecycle and selection methods together.","explanation":"A protocol groups scroll, selection, and layout methods under one contract."}],"answer":"d"},{"id":"communication-patterns-q13","type":"mcq","difficulty":3,"prompt":"What modern Swift concurrency feature provides an alternative to block-based NotificationCenter tokens?","options":[{"id":"a","text":"Iterating over notifications using an AsyncSequence with for await.","explanation":"NotificationCenter.default.notifications(named:) returns an AsyncSequence."},{"id":"b","text":"Marking notification names with the Sendable protocol modifier.","explanation":"Sendable ensures thread safety, but does not replace the observation mechanism."},{"id":"c","text":"Creating actors that inherit from NotificationCenter directly.","explanation":"NotificationCenter cannot be inherited by Swift actors."},{"id":"d","text":"Using dispatch work items with quality of service overrides.","explanation":"Dispatch work items belong to GCD, not modern Swift concurrency streams."}],"answer":"a"},{"id":"communication-patterns-q14","type":"mcq","difficulty":2,"prompt":"What is the primary risk of using [unowned self] instead of [weak self] in a closure?","options":[{"id":"a","text":"The closure executes twice if the referenced object is deallocated.","explanation":"Closures do not repeat execution upon deallocation."},{"id":"b","text":"The app crashes at runtime if self is deallocated before the closure runs.","explanation":"Unowned assumes the reference is never nil; accessing a deallocated instance crashes."},{"id":"c","text":"The closure leaks its parameters into the global application pool.","explanation":"Unowned does not leak parameters into any global pool."},{"id":"d","text":"The compiler refuses to compile any escaping closure using unowned.","explanation":"Unowned self is valid Swift syntax, but unsafe if lifetimes mismatch."}],"answer":"b"},{"id":"communication-patterns-q15","type":"mcq","difficulty":2,"prompt":"How does a sender pass arbitrary dictionary data when posting a notification?","options":[{"id":"a","text":"By adding key-value entries to the global UserDefaults property list.","explanation":"UserDefaults is persistent disk storage, not notification payload data."},{"id":"b","text":"By passing an optional dictionary into the post method userInfo parameter.","explanation":"The userInfo parameter accepts a dictionary of custom metadata."},{"id":"c","text":"By writing data to an open socket connection on the localhost port.","explanation":"NotificationCenter is an in-process mechanism, not a network socket."},{"id":"d","text":"By encoding payload objects into JSON strings inside the notification name.","explanation":"Notification names are static identifiers, not data containers."}],"answer":"b"},{"id":"communication-patterns-q16","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"import Foundation\n\nprotocol DownloadDelegate: AnyObject {\n    func downloadDidFinish(bytes: Int)\n}\n\nfinal class Downloader {\n    weak var delegate: DownloadDelegate?\n    func run() {\n        delegate?.downloadDidFinish(bytes: 1024)\n    }\n}\n\nfinal class Tracker: DownloadDelegate {\n    func downloadDidFinish(bytes: Int) {\n        print(\"Received \\(bytes) bytes\")\n    }\n}\n\nlet d = Downloader()\nlet t = Tracker()\nd.delegate = t\nd.run()","options":[{"id":"a","text":"Nothing is printed because the delegate reference is weak.","explanation":"The Tracker instance is retained by variable t, so the delegate call succeeds."},{"id":"b","text":"Download finished with zero bytes.","explanation":"The code passes 1024 bytes into the delegate method."},{"id":"c","text":"Compiler error: weak properties cannot be assigned.","explanation":"Assigning to a weak variable is standard Swift syntax."},{"id":"d","text":"Received 1024 bytes","explanation":"The Downloader calls its delegate, which prints the received byte count."}],"answer":"d"},{"id":"communication-patterns-q17","type":"code-reading","difficulty":2,"prompt":"What output is produced by running this closure capture code?","code":"import Foundation\n\nfinal class Worker {\n    var onComplete: (() -> Void)?\n    func start() {\n        onComplete?()\n    }\n}\n\nfinal class Manager {\n    var name = \"Team Alpha\"\n    let worker = Worker()\n\n    func setup() {\n        worker.onComplete = { [weak self] in\n            if let self {\n                print(\"Finished for \\(self.name)\")\n            }\n        }\n    }\n}\n\nlet m = Manager()\nm.setup()\nm.worker.start()","options":[{"id":"a","text":"Finished for Team Alpha","explanation":"The worker calls the stored closure, unwrapping self and printing its name."},{"id":"b","text":"Nothing is printed because self is weak.","explanation":"Variable m retains the Manager in memory, so weak self unwraps successfully."},{"id":"c","text":"Finished for unknown","explanation":"The name property is initialized to Team Alpha."},{"id":"d","text":"Fatal error: unexpected nil found while unwrapping.","explanation":"The code safely unwraps self using if let."}],"answer":"a"},{"id":"communication-patterns-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print after posting a notification?","code":"import Foundation\n\nextension Notification.Name {\n    static let alertPosted = Notification.Name(\"alertPosted\")\n}\n\nvar received = false\nlet token = NotificationCenter.default.addObserver(\n    forName: .alertPosted,\n    object: nil,\n    queue: nil\n) { _ in\n    received = true\n}\n\nNotificationCenter.default.post(name: .alertPosted, object: nil)\nprint(\"Handled: \\(received)\")\nNotificationCenter.default.removeObserver(token)","options":[{"id":"a","text":"Handled: false","explanation":"The notification runs synchronously, setting received to true before printing."},{"id":"b","text":"Handled: true","explanation":"NotificationCenter.default.post executes observer blocks synchronously."},{"id":"c","text":"Handled: nil","explanation":"Variable received is a non-optional Boolean value."},{"id":"d","text":"Compiler error: custom notification names must be strings.","explanation":"Extending Notification.Name with static constants is standard practice."}],"answer":"b"},{"id":"communication-patterns-q19","type":"code-reading","difficulty":2,"prompt":"What happens when wake() is called on a Device whose delegate has not been set?","code":"import Foundation\n\nprotocol StatusDelegate: AnyObject {\n    func statusChanged(to code: Int)\n}\n\nfinal class Device {\n    weak var delegate: StatusDelegate?\n    func wake() {\n        print(\"Waking\")\n        delegate?.statusChanged(to: 1)\n        print(\"Done\")\n    }\n}\n\nlet dev = Device()\ndev.wake()","options":[{"id":"a","text":"The program crashes with a nil pointer dereference.","explanation":"Optional chaining (?.) safely skips the call when delegate is nil."},{"id":"b","text":"Only Waking is printed before the method halts.","explanation":"The method continues running and reaches the second print statement."},{"id":"c","text":"Waking followed on the next line by Done","explanation":"Optional chaining skips the delegate call without error and prints Done."},{"id":"d","text":"Compiler error: optional delegates must be unwrapped.","explanation":"Optional chaining is the recommended way to call optional delegates."}],"answer":"c"},{"id":"communication-patterns-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when the form view queries its delegate for permission to submit?","code":"import Foundation\n\nprotocol FormValidatorDelegate: AnyObject {\n    func shouldSubmitForm() -> Bool\n}\n\nfinal class FormView {\n    weak var delegate: FormValidatorDelegate?\n    func submit() {\n        let allowed = delegate?.shouldSubmitForm() ?? false\n        print(\"Submit allowed: \\(allowed)\")\n    }\n}\n\nfinal class Controller: FormValidatorDelegate {\n    func shouldSubmitForm() -> Bool {\n        return true\n    }\n}\n\nlet view = FormView()\nlet ctrl = Controller()\nview.delegate = ctrl\nview.submit()","options":[{"id":"a","text":"Submit allowed: false","explanation":"The delegate is assigned and its shouldSubmitForm method returns true."},{"id":"b","text":"Submit allowed: nil","explanation":"The nil-coalescing operator ?? provides a fallback boolean."},{"id":"c","text":"Compiler error: delegate return types cannot be booleans.","explanation":"Delegates support arbitrary return types in Swift."},{"id":"d","text":"Submit allowed: true","explanation":"The controller returns true, allowing the form submission."}],"answer":"d"},{"id":"communication-patterns-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when the completion closure is invoked?","code":"import Foundation\n\nfinal class MathService {\n    func multiply(_ a: Int, _ b: Int, completion: (Int) -> Void) {\n        let product = a * b\n        completion(product)\n    }\n}\n\nlet math = MathService()\nmath.multiply(6, 7) { result in\n    print(\"Result is \\(result)\")\n}","options":[{"id":"a","text":"Result is 42","explanation":"The service multiplies 6 by 7 and passes 42 to the completion closure."},{"id":"b","text":"Result is 0","explanation":"The multiplication evaluates 6 * 7, which equals 42."},{"id":"c","text":"Nothing is printed because closures run asynchronously.","explanation":"Non-escaping closures execute synchronously on the caller thread."},{"id":"d","text":"Compiler error: completion closures must be marked @escaping.","explanation":"Because the closure is called before multiply returns, it is non-escaping."}],"answer":"a"},{"id":"communication-patterns-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when extracting payload metadata from userInfo?","code":"import Foundation\n\nextension Notification.Name {\n    static let themeChange = Notification.Name(\"themeChange\")\n}\n\nlet token = NotificationCenter.default.addObserver(\n    forName: .themeChange,\n    object: nil,\n    queue: nil\n) { note in\n    if let style = note.userInfo?[\"style\"] as? String {\n        print(\"Theme: \\(style)\")\n    }\n}\n\nNotificationCenter.default.post(\n    name: .themeChange,\n    object: nil,\n    userInfo: [\"style\": \"dark\"]\n)\nNotificationCenter.default.removeObserver(token)","options":[{"id":"a","text":"Theme: nil","explanation":"The userInfo dictionary contains a valid string value for key style."},{"id":"b","text":"Theme: dark","explanation":"The observer extracts the dark string from userInfo and prints it."},{"id":"c","text":"Nothing is printed because userInfo dictionaries are read-only.","explanation":"The observer successfully reads the payload dictionary."},{"id":"d","text":"Fatal error: userInfo dictionary casting failure.","explanation":"The conditional cast as? String succeeds safely."}],"answer":"b"},{"id":"communication-patterns-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print when two separate observers listen to the same notification?","code":"import Foundation\n\nextension Notification.Name {\n    static let ping = Notification.Name(\"ping\")\n}\n\nvar count = 0\nlet t1 = NotificationCenter.default.addObserver(forName: .ping, object: nil, queue: nil) { _ in\n    count += 1\n}\nlet t2 = NotificationCenter.default.addObserver(forName: .ping, object: nil, queue: nil) { _ in\n    count += 10\n}\n\nNotificationCenter.default.post(name: .ping, object: nil)\nprint(\"Total count: \\(count)\")\nNotificationCenter.default.removeObserver(t1)\nNotificationCenter.default.removeObserver(t2)","options":[{"id":"a","text":"Total count: 1","explanation":"Both observers receive the broadcast, not just the first one."},{"id":"b","text":"Total count: 10","explanation":"The first observer also executes, incrementing count by 1."},{"id":"c","text":"Total count: 11","explanation":"Both observers execute synchronously upon posting: 1 + 10 = 11."},{"id":"d","text":"Total count: 0","explanation":"Posting triggers all active observers immediately."}],"answer":"c"},{"id":"communication-patterns-q24","type":"written","difficulty":2,"prompt":"Compare delegates and closures in iOS. Explain when you would choose each pattern and how memory management differs.","rubric":[{"weight":40,"criterion":"Explains that delegates represent formal one-to-one contracts for multiple events or two-way queries, while closures suit single asynchronous callbacks or simple events.","key":true},{"weight":30,"criterion":"Explains memory management: delegates require weak properties and AnyObject protocols, while closures require capture lists such as [weak self] to prevent retain cycles.","key":true},{"weight":30,"criterion":"Contrasts architectural trade-offs: delegates offer explicit protocol contracts and mockability; closures provide inline brevity and reduced boilerplate."}],"modelAnswer":"Delegates and closures both provide one-to-one communication, but they serve different architectural needs.\n\nI choose a delegate when communication involves multiple related lifecycle events. It also fits two-way questions, such as asking if a table row can be deleted. A delegate defines a formal protocol, making contracts explicit and easy to mock in unit tests. Memory management requires marking the delegate property as weak and constraining the protocol to AnyObject.\n\nI choose a closure for a single event or asynchronous completion callback, like a network download. Closures keep call sites concise without extra protocol definitions. For memory management, escaping closures stored on self must use a capture list with [weak self] to prevent retain cycles."},{"id":"communication-patterns-q25","type":"written","difficulty":2,"prompt":"What is NotificationCenter, when is it appropriate to use, and what are its key architectural risks?","rubric":[{"weight":40,"criterion":"Defines NotificationCenter as a one-to-many broadcast mechanism suitable for decoupled events like user sign-out or keyboard frame changes.","key":true},{"weight":30,"criterion":"Identifies risks: synchronous delivery on the caller thread causing background UI crashes, and memory leaks from forgotten observer tokens.","key":true},{"weight":30,"criterion":"Discusses architectural downsides: hidden dependencies, untyped userInfo dictionaries, and difficult control flow tracing."}],"modelAnswer":"NotificationCenter is a one-to-many broadcast mechanism managed by Foundation. A sender posts a notification without knowing who receives it, and zero or more observers react independently.\n\nIt is appropriate for global, app-wide events where components should not be tightly coupled. Examples include user logout, keyboard appearance, and system memory warnings.\n\nIts key architectural risks include:\n1. Threading: Post runs synchronously on the caller thread. If posted from a background queue, observers run in the background, risking UI crashes if not dispatched to main.\n2. Memory leaks: Block-based observer tokens must be explicitly retained and removed, or they leak and continue listening.\n3. Coupling and maintenance: Notifications obscure control flow and use untyped userInfo dictionaries, making data dependencies hard to debug."},{"id":"communication-patterns-q26","type":"written","difficulty":3,"prompt":"Explain how retain cycles happen with both delegates and closures, and explain how to prevent them in Swift.","rubric":[{"weight":40,"criterion":"Explains how delegate retain cycles form when parent and child hold strong references to each other, and shows how weak var breaks it.","key":true},{"weight":40,"criterion":"Explains how closure retain cycles form when an object stores an escaping closure that captures self strongly, and shows how [weak self] breaks it.","key":true},{"weight":20,"criterion":"Mentions that delegate protocols must be class-bound with AnyObject to permit weak storage."}],"modelAnswer":"A retain cycle happens when two objects hold strong references to each other, preventing ARC from releasing their memory.\n\nWith delegates, a retain cycle occurs when a parent view controller owns a child component. If the child holds a strong delegate reference back to the parent, both stay in memory. To prevent this, constrain the delegate protocol to AnyObject and declare the delegate property as weak var.\n\nWith closures, a retain cycle occurs when an object stores an escaping closure in a property, and that closure references self. The object owns the closure, and the closure strongly captures self. To prevent this, add a capture list with [weak self] to the closure definition, turning the captured reference into an optional."},{"id":"communication-patterns-q27","type":"written","difficulty":2,"prompt":"Why does NotificationCenter post notifications synchronously, and what threading bug often results from this behavior?","rubric":[{"weight":50,"criterion":"Explains that NotificationCenter delivers notifications synchronously on the current thread where post was invoked.","key":true},{"weight":50,"criterion":"Explains that background notification posts cause observers to run in the background. UI updates will crash unless dispatched to the main queue.","key":true}],"modelAnswer":"NotificationCenter delivers notifications synchronously on the thread where post is called. When post executes, NotificationCenter iterates through all registered observers on that exact thread and runs their selectors or closures before returning control to the poster.\n\nA frequent threading bug occurs when background operations, like network tasks or database queries, post a notification. Observers that receive the notification execute on that background thread. If an observer updates views directly without dispatching to the main queue, issues arise. The app risks race conditions and main thread crashes."},{"id":"communication-patterns-q28","type":"written","difficulty":3,"prompt":"How does Swift modern concurrency change how iOS developers observe notifications and handle asynchronous callbacks?","rubric":[{"weight":50,"criterion":"Mentions NotificationCenter.default.notifications(named:) returning an AsyncSequence that can be iterated with for await without manual token cleanup.","key":true},{"weight":50,"criterion":"Explains how async/await replaces nested escaping completion closures with structured linear code and compile-time concurrency checking.","key":true}],"modelAnswer":"Modern Swift concurrency simplifies both notification observation and asynchronous callbacks.\n\nFor notifications, Swift introduces NotificationCenter.default.notifications(named:), which returns an AsyncSequence. Instead of registering block tokens and manually removing them in deinit, developers iterate over notifications using a standard for await loop inside a structured Task. When the Task cancels, observation stops automatically without memory leaks.\n\nFor asynchronous callbacks, async/await replaces escaping completion handler closures. Methods return values or throw errors directly instead of passing Result types through closures. This eliminates deep callback nesting, avoids accidental forgotten completion calls, and provides compile-time data race safety through Swift actors."},{"id":"communication-patterns-q29","type":"code-write","difficulty":2,"prompt":"Write a delegate protocol named ScoreDelegate conforming to AnyObject with a method scoreDidUpdate(newScore: Int). Then create a GameSession class with a weak delegate property and a method addPoints(_ points: Int) that increments score and notifies its delegate.","starterCode":"import Foundation\n\n// Define ScoreDelegate and GameSession here\n","rubric":[{"weight":40,"criterion":"Defines ScoreDelegate protocol conforming to AnyObject with scoreDidUpdate(newScore: Int).","key":true},{"weight":30,"criterion":"Declares weak var delegate: ScoreDelegate? on GameSession.","key":true},{"weight":30,"criterion":"Implements addPoints to increment score and call delegate?.scoreDidUpdate(newScore:).","key":true}],"modelAnswer":"import Foundation\n\nprotocol ScoreDelegate: AnyObject {\n    func scoreDidUpdate(newScore: Int)\n}\n\nfinal class GameSession {\n    weak var delegate: ScoreDelegate?\n    private(set) var score = 0\n\n    func addPoints(_ points: Int) {\n        score += points\n        delegate?.scoreDidUpdate(newScore: score)\n    }\n}\n\nfinal class ScoreBoard: ScoreDelegate {\n    func scoreDidUpdate(newScore: Int) {\n        print(\"New score is \\(newScore)\")\n    }\n}\n\nlet game = GameSession()\nlet board = ScoreBoard()\ngame.delegate = board\ngame.addPoints(50)"},{"id":"communication-patterns-q30","type":"code-write","difficulty":2,"prompt":"Create a UserLoader class with a method loadUser(valid: Bool, completion: @escaping (Result\u003cString, NetworkError>) -> Void). If valid is true, call completion with .success(\"Dana\"); otherwise call it with .failure(.badURL).","starterCode":"import Foundation\n\nenum NetworkError: Error {\n    case badURL\n}\n\n// Create UserLoader here\n","rubric":[{"weight":40,"criterion":"Defines loadUser method accepting valid boolean and @escaping completion closure.","key":true},{"weight":30,"criterion":"Correctly invokes completion with .success(\"Dana\") when valid is true.","key":true},{"weight":30,"criterion":"Correctly invokes completion with .failure(.badURL) when valid is false."}],"modelAnswer":"import Foundation\n\nenum NetworkError: Error {\n    case badURL\n}\n\nfinal class UserLoader {\n    func loadUser(valid: Bool, completion: @escaping (Result\u003cString, NetworkError>) -> Void) {\n        if valid {\n            completion(.success(\"Dana\"))\n        } else {\n            completion(.failure(.badURL))\n        }\n    }\n}\n\nlet loader = UserLoader()\nloader.loadUser(valid: true) { result in\n    switch result {\n    case .success(let name):\n        print(\"Loaded user \\(name)\")\n    case .failure:\n        print(\"Load failed\")\n    }\n}"},{"id":"communication-patterns-q31","type":"code-write","difficulty":3,"prompt":"Write a PurchaseNotifier class with an observer token. Include a listen() method for notification itemPurchased, a postPurchase(item:) method, and a stop() method that removes the token.","starterCode":"import Foundation\n\nextension Notification.Name {\n    static let itemPurchased = Notification.Name(\"itemPurchased\")\n}\n\n// Implement PurchaseNotifier here\n","rubric":[{"weight":40,"criterion":"Registers a block observer for itemPurchased, stores the token, and extracts item string from userInfo.","key":true},{"weight":30,"criterion":"Implements postPurchase to post itemPurchased with userInfo dictionary containing the item.","key":true},{"weight":30,"criterion":"Implements stop to remove the observer token using NotificationCenter.default.removeObserver.","key":true}],"modelAnswer":"import Foundation\n\nextension Notification.Name {\n    static let itemPurchased = Notification.Name(\"itemPurchased\")\n}\n\nfinal class PurchaseNotifier {\n    private var token: NSObjectProtocol?\n\n    func listen() {\n        token = NotificationCenter.default.addObserver(\n            forName: .itemPurchased,\n            object: nil,\n            queue: nil\n        ) { note in\n            if let item = note.userInfo?[\"item\"] as? String {\n                print(\"Purchased \\(item)\")\n            }\n        }\n    }\n\n    func postPurchase(item: String) {\n        NotificationCenter.default.post(\n            name: .itemPurchased,\n            object: nil,\n            userInfo: [\"item\": item]\n        )\n    }\n\n    func stop() {\n        if let token = token {\n            NotificationCenter.default.removeObserver(token)\n            self.token = nil\n        }\n    }\n}\n\nlet notifier = PurchaseNotifier()\nnotifier.listen()\nnotifier.postPurchase(item: \"Coffee\")\nnotifier.stop()"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

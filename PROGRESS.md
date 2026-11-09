@@ -149,9 +149,9 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **urlsession** (URLSession) — published (lesson, diagram, 31 questions) → [docs/topics/urlsession/review.html](docs/topics/urlsession/review.html)
     - ✅ **userdefaults-and-files** (UserDefaults and Files) — published (lesson, diagram, 31 questions) → [docs/topics/userdefaults-and-files/review.html](docs/topics/userdefaults-and-files/review.html)
     - ✅ **keychain-basics** (Keychain Basics) — published (lesson, diagram, 31 questions) → [docs/topics/keychain-basics/review.html](docs/topics/keychain-basics/review.html)
-  - 🔄 **Batch 2F: Architecture & Testing (6 topics)**
-    - 🔄 **communication-patterns** (Delegates, Closures and Notifications) — starting research
-    - ⬜ **mvc** (MVC and Its Problems)
+  - 🔄 **Batch 2F: Architecture & Testing (6 topics, 1/6 published)**
+    - ✅ **communication-patterns** (Delegates, Closures and Notifications) — published (lesson, diagram, 31 questions) → [docs/topics/communication-patterns/review.html](docs/topics/communication-patterns/review.html)
+    - 🔄 **mvc** (MVC and Its Problems) — starting research
     - ⬜ **solid-basics** (SOLID Basics)
     - ⬜ **debugging-lldb** (Debugging with Breakpoints and LLDB)
     - ⬜ **logging-oslog** (Logging with OSLog)
@@ -212,8 +212,14 @@ Written answers and code answers graded by AI, with limits against abuse.
 ## Phase 7 — Launch ⬜
 
 Search engine setup, privacy-friendly analytics, deploy, feedback button.
+- ⬜ **Public GitHub repo + CI (do now)** — push the project to a **public** repo on your personal account (free GitHub Actions minutes; works with Vercel Hobby). A CI workflow runs `validate-curriculum`, `check-plain-english`, `run-swift-examples`, `check-brand`, the Vitest tests and `next build` on every push and pull request, so agents without hooks cannot skip them. Choose a license for the content and code before the first push. No secrets in the repo
 - ⬜ **Analytics: Cloudflare Web Analytics** — free, no personal data (decided 2026-11-09)
 - ⬜ **"Report a problem" on each question + anonymous question stats** in Cloudflare D1 through a small Worker, right after launch. Shows which questions confuse learners, to improve them (decided 2026-11-09)
+- ⬜ **Content dashboard, part 1 (view)** — private `/admin` page: Firebase login + an allow-list of admin emails, checked on the server. Screens: overview of every topic (status, version, questions, sources, last fact-check, open reports), topic preview as learners see it with per-question stats from D1, and the reports inbox. Reports stay private in D1
+- ⬜ **Content dashboard, part 2 (edit), right after launch** — every change becomes a pull request, never a direct edit of the live content:
+  - Quick edits (typo, option text, publish or retire a topic, sources) → a pull request through the GitHub API, committed **in your name** (Vercel Hobby deploys only commits by the owner)
+  - AI tasks (fix a report, re-check facts, write a topic, add questions) → a GitHub issue with an `ai-task` label and the skill to run. **You run them on your computer** with Claude Code when you choose; it opens a pull request. Issue text holds no learner data, because the repo is public
+  - CI runs all checks and Vercel builds a preview link; you approve in the dashboard ("Changes waiting" screen) → merge → the live site updates
 
 ## Phase 8 — Later ⬜
 
@@ -293,6 +299,7 @@ New rules and changes you ask for are added here, with the date.
 | 2026-11-09 | The web app is a PWA: installable and works offline in Phase 5; push notifications later in Phase 8 | this file (Phase 5, Phase 8) |
 | 2026-11-09 | Downloadable PDF certificate when a level is done with a path score at the pass mark or more; **only for logged-in learners**, verified with a check link; calm branded design | this file (Phase 8) |
 | 2026-11-09 | Free services only: Firebase Auth + Firestore for login (Phase 8), Cloudflare Web Analytics (Phase 7), Cloudflare Workers AI as backup grader (Phase 6), Cloudflare D1 for problem reports and question stats (after launch); hosting stays on Vercel | [docs/stack.md](docs/stack.md) |
+| 2026-11-09 | Content dashboard: view in Phase 7, edit right after launch. Every change is a pull request that passes all checks and that you approve. AI tasks run on your computer. The repo is public | this file (Phase 7) |
 | 2026-11-09 | Complete all 22 Fresh level topics first (Coding Interview, SwiftUI, App and System); keep optional-chaining in Wave 2 (Junior) | ask_question decision |
 | 2026-11-09 | Delegate Phase 4 content production to autonomous workflow without manual approvals; each topic auto-publishes upon passing compiler and linter checks | User instruction |
 
@@ -300,6 +307,9 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — Built and published topic communication-patterns (Delegates, Closures and Notifications): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/communication-patterns/review.html`). All checks passed. Starting mvc.
+
+- **2026-11-09** — Planned the content dashboard with you: a public GitHub repo + CI now; a view-only `/admin` dashboard with the reports inbox in Phase 7; quick edits and AI tasks right after launch. Every change is a pull request with all checks and a preview, and you approve it. AI tasks run on your computer, not in GitHub Actions.
 - **2026-11-09** — Completed Batch 2E (Design, System & Data: 9 topics published and committed). Launching dedicated autonomous subagent for the final Junior batch: Batch 2F (Architecture & Testing: 6 topics, `communication-patterns` through `unit-testing`).
 
 - **2026-11-09** — Completed Batch 2E (Design, System & Data: all 9 topics published and committed). Junior level progress is now 39 of 45 topics published (61 total published topics across curriculum). Final Junior batch is Batch 2F (Architecture & Testing, 6 topics).
