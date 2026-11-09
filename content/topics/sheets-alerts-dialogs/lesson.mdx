@@ -1,0 +1,257 @@
+export const meta = {
+  id: "sheets-alerts-dialogs",
+  summary: "Present modal sheets, full-screen covers, alerts, and confirmation dialogs in SwiftUI.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Modal presentations (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/modal-presentations", kind: "official" },
+    { title: "WWDC26 SwiftUI guide - Apple Developer", url: "https://developer.apple.com/wwdc26/guides/swiftui/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why is `.sheet(item: $item)` safer than `.sheet(isPresented: $isPresented)` when showing data-driven modal views?</Question>
+  <Guess>
+    <Option id="a">It loads the sheet view asynchronously on a background worker thread.</Option>
+    <Option id="b" correct>It provides an unwrapped value, preventing crashes if optional data resets during dismissal.</Option>
+    <Option id="c">It forces full-screen presentation mode on iPhone and iPad automatically.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine reading a book at your desk.
+
+When you need to look up a word, you pull out a small dictionary card. It sits on top of your page.
+
+When you finish reading the definition, you slide the card away. Your book is right where you left it.
+
+That card is a **sheet**.
+
+If someone rings the fire alarm, you stop everything. You must make a choice immediately before doing anything else.
+
+That emergency prompt is an **alert**.
+</Analogy>
+
+In SwiftUI, modal views slide or pop over current screen content to complete a focused task.
+
+Unlike navigation links that push new pages into a stack, modals temporarily interrupt the user.
+
+1. **Sheets**:
+   - Slide up as card overlays from the bottom of the screen.
+   - Users can swipe down to dismiss them.
+   - Support custom heights using `.presentationDetents`.
+2. **Full-screen covers**:
+   - Cover the entire screen without card margins.
+   - Ideal for modal flows like onboarding or camera capture.
+3. **Alerts & Dialogs**:
+   - Alerts display urgent messages in the center of the display.
+   - Confirmation dialogs present a list of choices sliding up from the bottom.
+
+## See it
+
+<Diagram id="modal-presentations-diagram" caption="Comparing Sheets, Full Screen Covers, Alerts, and Confirmation Dialogs in SwiftUI">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Base view hierarchy.
+    2. Sheet sliding up with medium/large detents.
+    3. FullScreenCover covering complete screen with dismiss button.
+    4. Alert and ConfirmationDialog presenting action buttons with roles.
+  - Steps:
+    Step 1: Base screen with trigger buttons for modals.
+    Step 2: Sheet presentation sliding up as an inset card.
+    Step 3: Alert presentation overlaying screen center with action buttons.
+    Step 4: Confirmation dialog sliding up from bottom with destructive actions.
+  - Static version (reduced motion):
+    A 4-panel comparison showing modal presentation styles and their interaction flows.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which environment value do you use to dismiss a presented modal view programmatically?</Question>
+  <Option id="a">`@Environment(\.presentationMode)`</Option>
+  <Option id="b" correct>`@Environment(\.dismiss)`</Option>
+  <Option id="c">`@Environment(\.closeModal)`</Option>
+  <Explanation>`@Environment(\.dismiss)` is the modern API in iOS 15 and later for closing modal presentations.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is an enum-based coordinator managing modal presentations.
+
+Using `Identifiable` items prevents data race conditions during sheet dismissal.
+
+<CodeExample title="Managing sheet presentation state">
+
+```swift
+import SwiftUI
+
+enum SheetType: Identifiable {
+    case settings
+    case profile(name: String)
+
+    var id: String {
+        switch self {
+        case .settings: return "settings"
+        case .profile(let name): return "profile_\(name)"
+        }
+    }
+}
+
+struct ModalCoordinator {
+    var activeSheet: SheetType? = nil
+
+    mutating func showProfile(user: String) {
+        activeSheet = .profile(name: user)
+    }
+
+    mutating func dismiss() {
+        activeSheet = nil
+    }
+}
+
+var coordinator = ModalCoordinator()
+coordinator.showProfile(user: "Sarah")
+print("Active: \(coordinator.activeSheet?.id ?? "none")")
+coordinator.dismiss()
+print("After dismiss: \(coordinator.activeSheet?.id ?? "none")")
+```
+
+```output
+Active: profile_Sarah
+After dismiss: none
+```
+
+</CodeExample>
+
+In SwiftUI, you attach `.sheet(item: $coordinator.activeSheet) { sheet in ... }`.
+
+Next, observe how alert states handle confirmations and destructive actions.
+
+<CodeExample title="Handling alerts with action roles">
+
+```swift
+import SwiftUI
+
+struct AlertModel {
+    var title: String
+    var message: String
+    var isDestructive: Bool
+}
+
+struct DeleteManager {
+    var pendingItem: String? = nil
+    var alert: AlertModel? = nil
+
+    mutating func requestDelete(item: String) {
+        pendingItem = item
+        alert = AlertModel(
+            title: "Delete \(item)?",
+            message: "This action cannot be undone.",
+            isDestructive: true
+        )
+    }
+
+    mutating func confirmDelete() -> String {
+        guard let item = pendingItem else { return "None" }
+        pendingItem = nil
+        alert = nil
+        return "Deleted \(item)"
+    }
+}
+
+var manager = DeleteManager()
+manager.requestDelete(item: "Photo_01")
+print("Alert title: \(manager.alert?.title ?? "none")")
+let result = manager.confirmDelete()
+print("Result: \(result)")
+```
+
+```output
+Alert title: Delete Photo_01?
+Result: Deleted Photo_01
+```
+
+</CodeExample>
+
+In SwiftUI views, you assign roles to buttons inside alerts: `Button("Delete", role: .destructive)` renders red text.
+
+<QuickCheck>
+  <Question>How do you configure a sheet to open at half height on iPhone in iOS 16 and later?</Question>
+  <Option id="a">Set `.frame(height: 300)` on the root sheet view.</Option>
+  <Option id="b" correct>Apply `.presentationDetents([.medium, .large])` to the sheet content.</Option>
+  <Option id="c">Apply `.sheetSize(.half)` on the parent view container.</Option>
+  <Explanation>Presentation detents control the resting heights of modal sheets in modern SwiftUI.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Attaching multiple sheets to one view">
+Do not attach two `.sheet(isPresented:)` modifiers to the same `VStack` or container.
+
+Only one sheet can be active at a time, and SwiftUI will fail to show one or both.
+
+Use a single `.sheet(item:)` driven by an enum to display different modal sheets cleanly.
+</Trap>
+
+<Trap title="Using optional data with sheet(isPresented:)">
+If a sheet relies on an optional model variable, using `sheet(isPresented:)` can cause crashes.
+
+When the sheet begins closing, the parent may set the model to `nil` while the view is still animating.
+
+Use `.sheet(item: $model)` instead. SwiftUI guarantees the item stays valid during dismissal.
+</Trap>
+
+<Trap title="Missing navigation bar inside sheets">
+A presented sheet does not inherit the navigation bar of the parent view.
+
+Modals exist in their own separate presentation window context.
+
+If you want a title bar or Done button inside a sheet, embed a `NavigationStack` inside the sheet.
+</Trap>
+
+<Trap title="Preventing accidental sheet dismissal">
+Users can swipe down to dismiss sheets on iOS.
+
+If your sheet contains unsaved form data, the user can accidentally lose progress.
+
+Attach `.interactiveDismissDisabled(hasUnsavedChanges)` to block the swipe gesture when needed.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"In SwiftUI, sheets slide up from the bottom of the screen for tasks like forms or settings. Alerts show popups in the middle of the screen for confirmations. We trigger them using `@State` boolean or item variables, and dismiss them with `@Environment(\.dismiss)`."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"We choose modal styles based on user intent. We use `.sheet` for secondary tasks with presentation detents, `.fullScreenCover` for camera flows, and `.alert` for critical prompts. Using `.sheet(item:)` is safer than `.sheet(isPresented:)` because it safely unwraps data payloads and prevents dismissal crashes."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Modal presentations introduce isolated view trees. We manage modal routing using enum coordinators and `Identifiable` state objects. We embed a `NavigationStack` inside sheets when deep subflows are required. For sensitive forms, we pair `.interactiveDismissDisabled` with dirty-state checks to prevent accidental swipe dismissals."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Present card overlays using `.sheet` and full-display overlays using `.fullScreenCover`.
+- Prefer `.sheet(item:)` over `.sheet(isPresented:)` for data-driven modal views.
+- Control sheet heights on iOS 16+ using `.presentationDetents([.medium, .large])`.
+- Present popups using `.alert` and action menus using `.confirmationDialog`.
+- Assign button roles like `.destructive` and `.cancel` for native system styling.
+- Dismiss any modal view from inside using `@Environment(\.dismiss)`.
+</Recap>
+
+## Go deeper
+
+- [Modal presentations (SwiftUI)](https://developer.apple.com/documentation/swiftui/modal-presentations) — Official Apple guide for sheets and covers.
+- [presentationDetents (SwiftUI)](https://developer.apple.com/documentation/swiftui/view/presentationdetents(_:)) — Reference for customizable sheet heights.
+- [alert API documentation](https://developer.apple.com/documentation/swiftui/view/alert(_:ispresented:actions:message:)-2j1p1) — Reference for system dialogs and actions.

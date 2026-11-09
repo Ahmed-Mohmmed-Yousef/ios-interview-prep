@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI Modal Presentations: Sheets, Alerts & Dialogs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --sheet-color: #0284c7; --sheet-soft: #e0f2fe;
+  --alert-color: #ea580c; --alert-soft: #ffedd5;
+  --dialog-color: #6366f1; --dialog-soft: #eef2ff;
+  --destruct-color: #dc2626; --destruct-soft: #fee2e2;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --sheet-color: #38bdf8; --sheet-soft: #082f49;
+  --alert-color: #fb923c; --alert-soft: #431407;
+  --dialog-color: #818cf8; --dialog-soft: #1e1b4b;
+  --destruct-color: #f87171; --destruct-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.modal { background: var(--sheet-soft); color: var(--sheet-color); }
+.kind.alert { background: var(--alert-soft); color: var(--alert-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+.sheet-card { fill: var(--surface); stroke: var(--sheet-color); stroke-width: 2.5; rx: 12px; transition: all 0.3s; }
+.alert-popup { fill: var(--surface); stroke: var(--alert-color); stroke-width: 2.5; rx: 10px; }
+.dialog-sheet { fill: var(--surface); stroke: var(--dialog-color); stroke-width: 2.5; rx: 12px; }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--sheet-color); color: #ffffff; border-color: var(--sheet-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--sheet-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-card { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="SwiftUI Modal Presentations Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span>Presentation Preview</span> <span class="kind modal" id="modalBadge">Base View</span></h3>
+      <div class="code" id="modalCode">ContentView {
+  Button("Show Sheet")
+  Button("Show Alert")
+  Button("Show Dialog")
+}</div>
+      <svg viewBox="0 0 280 220" aria-hidden="true">
+        <!-- Device Outer Frame -->
+        <rect class="device-frame" x="40" y="10" width="200" height="200"/>
+
+        <!-- Base View Content -->
+        <rect class="base-screen" x="50" y="20" width="180" height="180" rx="10"/>
+        <text x="140" y="50" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Main Screen Content</text>
+        <rect x="70" y="70" width="140" height="24" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+        <text x="140" y="86" text-anchor="middle" font-size="11" fill="var(--muted)">Base List Row 1</text>
+        <rect x="70" y="102" width="140" height="24" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+        <text x="140" y="118" text-anchor="middle" font-size="11" fill="var(--muted)">Base List Row 2</text>
+
+        <!-- Overlay Target Element -->
+        <g id="modalOverlayG"></g>
+      </svg>
+      <p class="caption" id="modalCaption" aria-live="polite">Step 1: The base view displays content and user triggers for modal presentations.</p>
+    </div>
+
+    <div class="panel">
+      <h3><span>SwiftUI Syntax</span> <span class="kind alert" id="syntaxBadge">Modifier</span></h3>
+      <div class="code" id="syntaxCode">.sheet(isPresented: $showSheet) {
+  SettingsView()
+    .presentationDetents([.medium, .large])
+}</div>
+      <div style="font-size: 13px; display: grid; gap: 8px; padding-top: 6px;">
+        <div><strong>Dismissal API:</strong> <code style="font-family: var(--font-code);">@Environment(\.dismiss)</code></div>
+        <div><strong>Interruption:</strong> <span id="interruptText">Non-blocking background context</span></div>
+        <div><strong>Dismiss Gesture:</strong> <span id="gestureText">Swipe down or tap close button</span></div>
+      </div>
+      <p class="caption" id="syntaxCaption" aria-live="polite">Modals slide over existing views without mutating the root navigation stack.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    badge: 'Base View',
+    badgeClass: 'kind modal',
+    modalCode: 'ContentView {\n  Button("Show Sheet")\n  Button("Show Alert")\n}',
+    syntaxCode: '// Ready to present modals\n@State private var showSheet = false\n@State private var showAlert = false',
+    modalCap: 'Step 1: The base view displays content with interactive modal triggers.',
+    syntaxCap: 'State variables control when each modal overlay becomes visible.',
+    interrupt: 'None (active base view)',
+    gesture: 'Normal touch interaction',
+    overlaySvg: ''
+  },
+  {
+    step: 2,
+    badge: 'Modal Sheet',
+    badgeClass: 'kind modal',
+    modalCode: '.sheet(item: $selectedItem) {\n  item in DetailSheet(item: item)\n    .presentationDetents([.medium])\n}',
+    syntaxCode: '@Environment(\\.dismiss) private var dismiss\n\nButton("Done") { dismiss() }',
+    modalCap: 'Step 2: .sheet slides up from bottom. Medium detent occupies half screen.',
+    syntaxCap: 'Users can swipe down to dismiss, or call dismiss() from an action button.',
+    interrupt: 'Semi-modal (background dimmed)',
+    gesture: 'Swipe down or call dismiss()',
+    overlaySvg: `
+      <!-- Sheet Dimmer -->
+      <rect x="50" y="20" width="180" height="180" rx="10" fill="rgba(0,0,0,0.25)"/>
+      <!-- Sheet Card -->
+      <rect class="sheet-card" x="50" y="90" width="180" height="110"/>
+      <!-- Drag handle -->
+      <rect x="125" y="97" width="30" height="4" rx="2" fill="var(--muted)"/>
+      <text x="140" y="125" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Detail Sheet</text>
+      <text x="140" y="145" text-anchor="middle" font-size="10" fill="var(--muted)">.presentationDetents([.medium])</text>
+      <rect x="90" y="160" width="100" height="24" rx="6" fill="var(--sheet-color)"/>
+      <text x="140" y="176" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">Done</text>
+    `
+  },
+  {
+    step: 3,
+    badge: 'Alert Popup',
+    badgeClass: 'kind alert',
+    modalCode: '.alert("Delete Item?", isPresented: $showAlert) {\n  Button("Delete", role: .destructive) { delete() }\n  Button("Cancel", role: .cancel) { }\n}',
+    syntaxCode: 'Button("Delete", role: .destructive) {\n  // Action\n}',
+    modalCap: 'Step 3: .alert overlays center of display. Completely blocks interaction.',
+    syntaxCap: 'Destructive buttons format in red text; Cancel is styled automatically.',
+    interrupt: 'Full modal interruption',
+    gesture: 'Must tap a button to dismiss',
+    overlaySvg: `
+      <!-- Dimmer -->
+      <rect x="50" y="20" width="180" height="180" rx="10" fill="rgba(0,0,0,0.35)"/>
+      <!-- Alert Box -->
+      <rect class="alert-popup" x="65" y="65" width="150" height="95"/>
+      <text x="140" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Delete Item?</text>
+      <text x="140" y="105" text-anchor="middle" font-size="10" fill="var(--muted)">Cannot be undone.</text>
+      <line x1="65" y1="120" x2="215" y2="120" stroke="var(--line)"/>
+      <line x1="140" y1="120" x2="140" y2="160" stroke="var(--line)"/>
+      <text x="102" y="142" text-anchor="middle" font-size="11" fill="var(--muted)">Cancel</text>
+      <text x="178" y="142" text-anchor="middle" font-size="11" font-weight="600" fill="var(--destruct-color)">Delete</text>
+    `
+  },
+  {
+    step: 4,
+    badge: 'Confirmation Dialog',
+    badgeClass: 'kind modal',
+    modalCode: '.confirmationDialog("Select Option", isPresented: $showDialog) {\n  Button("Share") { share() }\n  Button("Delete", role: .destructive) { }\n}',
+    syntaxCode: '// Action Sheet replacement\n.confirmationDialog(title, isPresented: $show)',
+    modalCap: 'Step 4: .confirmationDialog slides up action choices from the bottom.',
+    syntaxCap: 'Standard action choices provide red destructive and system cancel rows.',
+    interrupt: 'Action modal overlay',
+    gesture: 'Tap an action option or Cancel',
+    overlaySvg: `
+      <!-- Dimmer -->
+      <rect x="50" y="20" width="180" height="180" rx="10" fill="rgba(0,0,0,0.25)"/>
+      <!-- Dialog Sheet -->
+      <rect class="dialog-sheet" x="55" y="105" width="170" height="92"/>
+      <text x="140" y="125" text-anchor="middle" font-size="11" font-weight="600" fill="var(--muted)">Select Action</text>
+      <line x1="55" y1="135" x2="225" y2="135" stroke="var(--line)"/>
+      <text x="140" y="152" text-anchor="middle" font-size="11" font-weight="600" fill="var(--sheet-color)">Share Link</text>
+      <line x1="55" y1="162" x2="225" y2="162" stroke="var(--line)"/>
+      <text x="140" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--destruct-color)">Delete Post</text>
+    `
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('modalCode').textContent = s.modalCode;
+  document.getElementById('syntaxCode').textContent = s.syntaxCode;
+  document.getElementById('modalCaption').textContent = s.modalCap;
+  document.getElementById('syntaxCaption').textContent = s.syntaxCap;
+  document.getElementById('modalBadge').textContent = s.badge;
+  document.getElementById('modalBadge').setAttribute('class', s.badgeClass);
+
+  document.getElementById('interruptText').textContent = s.interrupt;
+  document.getElementById('gestureText').textContent = s.gesture;
+
+  document.getElementById('modalOverlayG').innerHTML = s.overlaySvg;
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>
