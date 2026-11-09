@@ -226,6 +226,8 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — Step 5.8 done, Phase 5 complete: Verified Web App MVP with 26 passing Vitest unit tests, 14 passing Playwright E2E tests (mobile 375px & desktop), 0 axe-core WCAG 2.1 A/AA violations, Next.js 16 SSG build producing 52 static routes with Turbopack, and authored docs/phase-5-summary.md. Phase 5 Web App MVP is 100% complete and approved!
+
 - **2026-11-09** — Built and published topic xcode-and-git-basics (Xcode, Projects and Git): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/xcode-and-git-basics/review.html`). Wave 1 (all 22 Fresh level topics) is now 100% complete and published!
 
 - **2026-11-09** — Built and published topic swiftui-navigation (Navigation): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swiftui-navigation/review.html`). Batch 1D complete. Starting final Fresh topic: xcode-and-git-basics.

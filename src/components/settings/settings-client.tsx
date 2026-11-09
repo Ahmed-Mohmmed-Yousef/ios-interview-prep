@@ -427,6 +427,7 @@ export function SettingsClient({
         </div>
         <Link
           href="/about"
+          aria-label={`About ${brand.name}`}
           className="w-9 h-9 rounded-full flex items-center justify-center bg-muted text-foreground hover:bg-muted/80 transition-colors"
         >
           <ChevronRight className="w-5 h-5" />
