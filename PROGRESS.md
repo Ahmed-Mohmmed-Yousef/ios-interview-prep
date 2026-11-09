@@ -229,6 +229,8 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — Step 5.4 done: Built Screen 3 (Winding Path Map) and Screen 4 (Locked Notice bottom sheet). Features: sticky top stats bar (done count, path score, accessible progress bar), zig-zag responsive road, 6 visual stop states (passed, updated with amber badge, current with pulse ring, locked with prerequisite guidance, skipped with dashed outline, bonus branch), completed stage folding, unit and stage skip test triggers, and floating "Go to my stop" jump button. Next.js build passes cleanly with 26 unit tests. Starting Step 5.5: Lesson Reader & Diagrams.
+
 - **2026-11-09** — Built and published topic state-and-binding (@State and @Binding): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/state-and-binding/review.html`). All checks passed. Starting swiftui-lists.
 
 - **2026-11-09** — Step 5.3 done: Built Screen 1 (Welcome) and Screen 2 (Level Picker) with interactive self-check checklist, unbroken run suggestion algorithm, radio level cards, cumulative topic counts, responsive 375px/desktop styling, and seamless store hydration. 26 Vitest unit tests passing, Next.js build clean. Starting Step 5.4: Winding Path Map.
