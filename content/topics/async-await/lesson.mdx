@@ -1,0 +1,221 @@
+export const meta = {
+  id: "async-await",
+  summary: "Write clean asynchronous code in Swift using async and await, replacing nested completion handlers.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Concurrency", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency", kind: "official" },
+    { title: "WWDC21: Meet async/await in Swift", url: "https://developer.apple.com/videos/play/wwdc2021/10132/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Does the `await` keyword in Swift block the thread while waiting for a network response?</Question>
+  <Guess>
+    <Option id="a">Yes, the thread halts until the response bytes arrive from the server.</Option>
+    <Option id="b" correct>No, await suspends the task and frees the thread so other work can run.</Option>
+    <Option id="c">Yes, but only on background queues created with GCD.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine ordering food at a busy cafe.
+
+In a **blocking** system, you stand frozen at the register until the kitchen cooks your meal. Nobody behind you can order.
+
+With **async/await**, the cashier gives you a buzzer.
+
+You step aside and sit down. The cashier serves other customers.
+
+When the buzzer buzzes, you pick up your tray and continue your day.
+</Analogy>
+
+In Swift, `async/await` is the modern way to write asynchronous code.
+
+Instead of writing nested completion closures, you write code that reads from top to bottom.
+
+1. **The `async` keyword**:
+   - Placed in the function signature after the parameter list.
+   - Tells the compiler that the function can pause its execution while waiting for work to complete.
+2. **The `await` keyword**:
+   - Placed before calling an `async` function.
+   - Marks a **suspension point**.
+   - The task pauses, and the thread is released to do other work.
+   - When the work finishes, the task resumes where it left off.
+3. **Async with errors**:
+   - If a function can throw, `async` comes before `throws`: `async throws`.
+   - Call it using `try await`.
+
+## See it
+
+<Diagram id="async-await-diagram" caption="How task suspension frees the cooperative thread pool compared to thread blocking">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Worker Thread timeline.
+    2. Task A executing, hitting an await suspension point, and releasing the thread.
+    3. Task B picking up the freed thread immediately.
+    4. Task A resuming on an available worker thread once network data arrives.
+  - Steps:
+    Step 1: Task A runs on Thread 1. It calls fetchUser() with await.
+    Step 2: Task A suspends. Thread 1 is not blocked. Task B begins running on Thread 1 immediately.
+    Step 3: Network data arrives for Task A. Task B completes its work.
+    Step 4: Task A resumes execution on the thread pool with its returned data.
+  - Static version (reduced motion):
+    A 4-panel comparison showing how thread yielding prevents thread explosion.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What is the correct order of keywords for an asynchronous throwing function?</Question>
+  <Option id="a">`func load() throws async -> Data`</Option>
+  <Option id="b" correct>`func load() async throws -> Data`</Option>
+  <Option id="c">`func load() async -> throws Data`</Option>
+  <Explanation>In Swift syntax, async always comes before throws in function signatures.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Calling an asynchronous function using await">
+
+```swift
+func fetchUsername(id: Int) async -> String {
+    return "User_\(id)"
+}
+
+func loadProfile() async {
+    let name = await fetchUsername(id: 42)
+    print("Loaded profile: \(name)")
+}
+
+await loadProfile()
+```
+
+```output
+Loaded profile: User_42
+```
+
+</CodeExample>
+
+In this example, `fetchUsername` is an asynchronous function.
+
+Inside `loadProfile`, calling `await fetchUsername(id: 42)` pauses execution until the username is returned.
+
+The code reads sequentially like synchronous code without callback closures.
+
+<CodeExample title="Handling errors in async functions using try await">
+
+```swift
+enum NetworkError: Error {
+    case invalidId
+}
+
+func fetchProductPrice(id: Int) async throws -> Int {
+    guard id > 0 else {
+        throw NetworkError.invalidId
+    }
+    return id * 25
+}
+
+func loadStore() async {
+    do {
+        let price = try await fetchProductPrice(id: 4)
+        print("Product price: $\(price)")
+    } catch {
+        print("Failed to load product")
+    }
+}
+
+await loadStore()
+```
+
+```output
+Product price: $100
+```
+
+</CodeExample>
+
+In this second example, `fetchProductPrice` is marked `async throws`.
+
+We call it with `try await` inside a standard Swift `do-catch` block.
+
+If the function throws an error, execution jumps cleanly to the `catch` block.
+
+<QuickCheck>
+  <Question>How do you call an async function from a regular synchronous function?</Question>
+  <Option id="a" correct>Wrap the call in a Task closure: Task &#123; await function() &#125;.</Option>
+  <Option id="b">Add the sync keyword to the function call.</Option>
+  <Option id="c">Force unwrap the async function with an exclamation mark.</Option>
+  <Explanation>Use Task &#123; await ... &#125; to bridge from synchronous code into an asynchronous context.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming await blocks the physical thread">
+Many candidates say that `await` pauses or blocks the thread.
+
+`await` suspends the **task**, not the thread.
+
+The underlying thread returns to the cooperative thread pool and executes other tasks while waiting.
+</Trap>
+
+<Trap title="Writing throws before async">
+Writing `func load() throws async` is a compiler syntax error.
+
+In Swift, the rule is always `async throws`.
+
+When calling the function, the order is `try await`.
+</Trap>
+
+<Trap title="Assuming code resumes on the exact same thread">
+Unless pinned to an actor like `@MainActor`, code after an `await` can resume on a different thread.
+
+The Swift runtime picks any available thread from its cooperative pool.
+
+Never assume thread-local storage persists across an `await` point.
+</Trap>
+
+<Trap title="Forgetting completion handlers in legacy code">
+With completion closures, forgetting to call `completion()` in an `if` branch leaves callers hanging forever.
+
+With `async/await`, the Swift compiler guarantees that every path either returns a value or throws an error.
+
+This eliminates a major class of asynchronous bugs.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"async and await provide a clean way to write asynchronous code in Swift. An async function can pause while waiting for data. We write await before calling it to mark where it pauses. This avoids deeply nested completion handler closures."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"With async/await, await marks a potential suspension point. It suspends the task without blocking the underlying thread, allowing the cooperative pool to reuse the thread. For throwing functions, we declare them as async throws and call them with try await inside do-catch blocks."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Internally, Swift Concurrency uses continuation frames allocated on the heap rather than blocking operating system threads. This eliminates the thread explosion problems common with GCD. The cooperative thread pool sizes to the exact CPU core count. When calling async functions from synchronous UI code, we create a Task boundary and isolate UI updates to @MainActor."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- An `async` function can suspend its execution without blocking its thread.
+- `await` marks a potential suspension point where the task yields its thread.
+- For throwing functions, write `async throws` and call with `try await`.
+- Bridge from synchronous code into asynchronous work using `Task { ... }`.
+- Async code uses standard control flow like `for-in`, `guard`, and `do-catch`.
+- The compiler guarantees that every code path returns a value or throws an error.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Concurrency](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency) — Official reference for async functions, suspension points, and tasks.
+- [WWDC21: Meet async/await in Swift](https://developer.apple.com/videos/play/wwdc2021/10132/) — Introduction to structured asynchronous control flow in Swift.

@@ -1,0 +1,560 @@
+<title>async/await Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --thread-color: #0284c7; --thread-soft: #e0f2fe;
+  --taska-color: #6366f1; --taska-soft: #eef2ff;
+  --taskb-color: #16a34a; --taskb-soft: #dcfce7;
+  --suspend-color: #f59e0b; --suspend-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --thread-color: #38bdf8; --thread-soft: #082f49;
+  --taska-color: #818cf8; --taska-soft: #1e1b4b;
+  --taskb-color: #4ade80; --taskb-soft: #14532d;
+  --suspend-color: #fbbf24; --suspend-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.thread { background: var(--thread-soft); color: var(--thread-color); }
+.kind.tasks { background: var(--taska-soft); color: var(--taska-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 8px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.running { fill: var(--taska-soft); stroke: var(--taska-color); stroke-width: 2.5; }
+.box-rect.running-b { fill: var(--taskb-soft); stroke: var(--taskb-color); stroke-width: 2.5; }
+.box-rect.suspended { fill: var(--suspend-soft); stroke: var(--suspend-color); stroke-dasharray: 4 4; }
+.box-rect.idle { fill: var(--code-bg); stroke: var(--line); }
+
+.text-title { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); }
+.text-val { font-family: var(--font-code); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.text-muted { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+
+.controls {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 16px;
+}
+.btn {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  font: 600 13px var(--font-body); padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 999px; background: var(--line);
+  cursor: pointer; border: none; padding: 0;
+}
+.dot.active { background: var(--thread-color); transform: scale(1.2); }
+
+.reduced-static { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-stepper { display: none; }
+  .reduced-static { display: grid; gap: 12px; }
+  .static-step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .static-step h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--thread-color); }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Concurrency · Topic 3 of 3 · Prototype</p>
+    <h1>async/await</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can write and call async functions.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Does the <code>await</code> keyword in Swift block the thread while waiting for a network response?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, the thread halts until the response bytes arrive from the server.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, await suspends the task and frees the thread so other work can run.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Yes, but only on background queues created with GCD.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine ordering food at a busy cafe.</p><p>In a <strong>blocking</strong> system, you stand frozen at the register until the kitchen cooks your meal. Nobody behind you can order.</p><p>With <strong>async/await</strong>, the cashier gives you a buzzer.</p><p>You step aside and sit down. The cashier serves other customers.</p><p>When the buzzer buzzes, you pick up your tray and continue your day.</p></aside>
+<p>In Swift, <code>async/await</code> is the modern way to write asynchronous code.</p>
+<p>Instead of writing nested completion closures, you write code that reads from top to bottom.</p>
+<ol>
+<li><strong>The <code>async</code> keyword</strong>:
+<ul>
+<li>Placed in the function signature after the parameter list.</li>
+<li>Tells the compiler that the function can pause its execution while waiting for work to complete.</li>
+</ul>
+</li>
+<li><strong>The <code>await</code> keyword</strong>:
+<ul>
+<li>Placed before calling an <code>async</code> function.</li>
+<li>Marks a <strong>suspension point</strong>.</li>
+<li>The task pauses, and the thread is released to do other work.</li>
+<li>When the work finishes, the task resumes where it left off.</li>
+</ul>
+</li>
+<li><strong>Async with errors</strong>:
+<ul>
+<li>If a function can throw, <code>async</code> comes before <code>throws</code>: <code>async throws</code>.</li>
+<li>Call it using <code>try await</code>.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What is the correct order of keywords for an asynchronous throwing function?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>func load() throws async -&gt; Data</code></span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>func load() async throws -&gt; Data</code></span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text"><code>func load() async -&gt; throws Data</code></span></button><p class="qc-explain" hidden="">In Swift syntax, async always comes before throws in function signatures.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Calling an asynchronous function using await</figcaption><pre class="block swift"><code class="language-swift">func fetchUsername(id: Int) async -&gt; String {
+    return &quot;User_\(id)&quot;
+}
+
+func loadProfile() async {
+    let name = await fetchUsername(id: 42)
+    print(&quot;Loaded profile: \(name)&quot;)
+}
+
+await loadProfile()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Loaded profile: User_42
+</code></pre></figure>
+<p>In this example, <code>fetchUsername</code> is an asynchronous function.</p>
+<p>Inside <code>loadProfile</code>, calling <code>await fetchUsername(id: 42)</code> pauses execution until the username is returned.</p>
+<p>The code reads sequentially like synchronous code without callback closures.</p>
+<figure class="code-example"><figcaption>Handling errors in async functions using try await</figcaption><pre class="block swift"><code class="language-swift">enum NetworkError: Error {
+    case invalidId
+}
+
+func fetchProductPrice(id: Int) async throws -&gt; Int {
+    guard id &gt; 0 else {
+        throw NetworkError.invalidId
+    }
+    return id * 25
+}
+
+func loadStore() async {
+    do {
+        let price = try await fetchProductPrice(id: 4)
+        print(&quot;Product price: $\(price)&quot;)
+    } catch {
+        print(&quot;Failed to load product&quot;)
+    }
+}
+
+await loadStore()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Product price: $100
+</code></pre></figure>
+<p>In this second example, <code>fetchProductPrice</code> is marked <code>async throws</code>.</p>
+<p>We call it with <code>try await</code> inside a standard Swift <code>do-catch</code> block.</p>
+<p>If the function throws an error, execution jumps cleanly to the <code>catch</code> block.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">How do you call an async function from a regular synchronous function?</p><button type="button" class="opt" data-id="a" data-correct=""><span class="opt-id">A</span><span class="opt-text">Wrap the call in a Task closure: Task { await function() }.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Add the sync keyword to the function call.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Force unwrap the async function with an exclamation mark.</span></button><p class="qc-explain" hidden="">Use Task { await ... } to bridge from synchronous code into an asynchronous context.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming await blocks the physical thread</p><p>Many candidates say that <code>await</code> pauses or blocks the thread.</p><p><code>await</code> suspends the <strong>task</strong>, not the thread.</p><p>The underlying thread returns to the cooperative thread pool and executes other tasks while waiting.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Writing throws before async</p><p>Writing <code>func load() throws async</code> is a compiler syntax error.</p><p>In Swift, the rule is always <code>async throws</code>.</p><p>When calling the function, the order is <code>try await</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming code resumes on the exact same thread</p><p>Unless pinned to an actor like <code>@MainActor</code>, code after an <code>await</code> can resume on a different thread.</p><p>The Swift runtime picks any available thread from its cooperative pool.</p><p>Never assume thread-local storage persists across an <code>await</code> point.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Forgetting completion handlers in legacy code</p><p>With completion closures, forgetting to call <code>completion()</code> in an <code>if</code> branch leaves callers hanging forever.</p><p>With <code>async/await</code>, the Swift compiler guarantees that every path either returns a value or throws an error.</p><p>This eliminates a major class of asynchronous bugs.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;async and await provide a clean way to write asynchronous code in Swift. An async function can pause while waiting for data. We write await before calling it to mark where it pauses. This avoids deeply nested completion handler closures.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;With async/await, await marks a potential suspension point. It suspends the task without blocking the underlying thread, allowing the cooperative pool to reuse the thread. For throwing functions, we declare them as async throws and call them with try await inside do-catch blocks.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;Internally, Swift Concurrency uses continuation frames allocated on the heap rather than blocking operating system threads. This eliminates the thread explosion problems common with GCD. The cooperative thread pool sizes to the exact CPU core count. When calling async functions from synchronous UI code, we create a Task boundary and isolate UI updates to @MainActor.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>An <code>async</code> function can suspend its execution without blocking its thread.</li>
+<li><code>await</code> marks a potential suspension point where the task yields its thread.</li>
+<li>For throwing functions, write <code>async throws</code> and call with <code>try await</code>.</li>
+<li>Bridge from synchronous code into asynchronous work using <code>Task { ... }</code>.</li>
+<li>Async code uses standard control flow like <code>for-in</code>, <code>guard</code>, and <code>do-catch</code>.</li>
+<li>The compiler guarantees that every code path returns a value or throws an error.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency">The Swift Programming Language: Concurrency</a> — Official reference for async functions, suspension points, and tasks.</li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2021/10132/">WWDC21: Meet async/await in Swift</a> — Introduction to structured asynchronous control flow in Swift.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    code: 'let user = await fetchUser() // Task A starts',
+    caption: 'Step 1: Task A executes on Thread 1 until it encounters the await suspension point.',
+    threadTask: 'Active: Task A',
+    threadState: 'Executing instructions',
+    threadNote: 'Thread 1 running Task A',
+    threadClass: 'box-rect running',
+    frameAClass: 'box-rect running', frameAStatus: 'Running',
+    frameBClass: 'box-rect idle', frameBStatus: 'Waiting'
+  },
+  {
+    code: '// Task A suspends: yields Thread 1',
+    caption: 'Step 2: await suspends Task A. Its frame moves to the heap. Thread 1 is freed without blocking.',
+    threadTask: 'Thread 1: Yielded',
+    threadState: 'Looking for queued tasks',
+    threadNote: 'Zero threads blocked',
+    threadClass: 'box-rect idle',
+    frameAClass: 'box-rect suspended', frameAStatus: 'Suspended (Heap)',
+    frameBClass: 'box-rect idle', frameBStatus: 'Waiting'
+  },
+  {
+    code: 'Task B runs on Thread 1 // Thread reuse',
+    caption: 'Step 3: Thread 1 immediately picks up Task B. The CPU stays productive while Task A awaits network.',
+    threadTask: 'Active: Task B',
+    threadState: 'Processing cache data',
+    threadNote: 'Reusing Thread 1',
+    threadClass: 'box-rect running-b',
+    frameAClass: 'box-rect suspended', frameAStatus: 'Awaiting network',
+    frameBClass: 'box-rect running-b', frameBStatus: 'Running'
+  },
+  {
+    code: 'user returned -> Task A resumes',
+    caption: 'Step 4: Network responds. Task A resumes on an available cooperative thread with user data.',
+    threadTask: 'Active: Task A (Resumed)',
+    threadState: 'Displaying user profile',
+    threadNote: 'Cooperative resumption',
+    threadClass: 'box-rect running',
+    frameAClass: 'box-rect running', frameAStatus: 'Complete',
+    frameBClass: 'box-rect idle', frameBStatus: 'Complete'
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+
+  document.getElementById("thread-task").textContent = s.threadTask;
+  document.getElementById("thread-state").textContent = s.threadState;
+  document.getElementById("thread-note").textContent = s.threadNote;
+  document.getElementById("rect-thread").className.baseVal = s.threadClass;
+
+  document.getElementById("rect-frameA").className.baseVal = s.frameAClass;
+  document.getElementById("status-frameA").textContent = s.frameAStatus;
+
+  document.getElementById("rect-frameB").className.baseVal = s.frameBClass;
+  document.getElementById("status-frameB").textContent = s.frameBStatus;
+
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"async-await","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"async-await-q1","type":"mcq","difficulty":1,"prompt":"What does marking a Swift function with the `async` keyword signify?","options":[{"id":"a","text":"The function can suspend its execution without blocking the underlying thread.","explanation":"Right. async functions can pause execution at suspension points."},{"id":"b","text":"The function executes entirely in GPU graphics memory.","explanation":"async functions run on CPU threads in the cooperative thread pool."},{"id":"c","text":"The function automatically creates a new physical operating system thread.","explanation":"Swift concurrency uses a fixed cooperative pool rather than new threads."},{"id":"d","text":"The function is converted into an Objective-C runtime block.","explanation":"async/await is a native Swift language concurrency model."}],"answer":"a"},{"id":"async-await-q2","type":"mcq","difficulty":1,"prompt":"What does the `await` keyword indicate in Swift code?","options":[{"id":"a","text":"It forces the current thread to busy-wait in an infinite loop.","explanation":"await suspends the task rather than busy-waiting."},{"id":"b","text":"It marks a potential suspension point where the task can yield its thread.","explanation":"Right. await indicates where code pauses while waiting for work."},{"id":"c","text":"It terminates the running process if network latency exceeds 50 milliseconds.","explanation":"await does not terminate processes on network delays."},{"id":"d","text":"It instructs the compiler to disable all error handling checks.","explanation":"Error handling checks remain active and require try when throwing."}],"answer":"b"},{"id":"async-await-q3","type":"mcq","difficulty":2,"prompt":"What is the correct syntax order when declaring an asynchronous throwing function in Swift?","options":[{"id":"a","text":"func load() throws async -> String","explanation":"throws cannot precede async in Swift function declarations."},{"id":"b","text":"func load() async -> throws String","explanation":"throws belongs before the return arrow, not after it."},{"id":"c","text":"func load() async throws -> String","explanation":"Right. In Swift syntax, async always precedes throws."},{"id":"d","text":"func load() -> async throws String","explanation":"The return arrow must come after both async and throws."}],"answer":"c"},{"id":"async-await-q4","type":"mcq","difficulty":2,"prompt":"What happens to the physical thread when an async task reaches an `await` suspension point?","options":[{"id":"a","text":"The thread is killed and a replacement thread is launched later.","explanation":"The cooperative pool keeps threads alive to run other tasks."},{"id":"b","text":"The thread is permanently dedicated to that specific async task.","explanation":"Threads are shared cooperatively across tasks, not dedicated."},{"id":"c","text":"The thread enters a hardware low-power sleep state until the task finishes.","explanation":"The thread stays awake to execute other queued work."},{"id":"d","text":"The thread is yielded back to the cooperative pool to run other tasks.","explanation":"Right. The thread is freed immediately to execute other work."}],"answer":"d"},{"id":"async-await-q5","type":"mcq","difficulty":1,"prompt":"How do you call an asynchronous function from a synchronous function like a button tap action?","options":[{"id":"a","text":"Wrap the async call inside a Task: Task { await myFunc() }.","explanation":"Right. Task { ... } creates an asynchronous context from synchronous code."},{"id":"b","text":"Call the function using a sync keyword: sync myFunc().","explanation":"There is no sync keyword in Swift Concurrency."},{"id":"c","text":"Prefix the function call with an exclamation mark: myFunc()!.","explanation":"Exclamation mark force-unwraps optionals, not calls async functions."},{"id":"d","text":"Mark the containing class with the volatile memory modifier.","explanation":"Volatile is not a Swift language keyword for concurrency."}],"answer":"a"},{"id":"async-await-q6","type":"mcq","difficulty":2,"prompt":"What major flaw of completion handler closures does `async/await` eliminate?","options":[{"id":"a","text":"The inability to transmit JSON payloads across local networks.","explanation":"Both closures and async/await transmit JSON payloads over networks."},{"id":"b","text":"Accidentally forgetting to call the completion handler on an early return path.","explanation":"Right. The compiler requires every async path to return or throw."},{"id":"c","text":"The requirement that all network requests must use SSL certificates.","explanation":"Transport layer security is independent of language concurrency."},{"id":"d","text":"The limitation that closures can only capture primitive integer types.","explanation":"Closures can capture any Swift data type."}],"answer":"b"},{"id":"async-await-q7","type":"mcq","difficulty":2,"prompt":"How does error propagation work when calling an `async throws` function?","options":[{"id":"a","text":"Errors are logged to the console and replaced with default empty objects.","explanation":"Swift throws errors to the caller rather than replacing them with empty data."},{"id":"b","text":"Errors can only be returned through Result enum wrappers.","explanation":"async/await replaces Result enum wrappers with native try/catch."},{"id":"c","text":"Callers use try await inside standard do-catch blocks to catch errors.","explanation":"Right. Standard Swift do-catch handles errors thrown by async calls."},{"id":"d","text":"Throwing errors inside async functions causes an immediate application crash.","explanation":"Errors are caught and handled safely using standard do-catch blocks."}],"answer":"c"},{"id":"async-await-q8","type":"mcq","difficulty":2,"prompt":"Can a computed property in Swift be declared as `async`?","options":[{"id":"a","text":"No, properties can only hold synchronous stored values.","explanation":"Swift supports read-only async computed properties."},{"id":"b","text":"Yes, but only if the property has both a getter and a setter.","explanation":"Async computed properties cannot have setters; they must be read-only."},{"id":"c","text":"No, async code is restricted exclusively to class initializers.","explanation":"Functions, closures, and read-only properties can be async."},{"id":"d","text":"Yes, read-only computed properties can have an async getter.","explanation":"Right. Read-only computed properties can define get async or get async throws."}],"answer":"d"},{"id":"async-await-q9","type":"mcq","difficulty":2,"prompt":"Unless pinned to an actor, on which thread does an async function resume after an `await`?","options":[{"id":"a","text":"On any available thread from the system cooperative thread pool.","explanation":"Right. Execution can resume on a different thread unless pinned to an actor."},{"id":"b","text":"Guaranteed to resume on the exact same thread that started the function.","explanation":"Swift does not guarantee returning to the initial thread."},{"id":"c","text":"Always resumes on the main thread automatically.","explanation":"Only code isolated to @MainActor resumes on the main thread."},{"id":"d","text":"On a newly allocated thread spawned specifically for resumption.","explanation":"Swift reuses existing cooperative threads rather than spawning new ones."}],"answer":"a"},{"id":"async-await-q10","type":"mcq","difficulty":2,"prompt":"What happens if you execute two `await` calls sequentially on two lines?","options":[{"id":"a","text":"They execute in parallel at the same time across two CPU cores.","explanation":"Sequential await statements execute serially one after the other."},{"id":"b","text":"They execute serially: the second call awaits after the first finishes.","explanation":"Right. To run in parallel, async let or TaskGroup must be used."},{"id":"c","text":"The compiler cancels the first call when the second call begins.","explanation":"Calls do not cancel each other automatically."},{"id":"d","text":"The app crashes due to an unhandled concurrent queue exception.","explanation":"Sequential await statements are valid standard code."}],"answer":"b"},{"id":"async-await-q11","type":"mcq","difficulty":1,"prompt":"Which keyword is used to call an async throwing function in Swift?","options":[{"id":"a","text":"await try","explanation":"try must precede await when calling throwing functions."},{"id":"b","text":"async try","explanation":"async is used in declarations, not call sites."},{"id":"c","text":"try await","explanation":"Right. When calling an async throwing function, write try await."},{"id":"d","text":"try async","explanation":"await is the keyword placed before the call, following try."}],"answer":"c"},{"id":"async-await-q12","type":"mcq","difficulty":2,"prompt":"How does Swift store function state when an async function is suspended?","options":[{"id":"a","text":"It writes the entire call stack to the device flash storage drive.","explanation":"Suspension state is kept in RAM, never written to disk."},{"id":"b","text":"It leaves the physical thread stack frame intact and frozen in memory.","explanation":"Leaving stack frames intact would prevent other tasks from using the thread."},{"id":"c","text":"It converts all local variables into JSON strings on the network.","explanation":"Local variables are kept in native memory structures."},{"id":"d","text":"It allocates an asynchronous continuation frame on the heap.","explanation":"Right. Heap-allocated frames preserve state while freeing the stack."}],"answer":"d"},{"id":"async-await-q13","type":"mcq","difficulty":2,"prompt":"Why can standard control flow statements like `for-in` loops be used with `async/await`?","options":[{"id":"a","text":"Because async code executes with linear, top-to-bottom control flow.","explanation":"Right. Linear syntax allows standard language loops and conditionals."},{"id":"b","text":"Because the Swift compiler unrolls every loop into thousands of lines.","explanation":"The compiler does not unroll loops into infinite code lines."},{"id":"c","text":"Because for-in loops automatically spawn detached background tasks.","explanation":"for-in loops execute sequentially unless explicitly made concurrent."},{"id":"d","text":"Because async loops run on dedicated hardware accelerators.","explanation":"Async functions execute on standard CPU processor cores."}],"answer":"a"},{"id":"async-await-q14","type":"mcq","difficulty":2,"prompt":"What compiler error occurs if you call an `async` function inside a standard synchronous function without `Task`?","options":[{"id":"a","text":"A runtime fatal error stating stack overflow detected.","explanation":"Calling async from sync without Task is caught at compile time."},{"id":"b","text":"A compile error: call in a function that does not support concurrency.","explanation":"Right. Synchronous functions cannot call await without a Task boundary."},{"id":"c","text":"A compiler warning: Thread performance degradation occurs.","explanation":"This is an illegal language syntax violation, not a mild performance warning."},{"id":"d","text":"A compile error: Variable must conform to Equatable type.","explanation":"Equatable conformance is unrelated to async calling contexts."}],"answer":"b"},{"id":"async-await-q15","type":"mcq","difficulty":3,"prompt":"How does Swift Concurrency prevent thread explosion under heavy load?","options":[{"id":"a","text":"By dropping incoming tasks when more than four tasks arrive.","explanation":"Tasks are queued, never dropped."},{"id":"b","text":"By executing all async tasks on the GPU instead of CPU threads.","explanation":"Tasks run on CPU threads in the cooperative thread pool."},{"id":"c","text":"By using a fixed cooperative thread pool matching CPU core count where tasks suspend.","explanation":"Right. Cooperative threads yield instead of blocking, preventing explosion."},{"id":"d","text":"By forcing all async functions to complete within 500 microseconds.","explanation":"Async functions can run for as long as needed."}],"answer":"c"},{"id":"async-await-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"func greet() async -> String {\n    return \"Hello async\"\n}\n\nfunc test() async {\n    let msg = await greet()\n    print(\"Greeting: \\(msg)\")\n}\n\nawait test()","options":[{"id":"a","text":"Greeting: nil value","explanation":"greet returns a non-optional string."},{"id":"b","text":"Hello async message","explanation":"The print statement prefixes the output with Greeting: ."},{"id":"c","text":"Greeting: empty text","explanation":"greet returns Hello async."},{"id":"d","text":"Greeting: Hello async","explanation":"Right. await waits for greet() and prints Greeting: Hello async."}],"answer":"d"},{"id":"async-await-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"func doubleValue(_ n: Int) async -> Int {\n    return n * 2\n}\n\nfunc run() async {\n    let a = await doubleValue(5)\n    let b = await doubleValue(a)\n    print(\"Result: \\(b)\")\n}\n\nawait run()","options":[{"id":"a","text":"Result: 20","explanation":"Right. 5 * 2 = 10, then 10 * 2 = 20."},{"id":"b","text":"Result: 10","explanation":"doubleValue is called twice, doubling 10 to 20."},{"id":"c","text":"Result: 5","explanation":"Both async doubling calls complete before printing."},{"id":"d","text":"Result: 25","explanation":"The function multiplies by 2, not 5."}],"answer":"a"},{"id":"async-await-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"enum MathError: Error {\n    case negative\n}\n\nfunc checkPositive(_ n: Int) async throws -> Int {\n    if n \u003c 0 { throw MathError.negative }\n    return n\n}\n\nfunc calc() async {\n    do {\n        let val = try await checkPositive(-1)\n        print(\"Value: \\(val)\")\n    } catch {\n        print(\"Caught negative error\")\n    }\n}\n\nawait calc()","options":[{"id":"a","text":"Value returned: -1","explanation":"checkPositive throws MathError.negative when n is less than 0."},{"id":"b","text":"Caught negative error","explanation":"Right. -1 throws an error, so the catch block executes."},{"id":"c","text":"Caught negative error\nValue: -1","explanation":"When an error is thrown, subsequent lines in the do block are skipped."},{"id":"d","text":"Fatal error: Unhandled MathError","explanation":"The error is caught safely by the catch block."}],"answer":"b"},{"id":"async-await-q19","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"func fetchFirst() async -> String { \"Apple\" }\nfunc fetchSecond() async -> String { \"Swift\" }\n\nfunc join() async {\n    let w1 = await fetchFirst()\n    let w2 = await fetchSecond()\n    print(\"\\(w1) \\(w2)\")\n}\n\nawait join()","options":[{"id":"a","text":"Swift Apple","explanation":"w1 is fetched first, followed by w2."},{"id":"b","text":"Apple Apple","explanation":"Both w1 and w2 are fetched and printed together."},{"id":"c","text":"Apple Swift","explanation":"Right. w1 receives Apple and w2 receives Swift, printing Apple Swift."},{"id":"d","text":"Swift Swift","explanation":"Both async functions return non-optional strings."}],"answer":"c"},{"id":"async-await-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"struct ItemFetcher {\n    var count: Int {\n        get async {\n            return 42\n        }\n    }\n}\n\nlet fetcher = ItemFetcher()\nlet c = await fetcher.count\nprint(\"Fetched count: \\(c)\")","options":[{"id":"a","text":"Fetched count: 0","explanation":"The async getter returns 42."},{"id":"b","text":"Fetched count: nil","explanation":"count is a non-optional integer."},{"id":"c","text":"Compile-time error: Properties cannot be async","explanation":"Read-only computed properties can have async getters in Swift."},{"id":"d","text":"Fetched count: 42","explanation":"Right. Reading the async computed property returns 42."}],"answer":"d"},{"id":"async-await-q21","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"func compute() async -> Int {\n    var sum = 0\n    for i in 1...3 {\n        sum += i\n    }\n    return sum\n}\n\nlet total = await compute()\nprint(\"Total sum: \\(total)\")","options":[{"id":"a","text":"Total sum: 6","explanation":"Right. 1 + 2 + 3 = 6."},{"id":"b","text":"Total sum: 3","explanation":"The loop accumulates all values from 1 through 3."},{"id":"c","text":"Total sum: 0","explanation":"sum is modified during the loop iterations."},{"id":"d","text":"Total sum: 1","explanation":"The loop executes 3 iterations."}],"answer":"a"},{"id":"async-await-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"enum AuthError: Error {\n    case unverified\n}\n\nfunc verifyUser(token: String) async throws -> Bool {\n    guard token == \"valid\" else { throw AuthError.unverified }\n    return true\n}\n\ndo {\n    let ok = try await verifyUser(token: \"valid\")\n    print(\"User verified: \\(ok)\")\n} catch {\n    print(\"Verification failed\")\n}","options":[{"id":"a","text":"Verification failed","explanation":"token equals valid, so no error is thrown."},{"id":"b","text":"User verified: true","explanation":"Right. The guard condition passes and returns true."},{"id":"c","text":"User verified: false","explanation":"The function returns true on valid tokens."},{"id":"d","text":"User verified: valid","explanation":"ok is a boolean holding true, not the string token."}],"answer":"b"},{"id":"async-await-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func formatMessage(_ txt: String) async -> String {\n    return \"[Formatted] \\(txt)\"\n}\n\nfunc display() async {\n    let m = await formatMessage(\"iOS Concurrency\")\n    print(\"Message: \\(m)\")\n}\n\nawait display()","options":[{"id":"a","text":"Message: iOS Concurrency only","explanation":"formatMessage prefixes the string with [Formatted] ."},{"id":"b","text":"Prefix: [Formatted] Concurrency","explanation":"The print statement prefixes the output with Message: ."},{"id":"c","text":"Message: [Formatted] iOS Concurrency","explanation":"Right. The formatted string is returned and printed."},{"id":"d","text":"Message: [Formatted] nil value","explanation":"formatMessage returns a non-optional string."}],"answer":"c"},{"id":"async-await-q24","type":"written","difficulty":1,"prompt":"Explain what `async` and `await` mean in Swift and how they improve asynchronous code structure. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that async designates a function that can suspend without blocking its thread.","weight":50,"key":true},{"criterion":"Explains that await marks a potential suspension point where the task pauses while waiting for results.","weight":30,"key":true},{"criterion":"Notes that it replaces nested callback closures with linear, readable control flow.","weight":20}],"modelAnswer":"In Swift, the `async` keyword marks a function that can pause its execution without blocking its thread. The `await` keyword indicates a potential suspension point where the task yields its thread until the result is ready. This allows asynchronous code to be written with clean, linear control flow, eliminating nested callback closures."},{"id":"async-await-q25","type":"written","difficulty":2,"prompt":"Explain the difference between thread blocking in traditional concurrency and task suspension at an `await` point. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that thread blocking halts the OS thread so it cannot do other work.","weight":50,"key":true},{"criterion":"Explains that task suspension saves task state to the heap and yields the thread to the cooperative pool.","weight":30,"key":true},{"criterion":"Mentions that suspension prevents thread explosion and context-switching overhead.","weight":20}],"modelAnswer":"Thread blocking halts the underlying operating system thread, preventing it from performing any other work and forcing the system to create more threads. In contrast, task suspension at an `await` point packages the task state onto the heap and yields the thread back to the cooperative thread pool. The thread immediately executes other tasks, preventing thread explosion."},{"id":"async-await-q26","type":"written","difficulty":2,"prompt":"Describe the syntax rules for declaring and calling an asynchronous throwing function in Swift. Answer in 2 to 4 sentences.","rubric":[{"criterion":"States that async must precede throws in the function declaration (func f() async throws).","weight":50,"key":true},{"criterion":"States that callers must write try await at the call site.","weight":30,"key":true},{"criterion":"Notes that throwing calls should be enclosed in a do-catch block or propagated.","weight":20}],"modelAnswer":"When declaring an asynchronous throwing function, the `async` keyword must always appear before `throws`, as in `func load() async throws -> Data`. At the call site, the caller must write `try await load()`. This call is typically placed inside a standard `do-catch` block to handle any thrown errors gracefully."},{"id":"async-await-q27","type":"written","difficulty":2,"prompt":"How does `async/await` prevent forgotten completion handler bugs common in closure-based APIs? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that with closures, forgetting to call completion in an early return branch leaves callers hanging indefinitely.","weight":50,"key":true},{"criterion":"Explains that the Swift compiler enforces that async functions must return a value or throw on all paths.","weight":30,"key":true},{"criterion":"Concludes that compile-time guarantees eliminate silent hanging bugs.","weight":20}],"modelAnswer":"In closure-based APIs, forgetting to call a completion handler inside an early guard branch causes the caller to wait indefinitely with no response. With `async/await`, the Swift compiler strictly verifies that every execution branch either returns a value or throws an error. This compile-time guarantee prevents silent hanging bugs completely."},{"id":"async-await-q28","type":"written","difficulty":2,"prompt":"How do you call an `async` function from a synchronous context, such as a UIKit button tap action? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that synchronous functions cannot use await directly and must create a Task context.","weight":50,"key":true},{"criterion":"Shows or explains writing Task { await myAsyncFunction() }.","weight":30,"key":true},{"criterion":"Notes that UI updates inside the task should run on @MainActor.","weight":20}],"modelAnswer":"Synchronous functions cannot call `await` directly, so you must create an asynchronous task boundary using `Task { ... }`. Inside this task closure, you can call `await myAsyncFunction()` freely. Any resulting user interface mutations should be isolated to `@MainActor` to maintain main thread safety."},{"id":"async-await-q29","type":"code-write","difficulty":2,"prompt":"Write an asynchronous function `fetchSquare(of number: Int) async -> Int` that returns `number * number`. Write an asynchronous function `calculate() async` that calls `fetchSquare(of: 7)` using `await` and prints `\"Square: \\(result)\"`. Call `await calculate()`.","starterCode":null,"modelAnswer":"func fetchSquare(of number: Int) async -> Int {\n    return number * number\n}\n\nfunc calculate() async {\n    let result = await fetchSquare(of: 7)\n    print(\"Square: \\(result)\")\n}\n\nawait calculate()","rubric":[{"criterion":"Declares fetchSquare as an async function returning number * number.","weight":40,"key":true},{"criterion":"Calls fetchSquare with await inside calculate().","weight":40,"key":true},{"criterion":"Invokes await calculate() and prints formatted square output.","weight":20}]},{"id":"async-await-q30","type":"code-write","difficulty":2,"prompt":"Write an enum `UserError: Error { case notFound }`. Write an async throwing function `fetchEmail(for username: String) async throws -> String`. If username is `\"Taylor\"`, return `\"taylor@example.com\"`, otherwise throw `UserError.notFound`. In `mainTest() async`, call it for `\"Taylor\"` using `try await` inside a `do-catch` block, printing `\"Email: \\(email)\"`. Call `await mainTest()`.","starterCode":null,"modelAnswer":"enum UserError: Error {\n    case notFound\n}\n\nfunc fetchEmail(for username: String) async throws -> String {\n    guard username == \"Taylor\" else {\n        throw UserError.notFound\n    }\n    return \"taylor@example.com\"\n}\n\nfunc mainTest() async {\n    do {\n        let email = try await fetchEmail(for: \"Taylor\")\n        print(\"Email: \\(email)\")\n    } catch {\n        print(\"User not found\")\n    }\n}\n\nawait mainTest()","rubric":[{"criterion":"Declares fetchEmail with async throws signature and guard validation.","weight":40,"key":true},{"criterion":"Calls fetchEmail using try await inside a do-catch block.","weight":40,"key":true},{"criterion":"Prints retrieved email output correctly.","weight":20}]},{"id":"async-await-q31","type":"code-write","difficulty":2,"prompt":"Write an async function `downloadBadge(level: Int) async -> String` returning `\"Level \\(level) Badge\"`. Write an async function `loadBadges()` that calls `downloadBadge` sequentially for level 1 and level 2 using `await`, printing `\"Earned: \\(b1) and \\(b2)\"`. Call `await loadBadges()`.","starterCode":null,"modelAnswer":"func downloadBadge(level: Int) async -> String {\n    return \"Level \\(level) Badge\"\n}\n\nfunc loadBadges() async {\n    let b1 = await downloadBadge(level: 1)\n    let b2 = await downloadBadge(level: 2)\n    print(\"Earned: \\(b1) and \\(b2)\")\n}\n\nawait loadBadges()","rubric":[{"criterion":"Declares async function downloadBadge returning formatted level badge string.","weight":40,"key":true},{"criterion":"Calls downloadBadge sequentially with await for both levels.","weight":40,"key":true},{"criterion":"Prints formatted earned badges string.","weight":20}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

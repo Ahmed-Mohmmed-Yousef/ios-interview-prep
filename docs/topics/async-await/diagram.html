@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swift async/await: Task Suspension vs Thread Blocking</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --thread-color: #0284c7; --thread-soft: #e0f2fe;
+  --taska-color: #6366f1; --taska-soft: #eef2ff;
+  --taskb-color: #16a34a; --taskb-soft: #dcfce7;
+  --suspend-color: #f59e0b; --suspend-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --thread-color: #38bdf8; --thread-soft: #082f49;
+  --taska-color: #818cf8; --taska-soft: #1e1b4b;
+  --taskb-color: #4ade80; --taskb-soft: #14532d;
+  --suspend-color: #fbbf24; --suspend-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.thread { background: var(--thread-soft); color: var(--thread-color); }
+.kind.tasks { background: var(--taska-soft); color: var(--taska-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 8px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.running { fill: var(--taska-soft); stroke: var(--taska-color); stroke-width: 2.5; }
+.box-rect.running-b { fill: var(--taskb-soft); stroke: var(--taskb-color); stroke-width: 2.5; }
+.box-rect.suspended { fill: var(--suspend-soft); stroke: var(--suspend-color); stroke-dasharray: 4 4; }
+.box-rect.idle { fill: var(--code-bg); stroke: var(--line); }
+
+.text-title { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); }
+.text-val { font-family: var(--font-code); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.text-muted { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+
+.controls {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 16px;
+}
+.btn {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  font: 600 13px var(--font-body); padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 999px; background: var(--line);
+  cursor: pointer; border: none; padding: 0;
+}
+.dot.active { background: var(--thread-color); transform: scale(1.2); }
+
+.reduced-static { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-stepper { display: none; }
+  .reduced-static { display: grid; gap: 12px; }
+  .static-step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .static-step h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--thread-color); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Interactive async/await Suspension Diagram">
+
+  <div class="interactive-stepper">
+    <div class="panels">
+      <div class="panel">
+        <h3><span class="kind thread">Cooperative Pool</span> Thread 1 Status</h3>
+        <svg viewBox="0 0 340 180" id="svg-thread" aria-hidden="true">
+          <rect x="15" y="15" width="310" height="150" rx="10" fill="var(--surface)" stroke="var(--line)"></rect>
+          <text x="30" y="40" class="text-title">Physical CPU Thread 1</text>
+          
+          <rect x="30" y="55" width="280" height="90" class="box-rect running" id="rect-thread"></rect>
+          <text x="45" y="80" class="text-title" id="thread-task">Active: Task A</text>
+          <text x="45" y="105" class="text-val" id="thread-state">Executing instructions</text>
+          <text x="45" y="125" class="text-muted" id="thread-note">Thread is busy with Task A</text>
+        </svg>
+      </div>
+
+      <div class="panel">
+        <h3><span class="kind tasks">Task Heap</span> Asynchronous Frames</h3>
+        <svg viewBox="0 0 340 180" id="svg-tasks" aria-hidden="true">
+          <rect x="15" y="15" width="310" height="150" rx="10" fill="var(--surface)" stroke="var(--line)"></rect>
+          <text x="30" y="40" class="text-title">Heap Memory (Continuations)</text>
+          
+          <!-- Task A Frame -->
+          <g id="g-frameA">
+            <rect x="30" y="55" width="130" height="90" class="box-rect running" id="rect-frameA"></rect>
+            <text x="42" y="80" class="text-title">Task A</text>
+            <text x="42" y="105" class="text-val" id="status-frameA">Running</text>
+            <text x="42" y="125" class="text-muted">fetchUser()</text>
+          </g>
+
+          <!-- Task B Frame -->
+          <g id="g-frameB">
+            <rect x="175" y="55" width="130" height="90" class="box-rect idle" id="rect-frameB"></rect>
+            <text x="187" y="80" class="text-title">Task B</text>
+            <text x="187" y="105" class="text-val" id="status-frameB">Waiting</text>
+            <text x="187" y="125" class="text-muted">processCache()</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 16px;">
+      <div class="code" id="step-code">let user = await fetchUser() // Task A starts</div>
+      <p class="caption" id="step-caption" aria-live="polite">Step 1: Task A runs on Thread 1. It calls fetchUser() and reaches the await keyword.</p>
+      
+      <div class="controls">
+        <button class="btn" id="btn-prev" onclick="prevStep()" disabled>← Previous</button>
+        <div class="dots" role="tablist">
+          <button class="dot active" onclick="setStep(0)" aria-label="Step 1" role="tab" aria-selected="true"></button>
+          <button class="dot" onclick="setStep(1)" aria-label="Step 2" role="tab" aria-selected="false"></button>
+          <button class="dot" onclick="setStep(2)" aria-label="Step 3" role="tab" aria-selected="false"></button>
+          <button class="dot" onclick="setStep(3)" aria-label="Step 4" role="tab" aria-selected="false"></button>
+        </div>
+        <button class="btn" id="btn-next" onclick="nextStep()">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced motion static fallback -->
+  <div class="reduced-static">
+    <div class="static-step">
+      <h4>Step 1: Task Execution</h4>
+      <code>let user = await fetchUser()</code>
+      <p>Task A executes on Thread 1 until reaching the await suspension point.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 2: Suspension & Thread Yield</h4>
+      <code>Task A suspends; Thread 1 yields</code>
+      <p>Task A is suspended and stored on the heap. Thread 1 is released immediately without blocking.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 3: Thread Reuse</h4>
+      <code>Thread 1 executes Task B</code>
+      <p>Thread 1 picks up Task B immediately. No CPU cores sit idle waiting for network responses.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 4: Task Resumption</h4>
+      <code>Task A resumes with user payload</code>
+      <p>When the network request finishes, Task A resumes execution on an available worker thread.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    code: 'let user = await fetchUser() // Task A starts',
+    caption: 'Step 1: Task A executes on Thread 1 until it encounters the await suspension point.',
+    threadTask: 'Active: Task A',
+    threadState: 'Executing instructions',
+    threadNote: 'Thread 1 running Task A',
+    threadClass: 'box-rect running',
+    frameAClass: 'box-rect running', frameAStatus: 'Running',
+    frameBClass: 'box-rect idle', frameBStatus: 'Waiting'
+  },
+  {
+    code: '// Task A suspends: yields Thread 1',
+    caption: 'Step 2: await suspends Task A. Its frame moves to the heap. Thread 1 is freed without blocking.',
+    threadTask: 'Thread 1: Yielded',
+    threadState: 'Looking for queued tasks',
+    threadNote: 'Zero threads blocked',
+    threadClass: 'box-rect idle',
+    frameAClass: 'box-rect suspended', frameAStatus: 'Suspended (Heap)',
+    frameBClass: 'box-rect idle', frameBStatus: 'Waiting'
+  },
+  {
+    code: 'Task B runs on Thread 1 // Thread reuse',
+    caption: 'Step 3: Thread 1 immediately picks up Task B. The CPU stays productive while Task A awaits network.',
+    threadTask: 'Active: Task B',
+    threadState: 'Processing cache data',
+    threadNote: 'Reusing Thread 1',
+    threadClass: 'box-rect running-b',
+    frameAClass: 'box-rect suspended', frameAStatus: 'Awaiting network',
+    frameBClass: 'box-rect running-b', frameBStatus: 'Running'
+  },
+  {
+    code: 'user returned -> Task A resumes',
+    caption: 'Step 4: Network responds. Task A resumes on an available cooperative thread with user data.',
+    threadTask: 'Active: Task A (Resumed)',
+    threadState: 'Displaying user profile',
+    threadNote: 'Cooperative resumption',
+    threadClass: 'box-rect running',
+    frameAClass: 'box-rect running', frameAStatus: 'Complete',
+    frameBClass: 'box-rect idle', frameBStatus: 'Complete'
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+
+  document.getElementById("thread-task").textContent = s.threadTask;
+  document.getElementById("thread-state").textContent = s.threadState;
+  document.getElementById("thread-note").textContent = s.threadNote;
+  document.getElementById("rect-thread").className.baseVal = s.threadClass;
+
+  document.getElementById("rect-frameA").className.baseVal = s.frameAClass;
+  document.getElementById("status-frameA").textContent = s.frameAStatus;
+
+  document.getElementById("rect-frameB").className.baseVal = s.frameBClass;
+  document.getElementById("status-frameB").textContent = s.frameBStatus;
+
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+</script>
+
+</body>
+</html>

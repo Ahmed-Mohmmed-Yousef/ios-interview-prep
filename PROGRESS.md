@@ -122,13 +122,13 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **linked-lists** (Linked Lists) — published (lesson, diagram, 31 questions) → [docs/topics/linked-lists/review.html](docs/topics/linked-lists/review.html)
     - ✅ **recursion** (Recursion) — published (lesson, diagram, 31 questions) → [docs/topics/recursion/review.html](docs/topics/recursion/review.html)
     - ✅ **matrix-problems** (Matrix Problems) — published (lesson, diagram, 31 questions) → [docs/topics/matrix-problems/review.html](docs/topics/matrix-problems/review.html)
-  - 🔄 **Batch 2C: Memory & Concurrency (6 topics)**
+  - ✅ **Batch 2C: Memory & Concurrency (6 topics)** — all 6 topics published
     - ✅ **arc-basics** (How ARC Works) — published (lesson, diagram, 31 questions) → [docs/topics/arc-basics/review.html](docs/topics/arc-basics/review.html)
     - ✅ **strong-weak-unowned** (Strong, Weak and Unowned) — published (lesson, diagram, 31 questions) → [docs/topics/strong-weak-unowned/review.html](docs/topics/strong-weak-unowned/review.html)
     - ✅ **retain-cycles** (Retain Cycles) — published (lesson, diagram, 31 questions) → [docs/topics/retain-cycles/review.html](docs/topics/retain-cycles/review.html)
     - ✅ **main-thread** (The Main Thread) — published (lesson, diagram, 31 questions) → [docs/topics/main-thread/review.html](docs/topics/main-thread/review.html)
     - ✅ **gcd-basics** (GCD Basics) — published (lesson, diagram, 31 questions) → [docs/topics/gcd-basics/review.html](docs/topics/gcd-basics/review.html)
-    - 🔄 **async-await** (async/await) — starting research
+    - ✅ **async-await** (async/await) — published (lesson, diagram, 31 questions) → [docs/topics/async-await/review.html](docs/topics/async-await/review.html)
   - ⬜ **Batch 2D: SwiftUI & UIKit (9 topics)**
     - ⬜ **swiftui-observation** (Data Flow with @Observable)
     - ⬜ **observable-object** (ObservableObject and @StateObject)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic async-await (async/await): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/async-await/review.html`). All checks passed. Batch 2C (Memory & Concurrency - 6 topics) is now 100% complete and published!
 
 - **2026-11-09** — Built and published topic gcd-basics (GCD Basics): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/gcd-basics/review.html`). All checks passed. Starting async-await.
 
