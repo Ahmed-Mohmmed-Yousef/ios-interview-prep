@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reversing a Linked List: Three-Pointer Rewiring</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --node-color: #0284c7; --node-soft: #e0f2fe;
+  --prev-color: #7c3aed; --prev-soft: #ede9fe;
+  --curr-color: #0c765c; --curr-soft: #dcf2ea;
+  --next-color: #d97706; --next-soft: #fef3c7;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --node-color: #38bdf8; --node-soft: #082f49;
+  --prev-color: #a78bfa; --prev-soft: #2e1065;
+  --curr-color: #45cfa3; --curr-soft: #13362c;
+  --next-color: #fbbf24; --next-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-circle { fill: var(--surface); stroke: var(--node-color); stroke-width: 2.5; }
+.node-circle.active { fill: var(--node-soft); stroke-width: 3; }
+
+.node-val { font-family: var(--font-code); font-size: 15px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.ptr-lbl { font-family: var(--font-body); font-size: 11px; font-weight: 700; text-anchor: middle; }
+.arrow-line { stroke-width: 2.5; fill: none; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Reversing a linked list interactive diagram">
+
+  <div class="interactive-diagram">
+    <div class="panels">
+      <!-- Left Panel: SVG Nodes & Pointer Connections -->
+      <div class="panel">
+        <h3>
+          <span id="vis-title">Initial Setup</span>
+          <span class="kind" id="vis-tag" style="background:var(--curr-soft);color:var(--curr-color);">Step 1</span>
+        </h3>
+        
+        <svg viewBox="0 0 340 190" role="img" aria-label="Linked List Reversal Visualizer">
+          <defs>
+            <marker id="arrow-fwd" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+              <polygon points="0 0, 7 3.5, 0 7" fill="var(--muted)"/>
+            </marker>
+            <marker id="arrow-rev" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse">
+              <polygon points="0 0, 7 3.5, 0 7" fill="var(--prev-color)"/>
+            </marker>
+          </defs>
+
+          <!-- Nil marker on the far left -->
+          <g id="nil-left" transform="translate(20, 65)">
+            <rect x="0" y="0" width="36" height="28" rx="6" fill="var(--code-bg)" stroke="var(--line)" stroke-width="1.5"/>
+            <text x="18" y="18" font-family="var(--font-code)" font-size="11" font-weight="600" fill="var(--muted)" text-anchor="middle">nil</text>
+          </g>
+
+          <!-- Nodes: [1] at x=95, [2] at x=185, [3] at x=275 (radius 22 each) -->
+          <g transform="translate(0, 79)">
+            <!-- Node 1 -->
+            <circle id="node-1" cx="95" cy="0" r="22" class="node-circle active"/>
+            <text x="95" y="5" class="node-val">1</text>
+
+            <!-- Node 2 -->
+            <circle id="node-2" cx="185" cy="0" r="22" class="node-circle"/>
+            <text x="185" y="5" class="node-val">2</text>
+
+            <!-- Node 3 -->
+            <circle id="node-3" cx="275" cy="0" r="22" class="node-circle"/>
+            <text x="275" y="5" class="node-val">3</text>
+          </g>
+
+          <!-- Arrows connecting nodes -->
+          <!-- Arrow 1 -> 2 (or 1 -> nil) -->
+          <path id="arr-1" d="M 120 79 L 160 79" class="arrow-line" stroke="var(--muted)" marker-end="url(#arrow-fwd)"/>
+          
+          <!-- Arrow 2 -> 3 (or 2 -> 1) -->
+          <path id="arr-2" d="M 210 79 L 250 79" class="arrow-line" stroke="var(--muted)" marker-end="url(#arrow-fwd)"/>
+
+          <!-- Pointers above/below nodes -->
+          <g id="pointers-group">
+            <text id="ptr-prev" x="38" y="42" class="ptr-lbl" fill="var(--prev-color)">prev</text>
+            <text id="ptr-curr" x="95" y="42" class="ptr-lbl" fill="var(--curr-color)">curr</text>
+            <text id="ptr-next" x="185" y="42" class="ptr-lbl" fill="var(--next-color)">next</text>
+          </g>
+        </svg>
+
+        <p class="caption" id="vis-desc" aria-live="polite">prev starts as nil. curr points to Node 1. Save nextTemp = Node 2 before rewiring pointers.</p>
+      </div>
+
+      <!-- Right Panel: Code & Operation Details -->
+      <div class="panel">
+        <h3>
+          <span id="right-title">Save Next & Rewire</span>
+          <span class="kind" id="right-tag" style="background:var(--code-bg);color:var(--muted);">Step 1 of 4</span>
+        </h3>
+        <div class="code" id="right-code">let nextTemp = curr.next // save Node 2
+curr.next = prev // Node 1 points to nil
+prev = curr // prev becomes Node 1
+curr = nextTemp // curr advances to Node 2</div>
+        <p class="caption" id="right-desc">Caching nextTemp prevents losing the rest of the list. Then redirect Node 1 next to nil.</p>
+        <div class="metrics">
+          <div class="metric-col"><span>prev</span><strong id="m-prev">nil</strong></div>
+          <div class="metric-col"><span>curr</span><strong id="m-curr">Node 1</strong></div>
+          <div class="metric-col"><span>next</span><strong id="m-next">Node 2</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1: Save nextTemp" onclick="goToStep(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2: Reverse Node 1" onclick="goToStep(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3: Reverse Node 2" onclick="goToStep(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4: Reverse Node 3 (Complete)" onclick="goToStep(3)"></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()" aria-label="Next step">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-Motion Static Fallback -->
+  <div class="static-fallback" aria-label="Static explanation of linked list reversal">
+    <div class="comp-card" style="border-left: 4px solid var(--curr-color);">
+      <h4>Step 1: Cache nextTemp and Prepare Node 1</h4>
+      <p>prev is nil, curr is Node 1. Store nextTemp = Node 2 so the remaining list is not severed.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--prev-color);">
+      <h4>Step 2: Reverse Node 1 Arrow to nil</h4>
+      <p>Set Node 1.next = nil. Advance prev to Node 1 and curr to Node 2.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--prev-color);">
+      <h4>Step 3: Reverse Node 2 Arrow to Node 1</h4>
+      <p>Set Node 2.next = Node 1. Advance prev to Node 2 and curr to Node 3.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--node-color);">
+      <h4>Step 4: Reverse Node 3 Arrow to Node 2</h4>
+      <p>Set Node 3.next = Node 2. curr reaches nil. prev is now Node 3, the new head of the reversed list.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Initial Setup",
+    tag: "Step 1",
+    tagColor: "var(--curr-soft)",
+    tagText: "var(--curr-color)",
+    desc: "prev starts as nil. curr points to Node 1. Save nextTemp = Node 2 before rewiring pointers.",
+    rightTitle: "Save Next & Rewire",
+    rightTag: "Step 1 of 4",
+    code: "let nextTemp = curr.next // save Node 2\ncurr.next = prev // Node 1 points to nil\nprev = curr // prev becomes Node 1\ncurr = nextTemp // curr advances to Node 2",
+    rightDesc: "Caching nextTemp prevents losing the rest of the list. Then redirect Node 1 next to nil.",
+    prevVal: "nil", currVal: "Node 1", nextVal: "Node 2",
+    prevPos: 38, currPos: 95, nextPos: 185,
+    arr1D: "M 120 79 L 160 79", arr1Stroke: "var(--muted)", arr1Marker: "url(#arrow-fwd)",
+    arr2D: "M 210 79 L 250 79", arr2Stroke: "var(--muted)", arr2Marker: "url(#arrow-fwd)"
+  },
+  {
+    title: "Reverse Node 1 Pointer",
+    tag: "Step 2",
+    tagColor: "var(--prev-soft)",
+    tagText: "var(--prev-color)",
+    desc: "Node 1 now points back to nil. prev advances to Node 1. curr advances to Node 2. nextTemp is Node 3.",
+    rightTitle: "Advance to Node 2",
+    rightTag: "Step 2 of 4",
+    code: "let nextTemp = curr.next // save Node 3\ncurr.next = prev // Node 2 points to Node 1\nprev = curr // prev becomes Node 2\ncurr = nextTemp // curr advances to Node 3",
+    rightDesc: "Pointer between Node 1 and Node 2 is inverted. Next, redirect Node 2 backward to Node 1.",
+    prevVal: "Node 1", currVal: "Node 2", nextVal: "Node 3",
+    prevPos: 95, currPos: 185, nextPos: 275,
+    arr1D: "M 70 79 L 55 79", arr1Stroke: "var(--prev-color)", arr1Marker: "url(#arrow-fwd)",
+    arr2D: "M 210 79 L 250 79", arr2Stroke: "var(--muted)", arr2Marker: "url(#arrow-fwd)"
+  },
+  {
+    title: "Reverse Node 2 Pointer",
+    tag: "Step 3",
+    tagColor: "var(--prev-soft)",
+    tagText: "var(--prev-color)",
+    desc: "Node 2 now points back to Node 1. prev advances to Node 2. curr advances to Node 3. nextTemp is nil.",
+    rightTitle: "Advance to Node 3",
+    rightTag: "Step 3 of 4",
+    code: "let nextTemp = curr.next // nil\ncurr.next = prev // Node 3 points to Node 2\nprev = curr // prev becomes Node 3\ncurr = nextTemp // curr becomes nil",
+    rightDesc: "Node 2 now points left to Node 1. Only Node 3 remains to be reversed.",
+    prevVal: "Node 2", currVal: "Node 3", nextVal: "nil",
+    prevPos: 185, currPos: 275, nextPos: 320,
+    arr1D: "M 70 79 L 55 79", arr1Stroke: "var(--prev-color)", arr1Marker: "url(#arrow-fwd)",
+    arr2D: "M 160 79 L 120 79", arr2Stroke: "var(--prev-color)", arr2Marker: "url(#arrow-fwd)"
+  },
+  {
+    title: "Reversal Complete",
+    tag: "Step 4",
+    tagColor: "var(--node-soft)",
+    tagText: "var(--node-color)",
+    desc: "Node 3 points back to Node 2. curr reached nil. prev points to Node 3, which is the new list head!",
+    rightTitle: "Return New Head",
+    rightTag: "O(n) time",
+    code: "return prev // Node 3 is new head!\n// Result: 3 -> 2 -> 1 -> nil\n// Time: O(n), Space: O(1)",
+    rightDesc: "All pointers are inverted in-place in a single O(n) pass using O(1) auxiliary space.",
+    prevVal: "Node 3", currVal: "nil", nextVal: "—",
+    prevPos: 275, currPos: 320, nextPos: -100,
+    arr1D: "M 160 79 L 120 79", arr1Stroke: "var(--prev-color)", arr1Marker: "url(#arrow-fwd)",
+    arr2D: "M 250 79 L 210 79", arr2Stroke: "var(--prev-color)", arr2Marker: "url(#arrow-fwd)"
+  }
+];
+
+let curStep = 0;
+
+function updateView() {
+  const s = steps[curStep];
+  document.getElementById("vis-title").textContent = s.title;
+  const tag = document.getElementById("vis-tag");
+  tag.textContent = s.tag;
+  tag.style.background = s.tagColor;
+  tag.style.color = s.tagText;
+  document.getElementById("vis-desc").textContent = s.desc;
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.code;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("m-prev").textContent = s.prevVal;
+  document.getElementById("m-curr").textContent = s.currVal;
+  document.getElementById("m-next").textContent = s.nextVal;
+
+  const ptrPrev = document.getElementById("ptr-prev");
+  const ptrCurr = document.getElementById("ptr-curr");
+  const ptrNext = document.getElementById("ptr-next");
+
+  ptrPrev.setAttribute("x", s.prevPos);
+  ptrCurr.setAttribute("x", s.currPos);
+  if (s.nextPos > 0) {
+    ptrNext.style.display = "";
+    ptrNext.setAttribute("x", s.nextPos);
+  } else {
+    ptrNext.style.display = "none";
+  }
+
+  const arr1 = document.getElementById("arr-1");
+  arr1.setAttribute("d", s.arr1D);
+  arr1.setAttribute("stroke", s.arr1Stroke);
+  arr1.setAttribute("marker-end", s.arr1Marker);
+
+  const arr2 = document.getElementById("arr-2");
+  arr2.setAttribute("d", s.arr2D);
+  arr2.setAttribute("stroke", s.arr2Stroke);
+  arr2.setAttribute("marker-end", s.arr2Marker);
+
+  document.querySelectorAll(".dot").forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = curStep === 0;
+  document.getElementById("btn-next").disabled = curStep === steps.length - 1;
+}
+
+function goToStep(i) {
+  curStep = Math.max(0, Math.min(steps.length - 1, i));
+  updateView();
+}
+function nextStep() { goToStep(curStep + 1); }
+function prevStep() { goToStep(curStep - 1); }
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateView();
+</script>
+</body>
+</html>

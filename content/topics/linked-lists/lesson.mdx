@@ -1,0 +1,274 @@
+export const meta = {
+  id: "linked-lists",
+  summary: "Master linked list structures in Swift, including node references, list reversal, dummy heads, and fast/slow pointer algorithms.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Swift Programming Language: Structures and Classes", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/classesandstructures/", kind: "official" },
+    { title: "Swift Programming Language: Automatic Reference Counting", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting/", kind: "official" },
+    { title: "Tech Interview Handbook: Linked List Cheatsheet", url: "https://www.techinterviewhandbook.org/algorithms/linked-list/", kind: "community" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why must a linked list node in Swift be defined as a class rather than a struct?</Question>
+  <Guess>
+    <Option id="a">Structs cannot store integer values in Swift.</Option>
+    <Option id="b" correct>Value types require a fixed size at compile time, causing a recursive layout error if a struct holds itself.</Option>
+    <Option id="c">Classes execute loop iterations faster on 64-bit Apple Silicon processors.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a scavenger hunt where each clue leads to the next clue.
+
+You hold the first clue in your hand. That clue tells you where to find the second clue.
+
+To reach clue four, you cannot jump straight there. You must visit clue two and clue three first.
+</Analogy>
+
+A **linked list** is a linear collection of nodes connected by pointer references:
+1. **Nodes and Pointers**:
+   - Each node contains a data value and a reference to the `next` node.
+   - The list begins at the `head` pointer and ends when a node points to `nil`.
+   - In Swift, nodes are reference types (`class`) so they can point to other instances of themselves.
+2. **Sequential Access vs Arrays**:
+   - Arrays store elements in contiguous memory with instant $O(1)$ index access.
+   - Linked lists scatter nodes across heap memory. Finding the $k$-th element requires traversing from `head`, taking $O(k)$ time.
+   - Inserting or deleting at the head takes instant $O(1)$ time with no memory shifting.
+3. **Doubly-Linked Lists**:
+   - Each node contains both `next` and `prev` pointers.
+   - In Swift, the backward `prev` reference must be marked `weak` to prevent retain cycles.
+
+## See it
+
+<Diagram id="linked-lists-concept" caption="Reversing a singly-linked list step by step using three pointers">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Nodes: [1] -> [2] -> [3] -> nil.
+    2. Pointers: prev, curr, nextTemp.
+    3. Operation details card with active pointer rewiring.
+  - Steps:
+    Step 1: prev = nil, curr = Node(1). Save nextTemp = Node(2).
+    Step 2: Rewire: curr.next = prev (nil). Move prev = Node(1), curr = Node(2).
+    Step 3: Save nextTemp = Node(3). Rewire: curr.next = Node(1). Move prev = Node(2), curr = Node(3).
+    Step 4: Rewire: curr.next = Node(2). Move prev = Node(3), curr = nil. prev is new head!
+  - Static version (reduced motion):
+    A 4-card horizontal breakdown showing pointer movements and arrow inversions.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What is the time complexity to insert a new node at the head of a linked list?</Question>
+  <Option id="a">O(n) time because all nodes must move down in memory.</Option>
+  <Option id="b" correct>O(1) time because you only update the new node's next pointer and head reference.</Option>
+  <Option id="c">O(log n) time because of reference counting updates.</Option>
+  <Explanation>Inserting at the head requires creating one node and adjusting one pointer in O(1) time.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Defining a ListNode class and reversing a list in Swift">
+
+```swift
+final class ListNode {
+    var value: Int
+    var next: ListNode?
+    
+    init(_ value: Int, _ next: ListNode? = nil) {
+        self.value = value
+        self.next = next
+    }
+}
+
+func reverseList(_ head: ListNode?) -> ListNode? {
+    var prev: ListNode? = nil
+    var curr = head
+    
+    while let node = curr {
+        let nextTemp = node.next
+        node.next = prev
+        prev = node
+        curr = nextTemp
+    }
+    return prev
+}
+
+func printList(_ head: ListNode?) {
+    var values: [Int] = []
+    var curr = head
+    while let node = curr {
+        values.append(node.value)
+        curr = node.next
+    }
+    print(values.map(String.init).joined(separator: " -> "))
+}
+
+let list = ListNode(1, ListNode(2, ListNode(3, ListNode(4))))
+print("Original:")
+printList(list)
+
+let reversed = reverseList(list)
+print("Reversed:")
+printList(reversed)
+```
+
+```output
+Original:
+1 -> 2 -> 3 -> 4
+Reversed:
+4 -> 3 -> 2 -> 1
+```
+
+</CodeExample>
+
+In `reverseList`, we use three pointers: `prev`, `curr`, and `nextTemp`.
+
+Before redirecting `node.next = prev`, we must cache `node.next` in `nextTemp`. Otherwise, we would sever our connection to the rest of the list.
+
+The function runs in $O(n)$ linear time and uses $O(1)$ auxiliary space.
+
+<CodeExample title="Fast and slow pointers: finding middle node and cycle detection">
+
+```swift
+final class ListNode {
+    var value: Int
+    var next: ListNode?
+    
+    init(_ value: Int, _ next: ListNode? = nil) {
+        self.value = value
+        self.next = next
+    }
+}
+
+func findMiddleNode(_ head: ListNode?) -> ListNode? {
+    var slow = head
+    var fast = head
+    
+    while let f = fast, let nextNode = f.next {
+        slow = slow?.next
+        fast = nextNode.next
+    }
+    return slow
+}
+
+func hasCycle(_ head: ListNode?) -> Bool {
+    var slow = head
+    var fast = head
+    
+    while let f = fast, let nextNode = f.next {
+        slow = slow?.next
+        fast = nextNode.next
+        if slow === fast {
+            return true
+        }
+    }
+    return false
+}
+
+let numbers = ListNode(10, ListNode(20, ListNode(30, ListNode(40, ListNode(50)))))
+print("Middle value: \(findMiddleNode(numbers)?.value ?? -1)")
+
+// Create a cycle: 1 -> 2 -> 3 -> loops back to 2
+let nodeA = ListNode(1)
+let nodeB = ListNode(2)
+let nodeC = ListNode(3)
+nodeA.next = nodeB
+nodeB.next = nodeC
+nodeC.next = nodeB // cycle!
+
+print("Has cycle: \(hasCycle(nodeA))")
+```
+
+```output
+Middle value: 30
+Has cycle: true
+```
+
+</CodeExample>
+
+This pattern is known as **Floyd's Tortoise and Hare**.
+
+In `findMiddleNode`, `fast` advances two steps while `slow` advances one step. When `fast` reaches the end, `slow` is located at the exact middle.
+
+In `hasCycle`, if a loop exists, the fast pointer will eventually lap the slow pointer. We use `slow === fast` to check if both pointers reference the same memory address.
+
+<QuickCheck>
+  <Question>Why must cycle detection use === instead of == in Swift?</Question>
+  <Option id="a">The == operator runs in O(n) time on classes.</Option>
+  <Option id="b" correct>Two different nodes might store equal values; === checks if they are the exact same memory instance.</Option>
+  <Option id="c">Swift classes are forbidden from conforming to Equatable.</Option>
+  <Explanation>=== checks reference identity. Two distinct nodes can share the same value without forming a cycle.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Severing the list before saving next node reference">
+When rewiring pointers, writing `curr.next = prev` before caching `curr.next` is a common bug.
+
+Once `curr.next` is overwritten, your reference to the remaining nodes is lost permanently.
+
+Always save `let nextTemp = curr.next` before updating the forward reference.
+</Trap>
+
+<Trap title="Retain cycles in doubly-linked lists">
+In a doubly-linked list, if `next` and `prev` are both strong references, adjacent nodes form a retain cycle.
+
+Neither node can ever be deallocated by Automatic Reference Counting (ARC).
+
+Always mark the backward pointer `weak var prev: ListNode?` to break the strong reference cycle.
+</Trap>
+
+<Trap title="Forgetting the dummy head node technique">
+Removing or merging linked list nodes often requires complex conditionals when operating on the first node.
+
+Using a sentinel dummy node (`let dummy = ListNode(0); dummy.next = head`) simplifies head modifications.
+
+You return `dummy.next` at the end, eliminating separate logic for empty lists and head deletions.
+</Trap>
+
+<Trap title="Call stack overflow during ARC deallocation">
+When a deeply nested linked list is released, ARC recursively deallocates child nodes.
+
+If a list contains fifty thousand nodes, recursive deallocation can exceed the thread stack limit.
+
+In production iOS code, long linked lists require an iterative deallocation loop inside `deinit`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"A linked list is a linear data structure where nodes point to the next node in memory. In Swift, nodes are classes because value types cannot recursively contain themselves. Linked lists allow $O(1)$ insertion and deletion at the head, but access by index takes $O(n)$ time because we must traverse nodes sequentially."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"I use linked lists when constant-time insertion and deletion at boundaries are needed without array memory reallocation. In coding interviews, I rely on two patterns: dummy head nodes for edge cases, and fast-and-slow pointers for cycles and midpoints. In Swift, I mark backward pointers in doubly-linked lists as `weak` to prevent ARC retain cycles. When reversing lists, I cache `curr.next` before redirecting pointers."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Linked lists trade contiguous cache locality for pointer flexibility. On modern Apple Silicon architectures, traversing scattered heap nodes causes CPU cache line misses, making arrays faster even for small insert operations. When building custom list structures, I evaluate ARC overhead and prevent recursive deallocation stack overflow in `deinit`. For production collections requiring double-ended mutations, I prefer contiguous ring buffers or unrolled linked lists over traditional node pointers."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Linked list nodes in Swift are classes because recursive value types cannot be laid out in memory.
+- Prepending takes $O(1)$ time, while random access by index requires $O(n)$ sequential traversal.
+- Reversing a list uses three pointers (`prev`, `curr`, `nextTemp`) in $O(n)$ time and $O(1)$ space.
+- Fast and slow pointers find the middle node and detect cycles using `===` reference equality.
+- Doubly-linked lists require `weak var prev: ListNode?` to prevent ARC strong retain cycles.
+</Recap>
+
+## Go deeper
+
+- [Swift Programming Language: Structures and Classes](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/classesandstructures/) — Reference types, identity operators, and memory layout.
+- [Swift Programming Language: Automatic Reference Counting](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting/) — Resolving strong reference cycles with weak references.
+- [Tech Interview Handbook: Linked List Cheatsheet](https://www.techinterviewhandbook.org/algorithms/linked-list/) — Standard interview patterns and dummy head strategies.
