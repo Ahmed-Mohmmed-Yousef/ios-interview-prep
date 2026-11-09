@@ -105,10 +105,11 @@ Write all lessons and question banks, level by level, with fact checks.
   - ✅ **Batch 1E: App and System (1 topic: `xcode-and-git-basics`)** — Complete
     - ✅ **xcode-and-git-basics** (Xcode, Projects and Git) — published (lesson, diagram, 31 questions) → [docs/topics/xcode-and-git-basics/review.html](docs/topics/xcode-and-git-basics/review.html)
 - 🔄 **4.2 Junior level topics (Wave 2)** — 45 topics (44 main + 1 bonus), starting Batch 2A
-  - 🔄 **Batch 2A: Swift Language Advanced (9 topics: 2 published, 7 remaining)**
+  - 🔄 **Batch 2A: Swift Language Advanced (9 topics: 3 published, 6 remaining)**
     - ✅ **optional-chaining** (Optional Chaining) — published (lesson, diagram, 31 questions) → [docs/topics/optional-chaining/review.html](docs/topics/optional-chaining/review.html)
     - ✅ **inheritance** (Inheritance) — published (lesson, diagram, 31 questions) → [docs/topics/inheritance/review.html](docs/topics/inheritance/review.html)
-    - 🔄 **type-casting** (Type Casting and Any) — starting research
+    - ✅ **type-casting** (Type Casting and Any) — published (lesson, diagram, 31 questions) → [docs/topics/type-casting/review.html](docs/topics/type-casting/review.html)
+    - 🔄 **protocols** (Protocols) — starting research
     - ⬜ **protocols** (Protocols)
     - ⬜ **extensions** (Extensions)
     - ⬜ **generics-basics** (Generics: The Basics)
@@ -296,6 +297,8 @@ Newest first.
 - **2026-11-09** — Step 5.4 done: Built Screen 3 (Winding Path Map) and Screen 4 (Locked Notice bottom sheet). Features: sticky top stats bar (done count, path score, accessible progress bar), zig-zag responsive road, 6 visual stop states (passed, updated with amber badge, current with pulse ring, locked with prerequisite guidance, skipped with dashed outline, bonus branch), completed stage folding, unit and stage skip test triggers, and floating "Go to my stop" jump button. Next.js build passes cleanly with 26 unit tests. Starting Step 5.5: Lesson Reader & Diagrams.
 
 - **2026-11-09** — Built and published topic state-and-binding (@State and @Binding): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/state-and-binding/review.html`). All checks passed. Starting swiftui-lists.
+
+- **2026-11-09** — Built and published topic type-casting (Type Casting and Any): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/type-casting/review.html`). All checks passed. Starting protocols.
 
 - **2026-11-09** — Built and published topic inheritance (Inheritance): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/inheritance/review.html`). All checks passed. Starting type-casting.
 

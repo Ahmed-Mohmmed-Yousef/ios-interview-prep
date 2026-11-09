@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swift Type Casting: is, as?, and as!</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --item-color: #0284c7; --item-soft: #e0f2fe;
+  --is-color: #d97706; --is-soft: #fef3c7;
+  --safe-color: #0c765c; --safe-soft: #dcf2ea;
+  --crash-color: #dc2626; --crash-soft: #fee2e2;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --item-color: #38bdf8; --item-soft: #082f49;
+  --is-color: #fbbf24; --is-soft: #451a03;
+  --safe-color: #45cfa3; --safe-soft: #13362c;
+  --crash-color: #f87171; --crash-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--item-soft); color: var(--item-color); }
+.p-right .kind { background: var(--safe-soft); color: var(--safe-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.card-shape.active-item { stroke: var(--item-color); stroke-width: 2.5; fill: var(--item-soft); }
+.card-shape.active-is { stroke: var(--is-color); stroke-width: 2.5; fill: var(--is-soft); }
+.card-shape.active-safe { stroke: var(--safe-color); stroke-width: 2.5; fill: var(--safe-soft); }
+.card-shape.active-crash { stroke: var(--crash-color); stroke-width: 2.5; fill: var(--crash-soft); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--item-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div class="diagram-host" tabindex="0" role="region" aria-label="Interactive diagram: Swift Type Casting">
+
+  <!-- Interactive Animator -->
+  <div class="anim-only" style="display: grid; gap: 16px;">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span id="left-title">1. Base Type Reference</span><span class="kind" id="left-tag">Static Type</span></h3>
+        <div class="code" id="left-code">let item: MediaItem = Movie(name: "Inception")
+// Compile-time type: MediaItem
+// Runtime type: Movie</div>
+        <p class="caption" id="left-desc">The variable is statically typed as MediaItem, but points to a Movie instance in memory.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="card-instance" x="40" y="20" width="260" height="85" rx="10" class="card-shape active-item" />
+          <text id="inst-title" x="170" y="50" class="title-text">Instance in RAM</text>
+          <text id="inst-line1" x="170" y="72" class="sub-text">Type: Movie (Subclass)</text>
+          <text id="inst-line2" x="170" y="90" class="sub-text">Reference: MediaItem</text>
+        </svg>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span id="right-title">Evaluation Outcome</span><span class="kind" id="right-tag">Type Inspector</span></h3>
+        <div class="code" id="right-code">// Inspecting the instance
+// Choosing operator: is, as?, or as!</div>
+        <p class="caption" id="right-desc">Swift inspects runtime type metadata without modifying the underlying instance.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="card-result" x="40" y="20" width="260" height="85" rx="10" class="card-shape active-safe" />
+          <text id="res-title" x="170" y="50" class="title-text">Ready for Check</text>
+          <text id="res-line1" x="170" y="72" class="sub-text">Operation pending</text>
+          <text id="res-line2" x="170" y="90" class="sub-text">Safety: High</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1" onclick="jumpTo(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2" onclick="jumpTo(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3" onclick="jumpTo(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4" onclick="jumpTo(3)"></button>
+      </div>
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" disabled onclick="prevStep()">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accessible Static Fallback (Reduced Motion) -->
+  <div class="static-fallback" role="region" aria-label="Type casting summary">
+    <div class="comp-card">
+      <h4>1. Superclass Reference</h4>
+      <p>An instance of a subclass can be referenced by its superclass type (such as <code>MediaItem</code>).</p>
+    </div>
+    <div class="comp-card">
+      <h4>2. Type Checking with is</h4>
+      <p>The <code>is</code> operator tests whether an instance is of a specific type and returns a boolean (<code>true</code> or <code>false</code>).</p>
+    </div>
+    <div class="comp-card">
+      <h4>3. Safe Downcasting with as?</h4>
+      <p>Conditional downcasting (<code>as?</code>) returns an <code>Optional</code> containing the subclass value or <code>nil</code> on failure.</p>
+    </div>
+    <div class="comp-card">
+      <h4>4. Forced Downcasting Hazards with as!</h4>
+      <p>Forced downcasting (<code>as!</code>) triggers a runtime crash if the instance is not of the specified target type.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    leftTitle: "1. Base Type Reference",
+    leftTag: "Static Type",
+    leftCode: "let item: MediaItem = Movie(name: \"Inception\")\n// Stored as MediaItem reference",
+    leftDesc: "The variable is statically typed as MediaItem, but points to a Movie instance in memory.",
+    rightTitle: "Runtime Object",
+    rightTag: "Metadata",
+    rightCode: "// Instance memory holds full Movie object\n// Ready for type verification",
+    rightDesc: "Swift inspects runtime type metadata without modifying the underlying instance.",
+    instTitle: "Instance in RAM",
+    instLine1: "Dynamic type: Movie",
+    instLine2: "Static type: MediaItem",
+    resTitle: "Object Ready",
+    resLine1: "Type check pending",
+    resLine2: "Safety: Guaranteed",
+    instStyle: "active-item",
+    resStyle: "card-shape"
+  },
+  {
+    leftTitle: "2. Type Checking (is)",
+    leftTag: "Boolean Check",
+    leftCode: "if item is Movie {\n    print(\"Matches Movie!\")\n}",
+    leftDesc: "The is operator tests whether the instance is a Movie without casting or unwrapping.",
+    rightTitle: "Boolean Evaluation",
+    rightTag: "Returns Bool",
+    rightCode: "item is Movie // returns true\nitem is Song  // returns false",
+    rightDesc: "Returns true or false. It does not unwrap or provide access to subclass properties.",
+    instTitle: "Type Check Active",
+    instLine1: "Query: is Movie?",
+    instLine2: "Result: true",
+    resTitle: "Check Result: true",
+    resLine1: "Dynamic match confirmed",
+    resLine2: "Return type: Bool",
+    instStyle: "active-is",
+    resStyle: "active-is"
+  },
+  {
+    leftTitle: "3. Safe Downcast (as?)",
+    leftTag: "Optional Downcast",
+    leftCode: "if let movie = item as? Movie {\n    print(movie.director)\n}",
+    leftDesc: "as? attempts downcasting. If successful, it returns an Optional with the subclass instance.",
+    rightTitle: "Safe Optional Result",
+    rightTag: "Returns Movie?",
+    rightCode: "let m = item as? Movie // Optional(Movie)\nlet s = item as? Song  // nil (safe!)",
+    rightDesc: "Idiomatic in Swift. Combine with if let or guard let to handle missing matches cleanly.",
+    instTitle: "Safe Cast Successful",
+    instLine1: "Unwrapped as: Movie",
+    instLine2: "Access: movie.director",
+    resTitle: "Returns: Optional(Movie)",
+    resLine1: "Downcast succeeded",
+    resLine2: "No crash on mismatch",
+    instStyle: "active-safe",
+    resStyle: "active-safe"
+  },
+  {
+    leftTitle: "4. Forced Downcast (as!)",
+    leftTag: "Hazard Alert",
+    leftCode: "// Risky forced downcast:\nlet song = item as! Song\n// CRASH! Movie is not a Song",
+    leftDesc: "as! force-unwraps the downcast. If the cast fails, the app halts with a fatal runtime error.",
+    rightTitle: "Fatal Runtime Crash",
+    rightTag: "Crash Risk",
+    rightCode: "Fatal error: Could not cast value of\ntype 'Movie' to 'Song'.",
+    rightDesc: "Only use as! when the cast is mathematically guaranteed, or in unit test setups.",
+    instTitle: "Type Mismatch",
+    instLine1: "Actual type: Movie",
+    instLine2: "Target type: Song",
+    resTitle: "FATAL ERROR",
+    resLine1: "Runtime crash triggered",
+    resLine2: "Could not cast value",
+    instStyle: "active-crash",
+    resStyle: "active-crash"
+  }
+];
+
+let currentStep = 0;
+
+function updateUI() {
+  const s = steps[currentStep];
+  document.getElementById("left-title").textContent = s.leftTitle;
+  document.getElementById("left-tag").textContent = s.leftTag;
+  document.getElementById("left-code").textContent = s.leftCode;
+  document.getElementById("left-desc").textContent = s.leftDesc;
+  
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("inst-title").textContent = s.instTitle;
+  document.getElementById("inst-line1").textContent = s.instLine1;
+  document.getElementById("inst-line2").textContent = s.instLine2;
+
+  document.getElementById("res-title").textContent = s.resTitle;
+  document.getElementById("res-line1").textContent = s.resLine1;
+  document.getElementById("res-line2").textContent = s.resLine2;
+
+  const cardInst = document.getElementById("card-instance");
+  const cardRes = document.getElementById("card-result");
+  cardInst.className = "card-shape " + s.instStyle;
+  cardRes.className = "card-shape " + s.resStyle;
+
+  // Update dots and buttons
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.className = "dot" + (idx === currentStep ? " active" : "");
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = currentStep === 0;
+  document.getElementById("btn-next").disabled = currentStep === steps.length - 1;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateUI();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateUI();
+  }
+}
+
+function jumpTo(idx) {
+  currentStep = idx;
+  updateUI();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateUI();
+</script>
+</body>
+</html>

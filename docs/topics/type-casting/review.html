@@ -1,0 +1,633 @@
+<title>Type Casting and Any Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --item-color: #0284c7; --item-soft: #e0f2fe;
+  --is-color: #d97706; --is-soft: #fef3c7;
+  --safe-color: #0c765c; --safe-soft: #dcf2ea;
+  --crash-color: #dc2626; --crash-soft: #fee2e2;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --item-color: #38bdf8; --item-soft: #082f49;
+  --is-color: #fbbf24; --is-soft: #451a03;
+  --safe-color: #45cfa3; --safe-soft: #13362c;
+  --crash-color: #f87171; --crash-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--item-soft); color: var(--item-color); }
+.p-right .kind { background: var(--safe-soft); color: var(--safe-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.card-shape.active-item { stroke: var(--item-color); stroke-width: 2.5; fill: var(--item-soft); }
+.card-shape.active-is { stroke: var(--is-color); stroke-width: 2.5; fill: var(--is-soft); }
+.card-shape.active-safe { stroke: var(--safe-color); stroke-width: 2.5; fill: var(--safe-soft); }
+.card-shape.active-crash { stroke: var(--crash-color); stroke-width: 2.5; fill: var(--crash-soft); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--item-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Swift Language · Topic 3 of 9 · Prototype</p>
+    <h1>Type Casting and Any</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can check and convert types with is, as? and as!.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">What is the key difference between as? and as! when downcasting an instance?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">as? casts at compile time while as! casts at runtime.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">as? returns an Optional that evaluates to nil on failure, while as! triggers a runtime crash on failure.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">as? works on value types while as! works only on class reference types.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of security luggage screening at an airport. An inspector checks whether a sealed box contains liquids before opening it. If it contains liquid, they carefully inspect the bottle. If not, they leave it alone. The inspector does not change what is inside the box. Type casting in Swift works the same way by inspecting and treating an instance as a specific type without altering its underlying memory.</p></aside>
+<p>In Swift, <strong>type casting</strong> checks the type of an instance. It can also treat that instance as a superclass or subclass within its hierarchy.</p>
+<p>Swift provides two core operators for type checking and casting:</p>
+<ul>
+<li><strong><code>is</code> (Type check)</strong>: Returns <code>true</code> if an instance is of a specific subclass type, and <code>false</code> otherwise.</li>
+<li><strong><code>as?</code> (Conditional downcast)</strong>: Attempts to downcast to a subclass type. Returns an optional containing the value on success, or <code>nil</code> on failure.</li>
+<li><strong><code>as!</code> (Forced downcast)</strong>: Force-downcasts to a subclass type. If the cast fails, the app crashes immediately.</li>
+<li><strong><code>as</code> (Guaranteed upcast)</strong>: Performs compile-time guaranteed casts, like treating a subclass instance as its superclass.</li>
+</ul>
+<p>Swift also defines two special general types:</p>
+<ul>
+<li><strong><code>Any</code></strong>: Can represent an instance of any type, including structs, enums, functions, and classes.</li>
+<li><strong><code>AnyObject</code></strong>: Can represent an instance of any class type only.</li>
+</ul>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What does the expression item is Movie return?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">An Optional Movie? value.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">A Bool indicating whether the item is a Movie.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">A forced Movie instance.</span></button><p class="qc-explain" hidden="">The is operator checks types and returns a boolean (true or false). It does not cast or unwrap the value.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Checking types with is and downcasting with as?</figcaption><pre class="block swift"><code class="language-swift">class MediaItem {
+    var name: String
+    init(name: String) {
+        self.name = name
+    }
+}
+
+class Movie: MediaItem {
+    var director: String
+    init(name: String, director: String) {
+        self.director = director
+        super.init(name: name)
+    }
+}
+
+class Song: MediaItem {
+    var artist: String
+    init(name: String, artist: String) {
+        self.artist = artist
+        super.init(name: name)
+    }
+}
+
+let library: [MediaItem] = [
+    Movie(name: &quot;Inception&quot;, director: &quot;Christopher Nolan&quot;),
+    Song(name: &quot;Yellow Submarine&quot;, artist: &quot;The Beatles&quot;)
+]
+
+for item in library {
+    // 1. Type checking with is
+    if item is Movie {
+        print(&quot;\(item.name) is a movie.&quot;)
+    }
+    
+    // 2. Conditional downcasting with as?
+    if let movie = item as? Movie {
+        print(&quot;Directed by: \(movie.director)&quot;)
+    } else if let song = item as? Song {
+        print(&quot;Performed by: \(song.artist)&quot;)
+    }
+}
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Inception is a movie.
+Directed by: Christopher Nolan
+Performed by: The Beatles
+</code></pre></figure>
+<p>This example shows safe downcasting:</p>
+<ul>
+<li><strong>Heterogeneous array</strong>: <code>library</code> holds both <code>Movie</code> and <code>Song</code> instances typed as <code>MediaItem</code>.</li>
+<li><strong><code>is</code> operator</strong>: Checks whether an instance is of a subclass type without modifying or unwrapping it.</li>
+<li><strong><code>as?</code> operator</strong>: Downcasts safely to <code>Movie</code> or <code>Song</code>, allowing access to subclass-specific properties like <code>director</code> or <code>artist</code>.</li>
+</ul>
+<figure class="code-example"><figcaption>Pattern matching Any types in a switch statement</figcaption><pre class="block swift"><code class="language-swift">var things: [Any] = []
+
+things.append(0)
+things.append(3.14)
+things.append(&quot;Hello Swift&quot;)
+things.append((2, 5))
+
+for thing in things {
+    switch thing {
+    case let someInt as Int:
+        print(&quot;An integer: \(someInt)&quot;)
+    case let someDouble as Double:
+        print(&quot;A double: \(someDouble)&quot;)
+    case let someString as String:
+        print(&quot;A string: \(someString)&quot;)
+    case is (Int, Int):
+        print(&quot;An Int pair tuple&quot;)
+    default:
+        print(&quot;Something else&quot;)
+    }
+}
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">An integer: 0
+A double: 3.14
+A string: Hello Swift
+An Int pair tuple
+</code></pre></figure>
+<p>This example shows <code>Any</code> handling with pattern matching:</p>
+<ul>
+<li><strong><code>Any</code> versatility</strong>: Stores integers, floating-point numbers, strings, and tuples inside one collection.</li>
+<li><strong><code>case let ... as</code> pattern</strong>: Tests the type and binds the unwrapped value to a local constant simultaneously.</li>
+<li><strong><code>case is</code> pattern</strong>: Verifies the type without binding a local constant.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which type can store both value types (like Int and Struct) and reference types (like Class)?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">AnyObject</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Any</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">NSObject</span></button><p class="qc-explain" hidden="">Any represents instances of any type in Swift. AnyObject is restricted to class instances only.</p></div>
+<p class="try-it"><p>Try downcasting heterogeneous collections in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming type casting mutates the underlying instance in memory</p><p>Casting does not convert or re-allocate an instance. The underlying instance remains unchanged. Type casting only alters how the Swift type checker treats the instance.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using forced downcasting (as!) in production code</p><p>Using <code>as!</code> crashes the application if the instance fails to match the expected type. Prefer <code>as?</code> combined with <code>if let</code> or <code>guard let</code> to handle unexpected types gracefully.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Overusing Any instead of generics or protocols</p><p>Storing collections of <code>[Any]</code> discards Swift&#x27;s compile-time type safety. It forces manual downcasting and introduces runtime errors. Prefer protocols or generics whenever possible.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>Type casting in Swift checks or converts instance types. We use is to check if an object is of a specific type. We use as? to downcast safely into an optional, and as! to force a downcast, which crashes on failure. Any represents any type, while AnyObject represents class types only.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Swift implements type casting via is, as?, as!, and as. The is operator tests types, returning a boolean. Downcasting uses as? for safe optional conversion or as! for forced downcasts that crash on failure. Any holds any Swift type, including structs and functions, whereas AnyObject is restricted to reference types.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Type casting relies on Swift runtime metadata to inspect class hierarchies and protocol witness tables dynamically. While as? provides safe downcasting, reliance on Any or excessive casting often signals fragile architecture. Modern Swift favors protocol-oriented design and generics, preserving static type safety and compiler optimization opportunities.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>is</code> checks the type of an instance and returns a <code>Bool</code>.</li>
+<li><code>as?</code> conditionally downcasts to a subclass type, returning an <code>Optional</code>.</li>
+<li><code>as!</code> force-downcasts and crashes at runtime if the cast fails.</li>
+<li><code>as</code> performs compile-time guaranteed upcasts and type bridging.</li>
+<li><code>Any</code> represents instances of any type (value and reference types).</li>
+<li><code>AnyObject</code> represents instances of any class type only.</li>
+<li>Type casting treats instances as different types without altering their memory.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/typecasting">The Swift Programming Language: Type Casting</a></li>
+<li><a href="https://developer.apple.com/documentation/swift/anyobject">Swift Standard Library: Any and AnyObject</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    leftTitle: "1. Base Type Reference",
+    leftTag: "Static Type",
+    leftCode: "let item: MediaItem = Movie(name: \"Inception\")\n// Stored as MediaItem reference",
+    leftDesc: "The variable is statically typed as MediaItem, but points to a Movie instance in memory.",
+    rightTitle: "Runtime Object",
+    rightTag: "Metadata",
+    rightCode: "// Instance memory holds full Movie object\n// Ready for type verification",
+    rightDesc: "Swift inspects runtime type metadata without modifying the underlying instance.",
+    instTitle: "Instance in RAM",
+    instLine1: "Dynamic type: Movie",
+    instLine2: "Static type: MediaItem",
+    resTitle: "Object Ready",
+    resLine1: "Type check pending",
+    resLine2: "Safety: Guaranteed",
+    instStyle: "active-item",
+    resStyle: "card-shape"
+  },
+  {
+    leftTitle: "2. Type Checking (is)",
+    leftTag: "Boolean Check",
+    leftCode: "if item is Movie {\n    print(\"Matches Movie!\")\n}",
+    leftDesc: "The is operator tests whether the instance is a Movie without casting or unwrapping.",
+    rightTitle: "Boolean Evaluation",
+    rightTag: "Returns Bool",
+    rightCode: "item is Movie // returns true\nitem is Song  // returns false",
+    rightDesc: "Returns true or false. It does not unwrap or provide access to subclass properties.",
+    instTitle: "Type Check Active",
+    instLine1: "Query: is Movie?",
+    instLine2: "Result: true",
+    resTitle: "Check Result: true",
+    resLine1: "Dynamic match confirmed",
+    resLine2: "Return type: Bool",
+    instStyle: "active-is",
+    resStyle: "active-is"
+  },
+  {
+    leftTitle: "3. Safe Downcast (as?)",
+    leftTag: "Optional Downcast",
+    leftCode: "if let movie = item as? Movie {\n    print(movie.director)\n}",
+    leftDesc: "as? attempts downcasting. If successful, it returns an Optional with the subclass instance.",
+    rightTitle: "Safe Optional Result",
+    rightTag: "Returns Movie?",
+    rightCode: "let m = item as? Movie // Optional(Movie)\nlet s = item as? Song  // nil (safe!)",
+    rightDesc: "Idiomatic in Swift. Combine with if let or guard let to handle missing matches cleanly.",
+    instTitle: "Safe Cast Successful",
+    instLine1: "Unwrapped as: Movie",
+    instLine2: "Access: movie.director",
+    resTitle: "Returns: Optional(Movie)",
+    resLine1: "Downcast succeeded",
+    resLine2: "No crash on mismatch",
+    instStyle: "active-safe",
+    resStyle: "active-safe"
+  },
+  {
+    leftTitle: "4. Forced Downcast (as!)",
+    leftTag: "Hazard Alert",
+    leftCode: "// Risky forced downcast:\nlet song = item as! Song\n// CRASH! Movie is not a Song",
+    leftDesc: "as! force-unwraps the downcast. If the cast fails, the app halts with a fatal runtime error.",
+    rightTitle: "Fatal Runtime Crash",
+    rightTag: "Crash Risk",
+    rightCode: "Fatal error: Could not cast value of\ntype 'Movie' to 'Song'.",
+    rightDesc: "Only use as! when the cast is mathematically guaranteed, or in unit test setups.",
+    instTitle: "Type Mismatch",
+    instLine1: "Actual type: Movie",
+    instLine2: "Target type: Song",
+    resTitle: "FATAL ERROR",
+    resLine1: "Runtime crash triggered",
+    resLine2: "Could not cast value",
+    instStyle: "active-crash",
+    resStyle: "active-crash"
+  }
+];
+
+let currentStep = 0;
+
+function updateUI() {
+  const s = steps[currentStep];
+  document.getElementById("left-title").textContent = s.leftTitle;
+  document.getElementById("left-tag").textContent = s.leftTag;
+  document.getElementById("left-code").textContent = s.leftCode;
+  document.getElementById("left-desc").textContent = s.leftDesc;
+  
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("inst-title").textContent = s.instTitle;
+  document.getElementById("inst-line1").textContent = s.instLine1;
+  document.getElementById("inst-line2").textContent = s.instLine2;
+
+  document.getElementById("res-title").textContent = s.resTitle;
+  document.getElementById("res-line1").textContent = s.resLine1;
+  document.getElementById("res-line2").textContent = s.resLine2;
+
+  const cardInst = document.getElementById("card-instance");
+  const cardRes = document.getElementById("card-result");
+  cardInst.className = "card-shape " + s.instStyle;
+  cardRes.className = "card-shape " + s.resStyle;
+
+  // Update dots and buttons
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.className = "dot" + (idx === currentStep ? " active" : "");
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = currentStep === 0;
+  document.getElementById("btn-next").disabled = currentStep === steps.length - 1;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateUI();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateUI();
+  }
+}
+
+function jumpTo(idx) {
+  currentStep = idx;
+  updateUI();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateUI();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"type-casting","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"type-casting-q1","type":"mcq","difficulty":1,"prompt":"Which operator checks whether an instance is of a certain subclass type without casting it?","options":[{"id":"a","text":"The is operator","explanation":"Right. The is operator tests type membership and returns a boolean value."},{"id":"b","text":"The as? operator","explanation":"as? attempts to downcast the instance to an optional subclass type."},{"id":"c","text":"The as! operator","explanation":"as! force-downcasts the instance, crashing if the cast fails."},{"id":"d","text":"The as operator","explanation":"as performs compile-time guaranteed upcasts or type bridging."}],"answer":"a"},{"id":"type-casting-q2","type":"mcq","difficulty":1,"prompt":"What does the conditional downcast operator as? return when the cast fails?","options":[{"id":"a","text":"A fatal runtime exception crash.","explanation":"as? is specifically designed to avoid runtime crashes by returning nil."},{"id":"b","text":"A nil value wrapped as an optional.","explanation":"Right. If the cast fails, as? evaluates safely to nil."},{"id":"c","text":"A blank default instance of the type.","explanation":"Swift does not instantiate default values on failed casts."},{"id":"d","text":"A compiler warning at build time.","explanation":"Conditional downcasting is evaluated dynamically at runtime."}],"answer":"b"},{"id":"type-casting-q3","type":"mcq","difficulty":1,"prompt":"What happens when you force-downcast with as! and the instance is of a different type?","options":[{"id":"a","text":"The expression evaluates to nil safely.","explanation":"Returning nil on failure is the behavior of as?, not as!."},{"id":"b","text":"The compiler ignores the failed cast.","explanation":"Forced downcasting failure is detected at runtime."},{"id":"c","text":"The application crashes at runtime.","explanation":"Right. as! triggers an immediate runtime crash when the cast fails."},{"id":"d","text":"The instance converts to AnyObject.","explanation":"A failed forced downcast causes a fatal crash, not type conversion."}],"answer":"c"},{"id":"type-casting-q4","type":"mcq","difficulty":2,"prompt":"What is the key difference between Any and AnyObject in Swift?","options":[{"id":"a","text":"AnyObject can store structs, while Any cannot.","explanation":"AnyObject cannot hold structs; it is limited to class instances."},{"id":"b","text":"Any can only hold primitive numeric types.","explanation":"Any can hold any type, including functions, structs, and classes."},{"id":"c","text":"Any and AnyObject are identical aliases.","explanation":"They have different type restrictions in the Swift type system."},{"id":"d","text":"Any holds any type; AnyObject holds classes only.","explanation":"Right. Any represents any type, while AnyObject is restricted to class instances."}],"answer":"d"},{"id":"type-casting-q5","type":"mcq","difficulty":2,"prompt":"When is it appropriate to use the non-optional as operator?","options":[{"id":"a","text":"For guaranteed upcasts and compile-time bridging.","explanation":"Right. as is used when the conversion is guaranteed to succeed at compile time."},{"id":"b","text":"For risky downcasts across unrelated class trees.","explanation":"Downcasting requires as? or as! because it can fail at runtime."},{"id":"c","text":"To unwrap optional values without if let.","explanation":"as does not unwrap optional values."},{"id":"d","text":"To convert string text into integer numbers.","explanation":"String to number conversion uses initializers like Int(text), not as."}],"answer":"a"},{"id":"type-casting-q6","type":"mcq","difficulty":2,"prompt":"Does type casting alter the underlying instance or its stored values in memory?","options":[{"id":"a","text":"Yes, it creates a re-allocated copy of the object.","explanation":"Casting does not copy or allocate new memory for class instances."},{"id":"b","text":"No, it only changes how the compiler treats the type.","explanation":"Right. Casting treats the unchanged instance as the specified target type."},{"id":"c","text":"Yes, all uncast stored properties are deleted.","explanation":"Underlying storage and properties remain completely intact."},{"id":"d","text":"Only if casting between value types and reference types.","explanation":"Class downcasting does not alter instance data in memory."}],"answer":"b"},{"id":"type-casting-q7","type":"mcq","difficulty":2,"prompt":"Which pattern safely binds a downcast value inside a switch statement case?","options":[{"id":"a","text":"case item == Movie:","explanation":"== performs equality comparison, not type pattern matching."},{"id":"b","text":"case is Movie as m:","explanation":"is tests types without binding variables."},{"id":"c","text":"case let m as Movie:","explanation":"Right. case let ... as binds the safely cast instance to constant m."},{"id":"d","text":"case Movie(let m):","explanation":"This syntax matches enum associated values, not class downcasts."}],"answer":"c"},{"id":"type-casting-q8","type":"mcq","difficulty":1,"prompt":"Which language feature is idiomatic to combine with as? for safe unwrapping?","options":[{"id":"a","text":"Force-unwrapping with exclamation marks.","explanation":"Force-unwrapping defeats the safety provided by as?."},{"id":"b","text":"A repeat-while execution loop.","explanation":"repeat-while is a looping construct, not an unwrapping tool."},{"id":"c","text":"A defer statement cleanup block.","explanation":"defer handles scope teardown, not optional unwrapping."},{"id":"d","text":"Optional binding using if let or guard let.","explanation":"Right. Combining if let or guard let with as? safely unwraps the cast result."}],"answer":"d"},{"id":"type-casting-q9","type":"mcq","difficulty":2,"prompt":"Can a Swift struct or tuple be stored inside a variable of type Any?","options":[{"id":"a","text":"Yes, Any can hold instances of any type in Swift.","explanation":"Right. Any supports structs, enums, tuples, functions, and classes."},{"id":"b","text":"No, Any is restricted to reference class types.","explanation":"AnyObject is restricted to classes; Any supports all types."},{"id":"c","text":"Only if the struct conforms to AnyObject.","explanation":"Structs cannot conform to AnyObject in Swift."},{"id":"d","text":"Only if the tuple contains no more than two elements.","explanation":"Any can store tuples of arbitrary element counts."}],"answer":"a"},{"id":"type-casting-q10","type":"mcq","difficulty":2,"prompt":"What happens if you assign a pure Swift struct to a variable of type AnyObject?","options":[{"id":"a","text":"The struct automatically converts into a class.","explanation":"Swift structs cannot automatically convert into class types."},{"id":"b","text":"The Swift compiler generates a compile-time error.","explanation":"Right. AnyObject represents class instances only, rejecting value types."},{"id":"c","text":"The assignment succeeds with a deprecation warning.","explanation":"This type mismatch is a fatal compiler error, not a warning."},{"id":"d","text":"The runtime wraps the struct in an NSValue pointer.","explanation":"Pure Swift structs without Foundation bridging cannot satisfy AnyObject."}],"answer":"b"},{"id":"type-casting-q11","type":"mcq","difficulty":3,"prompt":"Why is relying heavily on [Any] considered an anti-pattern in Swift architecture?","options":[{"id":"a","text":"It causes memory leaks with ARC reference cycles.","explanation":"Value types in Any do not cause retain cycles."},{"id":"b","text":"Collections of Any cannot be iterated with for-in.","explanation":"Arrays of Any can be traversed with for-in loops normally."},{"id":"c","text":"It discards compile-time type safety and requires casting.","explanation":"Right. Any bypasses static type checks, shifting potential errors to runtime."},{"id":"d","text":"Swift 6 forbids declaring arrays containing Any.","explanation":"Arrays of Any are valid syntax in Swift 6."}],"answer":"c"},{"id":"type-casting-q12","type":"mcq","difficulty":2,"prompt":"Can you use the is operator to check if an instance conforms to a protocol?","options":[{"id":"a","text":"No, is can only check class inheritance hierarchies.","explanation":"is checks both class inheritance and protocol conformances."},{"id":"b","text":"Only if the protocol is marked with @objc.","explanation":"Pure Swift protocols can be checked with is without @objc."},{"id":"c","text":"Only for types defined inside external frameworks.","explanation":"Protocol conformance checks work across all Swift types."},{"id":"d","text":"Yes, is checks protocol conformance and returns a Bool.","explanation":"Right. instance is ProtocolName returns true if the instance conforms."}],"answer":"d"},{"id":"type-casting-q13","type":"mcq","difficulty":2,"prompt":"What return type is produced by the expression (item as? String)?","options":[{"id":"a","text":"Optional\u003cString>","explanation":"Right. as? always wraps the target type in an Optional."},{"id":"b","text":"String","explanation":"as? returns an optional, which requires unwrapping to obtain String."},{"id":"c","text":"Bool","explanation":"The is operator returns a Bool, whereas as? returns an Optional."},{"id":"d","text":"Any","explanation":"Downcasting targets a specific type wrapped in an Optional, not Any."}],"answer":"a"},{"id":"type-casting-q14","type":"mcq","difficulty":2,"prompt":"What is the difference between upcasting and downcasting in class hierarchies?","options":[{"id":"a","text":"Upcasting can fail at runtime, while downcasting is guaranteed.","explanation":"Upcasting is guaranteed; downcasting can fail at runtime."},{"id":"b","text":"Upcasting treats subclasses as superclasses; downcasting does the reverse.","explanation":"Right. Upcasting moves up the hierarchy (safe); downcasting moves down (can fail)."},{"id":"c","text":"Upcasting converts structs; downcasting converts classes.","explanation":"Both upcasting and downcasting operate within class inheritance hierarchies."},{"id":"d","text":"Upcasting uses as?, while downcasting uses as.","explanation":"Upcasting uses as; downcasting uses as? or as!."}],"answer":"b"},{"id":"type-casting-q15","type":"mcq","difficulty":3,"prompt":"How does the Swift runtime verify an as? downcast behind the scenes?","options":[{"id":"a","text":"By executing a string comparison of class names.","explanation":"Swift uses binary metadata and type descriptors, not string comparisons."},{"id":"b","text":"By allocating temporary bridge memory buffers.","explanation":"Casting checks metadata pointers without allocating memory buffers."},{"id":"c","text":"By checking runtime type metadata and class inheritance trees.","explanation":"Right. The runtime inspects type metadata descriptors to confirm the hierarchy match."},{"id":"d","text":"By re-invoking the object designated initializer.","explanation":"Initializers are not re-executed during type casting."}],"answer":"c"},{"id":"type-casting-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"class Animal {}\nclass Dog: Animal { var name = \"Buddy\" }\nlet pet: Animal = Dog()\nprint(pet is Dog)","options":[{"id":"a","text":"Buddy","explanation":"The code evaluates pet is Dog, which produces a boolean."},{"id":"b","text":"Dog","explanation":"is returns a Bool, not the name of the type."},{"id":"c","text":"false","explanation":"pet refers to an underlying Dog instance, so the check succeeds."},{"id":"d","text":"true","explanation":"Right. pet is an instance of Dog, so the is operator returns true."}],"answer":"d"},{"id":"type-casting-q17","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class Vehicle {}\nclass Car: Vehicle { var wheels = 4 }\nlet v: Vehicle = Vehicle()\nlet c = v as? Car\nprint(c == nil)","options":[{"id":"a","text":"true","explanation":"Right. v is a plain Vehicle instance, not a Car, so downcasting produces nil."},{"id":"b","text":"false","explanation":"c is nil because v cannot be downcast to Car."},{"id":"c","text":"4","explanation":"The code checks c == nil, not the wheels property."},{"id":"d","text":"Car","explanation":"The cast evaluates to nil of type Car?."}],"answer":"a"},{"id":"type-casting-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"let values: [Any] = [42, \"Swift\", 3.14]\nvar sum = 0\nfor v in values {\n    if let num = v as? Int {\n        sum += num\n    }\n}\nprint(sum)","options":[{"id":"a","text":"0","explanation":"42 is an Int, so it is added to sum."},{"id":"b","text":"42","explanation":"Right. Only 42 downcasts successfully to Int; String and Double fail the cast."},{"id":"c","text":"45","explanation":"3.14 is a Double and does not downcast to Int."},{"id":"d","text":"nil","explanation":"sum is a non-optional integer with an accumulated value."}],"answer":"b"},{"id":"type-casting-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class Plant {}\nclass Tree: Plant { var height = 20 }\nlet p: Plant = Tree()\nif let t = p as? Tree {\n    print(\"Height: \\(t.height)\")\n}","options":[{"id":"a","text":"Height: 0","explanation":"The Tree instance initializes height to 20."},{"id":"b","text":"Height: nil","explanation":"The optional binding unwraps t successfully."},{"id":"c","text":"Height: 20","explanation":"Right. p refers to a Tree, so the downcast succeeds and prints Height: 20."},{"id":"d","text":"Plant","explanation":"The print statement outputs the formatted height string."}],"answer":"c"},{"id":"type-casting-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"let item: Any = \"Hello\"\nswitch item {\ncase let s as String:\n    print(\"String of length \\(s.count)\")\ndefault:\n    print(\"Other\")\n}","options":[{"id":"a","text":"Other","explanation":"item holds a String, which matches the first case."},{"id":"b","text":"String of length 4","explanation":"Hello contains 5 characters."},{"id":"c","text":"Hello","explanation":"The print statement prints the string count description."},{"id":"d","text":"String of length 5","explanation":"Right. The string Hello matches the pattern and s.count evaluates to 5."}],"answer":"d"},{"id":"type-casting-q21","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"class Device {}\nclass Phone: Device { var model = \"Pro\" }\nclass Tablet: Device {}\nlet devices: [Device] = [Phone(), Tablet()]\nvar count = 0\nfor d in devices {\n    if d is Phone { count += 1 }\n}\nprint(count)","options":[{"id":"a","text":"1","explanation":"Right. Exactly one of the two devices is an instance of Phone."},{"id":"b","text":"2","explanation":"Tablet is not a Phone, so it does not increment count."},{"id":"c","text":"0","explanation":"The first element is a Phone, so count becomes 1."},{"id":"d","text":"Pro","explanation":"count is an integer tracking matching items."}],"answer":"a"},{"id":"type-casting-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class Drink {}\nclass Coffee: Drink { var hasCaffeine = true }\nlet d: Drink = Drink()\nlet c = d as? Coffee\nprint(c?.hasCaffeine ?? false)","options":[{"id":"a","text":"true","explanation":"d is a base Drink instance, so c is nil, falling back to false."},{"id":"b","text":"false","explanation":"Right. d fails to downcast to Coffee, so c is nil and ?? yields false."},{"id":"c","text":"nil","explanation":"Nil-coalescing replaces nil with the fallback false."},{"id":"d","text":"Coffee","explanation":"The output is a boolean value."}],"answer":"b"},{"id":"type-casting-q23","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"class Box {}\nclass GiftBox: Box { var ribbon = \"Red\" }\nlet b: Box = GiftBox()\nlet g = b as? GiftBox\nprint(g?.ribbon ?? \"None\")","options":[{"id":"a","text":"None","explanation":"b holds a GiftBox, so downcasting succeeds and retrieves Red."},{"id":"b","text":"Box","explanation":"The code queries the ribbon property, not the type name."},{"id":"c","text":"Red","explanation":"Right. b is an underlying GiftBox instance, so g?.ribbon resolves to Red."},{"id":"d","text":"Optional(\"Red\")","explanation":"Nil-coalescing unwraps the optional before printing."}],"answer":"c"},{"id":"type-casting-q24","type":"written","difficulty":2,"prompt":"Explain the differences between the is, as?, and as! operators in Swift.","rubric":[{"criterion":"Explains that is tests whether an instance matches a type and returns a boolean","weight":35,"key":true},{"criterion":"Explains that as? conditionally downcasts and returns an optional (nil on failure)","weight":35,"key":true},{"criterion":"Explains that as! force-downcasts and crashes at runtime if the cast fails","weight":30,"key":false}],"modelAnswer":"The is operator checks whether an instance is of a specific type and returns a boolean (true or false). The as? operator conditionally downcasts to a type, returning an optional that contains the value on success or nil on failure. The as! operator force-downcasts and triggers a runtime crash if the cast fails."},{"id":"type-casting-q25","type":"written","difficulty":2,"prompt":"Compare Any and AnyObject in Swift, explaining what kinds of values each can hold.","rubric":[{"criterion":"Explains that Any can represent any type at all, including structs, enums, functions, and classes","weight":50,"key":true},{"criterion":"Explains that AnyObject can only represent instances of class types (reference types)","weight":50,"key":true}],"modelAnswer":"Any can represent an instance of any type in Swift, including value types like structs, enums, tuples, primitive numbers, and functions, as well as classes. AnyObject is restricted to reference types, meaning it can only represent instances of class types."},{"id":"type-casting-q26","type":"written","difficulty":2,"prompt":"Does type casting alter the underlying instance in memory, and how should downcasting be performed safely in production code?","rubric":[{"criterion":"States that type casting does not modify or reallocate the underlying instance in memory","weight":50,"key":true},{"criterion":"Explains that safe downcasting in production uses as? paired with optional binding (if let or guard let)","weight":50,"key":true}],"modelAnswer":"Type casting does not modify, convert, or reallocate the underlying instance in memory. It only changes how the compiler treats the reference. In production code, downcasting should be performed safely using as? combined with optional binding (if let or guard let) to handle failures gracefully without crashes."},{"id":"type-casting-q27","type":"written","difficulty":3,"prompt":"Explain how type casting pattern matching works in Swift switch statements using case let and is.","rubric":[{"criterion":"Explains that case let x as TargetType downcasts and binds the unwrapped instance to a constant","weight":50,"key":true},{"criterion":"Explains that case is TargetType checks the type without binding a constant","weight":50,"key":true}],"modelAnswer":"In a switch statement, case let name as TargetType checks the item type. It binds the downcast value to a local constant. To verify the type without binding, case is TargetType tests the type and runs the branch directly."},{"id":"type-casting-q28","type":"written","difficulty":3,"prompt":"Why do senior Swift developers discourage storing collections of [Any] and recommend generics or protocols instead?","rubric":[{"criterion":"Explains that [Any] bypasses compile-time type safety and requires manual runtime downcasting","weight":50,"key":true},{"criterion":"Explains that protocols and generics preserve static type safety and clarify API contracts","weight":50,"key":true}],"modelAnswer":"Storing collections of [Any] strips compile-time type safety, forcing callers to guess types and use runtime downcasts that can fail. Generics and protocols preserve static type checking, catch mismatched types during compilation, and clearly express expected capabilities in API contracts."},{"id":"type-casting-q29","type":"code-write","difficulty":1,"prompt":"Complete countAdminPermissions to safely downcast user to Admin using as?. Return permissions.count if user is an Admin, or 0 if not.","starterCode":"class User {}\nclass Admin: User {\n    var permissions: [String] = [\"read\", \"write\"]\n}\nfunc countAdminPermissions(user: User) -> Int {\n    // Safely downcast user to Admin and return permissions count\n}","modelAnswer":"class User {}\nclass Admin: User {\n    var permissions: [String] = [\"read\", \"write\"]\n}\nfunc countAdminPermissions(user: User) -> Int {\n    if let admin = user as? Admin {\n        return admin.permissions.count\n    }\n    return 0\n}\nlet a = Admin()\nlet u = User()\nprint(countAdminPermissions(user: a))\nprint(countAdminPermissions(user: u))","rubric":[{"criterion":"Uses as? to downcast user to Admin safely","weight":50,"key":true},{"criterion":"Returns permissions count on success and 0 when the downcast fails","weight":50,"key":true}]},{"id":"type-casting-q30","type":"code-write","difficulty":2,"prompt":"Complete parseIntegerItem to inspect an item of type Any. If item is an Int, return its value multiplied by 2. If it is a String containing digits, convert it and multiply by 2. Otherwise return -1.","starterCode":"func parseIntegerItem(_ item: Any) -> Int {\n    // Inspect item and return multiplied value or -1\n}","modelAnswer":"func parseIntegerItem(_ item: Any) -> Int {\n    if let number = item as? Int {\n        return number * 2\n    } else if let text = item as? String, let converted = Int(text) {\n        return converted * 2\n    }\n    return -1\n}\nprint(parseIntegerItem(21))\nprint(parseIntegerItem(\"15\"))\nprint(parseIntegerItem(3.14))","rubric":[{"criterion":"Downcasts item as? Int and returns number * 2","weight":40,"key":true},{"criterion":"Downcasts item as? String, parses integer digits, and returns converted * 2","weight":40,"key":true},{"criterion":"Returns -1 for other types or unparseable inputs","weight":20,"key":false}]},{"id":"type-casting-q31","type":"code-write","difficulty":1,"prompt":"Complete countBooks to iterate over items and return the count of items that are of type Book using the is operator.","starterCode":"class Media {}\nclass Book: Media { var pages = 300 }\nclass Song: Media { var duration = 180 }\nfunc countBooks(in items: [Media]) -> Int {\n    // Count and return Book instances using the is operator\n}","modelAnswer":"class Media {}\nclass Book: Media { var pages = 300 }\nclass Song: Media { var duration = 180 }\nfunc countBooks(in items: [Media]) -> Int {\n    var count = 0\n    for item in items {\n        if item is Book {\n            count += 1\n        }\n    } \n    return count\n}\nlet collection: [Media] = [Book(), Song(), Book()]\nprint(countBooks(in: collection))","rubric":[{"criterion":"Iterates through items and checks each element with item is Book","weight":50,"key":true},{"criterion":"Accumulates and returns the correct total count of matching Book instances","weight":50,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

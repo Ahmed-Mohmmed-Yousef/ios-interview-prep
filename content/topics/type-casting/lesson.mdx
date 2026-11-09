@@ -1,0 +1,223 @@
+export const meta = {
+  id: "type-casting",
+  summary: "Check instance types with is, downcast safely with as? and as!, and work with Any and AnyObject.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Type Casting", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/typecasting", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is the key difference between as? and as! when downcasting an instance?</Question>
+  <Guess>
+    <Option id="a">as? casts at compile time while as! casts at runtime.</Option>
+    <Option id="b" correct>as? returns an Optional that evaluates to nil on failure, while as! triggers a runtime crash on failure.</Option>
+    <Option id="c">as? works on value types while as! works only on class reference types.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of security luggage screening at an airport. An inspector checks whether a sealed box contains liquids before opening it. If it contains liquid, they carefully inspect the bottle. If not, they leave it alone. The inspector does not change what is inside the box. Type casting in Swift works the same way by inspecting and treating an instance as a specific type without altering its underlying memory.
+</Analogy>
+
+In Swift, **type casting** checks the type of an instance. It can also treat that instance as a superclass or subclass within its hierarchy.
+
+Swift provides two core operators for type checking and casting:
+- **`is` (Type check)**: Returns `true` if an instance is of a specific subclass type, and `false` otherwise.
+- **`as?` (Conditional downcast)**: Attempts to downcast to a subclass type. Returns an optional containing the value on success, or `nil` on failure.
+- **`as!` (Forced downcast)**: Force-downcasts to a subclass type. If the cast fails, the app crashes immediately.
+- **`as` (Guaranteed upcast)**: Performs compile-time guaranteed casts, like treating a subclass instance as its superclass.
+
+Swift also defines two special general types:
+- **`Any`**: Can represent an instance of any type, including structs, enums, functions, and classes.
+- **`AnyObject`**: Can represent an instance of any class type only.
+
+## See it
+
+<Diagram id="type-casting-main" caption="How is, as?, and as! evaluate an instance across class hierarchies">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. MediaItem array holding Movie and Song instances.
+    2. is check node testing if item is Movie (true/false).
+    3. as? conditional branch yielding Movie? or nil.
+    4. as! forced branch yielding Movie or runtime crash.
+  - Steps:
+    Step 1: Inspect an item typed statically as MediaItem.
+    Step 2: Use item is Movie to query dynamic type without unwrapping.
+    Step 3: Downcast with item as? Movie to safely extract Movie properties.
+    Step 4: Contrast with item as! Song which triggers an immediate crash.
+  - Static version (reduced motion):
+    Three decision paths showing is check, safe as? optional unwrapping, and hazardous as! forced casting.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What does the expression item is Movie return?</Question>
+  <Option id="a">An Optional Movie? value.</Option>
+  <Option id="b" correct>A Bool indicating whether the item is a Movie.</Option>
+  <Option id="c">A forced Movie instance.</Option>
+  <Explanation>The is operator checks types and returns a boolean (true or false). It does not cast or unwrap the value.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Checking types with is and downcasting with as?">
+
+```swift
+class MediaItem {
+    var name: String
+    init(name: String) {
+        self.name = name
+    }
+}
+
+class Movie: MediaItem {
+    var director: String
+    init(name: String, director: String) {
+        self.director = director
+        super.init(name: name)
+    }
+}
+
+class Song: MediaItem {
+    var artist: String
+    init(name: String, artist: String) {
+        self.artist = artist
+        super.init(name: name)
+    }
+}
+
+let library: [MediaItem] = [
+    Movie(name: "Inception", director: "Christopher Nolan"),
+    Song(name: "Yellow Submarine", artist: "The Beatles")
+]
+
+for item in library {
+    // 1. Type checking with is
+    if item is Movie {
+        print("\(item.name) is a movie.")
+    }
+    
+    // 2. Conditional downcasting with as?
+    if let movie = item as? Movie {
+        print("Directed by: \(movie.director)")
+    } else if let song = item as? Song {
+        print("Performed by: \(song.artist)")
+    }
+}
+```
+
+```output
+Inception is a movie.
+Directed by: Christopher Nolan
+Performed by: The Beatles
+```
+
+</CodeExample>
+
+This example shows safe downcasting:
+- **Heterogeneous array**: `library` holds both `Movie` and `Song` instances typed as `MediaItem`.
+- **`is` operator**: Checks whether an instance is of a subclass type without modifying or unwrapping it.
+- **`as?` operator**: Downcasts safely to `Movie` or `Song`, allowing access to subclass-specific properties like `director` or `artist`.
+
+<CodeExample title="Pattern matching Any types in a switch statement">
+
+```swift
+var things: [Any] = []
+
+things.append(0)
+things.append(3.14)
+things.append("Hello Swift")
+things.append((2, 5))
+
+for thing in things {
+    switch thing {
+    case let someInt as Int:
+        print("An integer: \(someInt)")
+    case let someDouble as Double:
+        print("A double: \(someDouble)")
+    case let someString as String:
+        print("A string: \(someString)")
+    case is (Int, Int):
+        print("An Int pair tuple")
+    default:
+        print("Something else")
+    }
+}
+```
+
+```output
+An integer: 0
+A double: 3.14
+A string: Hello Swift
+An Int pair tuple
+```
+
+</CodeExample>
+
+This example shows `Any` handling with pattern matching:
+- **`Any` versatility**: Stores integers, floating-point numbers, strings, and tuples inside one collection.
+- **`case let ... as` pattern**: Tests the type and binds the unwrapped value to a local constant simultaneously.
+- **`case is` pattern**: Verifies the type without binding a local constant.
+
+<QuickCheck>
+  <Question>Which type can store both value types (like Int and Struct) and reference types (like Class)?</Question>
+  <Option id="a">AnyObject</Option>
+  <Option id="b" correct>Any</Option>
+  <Option id="c">NSObject</Option>
+  <Explanation>Any represents instances of any type in Swift. AnyObject is restricted to class instances only.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try downcasting heterogeneous collections in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming type casting mutates the underlying instance in memory">
+Casting does not convert or re-allocate an instance. The underlying instance remains unchanged. Type casting only alters how the Swift type checker treats the instance.
+</Trap>
+
+<Trap title="Using forced downcasting (as!) in production code">
+Using `as!` crashes the application if the instance fails to match the expected type. Prefer `as?` combined with `if let` or `guard let` to handle unexpected types gracefully.
+</Trap>
+
+<Trap title="Overusing Any instead of generics or protocols">
+Storing collections of `[Any]` discards Swift's compile-time type safety. It forces manual downcasting and introduces runtime errors. Prefer protocols or generics whenever possible.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Type casting in Swift checks or converts instance types. We use is to check if an object is of a specific type. We use as? to downcast safely into an optional, and as! to force a downcast, which crashes on failure. Any represents any type, while AnyObject represents class types only.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Swift implements type casting via is, as?, as!, and as. The is operator tests types, returning a boolean. Downcasting uses as? for safe optional conversion or as! for forced downcasts that crash on failure. Any holds any Swift type, including structs and functions, whereas AnyObject is restricted to reference types.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Type casting relies on Swift runtime metadata to inspect class hierarchies and protocol witness tables dynamically. While as? provides safe downcasting, reliance on Any or excessive casting often signals fragile architecture. Modern Swift favors protocol-oriented design and generics, preserving static type safety and compiler optimization opportunities.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `is` checks the type of an instance and returns a `Bool`.
+- `as?` conditionally downcasts to a subclass type, returning an `Optional`.
+- `as!` force-downcasts and crashes at runtime if the cast fails.
+- `as` performs compile-time guaranteed upcasts and type bridging.
+- `Any` represents instances of any type (value and reference types).
+- `AnyObject` represents instances of any class type only.
+- Type casting treats instances as different types without altering their memory.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Type Casting](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/typecasting)
+- [Swift Standard Library: Any and AnyObject](https://developer.apple.com/documentation/swift/anyobject)
