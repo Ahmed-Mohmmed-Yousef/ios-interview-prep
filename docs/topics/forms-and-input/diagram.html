@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI Form Layout & Data Binding Architecture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --form-color: #0284c7; --form-soft: #e0f2fe;
+  --section-color: #6366f1; --section-soft: #eef2ff;
+  --valid-color: #16a34a; --valid-soft: #dcfce7;
+  --invalid-color: #ea580c; --invalid-soft: #ffedd5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --form-color: #38bdf8; --form-soft: #082f49;
+  --section-color: #818cf8; --section-soft: #1e1b4b;
+  --valid-color: #4ade80; --valid-soft: #14532d;
+  --invalid-color: #fb923c; --invalid-soft: #431407;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.form { background: var(--form-soft); color: var(--form-color); }
+.kind.state { background: var(--valid-soft); color: var(--valid-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 8px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.form-container { fill: var(--form-soft); stroke: var(--form-color); }
+.box-rect.section { fill: var(--surface); stroke: var(--section-color); }
+.box-rect.valid { fill: var(--valid-soft); stroke: var(--valid-color); }
+.box-rect.invalid { fill: var(--invalid-soft); stroke: var(--invalid-color); }
+.box-rect.idle { fill: var(--code-bg); stroke: var(--line); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--form-color); color: #ffffff; border-color: var(--form-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--form-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .box-rect { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="SwiftUI Form Layout Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span>Form Hierarchy</span> <span class="kind form">SwiftUI</span></h3>
+      <div class="code" id="formCode">Form {
+  Section("Account") { ... }
+  Section("Settings") { ... }
+}</div>
+      <svg viewBox="0 0 320 200" aria-hidden="true">
+        <rect class="box-rect form-container" x="15" y="10" width="290" height="180"/>
+        <text x="30" y="30" font-weight="700" font-size="12" fill="var(--form-color)">FORM CONTAINER</text>
+
+        <!-- Section 1 -->
+        <rect id="sec1Box" class="box-rect section" x="25" y="40" width="270" height="65"/>
+        <text x="35" y="58" font-weight="600" font-size="11" fill="var(--muted)">SECTION: ACCOUNT</text>
+        <rect class="box-rect" x="35" y="65" width="120" height="30" fill="var(--code-bg)"/>
+        <text id="userFieldText" x="42" y="84" font-size="11" fill="currentColor">TextField: ""</text>
+        <rect class="box-rect" x="165" y="65" width="120" height="30" fill="var(--code-bg)"/>
+        <text id="passFieldText" x="172" y="84" font-size="11" fill="currentColor">SecureField: ""</text>
+
+        <!-- Section 2 -->
+        <rect id="sec2Box" class="box-rect section" x="25" y="115" width="270" height="65"/>
+        <text x="35" y="133" font-weight="600" font-size="11" fill="var(--muted)">SECTION: SETTINGS</text>
+        <rect class="box-rect" x="35" y="140" width="120" height="30" fill="var(--code-bg)"/>
+        <text id="toggleFieldText" x="42" y="159" font-size="11" fill="currentColor">Toggle: Off</text>
+        <rect class="box-rect" x="165" y="140" width="120" height="30" fill="var(--code-bg)"/>
+        <text id="pickerFieldText" x="172" y="159" font-size="11" fill="currentColor">Picker: System</text>
+      </svg>
+      <p class="caption" id="formCaption" aria-live="polite">Step 1: The Form container sets up grouped sections and native layout styling.</p>
+    </div>
+
+    <div class="panel">
+      <h3><span>Bound State</span> <span class="kind state">Two-Way</span></h3>
+      <div class="code" id="stateCode">@State private var username = ""
+@State private var password = ""
+@State private var isSubscribed = false</div>
+      <svg viewBox="0 0 320 200" aria-hidden="true">
+        <rect class="box-rect idle" x="15" y="10" width="290" height="180"/>
+        <text x="30" y="32" font-weight="700" font-size="12" fill="currentColor">VIEW STATE MODEL</text>
+
+        <!-- Variable rows -->
+        <g transform="translate(30, 45)">
+          <text y="15" font-size="12" fill="var(--muted)">username:</text>
+          <text id="userStateVal" x="100" y="15" font-family="var(--font-code)" font-size="12" font-weight="600" fill="currentColor">""</text>
+
+          <text y="45" font-size="12" fill="var(--muted)">password:</text>
+          <text id="passStateVal" x="100" y="45" font-family="var(--font-code)" font-size="12" font-weight="600" fill="currentColor">""</text>
+
+          <text y="75" font-size="12" fill="var(--muted)">notifications:</text>
+          <text id="toggleStateVal" x="100" y="75" font-family="var(--font-code)" font-size="12" font-weight="600" fill="currentColor">false</text>
+
+          <text y="105" font-size="12" fill="var(--muted)">formValid:</text>
+          <text id="validStateVal" x="100" y="105" font-family="var(--font-code)" font-size="12" font-weight="600" fill="var(--invalid-color)">false (disabled)</text>
+        </g>
+      </svg>
+      <p class="caption" id="stateCaption" aria-live="polite">Two-way bindings connect each UI field directly to view state properties.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    formCode: 'Form {\n  Section("Account") { ... }\n  Section("Settings") { ... }\n}',
+    stateCode: '@State private var username = ""\n@State private var password = ""\n@State private var notifications = false',
+    formCap: 'Step 1: Form container organizes controls into styled inset-grouped cards.',
+    stateCap: 'Initial state variables are empty and form validation fails.',
+    userField: 'TextField: ""',
+    passField: 'SecureField: ""',
+    toggleField: 'Toggle: Off',
+    pickerField: 'Picker: System',
+    userState: '"" (empty)',
+    passState: '"" (empty)',
+    toggleState: 'false',
+    validState: 'false (disabled)',
+    validColor: 'var(--invalid-color)'
+  },
+  {
+    step: 2,
+    formCode: 'TextField("Username", text: $username)\nSecureField("Password", text: $password)',
+    stateCode: 'username = "Taylor"\npassword = "secret123"\n// User enters credentials',
+    formCap: 'Step 2: User fills Account section. Text flows through two-way bindings.',
+    stateCap: 'Username and password state update instantly as the user types.',
+    userField: 'TextField: "Taylor"',
+    passField: 'SecureField: "••••••••"',
+    toggleField: 'Toggle: Off',
+    pickerField: 'Picker: System',
+    userState: '"Taylor"',
+    passState: '"secret123"',
+    toggleState: 'false',
+    validState: 'false (needs opt-in)',
+    validColor: 'var(--invalid-color)'
+  },
+  {
+    step: 3,
+    formCode: 'Toggle("Notifications", isOn: $notifications)\nPicker("Theme", selection: $theme)',
+    stateCode: 'notifications = true\ntheme = .dark\n// User toggles preferences',
+    formCap: 'Step 3: User turns on notifications and picks a dark interface theme.',
+    stateCap: 'Preferences section updates state via boolean and enum bindings.',
+    userField: 'TextField: "Taylor"',
+    passField: 'SecureField: "••••••••"',
+    toggleField: 'Toggle: On',
+    pickerField: 'Picker: Dark',
+    userState: '"Taylor"',
+    passState: '"secret123"',
+    toggleState: 'true',
+    validState: 'true (ready!)',
+    validColor: 'var(--valid-color)'
+  },
+  {
+    step: 4,
+    formCode: 'Button("Submit") { save() }\n  .disabled(!isFormValid)',
+    stateCode: 'isFormValid: true\nSubmit button enabled!\nReady for submission.',
+    formCap: 'Step 4: Computed property isFormValid evaluates to true. Submit unlocks!',
+    stateCap: 'Form submission is enabled reactively without manual event listeners.',
+    userField: 'TextField: "Taylor"',
+    passField: 'SecureField: "••••••••"',
+    toggleField: 'Toggle: On',
+    pickerField: 'Picker: Dark',
+    userState: '"Taylor"',
+    passState: '"secret123"',
+    toggleState: 'true',
+    validState: 'true (ENABLED)',
+    validColor: 'var(--valid-color)'
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('formCode').textContent = s.formCode;
+  document.getElementById('stateCode').textContent = s.stateCode;
+  document.getElementById('formCaption').textContent = s.formCap;
+  document.getElementById('stateCaption').textContent = s.stateCap;
+
+  document.getElementById('userFieldText').textContent = s.userField;
+  document.getElementById('passFieldText').textContent = s.passField;
+  document.getElementById('toggleFieldText').textContent = s.toggleField;
+  document.getElementById('pickerFieldText').textContent = s.pickerField;
+
+  document.getElementById('userStateVal').textContent = s.userState;
+  document.getElementById('passStateVal').textContent = s.passState;
+  document.getElementById('toggleStateVal').textContent = s.toggleState;
+  const validEl = document.getElementById('validStateVal');
+  validEl.textContent = s.validState;
+  validEl.setAttribute('fill', s.validColor);
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>

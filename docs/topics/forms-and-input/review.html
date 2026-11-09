@@ -1,0 +1,582 @@
+<title>Forms and User Input Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --form-color: #0284c7; --form-soft: #e0f2fe;
+  --section-color: #6366f1; --section-soft: #eef2ff;
+  --valid-color: #16a34a; --valid-soft: #dcfce7;
+  --invalid-color: #ea580c; --invalid-soft: #ffedd5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --form-color: #38bdf8; --form-soft: #082f49;
+  --section-color: #818cf8; --section-soft: #1e1b4b;
+  --valid-color: #4ade80; --valid-soft: #14532d;
+  --invalid-color: #fb923c; --invalid-soft: #431407;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.form { background: var(--form-soft); color: var(--form-color); }
+.kind.state { background: var(--valid-soft); color: var(--valid-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 8px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.form-container { fill: var(--form-soft); stroke: var(--form-color); }
+.box-rect.section { fill: var(--surface); stroke: var(--section-color); }
+.box-rect.valid { fill: var(--valid-soft); stroke: var(--valid-color); }
+.box-rect.invalid { fill: var(--invalid-soft); stroke: var(--invalid-color); }
+.box-rect.idle { fill: var(--code-bg); stroke: var(--line); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--form-color); color: #ffffff; border-color: var(--form-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--form-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .box-rect { transition: none; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · SwiftUI · Topic 3 of 4 · Prototype</p>
+    <h1>Forms and User Input</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can build forms with text fields, toggles and pickers.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">How do you dismiss the software keyboard programmatically in modern SwiftUI when a user submits a form?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Call UIApplication resignFirstResponder on the window root view controller.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Set a Boolean or enum variable wrapped in <code>@FocusState</code> to false or nil.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Add the <code>.dismissKeyboard()</code> modifier to the surrounding Form container.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine filling out a paper intake form at a doctor clinic.</p><p>The page is divided into clear groups: Personal Details, Medical History, and Insurance.</p><p>Each question uses the right control: a blank line for names, a checkbox for allergies, and checkboxes for options.</p><p>In SwiftUI, <code>Form</code> is that organized clipboard.</p><p>It groups input controls into sections and gives them standard system styling.</p></aside>
+<p>In SwiftUI, a <code>Form</code> is a container built for user settings and data entry.</p>
+<p>Instead of arranging views by hand in a <code>VStack</code>, <code>Form</code> formats child controls to look like standard system settings.</p>
+<ol>
+<li><strong>Sections group controls</strong>:
+<ul>
+<li>Use <code>Section</code> to divide inputs into logical cards with optional headers and footers.</li>
+</ul>
+</li>
+<li><strong>Two-way bindings connect state</strong>:
+<ul>
+<li>Each control takes a binding using the dollar sign, like <code>$username</code> or <code>$isSubscribed</code>.</li>
+</ul>
+</li>
+<li><strong>Automatic platform styling</strong>:
+<ul>
+<li>On iOS, <code>Form</code> renders as an inset grouped list with system background colors and rounded rows.</li>
+<li>On macOS, it renders as a clean vertical alignment grid.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which control should you use to capture sensitive passwords or PIN codes in SwiftUI?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>TextField</code> with textContentType set to password</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>SecureField</code></span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text"><code>PasswordInput</code></span></button><p class="qc-explain" hidden=""><code>SecureField</code> obscures user text and disables autocomplete to protect user credentials.</p></div>
+<h2>In code</h2>
+<p>Here is a data model validating user inputs from a form.</p>
+<p>Notice how computed properties validate the state before submission.</p>
+<figure class="code-example"><figcaption>Validating form input state</figcaption><pre class="block swift"><code class="language-swift">import SwiftUI
+
+struct FormState {
+    var username: String = &quot;&quot;
+    var email: String = &quot;&quot;
+    var isSubscribed: Bool = false
+    var age: Int = 18
+
+    var isValid: Bool {
+        return !username.trimmingCharacters(in: .whitespaces).isEmpty &amp;&amp;
+               email.contains(&quot;@&quot;) &amp;&amp;
+               age &gt;= 13
+    }
+}
+
+var state = FormState(username: &quot; Alex &quot;, email: &quot;alex@example.com&quot;, isSubscribed: true, age: 22)
+print(&quot;Form valid: \(state.isValid)&quot;)
+state.email = &quot;invalid-email&quot;
+print(&quot;Form valid after change: \(state.isValid)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Form valid: true
+Form valid after change: false
+</code></pre></figure>
+<p>In this example, <code>isValid</code> checks that the username is not empty and the email contains an at-symbol.</p>
+<p>In SwiftUI views, you attach <code>.disabled(!state.isValid)</code> to the submit button.</p>
+<p>Next, examine how pickers select options from an enumeration.</p>
+<figure class="code-example"><figcaption>Binding a picker to an enum</figcaption><pre class="block swift"><code class="language-swift">import SwiftUI
+
+enum Theme: String, CaseIterable, Identifiable {
+    case light = &quot;Light&quot;
+    case dark = &quot;Dark&quot;
+    case system = &quot;System&quot;
+
+    var id: String { rawValue }
+}
+
+struct SettingsModel {
+    var theme: Theme = .system
+    var notificationsEnabled: Bool = true
+}
+
+var settings = SettingsModel()
+print(&quot;Initial theme: \(settings.theme.rawValue)&quot;)
+settings.theme = .dark
+print(&quot;Updated theme: \(settings.theme.rawValue)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Initial theme: System
+Updated theme: Dark
+</code></pre></figure>
+<p>In a SwiftUI <code>Form</code>, you write <code>Picker(&quot;Theme&quot;, selection: $settings.theme)</code> using <code>ForEach(Theme.allCases)</code>.</p>
+<p>SwiftUI matches the selected value using each item tag or identity.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What property wrapper manages keyboard focus programmatically in modern SwiftUI?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>@State</code></span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>@FocusState</code></span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text"><code>@KeyboardResponder</code></span></button><p class="qc-explain" hidden=""><code>@FocusState</code> connects keyboard focus directly to Boolean or optional enum variables.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Missing or mismatched Picker tags</p><p>If a <code>Picker</code> binds to a specific type, every option must provide a matching <code>.tag(value)</code>.</p><p>If the tag type does not match the selection type, picking an option fails to update state.</p><p>When using <code>ForEach</code> over <code>Identifiable</code> cases, make sure the ID matches the selection type.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using TextField for passwords</p><p>Never use <code>TextField</code> for passwords or PINs.</p><p><code>TextField</code> exposes raw text on screen and stores suggestions in the system keyboard cache.</p><p>Always use <code>SecureField</code> for confidential information.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using UIKit resignFirstResponder in modern SwiftUI</p><p>Older tutorials dismiss keyboards by calling <code>UIApplication.shared.sendAction</code>.</p><p>In modern iOS, use <code>@FocusState</code> instead.</p><p>Setting the focused state to <code>false</code> or <code>nil</code> dismisses the keyboard cleanly.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing Form with VStack</p><p>A <code>VStack</code> does not apply platform-specific inset grouped styling or list dividers.</p><p><code>Form</code> provides automatic spacing, grouped sections, and platform accessibility defaults.</p><p>Always use <code>Form</code> for user data collection and settings screens.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;<code>Form</code> is a SwiftUI container designed for settings and user input screens. It organizes controls like <code>TextField</code>, <code>Toggle</code>, and <code>Picker</code> into grouped sections. We connect controls to state variables using two-way bindings with the dollar sign.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;<code>Form</code> automatically applies platform conventions, such as inset grouped styling on iOS. We manage keyboard focus and dismissal using <code>@FocusState</code>. For validation, we use computed properties on our model and disable the submit button until all fields meet requirements.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;<code>Form</code> adapts across platforms, rendering as an inset grouped list on iOS and an alignment grid on macOS. We decouple form state into an <code>@Observable</code> model and validate inputs reactively. We configure <code>.textContentType</code> for system autofill and use <code>LabeledContent</code> for custom rows while preserving accessibility.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>Form</code> organizes data entry views with native platform styling.</li>
+<li>Divide fields into distinct groups using <code>Section</code> with headers and footers.</li>
+<li>Use <code>TextField</code> for regular text and <code>SecureField</code> for passwords.</li>
+<li>Use <code>Toggle</code> for Boolean switches and <code>Picker</code> for selecting options.</li>
+<li>Manage software keyboard focus and dismissal using <code>@FocusState</code>.</li>
+<li>Disable submission using <code>.disabled(!isFormValid)</code> until inputs are valid.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/swiftui/form">Form Documentation (SwiftUI)</a> — Official Apple guide for Form containers.</li>
+<li><a href="https://developer.apple.com/documentation/swiftui/textfield">TextField Documentation (SwiftUI)</a> — Reference for text input formatting and focus.</li>
+<li><a href="https://developer.apple.com/documentation/swiftui/focusstate">FocusState Documentation (SwiftUI)</a> — API details for programmatic keyboard focus.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    formCode: 'Form {\n  Section("Account") { ... }\n  Section("Settings") { ... }\n}',
+    stateCode: '@State private var username = ""\n@State private var password = ""\n@State private var notifications = false',
+    formCap: 'Step 1: Form container organizes controls into styled inset-grouped cards.',
+    stateCap: 'Initial state variables are empty and form validation fails.',
+    userField: 'TextField: ""',
+    passField: 'SecureField: ""',
+    toggleField: 'Toggle: Off',
+    pickerField: 'Picker: System',
+    userState: '"" (empty)',
+    passState: '"" (empty)',
+    toggleState: 'false',
+    validState: 'false (disabled)',
+    validColor: 'var(--invalid-color)'
+  },
+  {
+    step: 2,
+    formCode: 'TextField("Username", text: $username)\nSecureField("Password", text: $password)',
+    stateCode: 'username = "Taylor"\npassword = "secret123"\n// User enters credentials',
+    formCap: 'Step 2: User fills Account section. Text flows through two-way bindings.',
+    stateCap: 'Username and password state update instantly as the user types.',
+    userField: 'TextField: "Taylor"',
+    passField: 'SecureField: "••••••••"',
+    toggleField: 'Toggle: Off',
+    pickerField: 'Picker: System',
+    userState: '"Taylor"',
+    passState: '"secret123"',
+    toggleState: 'false',
+    validState: 'false (needs opt-in)',
+    validColor: 'var(--invalid-color)'
+  },
+  {
+    step: 3,
+    formCode: 'Toggle("Notifications", isOn: $notifications)\nPicker("Theme", selection: $theme)',
+    stateCode: 'notifications = true\ntheme = .dark\n// User toggles preferences',
+    formCap: 'Step 3: User turns on notifications and picks a dark interface theme.',
+    stateCap: 'Preferences section updates state via boolean and enum bindings.',
+    userField: 'TextField: "Taylor"',
+    passField: 'SecureField: "••••••••"',
+    toggleField: 'Toggle: On',
+    pickerField: 'Picker: Dark',
+    userState: '"Taylor"',
+    passState: '"secret123"',
+    toggleState: 'true',
+    validState: 'true (ready!)',
+    validColor: 'var(--valid-color)'
+  },
+  {
+    step: 4,
+    formCode: 'Button("Submit") { save() }\n  .disabled(!isFormValid)',
+    stateCode: 'isFormValid: true\nSubmit button enabled!\nReady for submission.',
+    formCap: 'Step 4: Computed property isFormValid evaluates to true. Submit unlocks!',
+    stateCap: 'Form submission is enabled reactively without manual event listeners.',
+    userField: 'TextField: "Taylor"',
+    passField: 'SecureField: "••••••••"',
+    toggleField: 'Toggle: On',
+    pickerField: 'Picker: Dark',
+    userState: '"Taylor"',
+    passState: '"secret123"',
+    toggleState: 'true',
+    validState: 'true (ENABLED)',
+    validColor: 'var(--valid-color)'
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('formCode').textContent = s.formCode;
+  document.getElementById('stateCode').textContent = s.stateCode;
+  document.getElementById('formCaption').textContent = s.formCap;
+  document.getElementById('stateCaption').textContent = s.stateCap;
+
+  document.getElementById('userFieldText').textContent = s.userField;
+  document.getElementById('passFieldText').textContent = s.passField;
+  document.getElementById('toggleFieldText').textContent = s.toggleField;
+  document.getElementById('pickerFieldText').textContent = s.pickerField;
+
+  document.getElementById('userStateVal').textContent = s.userState;
+  document.getElementById('passStateVal').textContent = s.passState;
+  document.getElementById('toggleStateVal').textContent = s.toggleState;
+  const validEl = document.getElementById('validStateVal');
+  validEl.textContent = s.validState;
+  validEl.setAttribute('fill', s.validColor);
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"forms-and-input","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"forms-and-input-q1","type":"mcq","difficulty":1,"prompt":"What layout appearance does `Form` provide by default on iOS?","options":[{"id":"a","text":"An inset grouped table layout with rounded section cards.","explanation":"Right. Form automatically applies inset grouped styling on iOS."},{"id":"b","text":"A full-screen horizontal paging scroll view layout.","explanation":"Form scrolls vertically and groups elements into sections."},{"id":"c","text":"A two-column canvas grid without row background colors.","explanation":"On iOS, Form uses standard grouped table styling."},{"id":"d","text":"A floating modal popover anchored to the center screen.","explanation":"Form is a container view, not a modal presentation sheet."}],"answer":"a"},{"id":"forms-and-input-q2","type":"mcq","difficulty":1,"prompt":"Which container divides controls inside a `Form` into titled cards?","options":[{"id":"a","text":"The `GroupBox` container view from macOS layouts.","explanation":"Section is the standard SwiftUI view for grouping inside forms."},{"id":"b","text":"The `Section` container view with header and footer.","explanation":"Right. Section groups controls with optional headers and footers."},{"id":"c","text":"The `CardStack` component from Swift Collections.","explanation":"CardStack is not a standard SwiftUI container view."},{"id":"d","text":"The `DividerGroup` modifier attached to rows.","explanation":"DividerGroup does not exist in standard SwiftUI."}],"answer":"b"},{"id":"forms-and-input-q3","type":"mcq","difficulty":1,"prompt":"Why should you use `SecureField` instead of `TextField` for passwords?","options":[{"id":"a","text":"SecureField stores input in the device Keychain automatically.","explanation":"Keychain storage requires explicit Security framework calls."},{"id":"b","text":"SecureField sends user credentials directly to an OAuth server.","explanation":"SecureField only manages user interface display and masking."},{"id":"c","text":"SecureField masks text and disables keyboard suggestion caching.","explanation":"Right. SecureField protects sensitive input from being exposed."},{"id":"d","text":"SecureField forces two-factor biometric authentication prompts.","explanation":"Biometric prompts require LocalAuthentication framework calls."}],"answer":"c"},{"id":"forms-and-input-q4","type":"mcq","difficulty":2,"prompt":"How do you manage keyboard focus programmatically in modern SwiftUI?","options":[{"id":"a","text":"Call `becomeFirstResponder()` on the enclosing Form view.","explanation":"becomeFirstResponder is an Objective-C UIKit method, not SwiftUI."},{"id":"b","text":"Use the `@KeyboardBinding` property wrapper from UIKit.","explanation":"@KeyboardBinding is not a real Swift property wrapper."},{"id":"c","text":"Invoke `UIApplication.shared.endEditing(true)` in views.","explanation":"This is legacy UIKit code; modern SwiftUI uses @FocusState."},{"id":"d","text":"Use the `@FocusState` property wrapper with focusable fields.","explanation":"Right. @FocusState binds focus directly to state variables."}],"answer":"d"},{"id":"forms-and-input-q5","type":"mcq","difficulty":2,"prompt":"What happens if options inside a `Picker` do not match the selection tag type?","options":[{"id":"a","text":"Selecting an option fails to update the bound state variable.","explanation":"Right. Tag types must match the selection binding type exactly."},{"id":"b","text":"The app crashes immediately when the picker menu opens.","explanation":"The picker renders, but selecting an item does not update state."},{"id":"c","text":"SwiftUI converts all mismatched options into empty strings.","explanation":"SwiftUI does not alter option titles or convert types."},{"id":"d","text":"The compiler issues a fatal syntax error during linking.","explanation":"Mismatched tags often compile but fail silently at runtime."}],"answer":"a"},{"id":"forms-and-input-q6","type":"mcq","difficulty":2,"prompt":"Which modifier runs an action when the user presses Return on a text field?","options":[{"id":"a","text":"The `.onReturnKeyPressed { ... }` action handler modifier.","explanation":"The correct SwiftUI modifier name is .onSubmit."},{"id":"b","text":"The `.onSubmit { ... }` action handler modifier.","explanation":"Right. .onSubmit executes when the user submits keyboard input."},{"id":"c","text":"The `.onEditingFinished { ... }` lifecycle modifier.","explanation":"onEditingFinished is not a standard SwiftUI modifier."},{"id":"d","text":"The `.onCommitAction { ... }` text event modifier.","explanation":"onCommit was an older closure parameter replaced by .onSubmit."}],"answer":"b"},{"id":"forms-and-input-q7","type":"mcq","difficulty":2,"prompt":"How do you disable a form submit button when validation criteria fail?","options":[{"id":"a","text":"Set the button opacity to zero using `.opacity(0.0)` in code.","explanation":"Setting opacity to 0 hides the button but still permits taps."},{"id":"b","text":"Apply `.hidden()` conditionally around the submit button body.","explanation":"Hiding the button removes it instead of showing a disabled state."},{"id":"c","text":"Attach `.disabled(!isFormValid)` to the submit button view.","explanation":"Right. .disabled prevents user interactions when condition is true."},{"id":"d","text":"Throw a validation error inside the button tap action closure.","explanation":"Buttons should indicate their interactive state before tap."}],"answer":"c"},{"id":"forms-and-input-q8","type":"mcq","difficulty":2,"prompt":"Which modifier assists system password managers to autofill user email addresses?","options":[{"id":"a","text":"`.autofillStrategy(.email)` attached to the text field container.","explanation":"autofillStrategy is not a valid SwiftUI modifier."},{"id":"b","text":"`.keyboardAutofill(.account)` on the enclosing Form container.","explanation":"keyboardAutofill is not a standard SwiftUI modifier."},{"id":"c","text":"`.inputSecurity(.standard)` on the child text view component.","explanation":"inputSecurity is not a standard SwiftUI modifier."},{"id":"d","text":"`.textContentType(.emailAddress)` attached to the text field.","explanation":"Right. .textContentType tells the system what data to autofill."}],"answer":"d"},{"id":"forms-and-input-q9","type":"mcq","difficulty":2,"prompt":"What is the primary visual difference between a `Toggle` inside a `Form` vs in a `VStack`?","options":[{"id":"a","text":"In a Form, the label is on the leading side and switch on trailing.","explanation":"Right. Form automatically applies standard settings row alignment."},{"id":"b","text":"In a Form, the toggle is converted into a stepper incrementer.","explanation":"Toggle remains a switch and does not convert into a stepper."},{"id":"c","text":"In a Form, the toggle switch cannot be tinted with custom colors.","explanation":"Custom tint colors work normally inside forms."},{"id":"d","text":"In a Form, the label is hidden and only the switch is visible.","explanation":"Form displays both the title label and the switch control."}],"answer":"a"},{"id":"forms-and-input-q10","type":"mcq","difficulty":2,"prompt":"How do you present a `Picker` as a horizontal segmented control?","options":[{"id":"a","text":"Wrap the picker in a HorizontalStack with layout priorities.","explanation":"Wrapping in HStack does not change the picker appearance."},{"id":"b","text":"Apply the `.pickerStyle(.segmented)` modifier to the Picker.","explanation":"Right. .pickerStyle(.segmented) renders segmented tabs."},{"id":"c","text":"Set the `.controlLayout(.tabbed)` modifier on the container.","explanation":"controlLayout is not a standard SwiftUI modifier."},{"id":"d","text":"Attach `.segmentedTabs(true)` directly to the picker view.","explanation":"segmentedTabs is not a valid SwiftUI modifier."}],"answer":"b"},{"id":"forms-and-input-q11","type":"mcq","difficulty":2,"prompt":"Which control is ideal for incrementing a numerical value like quantity within a range?","options":[{"id":"a","text":"A continuous `Slider` control configured with fine snap points.","explanation":"Sliders are designed for continuous adjustment, not discrete counts."},{"id":"b","text":"A standard multi-line `TextEditor` with integer validation.","explanation":"TextEditor is for long-form string input, not integer counting."},{"id":"c","text":"A `Stepper` control with explicit range bounds and step delta.","explanation":"Right. Stepper provides plus and minus buttons for integer values."},{"id":"d","text":"A segmented `Picker` containing one hundred individual cases.","explanation":"Large option counts are inefficient and unusable in segmented pickers."}],"answer":"c"},{"id":"forms-and-input-q12","type":"mcq","difficulty":2,"prompt":"How does `Form` render on macOS compared to iOS?","options":[{"id":"a","text":"On macOS, Form renders as an unscrollable horizontal toolbar.","explanation":"Form on macOS remains vertical and scrollable when needed."},{"id":"b","text":"On macOS, Form forces full-screen exclusive window presentation.","explanation":"Form embeds within regular macOS window hierarchies."},{"id":"c","text":"On macOS, Form replaces all text controls with terminal consoles.","explanation":"Form displays standard AppKit controls on macOS."},{"id":"d","text":"On macOS, Form aligns labels trailing and controls leading in a grid.","explanation":"Right. macOS forms use traditional preference pane grid alignment."}],"answer":"d"},{"id":"forms-and-input-q13","type":"mcq","difficulty":2,"prompt":"How do you bind a `TextField` directly to an integer value in modern SwiftUI?","options":[{"id":"a","text":"Use `TextField(\"Age\", value: $age, format: .number)` in code.","explanation":"Right. The format parameter parses string input into numbers."},{"id":"b","text":"Pass `Int($age)` as the text binding parameter to TextField.","explanation":"Binding cannot be cast with type initializers."},{"id":"c","text":"Set the text binding to `$age.asString` using property wrappers.","explanation":"Int does not provide an asString binding property."},{"id":"d","text":"Use an `NSNumberFormatter` object created with Objective-C.","explanation":"Modern SwiftUI uses the native Swift format syntax."}],"answer":"a"},{"id":"forms-and-input-q14","type":"mcq","difficulty":3,"prompt":"What is the recommended component for creating custom row layouts inside a `Form`?","options":[{"id":"a","text":"A raw `HStack` with fixed spacer widths and manual text fonts.","explanation":"HStack lacks semantic label pairing and platform accessibility."},{"id":"b","text":"`LabeledContent` to display a semantic label alongside custom content.","explanation":"Right. LabeledContent preserves platform form alignment and a11y."},{"id":"c","text":"`CustomFormField` from the SwiftUI Navigation subframework.","explanation":"CustomFormField is not a real SwiftUI view component."},{"id":"d","text":"A nested `Form` placed inside a table row section container.","explanation":"Nesting forms inside forms causes layout and styling bugs."}],"answer":"b"},{"id":"forms-and-input-q15","type":"mcq","difficulty":2,"prompt":"How do you specify a numeric keypad for a `TextField` on iPhone?","options":[{"id":"a","text":"Set `.inputMode(.digitsOnly)` on the enclosing Form container.","explanation":"inputMode is not a valid SwiftUI modifier."},{"id":"b","text":"Wrap the text field inside a `NumericPadContainer` view.","explanation":"NumericPadContainer is not a standard SwiftUI component."},{"id":"c","text":"Apply `.keyboardType(.numberPad)` to the `TextField` view.","explanation":"Right. .keyboardType configures the software keyboard layout."},{"id":"d","text":"Use the `@NumberPad` property wrapper on the bound variable.","explanation":"Keyboard layout is specified via view modifier, not property wrapper."}],"answer":"c"},{"id":"forms-and-input-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct UserInput {\n    var text: String = \"  Swift  \"\n    var trimmed: String {\n        return text.trimmingCharacters(in: .whitespaces)\n    }\n}\n\nlet input = UserInput()\nprint(\"Length: \\(input.trimmed.count)\")","options":[{"id":"a","text":"Length: 7","explanation":"Trimming removes all whitespace from both ends."},{"id":"b","text":"Length: 9","explanation":"9 was the untrimmed character count with whitespace."},{"id":"c","text":"Length: 0","explanation":"The word Swift remains after trimming."},{"id":"d","text":"Length: 5","explanation":"Right. The string 'Swift' contains exactly 5 characters."}],"answer":"d"},{"id":"forms-and-input-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import SwiftUI\n\nenum Priority: Int {\n    case low = 1\n    case medium = 2\n    case high = 3\n}\n\nvar selected = Priority.low\nselected = Priority.high\nprint(\"Priority: \\(selected.rawValue)\")","options":[{"id":"a","text":"Priority: 3","explanation":"Right. Priority.high has a raw value of 3."},{"id":"b","text":"Priority: 1","explanation":"1 was the initial low priority raw value."},{"id":"c","text":"Priority: 2","explanation":"medium priority has raw value 2, not high."},{"id":"d","text":"Priority: 0","explanation":"Priority uses explicit 1-based raw values."}],"answer":"a"},{"id":"forms-and-input-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct ToggleState {\n    var isEnabled: Bool = false\n    mutating func toggle() {\n        isEnabled.toggle()\n    }\n}\n\nvar state = ToggleState()\nstate.toggle()\nstate.toggle()\nstate.toggle()\nprint(\"State: \\(state.isEnabled)\")","options":[{"id":"a","text":"State: false","explanation":"Three toggles from false results in true."},{"id":"b","text":"State: true","explanation":"Right. false -> true -> false -> true."},{"id":"c","text":"State: nil","explanation":"isEnabled is a non-optional Boolean value."},{"id":"d","text":"State: 1","explanation":"The output formats as the Swift Boolean literal true."}],"answer":"b"},{"id":"forms-and-input-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct AccountValidation {\n    var name: String\n    var age: Int\n    var isValid: Bool {\n        return !name.isEmpty && age >= 18\n    }\n}\n\nlet acc = AccountValidation(name: \"Sam\", age: 16)\nprint(\"Valid: \\(acc.isValid)\")","options":[{"id":"a","text":"Valid: true","explanation":"Age 16 is less than 18, so isValid evaluates to false."},{"id":"b","text":"Valid: nil","explanation":"isValid returns a non-optional Boolean."},{"id":"c","text":"Valid: false","explanation":"Right. Both conditions must be true, but age 16 fails age >= 18."},{"id":"d","text":"Valid: 18","explanation":"isValid returns a Boolean, not the integer age."}],"answer":"c"},{"id":"forms-and-input-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct StepConfig {\n    var value: Int = 10\n    let step: Int = 5\n    let maxLimit: Int = 20\n\n    mutating func increment() {\n        if value + step \u003c= maxLimit {\n            value += step\n        }\n    }\n}\n\nvar cfg = StepConfig()\ncfg.increment()\ncfg.increment()\ncfg.increment()\nprint(\"Value: \\(cfg.value)\")","options":[{"id":"a","text":"Value: 10","explanation":"The value incremented twice from 10 to 15 to 20."},{"id":"b","text":"Value: 15","explanation":"Two increments succeed, reaching 20."},{"id":"c","text":"Value: 25","explanation":"The third increment is blocked by maxLimit of 20."},{"id":"d","text":"Value: 20","explanation":"Right. 10 -> 15 -> 20. The third call exceeds limit."}],"answer":"d"},{"id":"forms-and-input-q21","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct FormValues {\n    var email: String\n    var hasAtSymbol: Bool {\n        return email.contains(\"@\")\n    }\n}\n\nlet f = FormValues(email: \"user@domain.com\")\nprint(\"Has at: \\(f.hasAtSymbol)\")","options":[{"id":"a","text":"Has at: true","explanation":"Right. The string contains an @ character, returning true."},{"id":"b","text":"Has at: false","explanation":"user@domain.com contains @, so it returns true."},{"id":"c","text":"Has at: nil","explanation":"hasAtSymbol returns a non-optional Boolean."},{"id":"d","text":"Has at: user","explanation":"The property returns a Boolean, not the username prefix."}],"answer":"a"},{"id":"forms-and-input-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import SwiftUI\n\nenum Field: Hashable {\n    case username\n    case password\n}\n\nvar currentFocus: Field? = .username\ncurrentFocus = .password\ncurrentFocus = nil\nprint(\"Focus is nil: \\(currentFocus == nil)\")","options":[{"id":"a","text":"Focus is nil: false","explanation":"currentFocus was explicitly set to nil."},{"id":"b","text":"Focus is nil: true","explanation":"Right. Setting currentFocus to nil makes currentFocus == nil true."},{"id":"c","text":"Focus is nil: nil","explanation":"The equality comparison returns a Boolean true."},{"id":"d","text":"Focus is nil: password","explanation":"currentFocus was reassigned to nil after being password."}],"answer":"b"},{"id":"forms-and-input-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import SwiftUI\n\nstruct SliderConfig {\n    var progress: Double = 0.5\n    var percentage: Int {\n        return Int(progress * 100.0)\n    }\n}\n\nvar s = SliderConfig()\ns.progress = 0.85\nprint(\"Progress: \\(s.percentage)%\")","options":[{"id":"a","text":"Progress: 50%","explanation":"50% was the initial value when progress was 0.5."},{"id":"b","text":"Progress: 8%","explanation":"0.85 * 100 equals 85, not 8."},{"id":"c","text":"Progress: 85%","explanation":"Right. 0.85 multiplied by 100.0 truncated to Int is 85."},{"id":"d","text":"Progress: 100%","explanation":"progress is 0.85, which converts to 85%."}],"answer":"c"},{"id":"forms-and-input-q24","type":"written","difficulty":2,"prompt":"Explain what the `Form` container does in SwiftUI and how its appearance adapts across Apple platforms. Provide your answer in 2 to 5 sentences.","modelAnswer":"`Form` is a specialized container view designed for settings, inspectors, and data entry. It automatically formats child input controls with native system styling. On iOS, it displays an inset grouped list with rounded cards and dividers. On macOS, it renders controls in a structured grid with trailing labels and leading inputs.","rubric":[{"id":"form-purpose","criterion":"Explains that Form is designed for data entry and settings with platform styling.","weight":40,"key":true},{"id":"ios-appearance","criterion":"Describes the iOS appearance as an inset grouped list with cards and dividers.","weight":30,"key":true},{"id":"macos-appearance","criterion":"Mentions that macOS renders as an aligned vertical grid.","weight":30}]},{"id":"forms-and-input-q25","type":"written","difficulty":2,"prompt":"How does `@FocusState` work in SwiftUI, and how do you use it to dismiss the keyboard? Explain in 2 to 5 sentences.","modelAnswer":"`@FocusState` is a property wrapper that tracks and controls which input field currently holds keyboard focus. You attach it to a field using the `.focused()` modifier. Setting the bound Boolean to `false` or setting an optional enum to `nil` removes focus. This dismisses the software keyboard programmatically without UIKit code.","rubric":[{"id":"focusstate-role","criterion":"Explains that @FocusState manages which field holds keyboard focus.","weight":40,"key":true},{"id":"focused-modifier","criterion":"Mentions binding the state using the .focused() modifier.","weight":30},{"id":"dismiss-mechanism","criterion":"Explains setting the value to false or nil dismisses the keyboard.","weight":30,"key":true}]},{"id":"forms-and-input-q26","type":"written","difficulty":2,"prompt":"Why is matching `.tag()` types critical when building a `Picker` in SwiftUI? Explain what happens when tags do not match in 2 to 5 sentences.","modelAnswer":"A `Picker` binds to a state variable of a specific type. Each option inside the picker must have a `.tag()` whose value matches that exact type. If an option tag type does not match the selection binding type, SwiftUI cannot associate the selection. Tapping the option will fail to update the state variable.","rubric":[{"id":"type-matching","criterion":"Explains that tag types must match the picker selection binding type exactly.","weight":50,"key":true},{"id":"failure-consequence","criterion":"Explains that mismatched tags cause picking options to fail to update state.","weight":50,"key":true}]},{"id":"forms-and-input-q27","type":"written","difficulty":2,"prompt":"How do you implement form validation and disable submission in SwiftUI? Answer in 2 to 5 sentences.","modelAnswer":"Create a computed property such as `isFormValid` that checks all field requirements. For example, verify that strings are not empty and numbers fall within allowed ranges. Then attach `.disabled(!isFormValid)` to the submission button. SwiftUI evaluates the property reactively and enables the button as soon as criteria are met.","rubric":[{"id":"computed-property","criterion":"Explains using a computed property to validate input criteria.","weight":50,"key":true},{"id":"disabled-modifier","criterion":"Explains attaching .disabled(!isFormValid) to the submission button.","weight":50,"key":true}]},{"id":"forms-and-input-q28","type":"written","difficulty":2,"prompt":"Why should you use `SecureField` instead of `TextField` for passwords and PINs? Answer in 2 to 5 sentences.","modelAnswer":"`SecureField` obscures user input by displaying dots instead of plain text characters. It also disables keyboard suggestion caching and prevents clipboard leaks. Using a regular `TextField` risks exposing credentials to shoulder surfing and third-party keyboard extensions. Therefore, sensitive authentication inputs must always use `SecureField`.","rubric":[{"id":"obscures-text","criterion":"Explains that SecureField masks input characters with dots.","weight":50,"key":true},{"id":"security-protections","criterion":"Mentions disabling keyboard cache suggestions and preventing credential leaks.","weight":50,"key":true}]},{"id":"forms-and-input-q29","type":"code-write","difficulty":2,"prompt":"Create a struct `RegistrationForm` with stored properties `username: String` and `password: String`. Add a computed property `isSubmitAllowed: Bool` requiring username length >= 3 and password length >= 6.","starterCode":"import SwiftUI\n\n// Define RegistrationForm struct\n","modelAnswer":"import SwiftUI\n\nstruct RegistrationForm {\n    var username: String = \"\"\n    var password: String = \"\"\n\n    var isSubmitAllowed: Bool {\n        return username.count >= 3 && password.count >= 6\n    }\n}\n\nvar form = RegistrationForm(username: \"Jordan\", password: \"securepassword\")\nprint(\"Allowed: \\(form.isSubmitAllowed)\")","rubric":[{"id":"struct-properties","criterion":"Declares RegistrationForm with username and password String properties.","weight":40,"key":true},{"id":"computed-validation","criterion":"Implements isSubmitAllowed returning true when username >= 3 and password >= 6.","weight":60,"key":true}]},{"id":"forms-and-input-q30","type":"code-write","difficulty":2,"prompt":"Create an enum named `AccountType` conforming to `String`, `CaseIterable`, and `Identifiable`. Add cases `personal`, `business`, and `creator`. Implement `id` returning `rawValue`.","starterCode":"import SwiftUI\n\n// Define AccountType enum\n","modelAnswer":"import SwiftUI\n\nenum AccountType: String, CaseIterable, Identifiable {\n    case personal = \"Personal\"\n    case business = \"Business\"\n    case creator = \"Creator\"\n\n    var id: String { rawValue }\n}\n\nfor account in AccountType.allCases {\n    print(account.id)\n}","rubric":[{"id":"enum-protocols","criterion":"Declares AccountType conforming to String, CaseIterable, and Identifiable.","weight":50,"key":true},{"id":"cases-and-id","criterion":"Declares personal, business, creator cases and id returning rawValue.","weight":50,"key":true}]},{"id":"forms-and-input-q31","type":"code-write","difficulty":2,"prompt":"Create a struct `ProfileDraft` with properties `displayName: String` and `isNewsletterSubscribed: Bool`. Add a mutating method `reset()` that clears the name and sets the toggle to false.","starterCode":"import SwiftUI\n\n// Implement ProfileDraft with reset()\n","modelAnswer":"import SwiftUI\n\nstruct ProfileDraft {\n    var displayName: String = \"\"\n    var isNewsletterSubscribed: Bool = false\n\n    mutating func reset() {\n        displayName = \"\"\n        isNewsletterSubscribed = false\n    }\n}\n\nvar profile = ProfileDraft(displayName: \"Taylor\", isNewsletterSubscribed: true)\nprofile.reset()\nprint(\"Name: '\\(profile.displayName)', Subscribed: \\(profile.isNewsletterSubscribed)\")","rubric":[{"id":"profile-properties","criterion":"Declares ProfileDraft with displayName and isNewsletterSubscribed properties.","weight":40,"key":true},{"id":"mutating-reset","criterion":"Implements mutating func reset() that sets displayName to empty and subscription to false.","weight":60,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

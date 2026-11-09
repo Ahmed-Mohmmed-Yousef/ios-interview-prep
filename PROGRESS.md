@@ -132,7 +132,8 @@ Write all lessons and question banks, level by level, with fact checks.
   - 🔄 **Batch 2D: SwiftUI & UIKit (9 topics)**
     - ✅ **swiftui-observation** (Data Flow with @Observable) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-observation/review.html](docs/topics/swiftui-observation/review.html)
     - ✅ **observable-object** (ObservableObject and @StateObject) — published (lesson, diagram, 31 questions) → [docs/topics/observable-object/review.html](docs/topics/observable-object/review.html)
-    - 🔄 **forms-and-input** (Forms and User Input) — starting research
+    - ✅ **forms-and-input** (Forms and User Input) — published (lesson, diagram, 31 questions) → [docs/topics/forms-and-input/review.html](docs/topics/forms-and-input/review.html)
+    - 🔄 **sheets-alerts-dialogs** (Sheets, Alerts and Dialogs) — starting research
     - ⬜ **sheets-alerts-dialogs** (Sheets, Alerts and Dialogs)
     - ⬜ **uiviews-and-view-controllers** (Views and View Controllers)
     - ⬜ **view-controller-lifecycle** (View Controller Lifecycle)
@@ -299,6 +300,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic forms-and-input (Forms and User Input): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/forms-and-input/review.html`). All checks passed. Starting sheets-alerts-dialogs.
 
 - **2026-11-09** — Built and published topic observable-object (ObservableObject and @StateObject): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/observable-object/review.html`). All checks passed. Starting forms-and-input.
 

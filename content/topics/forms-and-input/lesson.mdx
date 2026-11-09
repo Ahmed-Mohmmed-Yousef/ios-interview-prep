@@ -1,0 +1,229 @@
+export const meta = {
+  id: "forms-and-input",
+  summary: "Build data entry screens in SwiftUI using Form, Section, text fields, toggles, and pickers.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Form (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/form", kind: "official" },
+    { title: "TextField (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/textfield", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How do you dismiss the software keyboard programmatically in modern SwiftUI when a user submits a form?</Question>
+  <Guess>
+    <Option id="a">Call UIApplication resignFirstResponder on the window root view controller.</Option>
+    <Option id="b" correct>Set a Boolean or enum variable wrapped in `@FocusState` to false or nil.</Option>
+    <Option id="c">Add the `.dismissKeyboard()` modifier to the surrounding Form container.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine filling out a paper intake form at a doctor clinic.
+
+The page is divided into clear groups: Personal Details, Medical History, and Insurance.
+
+Each question uses the right control: a blank line for names, a checkbox for allergies, and checkboxes for options.
+
+In SwiftUI, `Form` is that organized clipboard.
+
+It groups input controls into sections and gives them standard system styling.
+</Analogy>
+
+In SwiftUI, a `Form` is a container built for user settings and data entry.
+
+Instead of arranging views by hand in a `VStack`, `Form` formats child controls to look like standard system settings.
+
+1. **Sections group controls**:
+   - Use `Section` to divide inputs into logical cards with optional headers and footers.
+2. **Two-way bindings connect state**:
+   - Each control takes a binding using the dollar sign, like `$username` or `$isSubscribed`.
+3. **Automatic platform styling**:
+   - On iOS, `Form` renders as an inset grouped list with system background colors and rounded rows.
+   - On macOS, it renders as a clean vertical alignment grid.
+
+## See it
+
+<Diagram id="form-structure-diagram" caption="How Form organizes input controls into grouped sections with two-way bindings">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Form container outline.
+    2. Section 1 (Account) with TextField and SecureField.
+    3. Section 2 (Preferences) with Toggle and Picker.
+    4. Two-way data state model updating dynamically.
+  - Steps:
+    Step 1: Form container groups controls with default system styling.
+    Step 2: Section 1 displays Account fields bound to username and password state.
+    Step 3: Section 2 displays Preferences bound to notifications toggle and theme picker.
+    Step 4: User input updates bound variables and triggers form validation check.
+  - Static version (reduced motion):
+    A 4-step diagram showing Form layout hierarchy with interactive input bindings.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which control should you use to capture sensitive passwords or PIN codes in SwiftUI?</Question>
+  <Option id="a">`TextField` with textContentType set to password</Option>
+  <Option id="b" correct>`SecureField`</Option>
+  <Option id="c">`PasswordInput`</Option>
+  <Explanation>`SecureField` obscures user text and disables autocomplete to protect user credentials.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is a data model validating user inputs from a form.
+
+Notice how computed properties validate the state before submission.
+
+<CodeExample title="Validating form input state">
+
+```swift
+import SwiftUI
+
+struct FormState {
+    var username: String = ""
+    var email: String = ""
+    var isSubscribed: Bool = false
+    var age: Int = 18
+
+    var isValid: Bool {
+        return !username.trimmingCharacters(in: .whitespaces).isEmpty &&
+               email.contains("@") &&
+               age >= 13
+    }
+}
+
+var state = FormState(username: " Alex ", email: "alex@example.com", isSubscribed: true, age: 22)
+print("Form valid: \(state.isValid)")
+state.email = "invalid-email"
+print("Form valid after change: \(state.isValid)")
+```
+
+```output
+Form valid: true
+Form valid after change: false
+```
+
+</CodeExample>
+
+In this example, `isValid` checks that the username is not empty and the email contains an at-symbol.
+
+In SwiftUI views, you attach `.disabled(!state.isValid)` to the submit button.
+
+Next, examine how pickers select options from an enumeration.
+
+<CodeExample title="Binding a picker to an enum">
+
+```swift
+import SwiftUI
+
+enum Theme: String, CaseIterable, Identifiable {
+    case light = "Light"
+    case dark = "Dark"
+    case system = "System"
+
+    var id: String { rawValue }
+}
+
+struct SettingsModel {
+    var theme: Theme = .system
+    var notificationsEnabled: Bool = true
+}
+
+var settings = SettingsModel()
+print("Initial theme: \(settings.theme.rawValue)")
+settings.theme = .dark
+print("Updated theme: \(settings.theme.rawValue)")
+```
+
+```output
+Initial theme: System
+Updated theme: Dark
+```
+
+</CodeExample>
+
+In a SwiftUI `Form`, you write `Picker("Theme", selection: $settings.theme)` using `ForEach(Theme.allCases)`.
+
+SwiftUI matches the selected value using each item tag or identity.
+
+<QuickCheck>
+  <Question>What property wrapper manages keyboard focus programmatically in modern SwiftUI?</Question>
+  <Option id="a">`@State`</Option>
+  <Option id="b" correct>`@FocusState`</Option>
+  <Option id="c">`@KeyboardResponder`</Option>
+  <Explanation>`@FocusState` connects keyboard focus directly to Boolean or optional enum variables.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Missing or mismatched Picker tags">
+If a `Picker` binds to a specific type, every option must provide a matching `.tag(value)`.
+
+If the tag type does not match the selection type, picking an option fails to update state.
+
+When using `ForEach` over `Identifiable` cases, make sure the ID matches the selection type.
+</Trap>
+
+<Trap title="Using TextField for passwords">
+Never use `TextField` for passwords or PINs.
+
+`TextField` exposes raw text on screen and stores suggestions in the system keyboard cache.
+
+Always use `SecureField` for confidential information.
+</Trap>
+
+<Trap title="Using UIKit resignFirstResponder in modern SwiftUI">
+Older tutorials dismiss keyboards by calling `UIApplication.shared.sendAction`.
+
+In modern iOS, use `@FocusState` instead.
+
+Setting the focused state to `false` or `nil` dismisses the keyboard cleanly.
+</Trap>
+
+<Trap title="Confusing Form with VStack">
+A `VStack` does not apply platform-specific inset grouped styling or list dividers.
+
+`Form` provides automatic spacing, grouped sections, and platform accessibility defaults.
+
+Always use `Form` for user data collection and settings screens.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"`Form` is a SwiftUI container designed for settings and user input screens. It organizes controls like `TextField`, `Toggle`, and `Picker` into grouped sections. We connect controls to state variables using two-way bindings with the dollar sign."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"`Form` automatically applies platform conventions, such as inset grouped styling on iOS. We manage keyboard focus and dismissal using `@FocusState`. For validation, we use computed properties on our model and disable the submit button until all fields meet requirements."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"`Form` adapts across platforms, rendering as an inset grouped list on iOS and an alignment grid on macOS. We decouple form state into an `@Observable` model and validate inputs reactively. We configure `.textContentType` for system autofill and use `LabeledContent` for custom rows while preserving accessibility."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `Form` organizes data entry views with native platform styling.
+- Divide fields into distinct groups using `Section` with headers and footers.
+- Use `TextField` for regular text and `SecureField` for passwords.
+- Use `Toggle` for Boolean switches and `Picker` for selecting options.
+- Manage software keyboard focus and dismissal using `@FocusState`.
+- Disable submission using `.disabled(!isFormValid)` until inputs are valid.
+</Recap>
+
+## Go deeper
+
+- [Form Documentation (SwiftUI)](https://developer.apple.com/documentation/swiftui/form) — Official Apple guide for Form containers.
+- [TextField Documentation (SwiftUI)](https://developer.apple.com/documentation/swiftui/textfield) — Reference for text input formatting and focus.
+- [FocusState Documentation (SwiftUI)](https://developer.apple.com/documentation/swiftui/focusstate) — API details for programmatic keyboard focus.
