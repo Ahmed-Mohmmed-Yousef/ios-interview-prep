@@ -1,0 +1,594 @@
+<title>Error Handling Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --throw-color: #dc2626; --throw-soft: #fee2e2;
+  --catch-color: #0284c7; --catch-soft: #e0f2fe;
+  --try-color: #0c765c; --try-soft: #dcf2ea;
+  --defer-color: #d97706; --defer-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --throw-color: #f87171; --throw-soft: #450a0a;
+  --catch-color: #38bdf8; --catch-soft: #082f49;
+  --try-color: #45cfa3; --try-soft: #13362c;
+  --defer-color: #fbbf24; --defer-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--throw-soft); color: var(--throw-color); }
+.p-right .kind { background: var(--catch-soft); color: var(--catch-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--throw-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Fresh · Swift Language · Topic 13 of 13 · Prototype</p>
+    <h1>Error Handling</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can throw, catch and pass on errors, and use Result.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">How does Swift error handling differ from traditional exception handling in languages like Java or C++?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Swift unwinds the call stack and allocates expensive heap memory for every catch block.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Swift does not unwind the stack; errors are passed as lightweight values with the speed of a return statement.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Swift errors can only be caught if the application runs inside an Xcode debug session.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of ordering food at a restaurant counter. If an item is sold out, the cashier tells you immediately and gives you a clear reason. You can choose a backup item, cancel your order, or check another restaurant. Swift error handling works the same way by returning clean, expected error information instead of crashing the program.</p></aside>
+<p>In Swift, <strong>error handling</strong> is the process of responding to and recovering from error conditions in your program.</p>
+<p>Errors are represented by values of any type that conforms to the <strong><code>Error</code></strong> protocol. Enums are especially popular because their cases can model distinct failure states with associated values.</p>
+<p>Swift provides four main ways to handle errors:</p>
+<ol>
+<li><strong>Propagate errors</strong>: Mark a function with the <strong><code>throws</code></strong> keyword to pass errors up to the caller.</li>
+<li><strong>Handle errors with <code>do-catch</code></strong>: Use a <code>do</code> block with one or more <code>catch</code> clauses to respond to specific errors.</li>
+<li><strong>Convert errors to Optionals with <code>try?</code></strong>: If an error is thrown, the expression evaluates to <code>nil</code>.</li>
+<li><strong>Assert success with <code>try!</code></strong>: Disables error handling. If an error is thrown, the app crashes immediately.</li>
+</ol>
+<p>Swift also provides two related features:</p>
+<ul>
+<li><strong><code>defer</code></strong>: Defers execution of cleanup code until the current scope exits, running even if an error is thrown.</li>
+<li><strong><code>Result</code></strong>: A built-in enum that represents either <code>.success</code> or <code>.failure</code>.</li>
+</ul>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What is the value of an expression using try? if the called function throws an error?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A fatal crash on the current thread.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">nil, wrapped in an Optional type.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">A default empty instance of the return type.</span></button><p class="qc-explain" hidden="">try? catches any thrown error and converts the entire expression into nil.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Throwing errors and handling them with do-catch and try?</figcaption><pre class="block swift"><code class="language-swift">enum PrinterError: Error {
+    case outOfPaper
+    case noToner
+    case paperJam(page: Int)
+}
+
+func printDocument(pages: Int) throws -&gt; String {
+    if pages &lt;= 0 {
+        throw PrinterError.outOfPaper
+    }
+    return &quot;Printed \(pages) pages successfully.&quot;
+}
+
+// 1. Handling with do-catch
+do {
+    let status = try printDocument(pages: 0)
+    print(status)
+} catch PrinterError.outOfPaper {
+    print(&quot;Handled: Printer is out of paper.&quot;)
+} catch {
+    // Swift provides an implicit &#x27;error&#x27; constant
+    print(&quot;Unexpected error: \(error)&quot;)
+}
+
+// 2. Converting to an Optional with try?
+let successfulPrint = try? printDocument(pages: 5)
+let failedPrint = try? printDocument(pages: 0)
+
+print(&quot;Success: \(successfulPrint ?? &quot;nil&quot;)&quot;)
+print(&quot;Failed print is nil: \(failedPrint == nil)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Handled: Printer is out of paper.
+Success: Printed 5 pages successfully.
+Failed print is nil: true
+</code></pre></figure>
+<p>This example shows the primary error handling workflows:</p>
+<ul>
+<li><strong><code>throws</code> keyword</strong>: Indicates that <code>printDocument(pages:)</code> can throw an error.</li>
+<li><strong><code>try</code> keyword</strong>: Required whenever calling a function marked with <code>throws</code>.</li>
+<li><strong><code>do-catch</code> statement</strong>: Catches specific errors by pattern matching on enum cases.</li>
+<li><strong>Implicit <code>error</code></strong>: A general <code>catch</code> clause automatically provides a constant named <code>error</code>.</li>
+<li><strong><code>try?</code></strong>: Evaluates to <code>nil</code> when an error is thrown, avoiding a full <code>do-catch</code> block.</li>
+</ul>
+<figure class="code-example"><figcaption>Using defer for cleanup and managing Result types</figcaption><pre class="block swift"><code class="language-swift">enum FileError: Error {
+    case readFailure
+}
+
+func processFile() -&gt; String {
+    print(&quot;1. Opening file resource.&quot;)
+    
+    defer {
+        print(&quot;4. Executing first defer (runs second).&quot;)
+    }
+    defer {
+        print(&quot;3. Executing second defer (runs first).&quot;)
+    }
+    
+    print(&quot;2. Reading file contents.&quot;)
+    return &quot;File processed.&quot;
+}
+
+_ = processFile()
+
+// Using the Result type
+let result: Result&lt;Int, FileError&gt; = .success(100)
+switch result {
+case .success(let count):
+    print(&quot;Result succeeded with \(count) items.&quot;)
+case .failure(let err):
+    print(&quot;Result failed with error: \(err)&quot;)
+}
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">1. Opening file resource.
+2. Reading file contents.
+3. Executing second defer (runs first).
+4. Executing first defer (runs second).
+Result succeeded with 100 items.
+</code></pre></figure>
+<p>This example highlights two important patterns:</p>
+<ul>
+<li><strong><code>defer</code> reverse order</strong>: Multiple <code>defer</code> statements run in reverse order (bottom-up), guaranteeing proper teardown of nested resources.</li>
+<li><strong><code>Result</code> enum</strong>: Holds either <code>.success</code> with a value or <code>.failure</code> with an error, which is useful when storing results for later inspection.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">In what order do multiple defer statements inside the same scope execute?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">In the exact order they were written from top to bottom.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">In reverse order, running the last written defer statement first.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Randomly depending on thread availability.</span></button><p class="qc-explain" hidden="">defer statements execute in reverse order (last in, first out). This makes sure nested resources close properly.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming Swift unwinds the call stack like Java or C++ exceptions</p><p>In languages like Java or C++, exception handling unwinds the call stack, which is computationally expensive. In Swift, error handling does not unwind the stack. Errors are returned as values using dedicated registers, matching the speed of a standard return statement.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using try! in production app code</p><p><code>try!</code> disables error propagation and asserts that no error will occur. If the function throws an error, the application crashes immediately. Reserve <code>try!</code> for unit tests or situations where an error is mathematically impossible.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Forgetting that multiple defer statements execute in reverse order</p><p>When closing nested resources, candidates often assume <code>defer</code> statements run from top to bottom. They actually execute in reverse order. The last <code>defer</code> written runs first.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>In Swift, errors are values conforming to the Error protocol, often defined as enums with associated values. Functions that throw mark their signature with throws, and callers use try inside do-catch blocks. You can also use try? to convert errors into Optionals, or use defer to guarantee cleanup code runs when leaving scope.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Swift error handling is a compile-time checked mechanism that treats errors as typed values rather than unwinding the call stack. Callers handle errors with pattern-matching do-catch blocks, optional conversion via try?, or runtime assertions via try!. For asynchronous workflows or completion storage, Swift provides the Result enum with success and failure cases. Cleanup is handled with defer blocks, which execute in reverse order upon scope exit.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Errors conform to the <code>Error</code> protocol, typically modeled with enums.</li>
+<li>Throwing functions use the <code>throws</code> keyword before their return arrow.</li>
+<li>Callers must precede throwing calls with <code>try</code>, <code>try?</code>, or <code>try!</code>.</li>
+<li><code>do-catch</code> blocks catch specific errors; general catch blocks provide an implicit <code>error</code> constant.</li>
+<li><code>try?</code> converts errors into <code>nil</code>; <code>try!</code> crashes if an error is thrown.</li>
+<li><code>defer</code> executes cleanup code upon scope exit, running in reverse order.</li>
+<li>The <code>Result</code> type stores either <code>.success(Value)</code> or <code>.failure(Error)</code>.</li>
+</ul></div></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+(function() {
+  const steps = [
+    {
+      title: "Step 1 of 4: Throwing Errors",
+      leftTitle: "Throwing Errors",
+      leftTag: "Signal Problem",
+      leftCode: "func fetch() throws -> Data {\n    if badUrl { throw NetworkError.badURL }\n}",
+      leftDesc: "Functions mark their signature with throws. When an issue occurs, throw transmits an Error value.",
+      rightTitle: "Compiler Enforcement",
+      rightTag: "Mandatory try",
+      rightCode: "let data = try fetch() // try is required!",
+      rightDesc: "Callers must acknowledge the throwing potential with try. Omitting try causes a compile error.",
+      rightT1: "Compile-Time Safety",
+      rightT2: "Swift prevents unhandled throws",
+      leftT1: "throw Error",   leftS1: "Conforms to Error",
+      leftT2: "throws syntax", leftS2: "Alerts callers"
+    },
+    {
+      title: "Step 2 of 4: do-catch Handling",
+      leftTitle: "Pattern Matching",
+      leftTag: "Specific Errors",
+      leftCode: "do {\n    try fetch()\n} catch NetworkError.badURL {\n    print(\"Invalid URL\")\n}",
+      leftDesc: "Match specific enum error cases to provide tailored recovery strategies for each failure.",
+      rightTitle: "Implicit error",
+      rightTag: "Fallback Catch",
+      rightCode: "catch {\n    print(\"Error: \\(error)\") // Built-in\n}",
+      rightDesc: "A general catch block automatically provides an implicit error constant without extra typing.",
+      rightT1: "Comprehensive Recovery",
+      rightT2: "Matches specific cases + catch fallback",
+      leftT1: "catch .case",  leftS1: "Pattern matched",
+      leftT2: "catch { ... }", leftS2: "Implicit error"
+    },
+    {
+      title: "Step 3 of 4: try? Optional Conversion",
+      leftTitle: "Converting to Optional",
+      leftTag: "try? Syntax",
+      leftCode: "let data = try? fetch()\n// Type is Data? (Optional)",
+      leftDesc: "Converts the result to an Optional. If an error is thrown, the expression safely evaluates to nil.",
+      rightTitle: "try! Assertion",
+      rightTag: "Crashes on Error",
+      rightCode: "let data = try! fetch()\n// Crashes if fetch() throws!",
+      rightDesc: "try! asserts success and unwraps directly. Use only when failure is mathematically impossible.",
+      rightT1: "Safe vs Asserted",
+      rightT2: "try? -> Optional; try! -> Fatal on error",
+      leftT1: "try? -> nil",  leftS1: "No do-catch needed",
+      leftT2: "try! -> crash", leftS2: "Only for unit tests"
+    },
+    {
+      title: "Step 4 of 4: defer Cleanup",
+      leftTitle: "Scope Teardown",
+      leftTag: "Guaranteed Run",
+      leftCode: "defer { closeFile() }\n// Always runs on exit",
+      leftDesc: "Guarantees resource cleanup upon exiting the scope, whether returning normally or throwing.",
+      rightTitle: "Reverse Execution Order",
+      rightTag: "Bottom-Up / LIFO",
+      rightCode: "defer { print(\"First written\") } // Runs 2nd\ndefer { print(\"Second written\") } // Runs 1st",
+      rightDesc: "Multiple defer statements execute in reverse order, ensuring nested dependencies unwind properly.",
+      rightT1: "Last in, First out",
+      rightT2: "Releases nested locks and file handles",
+      leftT1: "defer { ... }", leftS1: "Always executes",
+      leftT2: "Reverse order", leftS2: "Last defined runs first"
+    }
+  ];
+
+  let current = 0;
+  const btnPrev = document.getElementById("btn-prev");
+  const btnNext = document.getElementById("btn-next");
+  const btnReplay = document.getElementById("btn-replay");
+  const dots = [0,1,2,3].map(i => document.getElementById("dot-" + i));
+  const sr = document.getElementById("sr-status");
+
+  function render(idx) {
+    current = idx;
+    const s = steps[current];
+
+    document.getElementById("left-title").textContent = s.leftTitle;
+    document.getElementById("left-tag").textContent = s.leftTag;
+    document.getElementById("left-code").textContent = s.leftCode;
+    document.getElementById("left-desc").textContent = s.leftDesc;
+
+    document.getElementById("right-title").textContent = s.rightTitle;
+    document.getElementById("right-tag").textContent = s.rightTag;
+    document.getElementById("right-code").textContent = s.rightCode;
+    document.getElementById("right-desc").textContent = s.rightDesc;
+
+    document.getElementById("right-t1").textContent = s.rightT1;
+    document.getElementById("right-t2").textContent = s.rightT2;
+
+    document.getElementById("left-text-1").textContent = s.leftT1;
+    document.getElementById("left-sub-1").textContent = s.leftS1;
+    document.getElementById("left-text-2").textContent = s.leftT2;
+    document.getElementById("left-sub-2").textContent = s.leftS2;
+
+    dots.forEach((d, i) => d.classList.toggle("active", i === current));
+    btnPrev.disabled = current === 0;
+    btnNext.disabled = current === steps.length - 1;
+
+    sr.textContent = s.title + ". " + s.leftDesc;
+  }
+
+  btnPrev.addEventListener("click", () => { if (current > 0) render(current - 1); });
+  btnNext.addEventListener("click", () => { if (current < steps.length - 1) render(current + 1); });
+  btnReplay.addEventListener("click", () => render(0));
+  dots.forEach((d, i) => d.addEventListener("click", () => render(i)));
+
+  document.querySelector(".diagram-host").addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" && current < steps.length - 1) render(current + 1);
+    if (e.key === "ArrowLeft" && current > 0) render(current - 1);
+  });
+})();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"error-handling","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"error-handling-q1","type":"mcq","difficulty":1,"prompt":"Which protocol must a custom error type conform to in Swift?","options":[{"id":"a","text":"The Error protocol.","explanation":"Right. Swift errors must conform to the empty Error protocol."},{"id":"b","text":"The Exception protocol.","explanation":"Exception is not a standard Swift error protocol."},{"id":"c","text":"The Throwable protocol.","explanation":"Throwable is used in Java, not Swift."},{"id":"d","text":"The Recoverable protocol.","explanation":"Recoverable is not a Swift standard protocol for errors."}],"answer":"a"},{"id":"error-handling-q2","type":"mcq","difficulty":1,"prompt":"What keyword marks a function declaration to indicate that it can throw an error?","options":[{"id":"a","text":"throw","explanation":"throw is a statement used inside a function body to emit an error."},{"id":"b","text":"throws","explanation":"Right. The throws keyword is written before the return arrow in the function signature."},{"id":"c","text":"raising","explanation":"raising is not a Swift keyword."},{"id":"d","text":"try","explanation":"try is used by callers before invoking a throwing function."}],"answer":"b"},{"id":"error-handling-q3","type":"mcq","difficulty":1,"prompt":"What happens if a function call using try? throws an error at runtime?","options":[{"id":"a","text":"The application crashes immediately with a fatal exception.","explanation":"try? catches errors safely without crashing."},{"id":"b","text":"The error is forwarded to the global uncaught exception handler.","explanation":"try? converts errors to nil and does not propagate them."},{"id":"c","text":"The expression evaluates to nil, and the error is discarded.","explanation":"Right. try? returns nil if an error is thrown."},{"id":"d","text":"The function automatically retries execution three times.","explanation":"try? does not retry operations automatically."}],"answer":"c"},{"id":"error-handling-q4","type":"mcq","difficulty":2,"prompt":"In what order do multiple defer statements inside the same function body execute?","options":[{"id":"a","text":"In the exact order they were written from top to bottom.","explanation":"defer statements execute in reverse order, not top-to-bottom."},{"id":"b","text":"Randomly depending on thread priority and queue latency.","explanation":"defer order is deterministic and strictly reverse order."},{"id":"c","text":"Simultaneously on concurrent background threads.","explanation":"defer executes synchronously on the current thread."},{"id":"d","text":"In reverse order, running the last written defer statement first.","explanation":"Right. Multiple defer blocks run in reverse order (bottom-up / LIFO)."}],"answer":"d"},{"id":"error-handling-q5","type":"mcq","difficulty":1,"prompt":"What default name does Swift provide for the caught error constant inside a general catch block?","options":[{"id":"a","text":"error","explanation":"Right. Swift automatically provides an implicit constant named error."},{"id":"b","text":"exception","explanation":"Swift uses error, not exception."},{"id":"c","text":"err","explanation":"The full identifier is error, not err."},{"id":"d","text":"failure","explanation":"Swift uses error as the default identifier."}],"answer":"a"},{"id":"error-handling-q6","type":"mcq","difficulty":2,"prompt":"Why are Swift enumerations particularly well suited for representing custom errors?","options":[{"id":"a","text":"Because enums are reference types that automatically unwind thread stacks.","explanation":"Enums are value types, and Swift does not unwind stacks."},{"id":"b","text":"Because enums model a group of related failure cases with optional associated values.","explanation":"Right. Enums provide closed failure sets and can attach contextual payload data."},{"id":"c","text":"Because enum errors cannot be caught by general catch blocks.","explanation":"Enum errors can be caught by specific or general catch blocks."},{"id":"d","text":"Because enums bypass compile-time try keyword verification.","explanation":"All throwing functions require try regardless of error type."}],"answer":"b"},{"id":"error-handling-q7","type":"mcq","difficulty":2,"prompt":"What is the primary risk of using try! before a throwing function call?","options":[{"id":"a","text":"It causes the compiler to generate slower machine code instructions.","explanation":"try! does not slow down machine code."},{"id":"b","text":"It disables the execution of any defer statements in the function.","explanation":"defer statements still run if the scope exits before the crash."},{"id":"c","text":"It produces an immediate runtime crash if the called function throws an error.","explanation":"Right. try! asserts that no error occurs, crashing if an error is thrown."},{"id":"d","text":"It converts the return value into a loosely typed AnyObject reference.","explanation":"try! preserves strong concrete typing."}],"answer":"c"},{"id":"error-handling-q8","type":"mcq","difficulty":2,"prompt":"What are the two cases of the Swift standard library Result enumeration?","options":[{"id":"a","text":".valid and .invalid","explanation":"Result does not use valid or invalid."},{"id":"b","text":".ok and .error","explanation":"Result uses success and failure, not ok and error."},{"id":"c","text":".value and .exception","explanation":"Result does not use value and exception."},{"id":"d","text":".success and .failure","explanation":"Right. Result is defined as case success(Success) and case failure(Failure)."}],"answer":"d"},{"id":"error-handling-q9","type":"mcq","difficulty":2,"prompt":"How does Swift error handling differ from traditional exception handling in Java or C++?","options":[{"id":"a","text":"Swift does not unwind the stack; errors are passed efficiently like return values.","explanation":"Right. Swift error handling is compiled into fast, stack-safe value returns."},{"id":"b","text":"Swift uses heavy heap allocations to capture call-stack frames on every throw.","explanation":"Swift does not perform expensive call-stack unwinding."},{"id":"c","text":"Swift error handling requires external operating system kernel intervention.","explanation":"Error handling is a pure language and compiler mechanism."},{"id":"d","text":"Swift exceptions can only be caught if declared inside an Objective-C class.","explanation":"Swift error handling is a native feature for all Swift types."}],"answer":"a"},{"id":"error-handling-q10","type":"mcq","difficulty":2,"prompt":"When does code inside a defer block execute?","options":[{"id":"a","text":"Immediately before the first line of the function begins.","explanation":"defer runs at scope exit, not entrance."},{"id":"b","text":"Just before code execution leaves the current enclosing scope.","explanation":"Right. defer executes upon leaving scope, regardless of how the scope exits."},{"id":"c","text":"Only when an error is thrown out of the current scope.","explanation":"defer executes on both normal return and throwing exits."},{"id":"d","text":"On a delayed timer five seconds after the function returns.","explanation":"defer runs synchronously on scope exit without timers."}],"answer":"b"},{"id":"error-handling-q11","type":"mcq","difficulty":2,"prompt":"What method on the Result type returns the success value or throws the failure error?","options":[{"id":"a","text":"unwrap()","explanation":"unwrap is not a method on Result."},{"id":"b","text":"resolve()","explanation":"resolve is not a method on Result."},{"id":"c","text":"get()","explanation":"Right. The get() method returns the success value or throws the failure error."},{"id":"d","text":"value()","explanation":"value is not a throwing accessor on Result."}],"answer":"c"},{"id":"error-handling-q12","type":"mcq","difficulty":3,"prompt":"What compiler error occurs if you call a throwing function without writing try, try?, or try!?","options":[{"id":"a","text":"fatal error: uncaught throwing function invocation in binary.","explanation":"This is a compiler error, not a fatal runtime error."},{"id":"b","text":"warning: function executes without explicit safety guarantees.","explanation":"The compiler produces a hard compile error, not a warning."},{"id":"c","text":"expression requires explicit cast to Swift.Result enumeration.","explanation":"Throwing calls do not require Result conversions."},{"id":"d","text":"call can throw but is not marked with 'try'.","explanation":"Right. Swift strictly requires try, try?, or try! at all throwing call sites."}],"answer":"d"},{"id":"error-handling-q13","type":"mcq","difficulty":3,"prompt":"How does pattern matching in catch clauses help handle specific errors?","options":[{"id":"a","text":"It lets you bind associated values and handle specific enum cases individually.","explanation":"Right. Pattern matching extracts associated values and isolates specific failure cases."},{"id":"b","text":"It automatically retries failed network calls until they succeed in the background.","explanation":"Pattern matching does not retry network operations."},{"id":"c","text":"It forces the compiler to ignore all other error types in the application.","explanation":"Unhandled error cases must still be handled by a fallback catch block."},{"id":"d","text":"It converts any unhandled error into an empty dictionary for logging.","explanation":"Catch clauses do not convert errors to dictionaries."}],"answer":"a"},{"id":"error-handling-q14","type":"mcq","difficulty":3,"prompt":"If a defer block is defined inside a throwing function, and an error is thrown, what happens to that defer block?","options":[{"id":"a","text":"It is skipped because the function threw an error before completing normally.","explanation":"defer is never skipped when leaving scope, even on throw."},{"id":"b","text":"It executes before the error is propagated up to the caller.","explanation":"Right. defer runs immediately before leaving the scope on throw."},{"id":"c","text":"It is placed on a background queue to execute after the catch block finishes.","explanation":"defer runs synchronously on the same thread before returning to the caller."},{"id":"d","text":"It causes a compiler warning regarding unreachable teardown code.","explanation":"defer is fully reachable and supported on error paths."}],"answer":"b"},{"id":"error-handling-q15","type":"mcq","difficulty":3,"prompt":"When is using the Result type preferred over writing a throwing function?","options":[{"id":"a","text":"Whenever an operation executes synchronously on the main thread.","explanation":"Synchronous functions typically use throws."},{"id":"b","text":"Only when the operation returns a primitive integer or string.","explanation":"Result works with any return type."},{"id":"c","text":"When storing the outcome of an operation or passing it across asynchronous boundaries.","explanation":"Right. Result captures outcomes as values for asynchronous or delayed evaluation."},{"id":"d","text":"When the operation cannot possibly fail under any circumstances.","explanation":"Non-failing operations do not need Result."}],"answer":"c"},{"id":"error-handling-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"enum MathError: Error {\n    case divideByZero\n}\nfunc divide(_ a: Int, by b: Int) throws -> Int {\n    if b == 0 { throw MathError.divideByZero }\n    return a / b\n}\nlet result = try? divide(10, by: 0)\nprint(result == nil)","options":[{"id":"a","text":"false","explanation":"divide(10, by: 0) throws an error, causing try? to evaluate to nil."},{"id":"b","text":"Optional(0)","explanation":"try? produces nil on failure, not an optional zero."},{"id":"c","text":"MathError","explanation":"The print statement prints the Boolean result of result == nil."},{"id":"d","text":"true","explanation":"Right. try? evaluates to nil on throw, so result == nil is true."}],"answer":"d"},{"id":"error-handling-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"enum SimpleError: Error {\n    case failure\n}\nfunc checkNumber(_ n: Int) throws -> String {\n    if n \u003c 0 { throw SimpleError.failure }\n    return \"Positive\"\n}\ndo {\n    let msg = try checkNumber(5)\n    print(msg)\n} catch {\n    print(\"Failed\")\n}","options":[{"id":"a","text":"Positive","explanation":"Right. 5 is not negative, so checkNumber returns \"Positive\" without throwing."},{"id":"b","text":"Failed","explanation":"No error was thrown, so the catch block does not run."},{"id":"c","text":"SimpleError","explanation":"No error was thrown."},{"id":"d","text":"5","explanation":"The function returns \"Positive\", not the number 5."}],"answer":"a"},{"id":"error-handling-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"func executeTask() {\n    defer { print(\"Third\") }\n    defer { print(\"Second\") }\n    print(\"First\")\n}\nexecuteTask()","options":[{"id":"a","text":"First\nThird\nSecond","explanation":"defer blocks run in reverse order, so Second runs before Third."},{"id":"b","text":"First\nSecond\nThird","explanation":"Right. \"First\" prints immediately; then the two defers run in reverse order."},{"id":"c","text":"Third\nSecond\nFirst","explanation":"The body prints \"First\" before any defer runs at scope exit."},{"id":"d","text":"Second\nThird\nFirst","explanation":"The body prints \"First\" first."}],"answer":"b"},{"id":"error-handling-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"enum AuthError: Error {\n    case invalidToken\n}\nlet outcome: Result\u003cString, AuthError> = .failure(.invalidToken)\nswitch outcome {\ncase .success(let token):\n    print(\"Token: \\(token)\")\ncase .failure:\n    print(\"Authentication failed\")\n}","options":[{"id":"a","text":"Token: invalidToken","explanation":"The outcome is a failure case, not a success case."},{"id":"b","text":"Token: nil","explanation":"The switch matches .failure, not .success."},{"id":"c","text":"Authentication failed","explanation":"Right. outcome is .failure(.invalidToken), which prints \"Authentication failed\"."},{"id":"d","text":"AuthError","explanation":"The matching case prints \"Authentication failed\"."}],"answer":"c"},{"id":"error-handling-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"enum LoadError: Error {\n    case timeout\n}\nfunc load() throws -> Int {\n    throw LoadError.timeout\n}\nlet value = (try? load()) ?? 42\nprint(value)","options":[{"id":"a","text":"0","explanation":"The nil-coalescing fallback is 42, not 0."},{"id":"b","text":"nil","explanation":"The ?? operator unwraps nil to the fallback value 42."},{"id":"c","text":"timeout","explanation":"try? converts the thrown error into nil."},{"id":"d","text":"42","explanation":"Right. load() throws, try? returns nil, and ?? 42 provides 42."}],"answer":"d"},{"id":"error-handling-q21","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"enum ServerError: Error {\n    case notFound(code: Int)\n}\nfunc request() throws {\n    throw ServerError.notFound(code: 404)\n}\ndo {\n    try request()\n} catch ServerError.notFound(let code) {\n    print(\"Status code: \\(code)\")\n} catch {\n    print(\"General error\")\n}","options":[{"id":"a","text":"Status code: 404","explanation":"Right. Pattern matching extracts code 404 and prints \"Status code: 404\"."},{"id":"b","text":"General error","explanation":"The specific catch clause matched first, so the fallback catch was skipped."},{"id":"c","text":"404","explanation":"The print statement formats the output with \"Status code: \"."},{"id":"d","text":"ServerError","explanation":"The print statement prints the interpolated code."}],"answer":"a"},{"id":"error-handling-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"enum CalcError: Error {\n    case negative\n}\nlet res: Result\u003cInt, CalcError> = .success(25)\nlet num = try? res.get()\nprint(num ?? 0)","options":[{"id":"a","text":"0","explanation":"res is .success(25), so res.get() returns 25 without throwing."},{"id":"b","text":"25","explanation":"Right. res.get() returns the success value 25, which try? wraps in an Optional."},{"id":"c","text":"nil","explanation":"The ?? operator provides 0 if nil, but num holds 25."},{"id":"d","text":"CalcError","explanation":"No error occurred."}],"answer":"b"},{"id":"error-handling-q23","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"enum StepError: Error {\n    case failed\n}\nfunc step() throws {\n    defer { print(\"Step cleanup\") }\n    throw StepError.failed\n}\ndo {\n    try step()\n} catch {\n    print(\"Handled error\")\n}","options":[{"id":"a","text":"Handled error","explanation":"The defer statement runs before the catch block executes."},{"id":"b","text":"Handled error\nStep cleanup","explanation":"defer runs upon scope exit, before the caller catch block prints."},{"id":"c","text":"Step cleanup\nHandled error","explanation":"Right. defer executes upon throwing, followed by the caller catch block."},{"id":"d","text":"StepError","explanation":"The print statements output \"Step cleanup\" then \"Handled error\"."}],"answer":"c"},{"id":"error-handling-q24","type":"written","difficulty":1,"prompt":"What is the difference between try, try?, and try! in Swift? When should each be used? Answer in 2–4 sentences.","rubric":[{"criterion":"Explains try is used inside do-catch or throwing functions to propagate or catch errors","weight":35,"key":true},{"criterion":"Explains try? converts thrown errors into nil, returning an Optional","weight":35,"key":true},{"criterion":"Explains try! asserts success and crashes at runtime if an error is thrown","weight":30}],"modelAnswer":"In Swift, try is used inside do-catch blocks or throwing functions to propagate errors to the caller. The try? keyword converts the result into an optional, evaluating to nil if an error is thrown without requiring a do-catch block. The try! keyword asserts that no error will occur, unwrapping the result immediately but crashing if an error is thrown."},{"id":"error-handling-q25","type":"written","difficulty":2,"prompt":"Why are Swift enumerations with associated values well suited for modeling errors? Answer in 2–4 sentences.","rubric":[{"criterion":"Explains that enums model a discrete set of related error conditions","weight":40,"key":true},{"criterion":"States that associated values attach relevant diagnostic context to specific cases","weight":35,"key":true},{"criterion":"Mentions that callers can use pattern matching in catch clauses to inspect details","weight":25}],"modelAnswer":"Swift enumerations are ideal for error modeling because they define a clear, closed set of related error cases. Enums can include associated values to attach specific diagnostic details, such as an HTTP status code or missing file path. Callers can then use pattern matching in catch blocks to handle specific failure modes with full type safety."},{"id":"error-handling-q26","type":"written","difficulty":2,"prompt":"Explain how the defer keyword works in Swift. In what order do multiple defer blocks in the same scope execute? Answer in 2–4 sentences.","rubric":[{"criterion":"Explains that defer delays execution of a block until the surrounding scope is exited","weight":40,"key":true},{"criterion":"States that defer runs regardless of whether the scope exits normally or by throwing an error","weight":35,"key":true},{"criterion":"Explains that multiple defer statements execute in reverse order (last in, first out)","weight":25}],"modelAnswer":"The defer keyword schedules code to run just before the current scope exits. It is guaranteed to run whether the function returns normally, breaks early, or throws an error. When multiple defer blocks exist in the same scope, they execute in reverse order, running the last declared defer statement first."},{"id":"error-handling-q27","type":"written","difficulty":2,"prompt":"How does Swift error handling differ from exception handling in languages like Java or C++? Answer in 2–4 sentences.","rubric":[{"criterion":"Explains that Swift error handling does not unwind the call stack","weight":40,"key":true},{"criterion":"States that errors are passed as typed values using registers with the speed of a return statement","weight":35,"key":true},{"criterion":"Notes that try marks throwing call sites explicitly for compile-time safety","weight":25}],"modelAnswer":"Unlike Java or C++, Swift error handling does not unwind the call stack. Instead, Swift passes errors as lightweight typed values, matching the runtime performance of a standard return statement. The Swift compiler requires explicit try annotations at every throwing call site, ensuring that error paths are visible and checked at compile time."},{"id":"error-handling-q28","type":"written","difficulty":3,"prompt":"What is the Result type in Swift, and when is it preferred over throwing functions? Answer in 2–4 sentences.","rubric":[{"criterion":"Defines Result as an enumeration with success and failure cases","weight":40,"key":true},{"criterion":"Explains that Result captures the outcome of an operation as a first-class value","weight":35,"key":true},{"criterion":"States that it is preferred for storing states or passing results across asynchronous boundaries","weight":25}],"modelAnswer":"The Result type is a standard library enumeration with success and failure cases. It stores the outcome of an operation as a first-class value in memory. Result is often preferred over throwing functions when passing results across asynchronous completion handlers or storing outcomes for later evaluation."},{"id":"error-handling-q29","type":"code-write","difficulty":1,"prompt":"Define an enum named MathError conforming to Error with case divisionByZero. Write a function divide(_ a: Int, by b: Int) throws -> Int that throws MathError.divisionByZero when b == 0, or returns a / b. Call divide(20, by: 4) inside a do-catch block and print the result.","starterCode":"// Define MathError enum, throwing divide function, call with 20 and 4, and print\n","rubric":[{"criterion":"Defines enum MathError: Error with case divisionByZero","weight":35,"key":true},{"criterion":"Implements divide(_ a: Int, by b: Int) throws -> Int throwing on b == 0","weight":40,"key":true},{"criterion":"Calls divide(20, by: 4) with try in do-catch and prints 5","weight":25}],"modelAnswer":"enum MathError: Error {\n    case divisionByZero\n}\nfunc divide(_ a: Int, by b: Int) throws -> Int {\n    if b == 0 {\n        throw MathError.divisionByZero\n    }\n    return a / b\n}\ndo {\n    let result = try divide(20, by: 4)\n    print(result)\n} catch {\n    print(\"Error: \\(error)\")\n}"},{"id":"error-handling-q30","type":"code-write","difficulty":2,"prompt":"Define an enum named ParseError: Error with case invalid. Write a throwing function parseAge(_ text: String) throws -> Int that returns Int(text) or throws ParseError.invalid if conversion fails. Call the function with \"abc\" using try?, and print whether the result is nil.","starterCode":"// Define ParseError, parseAge throwing function, call with try?, and print comparison\n","rubric":[{"criterion":"Defines enum ParseError: Error with case invalid","weight":35,"key":true},{"criterion":"Implements parseAge(_ text: String) throws -> Int returning Int(text) or throwing","weight":40,"key":true},{"criterion":"Calls parseAge(\"abc\") with try? and prints result == nil, producing output true","weight":25}],"modelAnswer":"enum ParseError: Error {\n    case invalid\n}\nfunc parseAge(_ text: String) throws -> Int {\n    guard let age = Int(text) else {\n        throw ParseError.invalid\n    }\n    return age\n}\nlet age = try? parseAge(\"abc\")\nprint(age == nil)"},{"id":"error-handling-q31","type":"code-write","difficulty":2,"prompt":"Write a function processItem() that prints \"Start\", uses two defer blocks printing \"First defer\" and \"Second defer\", and prints \"End\". Call processItem() to observe the print output.","starterCode":"// Define processItem with two defer blocks, call it, and print output\n","rubric":[{"criterion":"Defines function processItem() printing Start and End","weight":35,"key":true},{"criterion":"Adds two defer statements with First defer declared before Second defer","weight":40,"key":true},{"criterion":"Calls processItem() producing output with Second defer printed before First defer","weight":25}],"modelAnswer":"func processItem() {\n    print(\"Start\")\n    defer {\n        print(\"First defer\")\n    }\n    defer {\n        print(\"Second defer\")\n    }\n    print(\"End\")\n}\nprocessItem()"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
