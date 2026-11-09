@@ -1,0 +1,70 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  content-and-app:
+    name: Content checks, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Validate curriculum
+        run: node scripts/validate-curriculum.mjs
+      - name: Brand check
+        run: node scripts/check-brand.mjs
+      - name: Lesson structure
+        run: |
+          for f in content/topics/*/lesson.mdx; do node .claude/hooks/check-lesson.mjs "$f"; done
+      - name: Plain English
+        run: |
+          for f in content/topics/*/lesson.mdx content/topics/*/questions.json; do
+            [ -f "$f" ] && node .claude/hooks/check-plain-english.mjs "$f"
+          done
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  swift-examples:
+    name: Swift examples (changed topics)
+    runs-on: macos-26
+    timeout-minutes: 30
+    # Advisory for now: the runner's default Xcode (26.x) is older than the content
+    # baseline (Xcode 27.1 / Swift 6.4, docs/stack.md). Make this blocking when
+    # the runner image has Xcode 27.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Run Swift examples in changed lessons and question banks
+        run: |
+          swift --version
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then BASE="HEAD~1"; fi
+          FILES=$(git diff --name-only "$BASE" HEAD -- 'content/topics/*/lesson.mdx' 'content/topics/*/questions.json' || true)
+          if [ -z "$FILES" ]; then echo "No changed lessons or question banks."; exit 0; fi
+          status=0
+          for f in $FILES; do
+            [ -f "$f" ] || continue
+            echo "== $f"
+            node scripts/run-swift-examples.mjs "$f" || status=1
+          done
+          exit $status
