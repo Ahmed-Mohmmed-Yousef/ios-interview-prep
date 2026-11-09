@@ -1,0 +1,607 @@
+<title>Two Pointers and Sliding Window Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --win-color: #0284c7; --win-soft: #e0f2fe;
+  --in-color: #16a34a; --in-soft: #dcfce7;
+  --out-color: #dc2626; --out-soft: #fee2e2;
+  --max-color: #7c3aed; --max-soft: #ede9fe;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --win-color: #38bdf8; --win-soft: #082f49;
+  --in-color: #4ade80; --in-soft: #14532d;
+  --out-color: #f87171; --out-soft: #450a0a;
+  --max-color: #a78bfa; --max-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.cell-slot { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 6px; }
+.cell-slot.in-window { fill: var(--win-soft); stroke: var(--win-color); stroke-width: 2.5; }
+.cell-slot.outgoing { fill: var(--out-soft); stroke: var(--out-color); stroke-width: 2.5; }
+.cell-slot.incoming { fill: var(--in-soft); stroke: var(--in-color); stroke-width: 2.5; }
+
+.cell-val { font-family: var(--font-code); font-size: 14px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.cell-idx { font-family: var(--font-body); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+.win-brace { stroke: var(--win-color); stroke-width: 2.5; fill: none; }
+.win-lbl { font-family: var(--font-body); font-size: 11px; font-weight: 700; fill: var(--win-color); text-anchor: middle; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Coding Interview · Topic 2 of 6 · Prototype</p>
+    <h1>Two Pointers and Sliding Window</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can solve problems with the two pointers and sliding window patterns.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">How can you find the maximum sum of any contiguous subarray of size k in O(n) time instead of O(n * k)?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Sort the array first and take the last k elements.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Slide a window across the array, adding the incoming element and subtracting the outgoing element.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Compute all subarray combinations using nested loops.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine looking through a moving train window that shows exactly three seats at a time.</p><p>When the train moves forward by one seat, you do not recount all three seats from scratch.</p><p>You subtract the passenger who just left your view on the left. You add the new passenger who just entered on the right.</p></aside>
+<p>In algorithmic interviews, nested loops often compare elements repeatedly. This produces slow $O(n^2)$ solutions.</p>
+<p>Two core patterns help you eliminate redundant work:</p>
+<ol>
+<li><strong>Two Pointers (Inward or Convergent)</strong>:
+<ul>
+<li>Place one pointer at the start and one pointer at the end.</li>
+<li>Move the pointers toward each other based on comparison conditions.</li>
+<li>This checks pairs across the entire array in a single pass of $O(n)$ time.</li>
+</ul>
+</li>
+<li><strong>Two Pointers (Fast and Slow)</strong>:
+<ul>
+<li>Move two pointers in the same direction at different speeds.</li>
+<li>The slow pointer writes clean data, while the fast pointer scans incoming values.</li>
+<li>This pattern removes duplicates or moves zeroes in-place with $O(1)$ auxiliary memory.</li>
+</ul>
+</li>
+<li><strong>Sliding Window</strong>:
+<ul>
+<li>Maintain a contiguous subarray boundary defined by <code>left</code> and <code>right</code> indices.</li>
+<li>When the window moves, add the new element and subtract the old element in $O(1)$ time.</li>
+<li>This reduces repetitive range calculations from $O(n \cdot k)$ to linear $O(n)$ time.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why does a sliding window sum run in O(n) time rather than O(n * k)?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Swift calculates all range sums in background threads simultaneously.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Each step updates the sum in O(1) time by adjusting only the boundary elements.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The array is sorted before the window begins sliding.</span></button><p class="qc-explain" hidden="">Instead of summing k elements each time, we subtract one outgoing element and add one incoming element in O(1) time.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Two pointers: Two Sum on a sorted array</figcaption><pre class="block swift"><code class="language-swift">func twoSumSorted(_ numbers: [Int], target: Int) -&gt; (Int, Int)? {
+    var left = 0
+    var right = numbers.count - 1
+    
+    while left &lt; right {
+        let sum = numbers[left] + numbers[right]
+        if sum == target {
+            return (left, right)
+        } else if sum &lt; target {
+            left += 1
+        } else {
+            right -= 1
+        }
+    }
+    return nil
+}
+
+let sortedNumbers = [1, 3, 5, 8, 12, 17]
+if let result = twoSumSorted(sortedNumbers, target: 13) {
+    print(&quot;Pair at indices: [\(result.0), \(result.1)]&quot;)
+}
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Pair at indices: [0, 4]
+</code></pre></figure>
+<p>In this example, the array is already sorted.</p>
+<p>Because the data is ordered, <code>numbers[left] + numbers[right]</code> is monotonic. If the sum is too small, incrementing <code>left</code> increases the sum. If the sum is too large, decrementing <code>right</code> decreases the sum.</p>
+<p>This eliminates nested loops and finds the target pair in $O(n)$ time using $O(1)$ memory.</p>
+<figure class="code-example"><figcaption>Sliding window: Maximum sum subarray of fixed size k</figcaption><pre class="block swift"><code class="language-swift">func maxSumSubarray(_ numbers: [Int], k: Int) -&gt; Int {
+    guard numbers.count &gt;= k, k &gt; 0 else { return 0 }
+    
+    var windowSum = 0
+    for i in 0 ..&lt; k {
+        windowSum += numbers[i]
+    }
+    
+    var maxSum = windowSum
+    for i in k ..&lt; numbers.count {
+        windowSum += numbers[i] - numbers[i - k]
+        maxSum = max(maxSum, windowSum)
+    }
+    return maxSum
+}
+
+let values = [2, 1, 5, 1, 3, 2]
+print(&quot;Max sum of window size 3: \(maxSumSubarray(values, k: 3))&quot;)
+
+let valuesTwo = [4, 2, 1, 7, 8, 1, 2]
+print(&quot;Max sum of window size 3: \(maxSumSubarray(valuesTwo, k: 3))&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Max sum of window size 3: 9
+Max sum of window size 3: 16
+</code></pre></figure>
+<p>In the second loop, we do not recount the whole window.</p>
+<p>We subtract <code>numbers[i - k]</code>, which is the element falling out of the window. Then we add <code>numbers[i]</code>, which is the element entering the window.</p>
+<p>Each shift takes $O(1)$ time, yielding an overall $O(n)$ time complexity.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Can the convergent two-pointer technique solve Two Sum on an unsorted array in O(n) time and O(1) space?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, because pointers can check all combinations without sorting.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, because the decision to increment left or decrement right requires sorted monotonic data.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Yes, if you use three pointers instead of two.</span></button><p class="qc-explain" hidden="">Moving pointers inward requires monotonic sums. On unsorted inputs, use a hash map or sort first.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Accidental quadratic time from repeated String.Index offsetting</p><p>In Swift, <code>String</code> indices are not random-access integer subscripts.</p><p>Calling <code>string.index(string.startIndex, offsetBy: i)</code> inside a loop takes $O(i)$ time. This turns an $O(n)$ two-pointer algorithm into an accidental $O(n^2)$ algorithm.</p><p>For string problems in coding interviews, convert the string to <code>Array(string)</code> in $O(n)$ time once, then use integer indices.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Off-by-one window length calculations</p><p>The number of elements in a window from index <code>left</code> to <code>right</code> inclusive is <code>right - left + 1</code>.</p><p>A common bug is writing <code>right - left</code>, which undercounts the window size by one.</p><p>Always remember the plus-one offset when calculating inclusive subarray lengths.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Shrinking dynamic windows with if instead of while</p><p>In variable-size sliding windows, adding one element on the right can cause multiple constraint violations.</p><p>Using <code>if</code> only shrinks the window by one position, leaving invalid states active.</p><p>Use a <code>while</code> loop to shrink <code>left</code> until the required invariant is restored completely.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming an inner while loop implies O(n^2) time</p><p>Candidates often worry that a <code>while</code> loop inside a <code>for</code> loop produces $O(n^2)$ quadratic complexity.</p><p>In sliding window algorithms, <code>left</code> only moves forward and never resets backward.</p><p>Because <code>left</code> and <code>right</code> each advance at most $n$ times, total operations are at most $2n$. This runs in amortized $O(n)$ time.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;Two pointers and sliding window are algorithmic patterns that reduce nested loops from $O(n^2)$ to $O(n)$ time. In two pointers, we either move pointers toward each other from both ends, or move them in the same direction. In sliding window, we track a subarray range, updating sums or counts by adding incoming elements and subtracting outgoing elements in $O(1)$ time.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;I choose two pointers when an array is sorted or when partitioning elements in-place with $O(1)$ auxiliary space. For contiguous subarray problems, I use a sliding window. For fixed windows, I slide by updating boundaries in constant time. For dynamic windows, <code>right</code> expands the window while <code>left</code> contracts it in a while loop. This guarantees amortized $O(n)$ time because each index is visited at most twice. In Swift, I convert strings to character arrays first to avoid $O(n)$ index offsetting.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;Two pointers and sliding window apply to contiguous streaming structures, circular buffers, and rate limiting. When designing high-throughput iOS data pipelines, sliding windows calculate rolling metrics over time without buffering entire datasets. In Swift, performance hinges on memory layout: using contiguous arrays preserves cache locality and avoids ARC overhead. When handling Unicode strings, converting to ASCII byte spans or character arrays prevents repeated grapheme cluster recalculations in inner loops.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Convergent two pointers move inward on sorted data to find pairs in $O(n)$ time and $O(1)$ space.</li>
+<li>Fast and slow pointers scan and overwrite data in-place in a single pass.</li>
+<li>Sliding window computes contiguous subarray metrics in $O(n)$ time by adding incoming elements and subtracting outgoing elements.</li>
+<li>Inclusive window length is <code>right - left + 1</code>.</li>
+<li>Convert Swift strings to <code>Array(string)</code> to prevent accidental $O(n^2)$ index traversal.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/swift/array">Apple Developer Documentation: Array</a> — Random-access contiguous collection storage and performance.</li>
+<li><a href="https://developer.apple.com/documentation/swift/string">Apple Developer Documentation: String</a> — Bidirectional collection of grapheme clusters and index traversal.</li>
+<li><a href="https://www.techinterviewhandbook.org/algorithms/array/">Tech Interview Handbook: Array Cheatsheet</a> — Essential two-pointer and sliding window interview patterns.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    title: "Initial Window (k = 3)",
+    tag: "Step 1",
+    tagColor: "var(--win-soft)",
+    tagText: "var(--win-color)",
+    desc: "Initial window covers indices 0 to 2: [2, 1, 5]. Initial window sum is 8.",
+    rightTitle: "Initial Accumulation",
+    rightTag: "Step 1 of 4",
+    code: "for i in 0 ..< k {\n    windowSum += numbers[i] // 2 + 1 + 5 = 8\n}\nmaxSum = windowSum // 8",
+    rightDesc: "Calculate sum of the first 3 elements directly. Set maximum sum seen so far to 8.",
+    winSum: 8, outVal: "—", inVal: "—", maxVal: 8,
+    cellClasses: ["cell-slot in-window", "cell-slot in-window", "cell-slot in-window", "cell-slot", "cell-slot", "cell-slot"],
+    barX: 20, barW: 148, barText: "Active Window [0...2]",
+    barColor: "var(--win-color)"
+  },
+  {
+    title: "Slide Right: Remove 2, Add 1",
+    tag: "Step 2",
+    tagColor: "var(--out-soft)",
+    tagText: "var(--out-color)",
+    desc: "Index 0 (2) leaves the window on the left. Index 3 (1) enters on the right. Sum: 8 - 2 + 1 = 7.",
+    rightTitle: "Boundary Shift in O(1)",
+    rightTag: "Step 2 of 4",
+    code: "windowSum += numbers[3] - numbers[0] // 8 + 1 - 2 = 7\nmaxSum = max(8, 7) // remains 8",
+    rightDesc: "Subtract the outgoing element and add the incoming element in O(1) time without looping.",
+    winSum: 7, outVal: "-2", inVal: "+1", maxVal: 8,
+    cellClasses: ["cell-slot outgoing", "cell-slot in-window", "cell-slot in-window", "cell-slot incoming", "cell-slot", "cell-slot"],
+    barX: 72, barW: 148, barText: "Active Window [1...3]",
+    barColor: "var(--win-color)"
+  },
+  {
+    title: "Slide Right: Remove 1, Add 3",
+    tag: "Step 3",
+    tagColor: "var(--in-soft)",
+    tagText: "var(--in-color)",
+    desc: "Index 1 (1) leaves the window. Index 4 (3) enters. Sum: 7 - 1 + 3 = 9. New maximum found!",
+    rightTitle: "New Maximum Observed",
+    rightTag: "Step 3 of 4",
+    code: "windowSum += numbers[4] - numbers[1] // 7 + 3 - 1 = 9\nmaxSum = max(8, 9) // updated to 9!",
+    rightDesc: "Window [5, 1, 3] sum equals 9, exceeding previous max 8. Maximum sum updates to 9.",
+    winSum: 9, outVal: "-1", inVal: "+3", maxVal: 9,
+    cellClasses: ["cell-slot", "cell-slot outgoing", "cell-slot in-window", "cell-slot in-window", "cell-slot incoming", "cell-slot"],
+    barX: 124, barW: 148, barText: "Active Window [2...4]",
+    barColor: "var(--max-color)"
+  },
+  {
+    title: "Final Window: Remove 5, Add 2",
+    tag: "Step 4",
+    tagColor: "var(--max-soft)",
+    tagText: "var(--max-color)",
+    desc: "Index 2 (5) leaves. Index 5 (2) enters. Sum: 9 - 5 + 2 = 6. Scan complete with maximum sum 9.",
+    rightTitle: "Scan Complete",
+    rightTag: "O(n) time",
+    code: "windowSum += numbers[5] - numbers[2] // 9 + 2 - 5 = 6\nmaxSum = max(9, 6) // final result: 9",
+    rightDesc: "Algorithm visited all elements in a single O(n) pass. Return maximum subarray sum 9.",
+    winSum: 6, outVal: "-5", inVal: "+2", maxVal: 9,
+    cellClasses: ["cell-slot", "cell-slot", "cell-slot outgoing", "cell-slot in-window", "cell-slot in-window", "cell-slot incoming"],
+    barX: 176, barW: 148, barText: "Active Window [3...5]",
+    barColor: "var(--win-color)"
+  }
+];
+
+let curStep = 0;
+
+function updateView() {
+  const s = steps[curStep];
+  document.getElementById("vis-title").textContent = s.title;
+  const tag = document.getElementById("vis-tag");
+  tag.textContent = s.tag;
+  tag.style.background = s.tagColor;
+  tag.style.color = s.tagText;
+  document.getElementById("vis-desc").textContent = s.desc;
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.code;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("m-win").textContent = s.winSum;
+  document.getElementById("m-out").textContent = s.outVal;
+  document.getElementById("m-in").textContent = s.inVal;
+  document.getElementById("m-max").textContent = s.maxVal;
+
+  for (let i = 0; i < 6; i++) {
+    const el = document.getElementById("c-" + i);
+    el.setAttribute("class", s.cellClasses[i]);
+  }
+
+  const bar = document.getElementById("win-bar");
+  bar.setAttribute("x", s.barX);
+  bar.setAttribute("width", s.barW);
+  bar.setAttribute("fill", s.barColor);
+
+  const label = document.getElementById("win-label");
+  label.setAttribute("x", s.barX + s.barW / 2);
+  label.textContent = s.barText;
+
+  document.querySelectorAll(".dot").forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = curStep === 0;
+  document.getElementById("btn-next").disabled = curStep === steps.length - 1;
+}
+
+function goToStep(i) {
+  curStep = Math.max(0, Math.min(steps.length - 1, i));
+  updateView();
+}
+function nextStep() { goToStep(curStep + 1); }
+function prevStep() { goToStep(curStep - 1); }
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateView();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"two-pointers-sliding-window","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"two-pointers-sliding-window-q1","type":"mcq","difficulty":1,"prompt":"What is the primary benefit of the two pointers technique on sorted arrays?","options":[{"id":"a","text":"It eliminates nested loops and finds pairs in O(n) linear time.","explanation":"Right. Two pointers move across the array in one pass, reducing quadratic time to linear."},{"id":"b","text":"It converts arrays into binary trees for logarithmic lookups.","explanation":"Two pointers work directly on arrays without constructing tree structures."},{"id":"c","text":"It guarantees thread-safe mutations during concurrent operations.","explanation":"Two pointers is an algorithmic pattern, not a concurrency primitive."},{"id":"d","text":"It eliminates the need for array boundary checks completely.","explanation":"The algorithm still requires checking boundary conditions like left \u003c right."}],"answer":"a"},{"id":"two-pointers-sliding-window-q2","type":"mcq","difficulty":1,"prompt":"In a convergent two-pointer Two Sum on a sorted array, what do you do if current sum \u003c target?","options":[{"id":"a","text":"Decrement the right pointer to inspect a smaller element.","explanation":"Decrementing right reduces the sum further, moving away from target."},{"id":"b","text":"Increment the left pointer to increase the total sum.","explanation":"Right. Because the array is sorted, moving left to the right increases the sum."},{"id":"c","text":"Reset both pointers to the middle of the array.","explanation":"Resetting pointers breaks the linear scan invariant."},{"id":"d","text":"Swap elements at the left and right pointer positions.","explanation":"Swapping elements corrupts the sorted order of the collection."}],"answer":"b"},{"id":"two-pointers-sliding-window-q3","type":"mcq","difficulty":1,"prompt":"How does a sliding window update the sum of a fixed window of size k in O(1) time?","options":[{"id":"a","text":"It multiplies the middle element by window length k.","explanation":"Multiplying the middle element only works on arithmetic progressions."},{"id":"b","text":"It creates a concurrent task group to sum slice elements.","explanation":"Creating concurrent tasks adds substantial thread overhead and is not O(1)."},{"id":"c","text":"It adds the incoming element and subtracts the outgoing element.","explanation":"Right. Adjusting only the boundary elements avoids recalculating the whole window."},{"id":"d","text":"It sorts the subarray and removes the smallest value.","explanation":"Sorting the subarray takes O(k log k) time and destroys element order."}],"answer":"c"},{"id":"two-pointers-sliding-window-q4","type":"mcq","difficulty":2,"prompt":"What is the formula for the number of elements in a window from left to right inclusive?","options":[{"id":"a","text":"right - left - 1","explanation":"This expression undercounts window length by two."},{"id":"b","text":"right + left","explanation":"Adding indices produces an arbitrary number unrelated to span length."},{"id":"c","text":"right - left","explanation":"This formula undercounts the inclusive element count by one."},{"id":"d","text":"right - left + 1","explanation":"Right. For inclusive bounds 0 through 2, 2 - 0 + 1 yields 3 elements."}],"answer":"d"},{"id":"two-pointers-sliding-window-q5","type":"mcq","difficulty":2,"prompt":"Why can repeatedly indexing a Swift String with offsetBy inside a loop cause O(n^2) time?","options":[{"id":"a","text":"String indices are not random-access and each offset scan takes O(n) time.","explanation":"Right. Grapheme clusters require linear traversal, making repeated indexing O(n^2)."},{"id":"b","text":"Swift allocates a brand new String buffer on every subscript access.","explanation":"Subscripting strings returns Character slices without cloning the whole buffer."},{"id":"c","text":"Strings in Swift are reference types requiring ARC atomic retain calls.","explanation":"Swift String is a value type with copy-on-write semantics."},{"id":"d","text":"The compiler disables loop optimizations when using String.Index.","explanation":"The slowdown stems from grapheme cluster traversal, not compiler flags."}],"answer":"a"},{"id":"two-pointers-sliding-window-q6","type":"mcq","difficulty":2,"prompt":"What is the recommended solution for two-pointer string problems in Swift interviews?","options":[{"id":"a","text":"Force cast the String directly to an NSArray object.","explanation":"Bridging to NSArray adds Objective-C overhead and loses Swift safety."},{"id":"b","text":"Convert the String to Array(string) once for O(1) integer access.","explanation":"Right. Converting once takes O(n) time and grants O(1) random-access integer indexing."},{"id":"c","text":"Use NSString UTF-16 code unit offsets exclusively.","explanation":"UTF-16 code units can split surrogate pairs and corrupt emoji characters."},{"id":"d","text":"Disable Unicode support by setting custom compiler flags.","explanation":"Swift strings always preserve correct Unicode grapheme clusters."}],"answer":"b"},{"id":"two-pointers-sliding-window-q7","type":"mcq","difficulty":2,"prompt":"Why does a dynamic sliding window with an inner while loop have amortized O(n) time?","options":[{"id":"a","text":"The Swift compiler unrolls all while loops into vector operations.","explanation":"Loop unrolling is an optimization that does not change asymptotic complexity."},{"id":"b","text":"The while loop only executes when the right pointer reaches the end.","explanation":"The while loop can execute during any iteration when constraints are violated."},{"id":"c","text":"Both left and right pointers only move forward and advance at most n times.","explanation":"Right. Because pointers never move backward, total pointer steps cannot exceed 2n."},{"id":"d","text":"The while loop runs asynchronously on a background thread pool.","explanation":"Sliding window algorithms run sequentially on a single thread."}],"answer":"c"},{"id":"two-pointers-sliding-window-q8","type":"mcq","difficulty":2,"prompt":"Which problem is best suited for the fast and slow pointer technique?","options":[{"id":"a","text":"Calculating the shortest path in an unweighted graph.","explanation":"Shortest path in unweighted graphs requires Breadth-First Search (BFS)."},{"id":"b","text":"Balancing a binary search tree after node deletion.","explanation":"Tree balancing uses tree rotations rather than pointer scanning."},{"id":"c","text":"Evaluating mathematical expressions in reverse Polish notation.","explanation":"Expression evaluation uses a stack data structure."},{"id":"d","text":"Removing duplicate elements from a sorted array in-place.","explanation":"Right. The slow pointer writes unique elements while the fast pointer scans ahead."}],"answer":"d"},{"id":"two-pointers-sliding-window-q9","type":"mcq","difficulty":2,"prompt":"What is the space complexity of removing duplicates in-place using two pointers?","options":[{"id":"a","text":"O(1) auxiliary space because changes occur within the input array.","explanation":"Right. Overwriting elements in-place requires only two index tracking variables."},{"id":"b","text":"O(n) space because Swift duplicates arrays on every mutation.","explanation":"Passing arrays with inout avoids copying when only one reference exists."},{"id":"c","text":"O(k) space where k is the count of duplicate elements.","explanation":"No extra buffer is created to store duplicate elements."},{"id":"d","text":"O(log n) space to maintain recursion stack frames.","explanation":"Two pointers uses an iterative loop without recursion."}],"answer":"a"},{"id":"two-pointers-sliding-window-q10","type":"mcq","difficulty":2,"prompt":"Why should dynamic sliding windows shrink using a while loop rather than an if statement?","options":[{"id":"a","text":"An if statement causes Swift to throw a compilation error.","explanation":"Using an if statement is syntactically valid code but algorithmically flawed."},{"id":"b","text":"Adding one element may require contracting the window multiple times.","explanation":"Right. A while loop ensures all invalid elements are removed until invariant holds."},{"id":"c","text":"A while loop forces the compiler to preallocate heap memory.","explanation":"While loops manage control flow and do not allocate heap memory."},{"id":"d","text":"An if statement always resets the left pointer back to index 0.","explanation":"An if statement advances by one step rather than resetting to 0."}],"answer":"b"},{"id":"two-pointers-sliding-window-q11","type":"mcq","difficulty":3,"prompt":"In Container With Most Water, why do we move the pointer pointing to the shorter line?","options":[{"id":"a","text":"Because moving the taller line increases width automatically.","explanation":"Moving either pointer decreases the width by 1 on every step."},{"id":"b","text":"Because the shorter line is swapped with the next element.","explanation":"Container With Most Water inspects heights without modifying the array."},{"id":"c","text":"Because the shorter line limits area, and moving it is the only way to find a taller line.","explanation":"Right. The shorter line caps capacity. Moving the taller line can only shrink area."},{"id":"d","text":"Because moving the shorter line resets the search interval.","explanation":"Moving the shorter line narrows the interval inward rather than resetting."}],"answer":"c"},{"id":"two-pointers-sliding-window-q12","type":"mcq","difficulty":2,"prompt":"What happens if you attempt two-pointer Two Sum on an unsorted array without sorting?","options":[{"id":"a","text":"The algorithm executes correctly in O(n) linear time.","explanation":"Unsorted elements do not satisfy the monotonic sum property required by two pointers."},{"id":"b","text":"Swift automatically sorts the collection before loop execution.","explanation":"Swift does not modify arrays without explicit sort invocations."},{"id":"c","text":"The compiler rejects the code with a strict concurrency error.","explanation":"Array indexing on unsorted arrays compiles without compiler diagnostics."},{"id":"d","text":"The algorithm can miss valid pairs and produce incorrect results.","explanation":"Right. Deciding which pointer to move requires monotonic sums from sorted data."}],"answer":"d"},{"id":"two-pointers-sliding-window-q13","type":"mcq","difficulty":3,"prompt":"How does sliding window handle rolling metrics over live streaming data in iOS apps?","options":[{"id":"a","text":"By updating moving aggregates incrementally without buffering entire streams.","explanation":"Right. Fixed windows maintain running sums or averages with constant O(1) updates."},{"id":"b","text":"By storing all streaming events into a persistent Core Data store.","explanation":"Persisting all events to disk introduces massive I/O bottlenecks."},{"id":"c","text":"By sorting all incoming stream packets on the main thread.","explanation":"Sorting streaming packets continuously degrades performance."},{"id":"d","text":"By running linear scans over all historical datapoints on each event.","explanation":"Linear scans over full histories create quadratic latency spikes."}],"answer":"a"},{"id":"two-pointers-sliding-window-q14","type":"mcq","difficulty":2,"prompt":"When reversing an array with two pointers, when should the while loop terminate?","options":[{"id":"a","text":"When left is strictly equal to 0.","explanation":"left starts at 0, so the loop would never begin."},{"id":"b","text":"When left >= right, indicating pointers have met or crossed.","explanation":"Right. Once pointers meet in the middle, all opposite pairs have been swapped."},{"id":"c","text":"When right reaches the end of the array.","explanation":"right starts at the end and moves inward towards the start."},{"id":"d","text":"When the sum of elements at both pointers reaches zero.","explanation":"Reversing an array depends on pointer indices rather than element values."}],"answer":"b"},{"id":"two-pointers-sliding-window-q15","type":"mcq","difficulty":3,"prompt":"How does a hash map complement sliding window when tracking character occurrences?","options":[{"id":"a","text":"It sorts characters alphabetically before window expansion.","explanation":"Hash maps are unordered and do not sort characters."},{"id":"b","text":"It forces character keys to conform to Comparable protocol.","explanation":"Dictionary keys require Hashable conformance, not Comparable."},{"id":"c","text":"It stores frequencies or last seen indices for O(1) duplicate checks.","explanation":"Right. A hash map enables instant lookup of character positions or counts."},{"id":"d","text":"It automatically shrinks the left window boundary via ARC.","explanation":"Pointer adjustment logic must be handled explicitly in code."}],"answer":"c"},{"id":"two-pointers-sliding-window-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"func isPalindrome(_ text: String) -> Bool {\n    let chars = Array(text)\n    var left = 0\n    var right = chars.count - 1\n    while left \u003c right {\n        if chars[left] != chars[right] { return false }\n        left += 1\n        right -= 1\n    }\n    return true\n}\nprint(isPalindrome(\"racecar\"))","options":[{"id":"a","text":"true","explanation":"Right. \"racecar\" reads identically forwards and backwards, so all pairs match."},{"id":"b","text":"false","explanation":"All characters match their opposite counterparts."},{"id":"c","text":"nil","explanation":"The function returns a non-optional Bool, not nil."},{"id":"d","text":"7","explanation":"The function returns a Bool, not character count."}],"answer":"a"},{"id":"two-pointers-sliding-window-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"func twoSumIndices(_ arr: [Int], target: Int) -> String {\n    var left = 0\n    var right = arr.count - 1\n    while left \u003c right {\n        let sum = arr[left] + arr[right]\n        if sum == target { return \"\\(left),\\(right)\" }\n        if sum \u003c target { left += 1 } else { right -= 1 }\n    }\n    return \"none\"\n}\nlet nums = [2, 4, 7, 11, 15]\nprint(twoSumIndices(nums, target: 11))","options":[{"id":"a","text":"0,3","explanation":"nums[0] + nums[3] = 2 + 11 = 13, which is greater than 11."},{"id":"b","text":"1,2","explanation":"Right. nums[1] is 4 and nums[2] is 7. 4 + 7 = 11, matching target."},{"id":"c","text":"none","explanation":"Target 11 is formed by indices 1 and 2."},{"id":"d","text":"2,3","explanation":"nums[2] + nums[3] = 7 + 11 = 18, which exceeds target 11."}],"answer":"b"},{"id":"two-pointers-sliding-window-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"var nums = [1, 1, 2, 2, 3, 4, 4]\nvar write = 1\nfor read in 1 ..\u003c nums.count {\n    if nums[read] != nums[read - 1] {\n        nums[write] = nums[read]\n        write += 1\n    }\n}\nprint(write)","options":[{"id":"a","text":"7","explanation":"7 is the original count of the array with duplicates included."},{"id":"b","text":"3","explanation":"There are 4 distinct unique values: 1, 2, 3, 4."},{"id":"c","text":"4","explanation":"Right. The unique elements are 1, 2, 3, 4, so write ends at index 4."},{"id":"d","text":"5","explanation":"Only 4 unique elements exist in the input array."}],"answer":"c"},{"id":"two-pointers-sliding-window-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"var items = [0, 1, 0, 3, 12]\nvar slow = 0\nfor fast in 0 ..\u003c items.count {\n    if items[fast] != 0 {\n        items.swapAt(slow, fast)\n        slow += 1\n    }\n}\nprint(items)","options":[{"id":"a","text":"[0, 0, 1, 3, 12]","explanation":"The algorithm moves non-zero elements to the front, not to the back."},{"id":"b","text":"[1, 0, 3, 0, 12]","explanation":"All zeroes are swapped to the end of the array."},{"id":"c","text":"[12, 3, 1, 0, 0]","explanation":"The original relative order of non-zero elements is preserved."},{"id":"d","text":"[1, 3, 12, 0, 0]","explanation":"Right. Non-zero elements shift to the left while keeping original order."}],"answer":"d"},{"id":"two-pointers-sliding-window-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"let arr = [1, 4, 2, 10, 2, 3, 1, 0, 20]\nlet k = 4\nvar sum = arr[0 ..\u003c k].reduce(0, +)\nvar maxVal = sum\nfor i in k ..\u003c arr.count {\n    sum += arr[i] - arr[i - k]\n    maxVal = max(maxVal, sum)\n}\nprint(maxVal)","options":[{"id":"a","text":"24","explanation":"Right. The last 4 elements [3, 1, 0, 20] have sum 24, which is the maximum."},{"id":"b","text":"17","explanation":"17 is the initial window sum of [1, 4, 2, 10]."},{"id":"c","text":"21","explanation":"21 is not the sum of any contiguous 4-element window."},{"id":"d","text":"20","explanation":"20 is only the single last element, not the 4-element sum."}],"answer":"a"},{"id":"two-pointers-sliding-window-q21","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"func minSubarrayLen(_ target: Int, _ nums: [Int]) -> Int {\n    var left = 0\n    var sum = 0\n    var minLen = Int.max\n    for right in 0 ..\u003c nums.count {\n        sum += nums[right]\n        while sum >= target {\n            minLen = min(minLen, right - left + 1)\n            sum -= nums[left]\n            left += 1\n        }\n    }\n    return minLen == Int.max ? 0 : minLen\n}\nlet data = [2, 3, 1, 2, 4, 3]\nprint(minSubarrayLen(7, data))","options":[{"id":"a","text":"1","explanation":"No single element is greater than or equal to target 7."},{"id":"b","text":"2","explanation":"Right. The subarray [4, 3] at the end has sum 7 and length 2."},{"id":"c","text":"3","explanation":"[2, 3, 2] has sum 7 with length 3, but [4, 3] is shorter."},{"id":"d","text":"0","explanation":"Subarrays summing to 7 or more exist in the input array."}],"answer":"b"},{"id":"two-pointers-sliding-window-q22","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"func lengthOfLongestSubstring(_ s: String) -> Int {\n    let chars = Array(s)\n    var seen: [Character: Int] = [:]\n    var left = 0\n    var maxLen = 0\n    for (right, char) in chars.enumerated() {\n        if let prev = seen[char], prev >= left {\n            left = prev + 1\n        }\n        seen[char] = right\n        maxLen = max(maxLen, right - left + 1)\n    }\n    return maxLen\n}\nprint(lengthOfLongestSubstring(\"abcabcbb\"))","options":[{"id":"a","text":"1","explanation":"\"bb\" has non-repeating length 1, but earlier substrings are longer."},{"id":"b","text":"2","explanation":"\"ab\" has length 2, but longer unique substrings exist."},{"id":"c","text":"3","explanation":"Right. \"abc\" is the longest contiguous substring without duplicates."},{"id":"d","text":"8","explanation":"8 is the total length of the string, which contains many duplicates."}],"answer":"c"},{"id":"two-pointers-sliding-window-q23","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"func maxArea(_ height: [Int]) -> Int {\n    var left = 0\n    var right = height.count - 1\n    var maxWater = 0\n    while left \u003c right {\n        let width = right - left\n        let h = min(height[left], height[right])\n        maxWater = max(maxWater, width * h)\n        if height[left] \u003c height[right] { left += 1 }\n        else { right -= 1 }\n    }\n    return maxWater\n}\nlet heights = [1, 8, 6, 2, 5, 4, 8, 3, 7]\nprint(maxArea(heights))","options":[{"id":"a","text":"8","explanation":"8 is only the maximum individual height in the array."},{"id":"b","text":"40","explanation":"Between indices 1 and 6, width 5 * height 8 = 40, but larger area exists."},{"id":"c","text":"28","explanation":"Between indices 1 and 5, width 4 * height 7 = 28 is suboptimal."},{"id":"d","text":"49","explanation":"Right. Indices 1 (height 8) and 8 (height 7) span width 7 * min(8, 7) = 49."}],"answer":"d"},{"id":"two-pointers-sliding-window-q24","type":"written","difficulty":1,"prompt":"Explain the difference between convergent two pointers and fast-and-slow pointers, including a problem for each. Write 2 to 5 sentences.","modelAnswer":"Convergent two pointers start at opposite ends of an array and move inward. They are commonly used for palindrome checking or sorted Two Sum. In contrast, fast-and-slow pointers move in the same direction at different speeds. The fast pointer scans ahead while the slow pointer tracks boundaries or writes clean values, used for removing duplicates in-place.","rubric":[{"criterion":"Explains that convergent pointers start at opposite ends and move inward.","weight":50,"key":true},{"criterion":"Explains that fast-and-slow pointers move in the same direction at different rates.","weight":30},{"criterion":"Provides an appropriate interview problem example for each technique.","weight":20}]},{"id":"two-pointers-sliding-window-q25","type":"written","difficulty":2,"prompt":"Explain how fixed-size sliding window achieves O(n) time and why it is faster than nested loops. Write 2 to 5 sentences.","modelAnswer":"A fixed-size sliding window calculates the initial sum of the first k elements in O(k) time. As it slides across the array, it updates the sum in O(1) time by adding the incoming element and subtracting the outgoing element. Nested loops recompute the entire window of size k at every position taking O(n * k) time. Sliding window avoids this redundant work to achieve linear O(n) time.","rubric":[{"criterion":"Explains that sliding window updates sums in O(1) by subtracting outgoing and adding incoming values.","weight":50,"key":true},{"criterion":"Explains that nested loops recompute the entire window repeatedly in O(n * k) time.","weight":30},{"criterion":"States the resulting overall linear O(n) time complexity.","weight":20}]},{"id":"two-pointers-sliding-window-q26","type":"written","difficulty":2,"prompt":"Why can repeatedly indexing a Swift String inside a loop turn an O(n) algorithm into O(n^2), and how do you prevent this? Write 2 to 5 sentences.","modelAnswer":"Swift strings are composed of extended grapheme clusters rather than fixed-width characters. Because characters vary in byte length, computing string.index with an integer offset requires scanning from the beginning in O(n) time. Calling this inside a loop causes quadratic O(n^2) runtime. To prevent this, convert the String to an Array of characters once in O(n) time, enabling instant O(1) integer subscripting.","rubric":[{"criterion":"Explains that Swift string indices take O(n) time due to variable-width grapheme clusters.","weight":50,"key":true},{"criterion":"Explains that repeated indexing inside a loop results in accidental O(n^2) quadratic time.","weight":30},{"criterion":"Recommends converting the string to Array(string) once for O(1) random-access indexing.","weight":20}]},{"id":"two-pointers-sliding-window-q27","type":"written","difficulty":2,"prompt":"Explain why dynamic sliding windows with an inner while loop run in amortized O(n) time rather than O(n^2). Write 2 to 5 sentences.","modelAnswer":"Even though a dynamic sliding window uses a while loop nested inside an outer loop, it runs in amortized O(n) time. The right pointer advances forward exactly n times to expand the window. The left pointer also only moves forward and never resets backward during window contraction. Because each element enters and leaves the window at most once, total operations are capped at 2n.","rubric":[{"criterion":"Explains that both left and right pointers only move forward and never reset backward.","weight":50,"key":true},{"criterion":"States that each element enters and exits the window at most once, capping total steps at 2n.","weight":30},{"criterion":"Concludes that the total amortized time complexity is linear O(n).","weight":20}]},{"id":"two-pointers-sliding-window-q28","type":"written","difficulty":3,"prompt":"Explain the two-pointer decision rule in Container With Most Water and why moving the taller line can never produce a larger area. Write 2 to 5 sentences.","modelAnswer":"In Container With Most Water, the volume is determined by the formula: width multiplied by the shorter line height. On every step, moving either pointer decreases the width by one. If you move the taller line, the width decreases while the height remains capped by the existing shorter line, making a larger area impossible. Therefore, you must advance the pointer at the shorter line to seek a taller boundary.","rubric":[{"criterion":"Explains that area is constrained by the shorter line: width * min(height[left], height[right]).","weight":50,"key":true},{"criterion":"Explains that moving the taller line reduces width without the possibility of increasing height limit.","weight":30},{"criterion":"Concludes that only moving the shorter pointer can potentially discover a larger area.","weight":20}]},{"id":"two-pointers-sliding-window-q29","type":"code-write","difficulty":2,"prompt":"Write `twoSumSortedIndices(_:target:)` returning the two indices in a sorted array that sum to target. Return an empty array if no pair exists.","starterCode":null,"modelAnswer":"func twoSumSortedIndices(_ numbers: [Int], target: Int) -> [Int] {\n    var left = 0\n    var right = numbers.count - 1\n    while left \u003c right {\n        let sum = numbers[left] + numbers[right]\n        if sum == target {\n            return [left, right]\n        } else if sum \u003c target {\n            left += 1\n        } else {\n            right -= 1\n        }\n    }\n    return []\n}\n\nlet values = [2, 7, 11, 15]\nprint(twoSumSortedIndices(values, target: 9))\nprint(twoSumSortedIndices(values, target: 50))","rubric":[{"criterion":"Initializes left at 0 and right at count - 1 with while left \u003c right loop.","weight":30},{"criterion":"Returns [left, right] when sum equals target in O(n) time.","weight":50,"key":true},{"criterion":"Increments left when sum \u003c target, decrements right when sum > target, and returns [] on miss.","weight":20}]},{"id":"two-pointers-sliding-window-q30","type":"code-write","difficulty":2,"prompt":"Write a function maxSlidingWindowSum(_ nums: [Int], k: Int) -> Int that returns the maximum sum of any contiguous subarray of fixed size k.","starterCode":null,"modelAnswer":"func maxSlidingWindowSum(_ nums: [Int], k: Int) -> Int {\n    guard nums.count >= k, k > 0 else { return 0 }\n    var windowSum = 0\n    for i in 0 ..\u003c k {\n        windowSum += nums[i]\n    }\n    var maxSum = windowSum\n    for i in k ..\u003c nums.count {\n        windowSum += nums[i] - nums[i - k]\n        maxSum = max(maxSum, windowSum)\n    }\n    return maxSum\n}\n\nprint(maxSlidingWindowSum([2, 1, 5, 1, 3, 2], k: 3))\nprint(maxSlidingWindowSum([4, 2, 1, 7, 8, 1, 2], k: 3))","rubric":[{"criterion":"Guards against invalid k or arrays smaller than k.","weight":20},{"criterion":"Computes base sum for initial k elements and updates window in O(1) on each slide.","weight":50,"key":true},{"criterion":"Tracks and returns the maximum observed window sum in O(n) total time.","weight":30}]},{"id":"two-pointers-sliding-window-q31","type":"code-write","difficulty":2,"prompt":"Write a function removeDuplicates(_ nums: inout [Int]) -> Int that removes duplicates from a sorted array in-place using two pointers, returning the count of unique elements.","starterCode":null,"modelAnswer":"func removeDuplicates(_ nums: inout [Int]) -> Int {\n    guard !nums.isEmpty else { return 0 }\n    var write = 1\n    for read in 1 ..\u003c nums.count {\n        if nums[read] != nums[read - 1] {\n            nums[write] = nums[read]\n            write += 1\n        }\n    }\n    return write\n}\n\nvar values = [1, 1, 2, 3, 3, 4]\nlet count = removeDuplicates(&values)\nprint(\"\\(count): \\(values[0 ..\u003c count])\")","rubric":[{"criterion":"Guards against empty arrays and handles base cases.","weight":20},{"criterion":"Uses slow write pointer and fast read pointer to overwrite duplicates in-place.","weight":50,"key":true},{"criterion":"Returns the correct unique count with O(1) auxiliary space complexity.","weight":30}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

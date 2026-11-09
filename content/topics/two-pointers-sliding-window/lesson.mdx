@@ -1,0 +1,230 @@
+export const meta = {
+  id: "two-pointers-sliding-window",
+  summary: "Master the two pointers and sliding window techniques in Swift, reducing nested loops from quadratic to linear time.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Apple Developer Documentation: Array", url: "https://developer.apple.com/documentation/swift/array", kind: "official" },
+    { title: "Apple Developer Documentation: String", url: "https://developer.apple.com/documentation/swift/string", kind: "official" },
+    { title: "Tech Interview Handbook: Array Cheatsheet", url: "https://www.techinterviewhandbook.org/algorithms/array/", kind: "community" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How can you find the maximum sum of any contiguous subarray of size k in O(n) time instead of O(n * k)?</Question>
+  <Guess>
+    <Option id="a">Sort the array first and take the last k elements.</Option>
+    <Option id="b" correct>Slide a window across the array, adding the incoming element and subtracting the outgoing element.</Option>
+    <Option id="c">Compute all subarray combinations using nested loops.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine looking through a moving train window that shows exactly three seats at a time.
+
+When the train moves forward by one seat, you do not recount all three seats from scratch.
+
+You subtract the passenger who just left your view on the left. You add the new passenger who just entered on the right.
+</Analogy>
+
+In algorithmic interviews, nested loops often compare elements repeatedly. This produces slow $O(n^2)$ solutions.
+
+Two core patterns help you eliminate redundant work:
+1. **Two Pointers (Inward or Convergent)**:
+   - Place one pointer at the start and one pointer at the end.
+   - Move the pointers toward each other based on comparison conditions.
+   - This checks pairs across the entire array in a single pass of $O(n)$ time.
+2. **Two Pointers (Fast and Slow)**:
+   - Move two pointers in the same direction at different speeds.
+   - The slow pointer writes clean data, while the fast pointer scans incoming values.
+   - This pattern removes duplicates or moves zeroes in-place with $O(1)$ auxiliary memory.
+3. **Sliding Window**:
+   - Maintain a contiguous subarray boundary defined by `left` and `right` indices.
+   - When the window moves, add the new element and subtract the old element in $O(1)$ time.
+   - This reduces repetitive range calculations from $O(n \cdot k)$ to linear $O(n)$ time.
+
+## See it
+
+<Diagram id="two-pointers-sliding-window-concept" caption="Sliding a fixed-size window across an array in O(n) time">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Array: [2, 1, 5, 1, 3, 2]. Window size k = 3.
+    2. Active window box highlighting indices [left ... right].
+    3. Formula calculation display: sum - outgoing + incoming.
+    4. Metrics: current window sum, maximum sum seen so far.
+  - Steps:
+    Step 1: Initial window [2, 1, 5] at indices 0..2. Sum = 8. Max sum = 8.
+    Step 2: Slide window right. Outgoing: 2 at index 0. Incoming: 1 at index 3. New sum = 8 - 2 + 1 = 7. Max = 8.
+    Step 3: Slide window right. Outgoing: 1 at index 1. Incoming: 3 at index 4. New sum = 7 - 1 + 3 = 9. Max = 9!
+    Step 4: Slide window right. Outgoing: 5 at index 2. Incoming: 2 at index 5. New sum = 9 - 5 + 2 = 6. Max = 9.
+  - Static version (reduced motion):
+    4-step horizontal cards showing the window shifts, incoming and outgoing elements, and sums.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why does a sliding window sum run in O(n) time rather than O(n * k)?</Question>
+  <Option id="a">Swift calculates all range sums in background threads simultaneously.</Option>
+  <Option id="b" correct>Each step updates the sum in O(1) time by adjusting only the boundary elements.</Option>
+  <Option id="c">The array is sorted before the window begins sliding.</Option>
+  <Explanation>Instead of summing k elements each time, we subtract one outgoing element and add one incoming element in O(1) time.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Two pointers: Two Sum on a sorted array">
+
+```swift
+func twoSumSorted(_ numbers: [Int], target: Int) -> (Int, Int)? {
+    var left = 0
+    var right = numbers.count - 1
+    
+    while left < right {
+        let sum = numbers[left] + numbers[right]
+        if sum == target {
+            return (left, right)
+        } else if sum < target {
+            left += 1
+        } else {
+            right -= 1
+        }
+    }
+    return nil
+}
+
+let sortedNumbers = [1, 3, 5, 8, 12, 17]
+if let result = twoSumSorted(sortedNumbers, target: 13) {
+    print("Pair at indices: [\(result.0), \(result.1)]")
+}
+```
+
+```output
+Pair at indices: [0, 4]
+```
+
+</CodeExample>
+
+In this example, the array is already sorted.
+
+Because the data is ordered, `numbers[left] + numbers[right]` is monotonic. If the sum is too small, incrementing `left` increases the sum. If the sum is too large, decrementing `right` decreases the sum.
+
+This eliminates nested loops and finds the target pair in $O(n)$ time using $O(1)$ memory.
+
+<CodeExample title="Sliding window: Maximum sum subarray of fixed size k">
+
+```swift
+func maxSumSubarray(_ numbers: [Int], k: Int) -> Int {
+    guard numbers.count >= k, k > 0 else { return 0 }
+    
+    var windowSum = 0
+    for i in 0 ..< k {
+        windowSum += numbers[i]
+    }
+    
+    var maxSum = windowSum
+    for i in k ..< numbers.count {
+        windowSum += numbers[i] - numbers[i - k]
+        maxSum = max(maxSum, windowSum)
+    }
+    return maxSum
+}
+
+let values = [2, 1, 5, 1, 3, 2]
+print("Max sum of window size 3: \(maxSumSubarray(values, k: 3))")
+
+let valuesTwo = [4, 2, 1, 7, 8, 1, 2]
+print("Max sum of window size 3: \(maxSumSubarray(valuesTwo, k: 3))")
+```
+
+```output
+Max sum of window size 3: 9
+Max sum of window size 3: 16
+```
+
+</CodeExample>
+
+In the second loop, we do not recount the whole window.
+
+We subtract `numbers[i - k]`, which is the element falling out of the window. Then we add `numbers[i]`, which is the element entering the window.
+
+Each shift takes $O(1)$ time, yielding an overall $O(n)$ time complexity.
+
+<QuickCheck>
+  <Question>Can the convergent two-pointer technique solve Two Sum on an unsorted array in O(n) time and O(1) space?</Question>
+  <Option id="a">Yes, because pointers can check all combinations without sorting.</Option>
+  <Option id="b" correct>No, because the decision to increment left or decrement right requires sorted monotonic data.</Option>
+  <Option id="c">Yes, if you use three pointers instead of two.</Option>
+  <Explanation>Moving pointers inward requires monotonic sums. On unsorted inputs, use a hash map or sort first.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Accidental quadratic time from repeated String.Index offsetting">
+In Swift, `String` indices are not random-access integer subscripts.
+
+Calling `string.index(string.startIndex, offsetBy: i)` inside a loop takes $O(i)$ time. This turns an $O(n)$ two-pointer algorithm into an accidental $O(n^2)$ algorithm.
+
+For string problems in coding interviews, convert the string to `Array(string)` in $O(n)$ time once, then use integer indices.
+</Trap>
+
+<Trap title="Off-by-one window length calculations">
+The number of elements in a window from index `left` to `right` inclusive is `right - left + 1`.
+
+A common bug is writing `right - left`, which undercounts the window size by one.
+
+Always remember the plus-one offset when calculating inclusive subarray lengths.
+</Trap>
+
+<Trap title="Shrinking dynamic windows with if instead of while">
+In variable-size sliding windows, adding one element on the right can cause multiple constraint violations.
+
+Using `if` only shrinks the window by one position, leaving invalid states active.
+
+Use a `while` loop to shrink `left` until the required invariant is restored completely.
+</Trap>
+
+<Trap title="Assuming an inner while loop implies O(n^2) time">
+Candidates often worry that a `while` loop inside a `for` loop produces $O(n^2)$ quadratic complexity.
+
+In sliding window algorithms, `left` only moves forward and never resets backward.
+
+Because `left` and `right` each advance at most $n$ times, total operations are at most $2n$. This runs in amortized $O(n)$ time.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"Two pointers and sliding window are algorithmic patterns that reduce nested loops from $O(n^2)$ to $O(n)$ time. In two pointers, we either move pointers toward each other from both ends, or move them in the same direction. In sliding window, we track a subarray range, updating sums or counts by adding incoming elements and subtracting outgoing elements in $O(1)$ time."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"I choose two pointers when an array is sorted or when partitioning elements in-place with $O(1)$ auxiliary space. For contiguous subarray problems, I use a sliding window. For fixed windows, I slide by updating boundaries in constant time. For dynamic windows, `right` expands the window while `left` contracts it in a while loop. This guarantees amortized $O(n)$ time because each index is visited at most twice. In Swift, I convert strings to character arrays first to avoid $O(n)$ index offsetting."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Two pointers and sliding window apply to contiguous streaming structures, circular buffers, and rate limiting. When designing high-throughput iOS data pipelines, sliding windows calculate rolling metrics over time without buffering entire datasets. In Swift, performance hinges on memory layout: using contiguous arrays preserves cache locality and avoids ARC overhead. When handling Unicode strings, converting to ASCII byte spans or character arrays prevents repeated grapheme cluster recalculations in inner loops."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Convergent two pointers move inward on sorted data to find pairs in $O(n)$ time and $O(1)$ space.
+- Fast and slow pointers scan and overwrite data in-place in a single pass.
+- Sliding window computes contiguous subarray metrics in $O(n)$ time by adding incoming elements and subtracting outgoing elements.
+- Inclusive window length is `right - left + 1`.
+- Convert Swift strings to `Array(string)` to prevent accidental $O(n^2)$ index traversal.
+</Recap>
+
+## Go deeper
+
+- [Apple Developer Documentation: Array](https://developer.apple.com/documentation/swift/array) — Random-access contiguous collection storage and performance.
+- [Apple Developer Documentation: String](https://developer.apple.com/documentation/swift/string) — Bidirectional collection of grapheme clusters and index traversal.
+- [Tech Interview Handbook: Array Cheatsheet](https://www.techinterviewhandbook.org/algorithms/array/) — Essential two-pointer and sliding window interview patterns.

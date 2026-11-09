@@ -117,8 +117,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **codable** (Codable and JSON) — published (lesson, diagram, 31 questions) → [docs/topics/codable/review.html](docs/topics/codable/review.html)
   - 🔄 **Batch 2B: Coding Interview Algorithms (6 topics)**
     - ✅ **sorting-binary-search** (Sorting and Binary Search) — published (lesson, diagram, 31 questions) → [docs/topics/sorting-binary-search/review.html](docs/topics/sorting-binary-search/review.html)
-    - 🔄 **two-pointers-sliding-window** (Two Pointers and Sliding Window) — starting research
-    - ⬜ **stacks-and-queues** (Stacks and Queues)
+    - ✅ **two-pointers-sliding-window** (Two Pointers and Sliding Window) — published (lesson, diagram, 31 questions) → [docs/topics/two-pointers-sliding-window/review.html](docs/topics/two-pointers-sliding-window/review.html)
+    - 🔄 **stacks-and-queues** (Stacks and Queues) — starting research
     - ⬜ **linked-lists** (Linked Lists)
     - ⬜ **recursion** (Recursion)
     - ⬜ **matrix-problems** (Matrix Problems)
@@ -290,6 +290,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic two-pointers-sliding-window (Two Pointers and Sliding Window): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/two-pointers-sliding-window/review.html`). All checks passed. Starting stacks-and-queues.
 
 - **2026-11-09** — Built and published topic sorting-binary-search (Sorting and Binary Search): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/sorting-binary-search/review.html`). All checks passed. Starting two-pointers-sliding-window.
 

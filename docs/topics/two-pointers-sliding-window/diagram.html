@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sliding Window: Fixed-Size Subarray Sums</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --win-color: #0284c7; --win-soft: #e0f2fe;
+  --in-color: #16a34a; --in-soft: #dcfce7;
+  --out-color: #dc2626; --out-soft: #fee2e2;
+  --max-color: #7c3aed; --max-soft: #ede9fe;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --win-color: #38bdf8; --win-soft: #082f49;
+  --in-color: #4ade80; --in-soft: #14532d;
+  --out-color: #f87171; --out-soft: #450a0a;
+  --max-color: #a78bfa; --max-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.cell-slot { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 6px; }
+.cell-slot.in-window { fill: var(--win-soft); stroke: var(--win-color); stroke-width: 2.5; }
+.cell-slot.outgoing { fill: var(--out-soft); stroke: var(--out-color); stroke-width: 2.5; }
+.cell-slot.incoming { fill: var(--in-soft); stroke: var(--in-color); stroke-width: 2.5; }
+
+.cell-val { font-family: var(--font-code); font-size: 14px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.cell-idx { font-family: var(--font-body); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+.win-brace { stroke: var(--win-color); stroke-width: 2.5; fill: none; }
+.win-lbl { font-family: var(--font-body); font-size: 11px; font-weight: 700; fill: var(--win-color); text-anchor: middle; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Sliding window algorithm interactive diagram">
+
+  <div class="interactive-diagram">
+    <div class="panels">
+      <!-- Left Panel: SVG Window & Array -->
+      <div class="panel">
+        <h3>
+          <span id="vis-title">Initial Window (k = 3)</span>
+          <span class="kind" id="vis-tag" style="background:var(--win-soft);color:var(--win-color);">Step 1</span>
+        </h3>
+        
+        <svg viewBox="0 0 340 190" role="img" aria-label="Sliding Window Visualizer">
+          <!-- Window Size Header -->
+          <rect x="15" y="10" width="130" height="26" rx="6" fill="var(--win-soft)" stroke="var(--win-color)" stroke-width="1.5"/>
+          <text x="80" y="27" font-family="var(--font-code)" font-size="12" font-weight="700" fill="var(--ink)" text-anchor="middle">Window size k = 3</text>
+
+          <!-- Array: [2, 1, 5, 1, 3, 2] at x: 20, 72, 124, 176, 228, 280 (width 44 each, gap 8) -->
+          <g id="cells-group" transform="translate(0, 48)">
+            <!-- Cell 0: 2 -->
+            <rect id="c-0" x="20" y="16" width="44" height="42" class="cell-slot in-window"/>
+            <text id="v-0" x="42" y="42" class="cell-val">2</text>
+            <text x="42" y="72" class="cell-idx">0</text>
+            
+            <!-- Cell 1: 1 -->
+            <rect id="c-1" x="72" y="16" width="44" height="42" class="cell-slot in-window"/>
+            <text id="v-1" x="94" y="42" class="cell-val">1</text>
+            <text x="94" y="72" class="cell-idx">1</text>
+
+            <!-- Cell 2: 5 -->
+            <rect id="c-2" x="124" y="16" width="44" height="42" class="cell-slot in-window"/>
+            <text id="v-2" x="146" y="42" class="cell-val">5</text>
+            <text x="146" y="72" class="cell-idx">2</text>
+
+            <!-- Cell 3: 1 -->
+            <rect id="c-3" x="176" y="16" width="44" height="42" class="cell-slot"/>
+            <text id="v-3" x="198" y="42" class="cell-val">1</text>
+            <text x="198" y="72" class="cell-idx">3</text>
+
+            <!-- Cell 4: 3 -->
+            <rect id="c-4" x="228" y="16" width="44" height="42" class="cell-slot"/>
+            <text id="v-4" x="250" y="42" class="cell-val">3</text>
+            <text x="250" y="72" class="cell-idx">4</text>
+
+            <!-- Cell 5: 2 -->
+            <rect id="c-5" x="280" y="16" width="44" height="42" class="cell-slot"/>
+            <text id="v-5" x="302" y="42" class="cell-val">2</text>
+            <text x="302" y="72" class="cell-idx">5</text>
+          </g>
+
+          <!-- Window boundary highlight indicator bar below cells -->
+          <g id="win-indicator" transform="translate(0, 136)">
+            <rect id="win-bar" x="20" y="0" width="148" height="6" rx="3" fill="var(--win-color)"/>
+            <text id="win-label" x="94" y="18" class="win-lbl">Active Window [0...2]</text>
+          </g>
+        </svg>
+
+        <p class="caption" id="vis-desc" aria-live="polite">Initial window covers indices 0 to 2: [2, 1, 5]. Initial window sum is 8.</p>
+      </div>
+
+      <!-- Right Panel: Code & Operation Details -->
+      <div class="panel">
+        <h3>
+          <span id="right-title">Initial Accumulation</span>
+          <span class="kind" id="right-tag" style="background:var(--code-bg);color:var(--muted);">Step 1 of 4</span>
+        </h3>
+        <div class="code" id="right-code">for i in 0 ..&lt; k {
+    windowSum += numbers[i] // 2 + 1 + 5 = 8
+}
+maxSum = windowSum // 8</div>
+        <p class="caption" id="right-desc">Calculate sum of the first 3 elements directly. Set maximum sum seen so far to 8.</p>
+        <div class="metrics">
+          <div class="metric-col"><span>Window</span><strong id="m-win">8</strong></div>
+          <div class="metric-col"><span>Out (-)</span><strong id="m-out">—</strong></div>
+          <div class="metric-col"><span>In (+)</span><strong id="m-in">—</strong></div>
+          <div class="metric-col"><span>Max</span><strong id="m-max">8</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1: First window indices 0..2" onclick="goToStep(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2: Slide to indices 1..3" onclick="goToStep(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3: Slide to indices 2..4" onclick="goToStep(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4: Slide to indices 3..5" onclick="goToStep(3)"></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()" aria-label="Next step">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-Motion Static Fallback -->
+  <div class="static-fallback" aria-label="Static explanation of sliding window operations">
+    <div class="comp-card" style="border-left: 4px solid var(--win-color);">
+      <h4>Step 1: Window [0...2] = [2, 1, 5]</h4>
+      <p>Compute base sum 2 + 1 + 5 = 8. Initialize maximum sum to 8.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--out-color);">
+      <h4>Step 2: Window [1...3] = [1, 5, 1]</h4>
+      <p>Subtract outgoing 2 at index 0 and add incoming 1 at index 3. New sum = 8 - 2 + 1 = 7. Max sum remains 8.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--in-color);">
+      <h4>Step 3: Window [2...4] = [5, 1, 3]</h4>
+      <p>Subtract outgoing 1 at index 1 and add incoming 3 at index 4. New sum = 7 - 1 + 3 = 9. Max sum increases to 9!</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--max-color);">
+      <h4>Step 4: Window [3...5] = [1, 3, 2]</h4>
+      <p>Subtract outgoing 5 at index 2 and add incoming 2 at index 5. New sum = 9 - 5 + 2 = 6. Maximum overall sum is 9.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Initial Window (k = 3)",
+    tag: "Step 1",
+    tagColor: "var(--win-soft)",
+    tagText: "var(--win-color)",
+    desc: "Initial window covers indices 0 to 2: [2, 1, 5]. Initial window sum is 8.",
+    rightTitle: "Initial Accumulation",
+    rightTag: "Step 1 of 4",
+    code: "for i in 0 ..< k {\n    windowSum += numbers[i] // 2 + 1 + 5 = 8\n}\nmaxSum = windowSum // 8",
+    rightDesc: "Calculate sum of the first 3 elements directly. Set maximum sum seen so far to 8.",
+    winSum: 8, outVal: "—", inVal: "—", maxVal: 8,
+    cellClasses: ["cell-slot in-window", "cell-slot in-window", "cell-slot in-window", "cell-slot", "cell-slot", "cell-slot"],
+    barX: 20, barW: 148, barText: "Active Window [0...2]",
+    barColor: "var(--win-color)"
+  },
+  {
+    title: "Slide Right: Remove 2, Add 1",
+    tag: "Step 2",
+    tagColor: "var(--out-soft)",
+    tagText: "var(--out-color)",
+    desc: "Index 0 (2) leaves the window on the left. Index 3 (1) enters on the right. Sum: 8 - 2 + 1 = 7.",
+    rightTitle: "Boundary Shift in O(1)",
+    rightTag: "Step 2 of 4",
+    code: "windowSum += numbers[3] - numbers[0] // 8 + 1 - 2 = 7\nmaxSum = max(8, 7) // remains 8",
+    rightDesc: "Subtract the outgoing element and add the incoming element in O(1) time without looping.",
+    winSum: 7, outVal: "-2", inVal: "+1", maxVal: 8,
+    cellClasses: ["cell-slot outgoing", "cell-slot in-window", "cell-slot in-window", "cell-slot incoming", "cell-slot", "cell-slot"],
+    barX: 72, barW: 148, barText: "Active Window [1...3]",
+    barColor: "var(--win-color)"
+  },
+  {
+    title: "Slide Right: Remove 1, Add 3",
+    tag: "Step 3",
+    tagColor: "var(--in-soft)",
+    tagText: "var(--in-color)",
+    desc: "Index 1 (1) leaves the window. Index 4 (3) enters. Sum: 7 - 1 + 3 = 9. New maximum found!",
+    rightTitle: "New Maximum Observed",
+    rightTag: "Step 3 of 4",
+    code: "windowSum += numbers[4] - numbers[1] // 7 + 3 - 1 = 9\nmaxSum = max(8, 9) // updated to 9!",
+    rightDesc: "Window [5, 1, 3] sum equals 9, exceeding previous max 8. Maximum sum updates to 9.",
+    winSum: 9, outVal: "-1", inVal: "+3", maxVal: 9,
+    cellClasses: ["cell-slot", "cell-slot outgoing", "cell-slot in-window", "cell-slot in-window", "cell-slot incoming", "cell-slot"],
+    barX: 124, barW: 148, barText: "Active Window [2...4]",
+    barColor: "var(--max-color)"
+  },
+  {
+    title: "Final Window: Remove 5, Add 2",
+    tag: "Step 4",
+    tagColor: "var(--max-soft)",
+    tagText: "var(--max-color)",
+    desc: "Index 2 (5) leaves. Index 5 (2) enters. Sum: 9 - 5 + 2 = 6. Scan complete with maximum sum 9.",
+    rightTitle: "Scan Complete",
+    rightTag: "O(n) time",
+    code: "windowSum += numbers[5] - numbers[2] // 9 + 2 - 5 = 6\nmaxSum = max(9, 6) // final result: 9",
+    rightDesc: "Algorithm visited all elements in a single O(n) pass. Return maximum subarray sum 9.",
+    winSum: 6, outVal: "-5", inVal: "+2", maxVal: 9,
+    cellClasses: ["cell-slot", "cell-slot", "cell-slot outgoing", "cell-slot in-window", "cell-slot in-window", "cell-slot incoming"],
+    barX: 176, barW: 148, barText: "Active Window [3...5]",
+    barColor: "var(--win-color)"
+  }
+];
+
+let curStep = 0;
+
+function updateView() {
+  const s = steps[curStep];
+  document.getElementById("vis-title").textContent = s.title;
+  const tag = document.getElementById("vis-tag");
+  tag.textContent = s.tag;
+  tag.style.background = s.tagColor;
+  tag.style.color = s.tagText;
+  document.getElementById("vis-desc").textContent = s.desc;
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.code;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("m-win").textContent = s.winSum;
+  document.getElementById("m-out").textContent = s.outVal;
+  document.getElementById("m-in").textContent = s.inVal;
+  document.getElementById("m-max").textContent = s.maxVal;
+
+  for (let i = 0; i < 6; i++) {
+    const el = document.getElementById("c-" + i);
+    el.setAttribute("class", s.cellClasses[i]);
+  }
+
+  const bar = document.getElementById("win-bar");
+  bar.setAttribute("x", s.barX);
+  bar.setAttribute("width", s.barW);
+  bar.setAttribute("fill", s.barColor);
+
+  const label = document.getElementById("win-label");
+  label.setAttribute("x", s.barX + s.barW / 2);
+  label.textContent = s.barText;
+
+  document.querySelectorAll(".dot").forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = curStep === 0;
+  document.getElementById("btn-next").disabled = curStep === steps.length - 1;
+}
+
+function goToStep(i) {
+  curStep = Math.max(0, Math.min(steps.length - 1, i));
+  updateView();
+}
+function nextStep() { goToStep(curStep + 1); }
+function prevStep() { goToStep(curStep - 1); }
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateView();
+</script>
+</body>
+</html>
