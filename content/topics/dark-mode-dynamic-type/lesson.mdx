@@ -1,0 +1,219 @@
+export const meta = {
+  id: "dark-mode-dynamic-type",
+  summary: "Support Dark Mode and Dynamic Type with semantic colors, scalable typography, and adaptive layouts.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Human Interface Guidelines: Dark Mode", url: "https://developer.apple.com/design/human-interface-guidelines/dark-mode", kind: "official" },
+    { title: "Human Interface Guidelines: Typography", url: "https://developer.apple.com/design/human-interface-guidelines/typography", kind: "official" },
+    { title: "Supporting Dark Mode in your interface (UIKit)", url: "https://developer.apple.com/documentation/uikit/supporting-dark-mode-in-your-interface", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why should you use semantic system colors instead of hardcoded hex colors like pure white or pure black?</Question>
+  <Guess>
+    <Option id="a">Semantic colors load faster from disk cache than custom asset catalog palettes.</Option>
+    <Option id="b" correct>Semantic colors adapt automatically between Light Mode and Dark Mode to maintain proper contrast and legibility.</Option>
+    <Option id="c">Hardcoded colors trigger a compiler warning in Swift 6 language mode.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a digital wristwatch with two backlight settings.
+
+In bright daylight, the watch shows black numbers on a clear white screen.
+
+At night, the watch turns on a dark background with bright numbers.
+
+The numbers and the screen adapt to the light around you.
+
+If you painted black ink directly on the screen, you could not read the time in the dark.
+
+**Semantic colors** work like that adaptive watch. They change shades automatically when the environment changes.
+</Analogy>
+
+iOS users can change two major visual preferences:
+
+1. **Dark Mode**:
+   - Shifts the interface from a light background to a darker palette.
+   - Saves battery life on OLED displays and reduces eye strain in dark rooms.
+   - Uses semantic colors like `UIColor.systemBackground` and `UIColor.label`.
+2. **Dynamic Type**:
+   - Lets users choose their preferred text size in iOS Settings.
+   - Scales fonts across standard styles like `.headline`, `.body`, and `.caption`.
+   - Requires flexible layouts so larger text does not get clipped.
+
+When you use semantic colors and scalable text styles, iOS handles theme and size changes for you.
+
+## See it
+
+<Diagram id="dark-mode-dynamic-type-diagram" caption="Semantic Color Adaptability and Dynamic Type Text Scaling across iOS Appearances">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Light Mode card with systemBackground (white) and label (black).
+    2. Dark Mode card with systemBackground (dark charcoal) and label (off-white).
+    3. Dynamic Type standard text size preview.
+    4. Dynamic Type accessibility expanded text size preview with wrapped lines.
+  - Steps:
+    Step 1: Light Mode renders dark text on light backgrounds.
+    Step 2: Dark Mode flips semantic tokens to light text on dark backgrounds.
+    Step 3: Standard Dynamic Type renders default body text height.
+    Step 4: Accessibility text size expands typography and wraps multiline labels.
+  - Static version (reduced motion):
+    A 4-step diagram contrasting light and dark appearances alongside standard and scaled text sizes.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which UIKit property must you enable on a `UILabel` so text scales when users change font size in Control Center?</Question>
+  <Option id="a">`isAccessibilityElement`</Option>
+  <Option id="b" correct>`adjustsFontForContentSizeCategory`</Option>
+  <Option id="c">`clearsContextBeforeDrawing`</Option>
+  <Explanation>Setting adjustsFontForContentSizeCategory to true tells UIKit to update the font size automatically when system preferences change.</Explanation>
+</QuickCheck>
+
+## In code
+
+First, observe how dynamic colors resolve differently based on the active trait collection.
+
+You can create custom dynamic colors in code or inside your Asset Catalog.
+
+<CodeExample title="Resolving dynamic colors for Dark Mode">
+
+```swift
+import UIKit
+
+let labelColor = UIColor { traitCollection in
+    if traitCollection.userInterfaceStyle == .dark {
+        return UIColor.white
+    } else {
+        return UIColor.black
+    }
+}
+
+let darkTraits = UITraitCollection(userInterfaceStyle: .dark)
+let resolvedColor = labelColor.resolvedColor(with: darkTraits)
+print("Resolved dark color is white: \(resolvedColor == UIColor.white)")
+```
+
+```output
+Resolved dark color is white: true
+```
+
+</CodeExample>
+
+In modern iOS 17 and later, views use `registerForTraitChanges` to observe appearance changes without retain cycles.
+
+Next, see how to configure a `UILabel` for Dynamic Type.
+
+Always set `adjustsFontForContentSizeCategory` to `true` and `numberOfLines` to `0`.
+
+<CodeExample title="Configuring labels for Dynamic Type">
+
+```swift
+import UIKit
+
+let label = UILabel()
+label.font = UIFont.preferredFont(forTextStyle: .body)
+label.adjustsFontForContentSizeCategory = true
+label.numberOfLines = 0
+
+print("Adjusts font: \(label.adjustsFontForContentSizeCategory)")
+print("Number of lines: \(label.numberOfLines)")
+```
+
+```output
+Adjusts font: true
+Number of lines: 0
+```
+
+</CodeExample>
+
+Setting `numberOfLines = 0` allows the label to wrap text onto multiple rows when the font scales up.
+
+In SwiftUI, text automatically scales when you use standard font styles like `.font(.body)`.
+
+You can also use `@ScaledMetric` to scale icons and padding proportionally with text.
+
+<QuickCheck>
+  <Question>What happens if you pin a label height to a fixed constant like twenty points when Dynamic Type is enabled?</Question>
+  <Option id="a">The label increases its width automatically to fit the text.</Option>
+  <Option id="b" correct>The text clips or truncates because the fixed height prevents the label from growing vertically.</Option>
+  <Option id="c">iOS disables Dark Mode on the parent view controller.</Option>
+  <Explanation>Fixed height constraints prevent labels from expanding vertically, cutting off larger text.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Hardcoding black and white colors">
+Setting background color to `UIColor.white` and text color to `UIColor.black` breaks Dark Mode.
+
+When the user turns on Dark Mode, your background stays bright white or your text vanishes against dark surfaces.
+
+Always use semantic colors like `UIColor.systemBackground` and `UIColor.label`.
+</Trap>
+
+<Trap title="Forgetting adjustsFontForContentSizeCategory">
+Setting `label.font = UIFont.preferredFont(forTextStyle: .body)` only sets the font size once at launch.
+
+If the user changes text size in Settings while your app is running, your label will not update.
+
+Always set `label.adjustsFontForContentSizeCategory = true` in UIKit to enable live updates.
+</Trap>
+
+<Trap title="Fixed label height constraints">
+Pinning label heights with Auto Layout constraints prevents views from expanding when text scales up.
+
+The text gets truncated or clipped at accessibility sizes.
+
+Rely on intrinsic content size, set `numberOfLines = 0`, and avoid fixed height anchors.
+</Trap>
+
+<Trap title="Overriding deprecated traitCollectionDidChange">
+Overriding `traitCollectionDidChange` is deprecated starting in iOS 17.
+
+It triggers on every trait change and forces manual checking of trait differences.
+
+Use `registerForTraitChanges` with specific trait arrays instead.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"I support Dark Mode by using semantic colors like `systemBackground` and `label` instead of hardcoded hex values. For Dynamic Type, I use standard text styles like `.body` and `.headline`. In UIKit, I set `adjustsFontForContentSizeCategory = true` and `numberOfLines = 0` so text scales and wraps properly."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"We support Dark Mode by defining color assets in the Asset Catalog with Any and Dark appearance variants. For Dynamic Type, we use `UIFont.preferredFont` and `UIFontMetrics` for custom fonts. We never set fixed label heights. In SwiftUI, we use standard font styles and `@ScaledMetric` so icons scale alongside text."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"We treat appearance and typography as core accessibility requirements. We build interfaces with semantic color tokens and materials that respect elevation hierarchies. For Dynamic Type, we switch horizontal stacks to vertical stacks at accessibility sizes using `ViewThatFits` or `dynamicTypeSize.isAccessibilitySize`. In modern UIKit, we monitor appearance changes using `registerForTraitChanges`."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Semantic colors like `systemBackground` and `label` adapt automatically to Dark Mode.
+- Define custom dynamic colors in Asset Catalogs with Light and Dark variants.
+- Dynamic Type lets users scale text sizes across iOS for improved accessibility.
+- In UIKit, set `adjustsFontForContentSizeCategory = true` and `numberOfLines = 0`.
+- In SwiftUI, use standard text styles and `@ScaledMetric` for scalable icons and padding.
+- Avoid fixed label height constraints so text can wrap freely at large sizes.
+- In iOS 17+, observe trait changes using `registerForTraitChanges`.
+</Recap>
+
+## Go deeper
+
+- [Human Interface Guidelines: Dark Mode](https://developer.apple.com/design/human-interface-guidelines/dark-mode) — Official Apple guidelines for dark interfaces.
+- [Human Interface Guidelines: Typography](https://developer.apple.com/design/human-interface-guidelines/typography) — Apple typography specifications and Dynamic Type sizes.
+- [Supporting Dark Mode in your interface (UIKit)](https://developer.apple.com/documentation/uikit/supporting-dark-mode-in-your-interface) — Apple developer guide for adaptive interfaces.
