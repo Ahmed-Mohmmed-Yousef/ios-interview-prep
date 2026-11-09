@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Permissions and Privacy: Authorization States & Settings Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #ea580c; --step2-soft: #ffedd5;
+  --step3-color: #16a34a; --step3-soft: #dcfce7;
+  --step4-color: #dc2626; --step4-soft: #fee2e2;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #fb923c; --step2-soft: #431407;
+  --step3-color: #4ade80; --step3-soft: #052e16;
+  --step4-color: #f87171; --step4-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Permissions and Privacy Lifecycle Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span class="kind s1" id="badge">Step 1</span> <span id="title">Check Status (.notDetermined)</span></h3>
+      <p class="caption" id="desc">The app checks authorization before accessing the camera. Because the user has not seen the prompt yet, status is .notDetermined.</p>
+      <div class="code" id="codeSnippet">let status = AVCaptureDevice.authorizationStatus(for: .video)
+// status == .notDetermined -> Ready to ask</div>
+    </div>
+
+    <div class="panel" style="display:flex; align-items:center; justify-content:center;">
+      <svg viewBox="0 0 320 220" role="img" aria-label="Visual state transition illustration">
+        <rect x="10" y="10" width="300" height="200" class="device-frame" />
+        <rect x="25" y="25" width="270" height="170" rx="10" class="base-screen" />
+
+        <!-- Dynamic elements -->
+        <g id="visualScene">
+          <!-- Step 1 visual -->
+          <circle cx="160" cy="90" r="32" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="2" />
+          <path d="M 160 72 L 160 96 M 160 106 L 160 108" stroke="var(--step1-color)" stroke-width="3" stroke-linecap="round" />
+          <text x="160" y="145" text-anchor="middle" font-size="13" font-weight="600" fill="var(--ink)">Status: .notDetermined</text>
+          <text x="160" y="165" text-anchor="middle" font-size="11" fill="var(--muted)">In-context button pressed</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "Check Status (.notDetermined)",
+    desc: "The app checks authorization before accessing the camera. Because the user has not seen the prompt yet, status is .notDetermined.",
+    code: `let status = AVCaptureDevice.authorizationStatus(for: .video)\n// status == .notDetermined -> Trigger request`,
+    svg: `
+      <circle cx="160" cy="90" r="32" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="2" />
+      <path d="M 160 72 L 160 96 M 160 106 L 160 108" stroke="var(--step1-color)" stroke-width="3" stroke-linecap="round" />
+      <text x="160" y="145" text-anchor="middle" font-size="13" font-weight="600" fill="var(--ink)">Status: .notDetermined</text>
+      <text x="160" y="165" text-anchor="middle" font-size="11" fill="var(--muted)">In-context action initiated</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "System Modal & Purpose String",
+    desc: "iOS displays the one-time system dialog. It presents the custom NSCameraUsageDescription text from Info.plist explaining user benefit.",
+    code: `AVCaptureDevice.requestAccess(for: .video) { granted in\n    // iOS displays one-time modal with purpose string\n}`,
+    svg: `
+      <rect x="45" y="45" width="230" height="130" rx="12" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="160" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)">“MyApp” Would Like to Access Camera</text>
+      <text x="160" y="98" text-anchor="middle" font-size="10" fill="var(--muted)">Scan package barcodes quickly.</text>
+      <line x1="45" y1="120" x2="275" y2="120" stroke="var(--line)" stroke-width="1" />
+      <line x1="160" y1="120" x2="160" y2="175" stroke="var(--line)" stroke-width="1" />
+      <text x="102" y="148" text-anchor="middle" font-size="12" font-weight="600" fill="var(--step4-color)">Don't Allow</text>
+      <text x="218" y="148" text-anchor="middle" font-size="12" font-weight="600" fill="var(--step1-color)">OK</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Granted (.authorized)",
+    desc: "User taps OK. Status becomes .authorized. The app receives access and displays the camera viewfinder freely.",
+    code: `case .authorized:\n    startCaptureSession()\n    // Full access granted by user`,
+    svg: `
+      <circle cx="160" cy="85" r="32" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <polyline points="146,85 156,95 174,75" fill="none" stroke="var(--step3-color)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+      <text x="160" y="145" text-anchor="middle" font-size="13" font-weight="600" fill="var(--ink)">Status: .authorized</text>
+      <text x="160" y="165" text-anchor="middle" font-size="11" fill="var(--step3-color)">Hardware capture active</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Denied (.denied) & Settings Link",
+    desc: "If denied, the system dialog never reappears. The app must guide the user to Settings via UIApplication.openSettingsURLString.",
+    code: `case .denied:\n    let url = URL(string: UIApplication.openSettingsURLString)!\n    UIApplication.shared.open(url)`,
+    svg: `
+      <circle cx="160" cy="75" r="30" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="2" />
+      <line x1="148" y1="63" x2="172" y2="87" stroke="var(--step4-color)" stroke-width="3" stroke-linecap="round" />
+      <line x1="172" y1="63" x2="148" y2="87" stroke="var(--step4-color)" stroke-width="3" stroke-linecap="round" />
+      <text x="160" y="128" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">Status: .denied (Prompt locked)</text>
+      <rect x="75" y="142" width="170" height="28" rx="6" fill="var(--step1-color)" />
+      <text x="160" y="161" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">Open iOS Settings ↗</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+</script>
+</body>
+</html>

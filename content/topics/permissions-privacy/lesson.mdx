@@ -1,0 +1,239 @@
+export const meta = {
+  id: "permissions-privacy",
+  summary: "Understand iOS permissions, authorization states, Info.plist purpose strings, and modern privacy manifests.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Protecting the User’s Privacy (UIKit)", url: "https://developer.apple.com/documentation/uikit/protecting-the-user-s-privacy", kind: "official" },
+    { title: "Human Interface Guidelines: Privacy", url: "https://developer.apple.com/design/human-interface-guidelines/privacy", kind: "official" },
+    { title: "Privacy manifest files (Bundle Resources)", url: "https://developer.apple.com/documentation/bundleresources/privacy-manifest-files", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What happens if your app asks for camera access without adding `NSCameraUsageDescription` to `Info.plist`?</Question>
+  <Guess>
+    <Option id="a">iOS presents a default system message to the user.</Option>
+    <Option id="b" correct>The application crashes immediately when calling the camera API.</Option>
+    <Option id="c">The camera API returns an empty image without crashing.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine visiting a building that has private secure offices.
+
+Before you enter a private office, you must knock on the door and ask for permission.
+
+You must state your name and explain why you need to enter.
+
+If the owner welcomes you, you step inside and begin your work.
+
+If the owner turns you away, knocking repeatedly is rude and pointless.
+
+You cannot open the door yourself. You must accept their choice or ask building security to update your badge.
+
+If the door has a parental lock, even the owner cannot invite you inside.
+</Analogy>
+
+iOS protects private hardware and personal data using system permissions.
+
+Protected items include the camera, microphone, photo library, contacts, location, and health records.
+
+Your app must explain why it needs access. You place these explanations inside your `Info.plist` file.
+
+Apple calls these explanations **purpose strings**.
+
+When an app checks permission status, the system returns one of four primary states:
+
+1. **Not Determined**: The user has never seen the permission prompt. Your app can trigger the system prompt now.
+2. **Authorized**: The user granted permission. Your app can use the hardware or data freely.
+3. **Denied**: The user tapped "Do Not Allow" or disabled the feature in Settings. The system prompt will never show again. You must guide the user to the Settings app.
+4. **Restricted**: Device controls like Screen Time or enterprise management block access. The user cannot turn it on.
+
+Some frameworks offer partial access. For example, Photos supports a **limited** status where the user picks only specific pictures.
+
+Modern iOS also requires a privacy manifest file named `PrivacyInfo.xcprivacy`.
+
+This file declares collected data categories, tracking domains, and reasons for using sensitive system APIs.
+
+## See it
+
+<Diagram id="permissions-privacy-diagram" caption="Permission Authorization State Machine and Settings Flow">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Not Determined state bubble.
+    2. System permission modal dialog with Allow and Deny buttons.
+    3. Authorized state (green access granted).
+    4. Denied state (red alert linking to Settings app).
+  - Steps:
+    Step 1: Check status; state is Not Determined.
+    Step 2: App triggers system alert showing Info.plist purpose string.
+    Step 3: If user taps Allow, status transitions to Authorized.
+    Step 4: If user taps Deny, status becomes Denied; app directs user to Settings.
+  - Static version (reduced motion):
+    A 4-step flowchart showing transitions between Not Determined, System Alert, Authorized, and Denied.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What should your app do when the user denies camera permission?</Question>
+  <Option id="a">Call the request authorization method again immediately.</Option>
+  <Option id="b" correct>Show an explanation alert with a button that opens the Settings app.</Option>
+  <Option id="c">Crash the app so the user restarts their phone.</Option>
+  <Explanation>Once denied, the system alert never shows again. You must guide the user to the Settings app to change the setting.</Explanation>
+</QuickCheck>
+
+## In code
+
+Check permission status before performing an action.
+
+Handle each state clearly in your logic.
+
+<CodeExample title="Handling authorization states">
+
+```swift
+enum CameraPermissionStatus {
+    case notDetermined
+    case authorized
+    case denied
+    case restricted
+}
+
+func action(for status: CameraPermissionStatus) -> String {
+    switch status {
+    case .notDetermined:
+        return "Show system permission prompt"
+    case .authorized:
+        return "Open camera viewfinder"
+    case .denied:
+        return "Show alert with link to Settings"
+    case .restricted:
+        return "Disable camera feature due to parental controls"
+    }
+}
+
+let currentStatus = CameraPermissionStatus.denied
+print("Current action: \(action(for: currentStatus))")
+```
+
+```output
+Current action: Show alert with link to Settings
+```
+
+</CodeExample>
+
+In your app, open the Settings app by calling `UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)`.
+
+Always configure proper purpose strings in your project configuration.
+
+<CodeExample title="Validating purpose string configuration">
+
+```swift
+struct PermissionConfig {
+    let usageKey: String
+    let purposeDescription: String
+
+    var isValid: Bool {
+        !usageKey.isEmpty && purposeDescription.count >= 10
+    }
+}
+
+let config = PermissionConfig(
+    usageKey: "NSCameraUsageDescription",
+    purposeDescription: "Scan package barcodes quickly."
+)
+
+print("Key: \(config.usageKey)")
+print("Valid configuration: \(config.isValid)")
+```
+
+```output
+Key: NSCameraUsageDescription
+Valid configuration: true
+```
+
+</CodeExample>
+
+<QuickCheck>
+  <Question>Can a user enable a permission if the status is `.restricted`?</Question>
+  <Option id="a">Yes, by toggling the switch inside the iOS Settings app.</Option>
+  <Option id="b" correct>No, because device restrictions or parental controls disable access completely.</Option>
+  <Option id="c">Yes, by deleting and reinstalling the application.</Option>
+  <Explanation>Restricted status means parental controls or mobile device management policies prevent access. The user cannot turn it on in Settings.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Missing Info.plist purpose strings">
+If you access the camera or location without the required `Info.plist` key, iOS terminates your app immediately.
+
+The app crashes with a SIGABRT error in both debug and release builds.
+
+Always verify that every hardware API has its matching description string.
+</Trap>
+
+<Trap title="Calling requestAuthorization repeatedly after denial">
+Some developers call the request method again hoping the dialog appears a second time.
+
+The system prompt displays only once in the entire lifecycle of your app install.
+
+Subsequent calls return `.denied` without showing any interface.
+
+Direct the user to the Settings app instead.
+</Trap>
+
+<Trap title="Asking for all permissions at launch">
+Requesting camera, microphone, and location permissions on first launch overwhelms users.
+
+Users often deny permissions when they do not understand the need.
+
+Ask for permissions in context only when the user taps a feature that requires them.
+</Trap>
+
+<Trap title="Treating restricted as denied">
+Do not show a "Go to Settings" button when the status is `.restricted`.
+
+Parental controls or company device policies lock the setting.
+
+The user cannot change the setting, so sending them to Settings causes confusion.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"iOS protects user privacy with system permissions for things like the camera and location. We must add a purpose string in `Info.plist`, or the app crashes. When checking status, we handle not determined, authorized, denied, and restricted. If the user denies permission, the prompt will not show again, so we guide them to the Settings app."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"We follow Apple guidelines by requesting permissions in context when the user activates a feature, rather than on launch. We check authorization status first. If denied, we explain why access helps and offer a deep link to Settings. If restricted, we disable the feature gracefully because parental controls block it. We also include `PrivacyInfo.xcprivacy` to declare API usage and data collection."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Our architecture decouples user intent from permission requests by using custom priming screens. This prevents burning the one-time system dialog before users understand the value. We handle granular permissions such as limited photo access. We also automate compliance with `PrivacyInfo.xcprivacy` manifests, documenting Required Reason APIs and tracking domains to streamline App Store privacy reports."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Protected resources require purpose strings in `Info.plist` or the app crashes immediately.
+- Authorization states include `.notDetermined`, `.authorized`, `.denied`, and `.restricted`.
+- The system permission prompt displays only once per app installation.
+- When permission is denied, direct the user to `UIApplication.openSettingsURLString`.
+- When permission is restricted, parental controls or MDM profiles prevent access.
+- Request permissions in context when the user taps an action, not at app launch.
+- Modern iOS apps require a `PrivacyInfo.xcprivacy` manifest for App Store submission.
+</Recap>
+
+## Go deeper
+
+- [Protecting the User’s Privacy (UIKit)](https://developer.apple.com/documentation/uikit/protecting-the-user-s-privacy) — Apple documentation on user privacy.
+- [Human Interface Guidelines: Privacy](https://developer.apple.com/design/human-interface-guidelines/privacy) — Apple design guidelines for privacy requests.
+- [Privacy manifest files (Bundle Resources)](https://developer.apple.com/documentation/bundleresources/privacy-manifest-files) — Official guide for privacy manifests and required reason APIs.

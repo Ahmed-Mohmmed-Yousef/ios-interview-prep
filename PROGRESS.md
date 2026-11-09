@@ -139,12 +139,12 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **auto-layout** (Auto Layout) — published (lesson, diagram, 31 questions) → [docs/topics/auto-layout/review.html](docs/topics/auto-layout/review.html)
     - ✅ **uikit-navigation** (Navigation in UIKit) — published (lesson, diagram, 31 questions) → [docs/topics/uikit-navigation/review.html](docs/topics/uikit-navigation/review.html)
     - ✅ **table-collection-views** (Table and Collection Views) — published (lesson, diagram, 31 questions) → [docs/topics/table-collection-views/review.html](docs/topics/table-collection-views/review.html)
-  - 🔄 **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)** — resuming (3 of 9 published)
+  - 🔄 **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)** — resuming (4 of 9 published)
     - ✅ **dark-mode-dynamic-type** (Dark Mode and Dynamic Type) — published (lesson, diagram, 31 questions) → [docs/topics/dark-mode-dynamic-type/review.html](docs/topics/dark-mode-dynamic-type/review.html)
     - ✅ **hig-liquid-glass** (Apple Design and Liquid Glass) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/hig-liquid-glass/review.html](docs/topics/hig-liquid-glass/review.html)
     - ✅ **app-lifecycle** (App and Scene Lifecycle) — published (lesson, diagram, 31 questions) → [docs/topics/app-lifecycle/review.html](docs/topics/app-lifecycle/review.html)
-    - 🔄 **permissions-privacy** (Permissions and Privacy)
-    - ⬜ **signing-app-store** (App Signing and the App Store)
+    - ✅ **permissions-privacy** (Permissions and Privacy) — published (lesson, diagram, 31 questions) → [docs/topics/permissions-privacy/review.html](docs/topics/permissions-privacy/review.html)
+    - 🔄 **signing-app-store** (App Signing and the App Store)
     - ⬜ **http-rest-basics** (HTTP and REST Basics)
     - ⬜ **urlsession** (URLSession)
     - ⬜ **userdefaults-and-files** (UserDefaults and Files)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic permissions-privacy (Permissions and Privacy): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/permissions-privacy/review.html`). All checks passed. Starting signing-app-store.
 
 - **2026-11-09** — Built and published topic app-lifecycle (App and Scene Lifecycle): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/app-lifecycle/review.html`). All checks passed. Starting permissions-privacy.
 
