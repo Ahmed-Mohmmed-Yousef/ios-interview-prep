@@ -1,0 +1,609 @@
+<title>View Controller Lifecycle Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --load-color: #0284c7; --load-soft: #e0f2fe;
+  --appear-color: #16a34a; --appear-soft: #dcfce7;
+  --active-color: #7c3aed; --active-soft: #f5f3ff;
+  --leave-color: #ea580c; --leave-soft: #ffedd5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --load-color: #38bdf8; --load-soft: #082f49;
+  --appear-color: #4ade80; --appear-soft: #052e16;
+  --active-color: #a78bfa; --active-soft: #2e1065;
+  --leave-color: #fb923c; --leave-soft: #431407;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.load { background: var(--load-soft); color: var(--load-color); }
+.kind.appear { background: var(--appear-soft); color: var(--appear-color); }
+.kind.active { background: var(--active-soft); color: var(--active-color); }
+.kind.leave { background: var(--leave-soft); color: var(--leave-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--load-color); color: #ffffff; border-color: var(--load-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--load-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · UIKit · Topic 2 of 5 · Prototype</p>
+    <h1>View Controller Lifecycle</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain the view controller lifecycle methods and when each one runs.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Why should you avoid refreshing user data inside <code>viewDidLoad</code> when returning to an existing screen?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Data tasks run on background threads and freeze the main runloop.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>viewDidLoad</code> runs only once when the view hierarchy is first created in memory.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">UIKit cancels active network requests when a controller appears.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine an actor preparing for a theater performance.</p><p>Building the stage set happens once during morning rehearsal. That is <strong><code>viewDidLoad</code></strong>.</p><p>Right before the curtains rise, the actor checks their costume. That is <strong><code>viewWillAppear</code></strong>.</p><p>When the curtains open and the audience watches, the actor speaks. That is <strong><code>viewDidAppear</code></strong>.</p><p>When the scene ends and curtains close, the actor exits. That is <strong><code>viewWillDisappear</code></strong> and <strong><code>viewDidDisappear</code></strong>.</p></aside>
+<p>In UIKit, every screen is driven by a <code>UIViewController</code>.</p>
+<p>The system calls specific lifecycle methods as a screen loads, appears, disappears, and leaves memory.</p>
+<p>Knowing when each method runs helps you place code in the right location:</p>
+<ol>
+<li><strong><code>viewDidLoad</code></strong>:
+<ul>
+<li>Runs once when the view hierarchy is loaded into memory.</li>
+<li>Ideal for adding subviews, setting constraints, and configuring delegates.</li>
+</ul>
+</li>
+<li><strong><code>viewWillAppear</code> &amp; <code>viewDidAppear</code></strong>:
+<ul>
+<li>Run every time the screen is about to become visible, and after it appears.</li>
+<li>Ideal for refreshing data, starting animations, and tracking analytics.</li>
+</ul>
+</li>
+<li><strong><code>viewWillLayoutSubviews</code> &amp; <code>viewDidLayoutSubviews</code></strong>:
+<ul>
+<li>Run whenever subview frames are calculated or bounds change.</li>
+<li>Subview dimensions and safe area insets are final here.</li>
+</ul>
+</li>
+<li><strong><code>viewWillDisappear</code> &amp; <code>viewDidDisappear</code></strong>:
+<ul>
+<li>Run when the screen is dismissed or covered.</li>
+<li>Ideal for dismissing keyboards, pausing timers, and saving drafts.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which lifecycle method is called every time a screen appears, including when popping back?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>viewDidLoad</code></span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>viewWillAppear</code></span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text"><code>loadView</code></span></button><p class="qc-explain" hidden=""><code>viewWillAppear</code> runs every time the screen is about to appear, while <code>viewDidLoad</code> runs only once.</p></div>
+<h2>In code</h2>
+<p>Here is how a view controller tracks appearance lifecycle events.</p>
+<p>Notice how <code>viewDidLoad</code> executes first, followed by appearance callbacks.</p>
+<figure class="code-example"><figcaption>Logging view controller lifecycle transitions</figcaption><pre class="block swift"><code class="language-swift">import UIKit
+
+class LifecycleDemoVC: UIViewController {
+    var events: [String] = []
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        events.append(&quot;viewDidLoad&quot;)
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        events.append(&quot;viewWillAppear&quot;)
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        events.append(&quot;viewDidAppear&quot;)
+    }
+}
+
+let vc = LifecycleDemoVC()
+_ = vc.view
+vc.viewWillAppear(false)
+vc.viewDidAppear(false)
+
+print(&quot;Logged events: \(vc.events.joined(separator: &quot; -&gt; &quot;))&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Logged events: viewDidLoad -&gt; viewWillAppear -&gt; viewDidAppear
+</code></pre></figure>
+<p>Always call <code>super</code> when overriding appearance methods.</p>
+<p>Next, observe how layout methods execute when view bounds update.</p>
+<figure class="code-example"><figcaption>Observing subview layout passes</figcaption><pre class="block swift"><code class="language-swift">import UIKit
+
+class LayoutDemoVC: UIViewController {
+    var layoutCount = 0
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        layoutCount += 1
+    }
+}
+
+let layoutVC = LayoutDemoVC()
+layoutVC.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+layoutVC.view.layoutIfNeeded()
+
+print(&quot;Layout passes: \(layoutVC.layoutCount)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Layout passes: 1
+</code></pre></figure>
+<p>In <code>viewDidLayoutSubviews</code>, subviews have their final sizes and frames applied.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Where should you configure layer corner radii that depend on view height?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Inside the class designated initializer.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Inside <code>viewDidLayoutSubviews()</code>.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Inside <code>viewWillDisappear()</code>.</span></button><p class="qc-explain" hidden="">View frames are final in viewDidLayoutSubviews, making it the right place for geometry-based layers.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Refreshing data only in viewDidLoad</p><p>If you load profile data only in <code>viewDidLoad</code>, navigating away and returning leaves old data.</p><p><code>viewDidLoad</code> does not run again when popping back from a child screen.</p><p>Move data refresh tasks to <code>viewWillAppear</code> so the screen updates on every visit.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Adding subviews repeatedly in viewWillAppear</p><p>Calling <code>view.addSubview</code> inside <code>viewWillAppear</code> creates duplicate views on every screen visit.</p><p>This wastes memory and degrades rendering performance.</p><p>Add subviews once inside <code>viewDidLoad</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Setting corner radii before layout runs</p><p>Do not use <code>button.bounds.height / 2</code> inside <code>viewDidLoad</code>.</p><p>At that moment, view frames are zero or placeholder values.</p><p>Update geometry-dependent corner radii or gradient layer frames in <code>viewDidLayoutSubviews</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Forgetting to call super in lifecycle methods</p><p>Failing to call <code>super.viewWillAppear(animated)</code> breaks UIKit internal state management.</p><p>Accessibility announcements and navigation animations may fail.</p><p>Always call <code>super</code> inside lifecycle overrides, except when overriding <code>loadView</code>.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;The lifecycle starts with <code>viewDidLoad</code>, which runs once when views load into memory. <code>viewWillAppear</code> runs every time the screen is about to appear, and <code>viewDidAppear</code> runs when visible. When leaving, <code>viewWillDisappear</code> and <code>viewDidDisappear</code> run. Always call <code>super</code> in these methods.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;We place one-time setup like adding subviews and Auto Layout constraints in <code>viewDidLoad</code>. We place repeatable tasks like data reloading and keyboard observers in <code>viewWillAppear</code>. For tasks requiring final view geometry, such as gradients or round corner radii, we use <code>viewDidLayoutSubviews</code>. We tear down timers and hide keyboards in <code>viewWillDisappear</code>.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;We manage screen transitions cleanly by respecting the runloop and presentation context. We separate configuration from layout passes, letting Auto Layout solve constraints before touching layer geometries in <code>viewDidLayoutSubviews</code>. We also consider presentation styles, since modal sheets do not trigger disappearance on presenting controllers in iOS 13 and later.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>viewDidLoad</code> runs once per view hierarchy lifetime for one-time setup.</li>
+<li><code>viewWillAppear</code> runs every time the view is about to appear on screen.</li>
+<li><code>viewDidAppear</code> runs after transition animations finish; start analytics and timers here.</li>
+<li><code>viewDidLayoutSubviews</code> runs when bounds update; subview frames are final here.</li>
+<li><code>viewWillDisappear</code> runs when leaving; dismiss keyboards and pause video playback here.</li>
+<li>Always call <code>super</code> in lifecycle overrides to maintain UIKit system transitions.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/uikit/uiviewcontroller">UIViewController (UIKit)</a> — Official Apple guide for view controller lifecycle.</li>
+<li><a href="https://developer.apple.com/documentation/uikit/displaying-and-managing-views-with-a-view-controller">Displaying and managing views with a view controller</a> — Apple guide for screen layout and presentation.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    badge: '1. Loading & Creation',
+    badgeClass: 'kind load',
+    lifecycleCode: 'override func viewDidLoad() {\n  super.viewDidLoad()\n  view.addSubview(titleLabel)\n}',
+    taskCode: '// Best used for:\n// - Adding subviews\n// - Auto Layout constraints\n// - Initial delegate wiring',
+    lifecycleCap: 'Step 1: viewDidLoad runs once when the view hierarchy is first loaded in memory.',
+    taskCap: 'Perform one-time configuration here. Frames and geometry are not final yet.',
+    freqText: 'Runs ONCE per view load',
+    geoText: 'No (frames are zero or placeholder)',
+    superText: 'Yes (super.viewDidLoad())',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--load-soft)" stroke="var(--load-color)" stroke-width="2"/>
+      <text x="140" y="55" text-anchor="middle" font-size="12" font-weight="700" fill="var(--load-color)">viewDidLoad()</text>
+      <rect x="70" y="75" width="140" height="30" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="94" text-anchor="middle" font-size="10" fill="var(--muted)">+ Subviews Added</text>
+      <rect x="70" y="115" width="140" height="30" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="134" text-anchor="middle" font-size="10" fill="var(--muted)">+ Constraints Activated</text>
+      <text x="140" y="175" text-anchor="middle" font-size="9" font-weight="600" fill="var(--muted)">isViewLoaded = true</text>
+    `
+  },
+  {
+    step: 2,
+    badge: '2. Preparing to Appear',
+    badgeClass: 'kind appear',
+    lifecycleCode: 'override func viewWillAppear(_ animated: Bool) {\n  super.viewWillAppear(animated)\n  refreshFeedData()\n}',
+    taskCode: 'override func viewDidLayoutSubviews() {\n  super.viewDidLayoutSubviews()\n  avatar.layer.cornerRadius = avatar.bounds.h / 2\n}',
+    lifecycleCap: 'Step 2: viewWillAppear runs before display. Layout finishes in viewDidLayoutSubviews.',
+    taskCap: 'Refresh dynamic data in viewWillAppear. Configure corner radii in viewDidLayoutSubviews.',
+    freqText: 'Repeats EVERY screen appearance',
+    geoText: 'Yes in viewDidLayoutSubviews',
+    superText: 'Yes (super.viewWillAppear(animated))',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--appear-soft)" stroke="var(--appear-color)" stroke-width="2"/>
+      <text x="140" y="50" text-anchor="middle" font-size="11" font-weight="700" fill="var(--appear-color)">viewWillAppear(animated)</text>
+      <!-- Layout Card -->
+      <rect x="65" y="70" width="150" height="85" rx="8" fill="var(--surface)" stroke="var(--appear-color)" stroke-width="1.5"/>
+      <circle cx="100" cy="112" r="22" fill="var(--appear-soft)" stroke="var(--appear-color)" stroke-width="2"/>
+      <text x="100" y="116" text-anchor="middle" font-size="9" font-weight="700" fill="var(--appear-color)">Avatar</text>
+      <text x="155" y="105" text-anchor="middle" font-size="10" font-weight="600" fill="currentColor">Final Frames</text>
+      <text x="155" y="122" text-anchor="middle" font-size="9" fill="var(--muted)">Calculated</text>
+      <text x="140" y="180" text-anchor="middle" font-size="9" font-weight="600" fill="var(--muted)">viewDidLayoutSubviews()</text>
+    `
+  },
+  {
+    step: 3,
+    badge: '3. Visible on Screen',
+    badgeClass: 'kind active',
+    lifecycleCode: 'override func viewDidAppear(_ animated: Bool) {\n  super.viewDidAppear(animated)\n  startVideoPlayback()\n}',
+    taskCode: '// Best used for:\n// - Starting animations\n// - Video & audio playback\n// - Screen view analytics tracking',
+    lifecycleCap: 'Step 3: viewDidAppear runs once transition finishes and the screen is fully visible.',
+    taskCap: 'The user can now interact with the view. Start resource-heavy animations here.',
+    freqText: 'Repeats on every appearance',
+    geoText: 'Fully rendered on display',
+    superText: 'Yes (super.viewDidAppear(animated))',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--active-soft)" stroke="var(--active-color)" stroke-width="2.5"/>
+      <text x="140" y="48" text-anchor="middle" font-size="11" font-weight="700" fill="var(--active-color)">viewDidAppear(animated)</text>
+      <!-- Active Screen Elements -->
+      <rect x="65" y="65" width="150" height="95" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <rect x="75" y="78" width="130" height="20" rx="4" fill="var(--code-bg)"/>
+      <text x="140" y="92" text-anchor="middle" font-size="10" font-weight="600" fill="var(--active-color)">Active User Interaction</text>
+      <rect x="75" y="105" width="130" height="24" rx="6" fill="var(--active-color)"/>
+      <text x="140" y="121" text-anchor="middle" font-size="10" font-weight="600" fill="#ffffff">Play Video</text>
+      <text x="140" y="185" text-anchor="middle" font-size="9" font-weight="600" fill="var(--active-color)">Analytics Screen Logged</text>
+    `
+  },
+  {
+    step: 4,
+    badge: '4. Disappearing & Exit',
+    badgeClass: 'kind leave',
+    lifecycleCode: 'override func viewWillDisappear(_ animated: Bool) {\n  super.viewWillDisappear(animated)\n  searchField.resignFirstResponder()\n}',
+    taskCode: 'override func viewDidDisappear(_ animated: Bool) {\n  super.viewDidDisappear(animated)\n  stopLocationTracking()\n}',
+    lifecycleCap: 'Step 4: viewWillDisappear and viewDidDisappear run when leaving or dismissing.',
+    taskCap: 'Dismiss the keyboard, pause active media, stop timers, and save draft state.',
+    freqText: 'Runs on screen exit or modal dismiss',
+    geoText: 'Off-screen or covered',
+    superText: 'Yes (super.viewWillDisappear(animated))',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--leave-soft)" stroke="var(--leave-color)" stroke-width="2"/>
+      <text x="140" y="50" text-anchor="middle" font-size="11" font-weight="700" fill="var(--leave-color)">viewWillDisappear()</text>
+      <rect x="65" y="70" width="150" height="85" rx="8" fill="var(--surface)" stroke="var(--leave-color)" stroke-width="1.5"/>
+      <text x="140" y="95" text-anchor="middle" font-size="10" font-weight="600" fill="currentColor">Teardown Actions:</text>
+      <text x="140" y="115" text-anchor="middle" font-size="9" fill="var(--muted)">- Dismiss keyboard</text>
+      <text x="140" y="132" text-anchor="middle" font-size="9" fill="var(--muted)">- Pause audio / video</text>
+      <text x="140" y="180" text-anchor="middle" font-size="9" font-weight="600" fill="var(--muted)">viewDidDisappear() -> deinit</text>
+    `
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('lifecycleCode').textContent = s.lifecycleCode;
+  document.getElementById('taskCode').textContent = s.taskCode;
+  document.getElementById('lifecycleCaption').textContent = s.lifecycleCap;
+  document.getElementById('taskCaption').textContent = s.taskCap;
+  document.getElementById('stageBadge').textContent = s.badge;
+  document.getElementById('stageBadge').setAttribute('class', s.badgeClass);
+
+  document.getElementById('freqText').textContent = s.freqText;
+  document.getElementById('geoText').textContent = s.geoText;
+  document.getElementById('superText').textContent = s.superText;
+
+  document.getElementById('lifecycleSvgG').innerHTML = s.overlaySvg;
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"view-controller-lifecycle","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"view-controller-lifecycle-q1","type":"mcq","difficulty":1,"prompt":"Which method runs exactly once when the view hierarchy is first created in memory?","options":[{"id":"a","text":"The `viewDidLoad()` lifecycle callback method.","explanation":"Right. ViewDidLoad runs once when the view hierarchy is loaded."},{"id":"b","text":"The `viewWillAppear(_:)` appearance notification method.","explanation":"ViewWillAppear runs every time the screen is about to appear."},{"id":"c","text":"The `viewDidLayoutSubviews()` geometry calculation pass.","explanation":"This method runs repeatedly whenever view bounds or layouts update."},{"id":"d","text":"The `viewDidAppear(_:)` interactive visibility callback.","explanation":"ViewDidAppear runs on every presentation after transition completes."}],"answer":"a"},{"id":"view-controller-lifecycle-q2","type":"mcq","difficulty":1,"prompt":"Which lifecycle method runs every time a screen is about to become visible on display?","options":[{"id":"a","text":"The `loadView()` view instantiation override method.","explanation":"LoadView runs only once to create the root view hierarchy."},{"id":"b","text":"The `viewWillAppear(_:)` appearance transition method.","explanation":"Right. ViewWillAppear executes every time before the view appears."},{"id":"c","text":"The `viewDidLoad()` initial configuration callback.","explanation":"ViewDidLoad does not run again when returning to an existing view."},{"id":"d","text":"The `didReceiveMemoryWarning()` memory eviction method.","explanation":"This method runs only during low system memory conditions."}],"answer":"b"},{"id":"view-controller-lifecycle-q3","type":"mcq","difficulty":2,"prompt":"Where are view frames and safe area insets guaranteed to have their final calculated values?","options":[{"id":"a","text":"Inside the view controller designated class initializer.","explanation":"The view is not loaded in memory yet during class initialization."},{"id":"b","text":"Inside `viewDidLoad()` before layout constraints activate.","explanation":"Frames are placeholder or zero values inside viewDidLoad."},{"id":"c","text":"Inside `viewDidLayoutSubviews()` after layout pass finishes.","explanation":"Right. Subview frames and safe areas are final after layout subviews."},{"id":"d","text":"Inside `viewWillDisappear(_:)` right before screen dismissal.","explanation":"ViewWillDisappear runs when leaving, not for initial sizing."}],"answer":"c"},{"id":"view-controller-lifecycle-q4","type":"mcq","difficulty":1,"prompt":"Which method is called immediately after the screen transition finishes and is visible?","options":[{"id":"a","text":"The `viewWillLayoutSubviews()` size calculation pass.","explanation":"ViewWillLayoutSubviews runs before subviews are arranged."},{"id":"b","text":"The `viewWillAppear(_:)` transition start callback.","explanation":"ViewWillAppear runs before transition animations start."},{"id":"c","text":"The `viewDidLoad()` initial view hierarchy callback.","explanation":"ViewDidLoad runs once when views load, not when animation ends."},{"id":"d","text":"The `viewDidAppear(_:)` interactive visibility callback.","explanation":"Right. ViewDidAppear runs after the screen transition completes."}],"answer":"d"},{"id":"view-controller-lifecycle-q5","type":"mcq","difficulty":2,"prompt":"Where should you dismiss virtual keyboards and pause media playback before leaving?","options":[{"id":"a","text":"Inside `viewWillDisappear(_:)` before screen dismissal.","explanation":"Right. ViewWillDisappear is ideal for teardown and hiding keyboard."},{"id":"b","text":"Inside `viewDidLoad()` before view hierarchy creation.","explanation":"ViewDidLoad runs once at creation, not when leaving the screen."},{"id":"c","text":"Inside `loadView()` while instantiating root subviews.","explanation":"LoadView builds views and should not contain teardown logic."},{"id":"d","text":"Inside `viewDidLayoutSubviews()` after geometry pass.","explanation":"LayoutSubviews is for layout updates, not dismissal teardown."}],"answer":"a"},{"id":"view-controller-lifecycle-q6","type":"mcq","difficulty":2,"prompt":"What problem occurs if you call `view.addSubview` inside `viewWillAppear`?","options":[{"id":"a","text":"The Swift compiler generates an invalid method call error.","explanation":"The code compiles cleanly without any compiler errors."},{"id":"b","text":"Duplicate subviews pile on top of each other on every visit.","explanation":"Right. Each appearance adds a new copy of the subview."},{"id":"c","text":"The parent navigation controller crashes with an empty stack.","explanation":"It does not crash; it causes visual glitches and memory waste."},{"id":"d","text":"All Auto Layout constraints are permanently purged on launch.","explanation":"Constraints are not removed automatically by adding subviews."}],"answer":"b"},{"id":"view-controller-lifecycle-q7","type":"mcq","difficulty":2,"prompt":"Why should you avoid setting `button.layer.cornerRadius = button.bounds.height / 2` in `viewDidLoad`?","options":[{"id":"a","text":"Layer corner radius can only be configured in interface builder.","explanation":"Layer properties can be configured freely in Swift code."},{"id":"b","text":"Buttons reject circular corner styling on modern iOS versions.","explanation":"Circular buttons using corner radius are completely supported."},{"id":"c","text":"Button bounds are zero or placeholder values in `viewDidLoad`.","explanation":"Right. Final bounds are calculated later in viewDidLayoutSubviews."},{"id":"d","text":"Core Animation locks all layer mutations until device reboot.","explanation":"Core Animation allows dynamic layer updates at any point."}],"answer":"c"},{"id":"view-controller-lifecycle-q8","type":"mcq","difficulty":2,"prompt":"What issue happens when you omit `super.viewWillAppear(animated)` in an override?","options":[{"id":"a","text":"The entire iOS operating system freezes the active device.","explanation":"Omitting super affects only UIKit transition state handling."},{"id":"b","text":"The view controller is deallocated immediately by runtime ARC.","explanation":"The view controller remains allocated in memory."},{"id":"c","text":"The compiler fails to produce an executable machine binary.","explanation":"The code compiles but fails internal runtime transition checks."},{"id":"d","text":"Internal UIKit system transition states and accessibility may break.","explanation":"Right. UIKit depends on super calls for coordinated transitions."}],"answer":"d"},{"id":"view-controller-lifecycle-q9","type":"mcq","difficulty":2,"prompt":"Which method should you override to create a custom root view in code without storyboards?","options":[{"id":"a","text":"The `loadView()` method, assigning a custom view to `self.view`.","explanation":"Right. Overriding loadView creates programmatic root views."},{"id":"b","text":"The `viewWillAppear(_:)` appearance transition method.","explanation":"ViewWillAppear runs before showing views, not for creation."},{"id":"c","text":"The `awakeFromNib()` unarchiving method from Interface Builder.","explanation":"AwakeFromNib is for storyboard and XIB files, not pure code."},{"id":"d","text":"The `updateViewConstraints()` layout calculation method.","explanation":"This method updates constraints, not root view creation."}],"answer":"a"},{"id":"view-controller-lifecycle-q10","type":"mcq","difficulty":1,"prompt":"When a user pushes to a second screen and pops back, which method does NOT run again?","options":[{"id":"a","text":"The `viewWillAppear(_:)` transition start callback.","explanation":"ViewWillAppear runs every time the screen is revealed."},{"id":"b","text":"The `viewDidLoad()` initial view hierarchy callback.","explanation":"Right. ViewDidLoad runs only once when loaded in memory."},{"id":"c","text":"The `viewDidAppear(_:)` interactive visibility callback.","explanation":"ViewDidAppear runs on every completed transition."},{"id":"d","text":"The `viewDidLayoutSubviews()` geometry arrangement pass.","explanation":"Layout passes execute whenever views are repositioned."}],"answer":"b"},{"id":"view-controller-lifecycle-q11","type":"mcq","difficulty":2,"prompt":"Where is the best place to start expensive video playback or screen view analytics?","options":[{"id":"a","text":"Inside `loadView()` before any subviews are created.","explanation":"The view is not even loaded or on screen during loadView."},{"id":"b","text":"Inside `init(coder:)` during class initialization.","explanation":"The screen is not yet presented or visible during init."},{"id":"c","text":"Inside `viewDidAppear(_:)` once the view is visible.","explanation":"Right. ViewDidAppear confirms the user is actively viewing the screen."},{"id":"d","text":"Inside `viewWillDisappear(_:)` right before teardown.","explanation":"ViewWillDisappear runs when leaving, not for starting media."}],"answer":"c"},{"id":"view-controller-lifecycle-q12","type":"mcq","difficulty":2,"prompt":"Which method is invoked when a view controller instance is deallocated by ARC?","options":[{"id":"a","text":"The `viewDidDisappear(_:)` transition callback.","explanation":"ViewDidDisappear runs when leaving screen, not on deallocation."},{"id":"b","text":"The `didReceiveMemoryWarning()` memory eviction method.","explanation":"This method runs when device memory is constrained."},{"id":"c","text":"The `viewWillUnload()` legacy teardown method.","explanation":"ViewWillUnload was deprecated and removed in iOS 6."},{"id":"d","text":"The `deinit` deinitializer method on the class instance.","explanation":"Right. Deinit runs when ARC releases the controller from memory."}],"answer":"d"},{"id":"view-controller-lifecycle-q13","type":"mcq","difficulty":2,"prompt":"Which lifecycle method runs repeatedly whenever screen orientation changes in UIKit?","options":[{"id":"a","text":"The `viewDidLayoutSubviews()` geometry update callback.","explanation":"Right. Layout methods execute whenever view bounds change."},{"id":"b","text":"The `viewDidLoad()` initial creation callback.","explanation":"ViewDidLoad does not run on screen rotation."},{"id":"c","text":"The `loadView()` view hierarchy instantiation override.","explanation":"LoadView runs once to create the root view."},{"id":"d","text":"The `awakeFromNib()` storyboard unarchiving callback.","explanation":"AwakeFromNib runs once at archive decompression time."}],"answer":"a"},{"id":"view-controller-lifecycle-q14","type":"mcq","difficulty":1,"prompt":"What parameter is passed to `viewWillAppear` indicating transition styling?","options":[{"id":"a","text":"A string `identifier` describing the target navigation route.","explanation":"Navigation routes are managed by storyboards or custom coordinators."},{"id":"b","text":"A Boolean `animated` flag indicating animation state.","explanation":"Right. ViewWillAppear accepts an animated: Bool argument."},{"id":"c","text":"An integer `duration` specifying millisecond timing.","explanation":"Animation duration is handled by transition coordinators."},{"id":"d","text":"An optional `completion` handler closure for callbacks.","explanation":"Lifecycle appearance methods do not take completion blocks."}],"answer":"b"},{"id":"view-controller-lifecycle-q15","type":"mcq","difficulty":1,"prompt":"Where should one-time subview creation and Auto Layout constraints be configured?","options":[{"id":"a","text":"Inside `viewDidDisappear(_:)` after the view leaves screen.","explanation":"ViewDidDisappear runs when views are already off screen."},{"id":"b","text":"Inside `viewWillDisappear(_:)` during screen dismissal.","explanation":"ViewWillDisappear runs when leaving the screen."},{"id":"c","text":"Inside `viewDidLoad()` when view hierarchy loads in memory.","explanation":"Right. ViewDidLoad is the designated location for one-time setup."},{"id":"d","text":"Inside `viewDidAppear(_:)` after animation finishes.","explanation":"Adding subviews in viewDidAppear causes visible content popping."}],"answer":"c"},{"id":"view-controller-lifecycle-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking the logged lifecycle event?","code":"import UIKit\n\nclass TrackerVC: UIViewController {\n    var log: [String] = []\n    override func viewDidLoad() {\n        super.viewDidLoad()\n        log.append(\"loaded\")\n    }\n}\nlet vc1 = TrackerVC()\n_ = vc1.view\nprint(\"Log: \\(vc1.log.first ?? \"empty\")\")","options":[{"id":"a","text":"Log: empty","explanation":"Accessing vc1.view triggers loadView and viewDidLoad, appending loaded."},{"id":"b","text":"Log: appeared","explanation":"Only viewDidLoad was overridden, appending loaded."},{"id":"c","text":"Log: nil","explanation":"The log contains an element, so nil-coalescing is not used."},{"id":"d","text":"Log: loaded","explanation":"Right. Accessing vc1.view triggers viewDidLoad which appends loaded."}],"answer":"d"},{"id":"view-controller-lifecycle-q17","type":"code-reading","difficulty":1,"prompt":"What is the value of `appearCount` printed by this code?","code":"import UIKit\n\nclass AppearanceVC: UIViewController {\n    var appearCount = 0\n    override func viewWillAppear(_ animated: Bool) {\n        super.viewWillAppear(animated)\n        appearCount += 1\n    }\n}\nlet vc2 = AppearanceVC()\nvc2.viewWillAppear(false)\nvc2.viewWillAppear(true)\nprint(\"Appear count: \\(vc2.appearCount)\")","options":[{"id":"a","text":"Appear count: 2","explanation":"Right. ViewWillAppear was called two times, incrementing count to 2."},{"id":"b","text":"Appear count: 1","explanation":"ViewWillAppear was called twice, not once."},{"id":"c","text":"Appear count: 0","explanation":"Both calls increment the stored counter."},{"id":"d","text":"Appear count: 3","explanation":"Only two calls were made in the script."}],"answer":"a"},{"id":"view-controller-lifecycle-q18","type":"code-reading","difficulty":2,"prompt":"What is the output when layoutIfNeeded triggers a layout pass?","code":"import UIKit\n\nclass SubviewPassVC: UIViewController {\n    var pass = 0\n    override func viewDidLayoutSubviews() {\n        super.viewDidLayoutSubviews()\n        pass += 1\n    }\n}\nlet vc3 = SubviewPassVC()\nvc3.view.frame = CGRect(x: 0, y: 0, width: 200, height: 200)\nvc3.view.layoutIfNeeded()\nprint(\"Pass count: \\(vc3.pass)\")","options":[{"id":"a","text":"Pass count: 0","explanation":"LayoutIfNeeded forces the layout pass, invoking viewDidLayoutSubviews."},{"id":"b","text":"Pass count: 1","explanation":"Right. Setting frame and calling layoutIfNeeded executes 1 pass."},{"id":"c","text":"Pass count: 2","explanation":"Only one layout update was performed."},{"id":"d","text":"Pass count: 200","explanation":"200 is the frame dimension, not the layout count."}],"answer":"b"},{"id":"view-controller-lifecycle-q19","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking the keyboard dismissal flag?","code":"import UIKit\n\nclass ExitVC: UIViewController {\n    var isKeyboardDismissed = false\n    override func viewWillDisappear(_ animated: Bool) {\n        super.viewWillDisappear(animated)\n        isKeyboardDismissed = true\n    }\n}\nlet vc4 = ExitVC()\nvc4.viewWillDisappear(false)\nprint(\"Dismissed: \\(vc4.isKeyboardDismissed)\")","options":[{"id":"a","text":"Dismissed: false","explanation":"Calling viewWillDisappear sets isKeyboardDismissed to true."},{"id":"b","text":"Dismissed: nil","explanation":"IsKeyboardDismissed is a non-optional Boolean value."},{"id":"c","text":"Dismissed: true","explanation":"Right. ViewWillDisappear executes and updates the boolean flag."},{"id":"d","text":"Dismissed: 1","explanation":"Swift prints boolean true as true."}],"answer":"c"},{"id":"view-controller-lifecycle-q20","type":"code-reading","difficulty":1,"prompt":"What order of lifecycle events does this code record?","code":"import UIKit\n\nclass OrderVC: UIViewController {\n    var trail: [String] = []\n    override func viewDidLoad() {\n        super.viewDidLoad()\n        trail.append(\"V1\")\n    }\n    override func viewWillAppear(_ animated: Bool) {\n        super.viewWillAppear(animated)\n        trail.append(\"V2\")\n    }\n}\nlet vc5 = OrderVC()\n_ = vc5.view\nvc5.viewWillAppear(false)\nprint(\"Trail: \\(vc5.trail.joined(separator: \"-\"))\")","options":[{"id":"a","text":"Trail: V2-V1","explanation":"ViewDidLoad executes before viewWillAppear."},{"id":"b","text":"Trail: V1","explanation":"Both viewDidLoad and viewWillAppear were triggered."},{"id":"c","text":"Trail: V2","explanation":"Accessing vc5.view first triggered viewDidLoad appending V1."},{"id":"d","text":"Trail: V1-V2","explanation":"Right. ViewDidLoad runs first appending V1, then viewWillAppear appends V2."}],"answer":"d"},{"id":"view-controller-lifecycle-q21","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking if the view has fully appeared?","code":"import UIKit\n\nclass ActiveCheckVC: UIViewController {\n    var isLive = false\n    override func viewDidAppear(_ animated: Bool) {\n        super.viewDidAppear(animated)\n        isLive = true\n    }\n}\nlet vc6 = ActiveCheckVC()\nvc6.viewDidAppear(false)\nprint(\"Is live: \\(vc6.isLive)\")","options":[{"id":"a","text":"Is live: true","explanation":"Right. ViewDidAppear updates isLive to true."},{"id":"b","text":"Is live: false","explanation":"Calling viewDidAppear sets isLive to true."},{"id":"c","text":"Is live: nil","explanation":"IsLive is a non-optional Boolean property."},{"id":"d","text":"Is live: 0","explanation":"Boolean true is printed as true."}],"answer":"a"},{"id":"view-controller-lifecycle-q22","type":"code-reading","difficulty":1,"prompt":"What is the output when recording viewDidDisappear execution?","code":"import UIKit\n\nclass DisappearLogVC: UIViewController {\n    var stopped = false\n    override func viewDidDisappear(_ animated: Bool) {\n        super.viewDidDisappear(animated)\n        stopped = true\n    }\n}\nlet vc7 = DisappearLogVC()\nvc7.viewDidDisappear(false)\nprint(\"Stopped: \\(vc7.stopped)\")","options":[{"id":"a","text":"Stopped: false","explanation":"Calling viewDidDisappear changes stopped to true."},{"id":"b","text":"Stopped: true","explanation":"Right. Calling viewDidDisappear sets stopped to true."},{"id":"c","text":"Stopped: nil","explanation":"Stopped is a Boolean variable, not an optional."},{"id":"d","text":"Stopped: empty","explanation":"Stopped is a boolean property."}],"answer":"b"},{"id":"view-controller-lifecycle-q23","type":"code-reading","difficulty":1,"prompt":"What is the value of `ready` printed after accessing `vc8.view`?","code":"import UIKit\n\nclass MemoryCheckVC: UIViewController {\n    var ready = false\n    override func viewDidLoad() {\n        super.viewDidLoad()\n        ready = isViewLoaded\n    }\n}\nlet vc8 = MemoryCheckVC()\n_ = vc8.view\nprint(\"Ready: \\(vc8.ready)\")","options":[{"id":"a","text":"Ready: false","explanation":"Inside viewDidLoad, isViewLoaded is already true."},{"id":"b","text":"Ready: nil","explanation":"IsViewLoaded returns a Boolean, not an optional."},{"id":"c","text":"Ready: true","explanation":"Right. IsViewLoaded is true once viewDidLoad executes."},{"id":"d","text":"Ready: loaded","explanation":"Ready stores a Boolean true value."}],"answer":"c"},{"id":"view-controller-lifecycle-q24","type":"written","difficulty":2,"prompt":"Compare `viewDidLoad` and `viewWillAppear`. When should an iOS developer use each method?","modelAnswer":"`viewDidLoad` executes once when the view hierarchy is first loaded into memory. It is the designated location for one-time setup: adding subviews, creating Auto Layout constraints, and setting delegates. `viewWillAppear` executes every time the screen is about to appear on display, including when returning from a pushed screen. It is best for refreshing dynamic data, updating badges, and toggling navigation bar appearance.","rubric":[{"id":"viewdidload-use-cases","criterion":"Explains viewDidLoad runs once for one-time subview creation and Auto Layout constraints.","weight":50,"key":true},{"id":"viewwillappear-use-cases","criterion":"Explains viewWillAppear runs repeatedly on every appearance for fresh data reloading.","weight":50,"key":true}]},{"id":"view-controller-lifecycle-q25","type":"written","difficulty":2,"prompt":"Why are view frames not final in `viewDidLoad`, and where should geometry-based layout be updated?","modelAnswer":"In `viewDidLoad`, views have been loaded into memory, but Auto Layout and superview sizing passes have not completed. Frame dimensions and safe area insets are zero or placeholder values. Geometry-dependent updates, such as setting circular corner radii (`button.bounds.height / 2`) or gradient layer frames, should be updated in `viewDidLayoutSubviews()`, where final layout bounds are applied.","rubric":[{"id":"not-final-in-viewdidload","criterion":"Explains frames are placeholder or zero in viewDidLoad before Auto Layout runs.","weight":50,"key":true},{"id":"viewdidlayoutsubviews-location","criterion":"Identifies viewDidLayoutSubviews as the correct place for geometry and corner radius updates.","weight":50,"key":true}]},{"id":"view-controller-lifecycle-q26","type":"written","difficulty":2,"prompt":"Explain what tasks should be performed in `viewWillDisappear` and `viewDidDisappear`.","modelAnswer":"`viewWillDisappear` runs immediately before a screen leaves the display. Dismiss the keyboard by calling `resignFirstResponder`, pause video or audio playback, and stop active timers here. `viewDidDisappear` runs once the view is completely off-screen. It is used to cancel ongoing network operations and stop hardware sensors like location tracking.","rubric":[{"id":"viewwilldisappear-tasks","criterion":"Describes viewWillDisappear for dismissing keyboard, pausing timers, and saving drafts.","weight":50,"key":true},{"id":"viewdiddisappear-tasks","criterion":"Describes viewDidDisappear for stopping sensors and tearing down off-screen tasks.","weight":50,"key":true}]},{"id":"view-controller-lifecycle-q27","type":"written","difficulty":2,"prompt":"Why must you call `super` when overriding appearance lifecycle methods in `UIViewController`?","modelAnswer":"You must call `super` because UIKit relies on the base implementation of appearance methods to maintain its internal state machine. Calling `super.viewWillAppear(animated)` and `super.viewDidAppear(animated)` enables UIKit to coordinate transition animations, forward appearance notifications to child view controllers, and send accessibility VoiceOver announcements. Omitting `super` causes subtle transition bugs.","rubric":[{"id":"internal-state-coordination","criterion":"Explains UIKit uses super calls to track internal state machine and transition animations.","weight":50,"key":true},{"id":"child-forwarding-accessibility","criterion":"Mentions forwarding events to child controllers and triggering accessibility notifications.","weight":50,"key":true}]},{"id":"view-controller-lifecycle-q28","type":"written","difficulty":2,"prompt":"What is `deinit` in a view controller and how does it help identify memory leaks in UIKit?","modelAnswer":"`deinit` is the deinitializer called by Automatic Reference Counting when a view controller is freed from memory. When a screen is dismissed or popped, `deinit` should execute immediately. If `deinit` fails to execute, it reveals a retain cycle. This often happens when closures capture `self` strongly.","rubric":[{"id":"deinit-definition","criterion":"Defines deinit as the destructor method called by ARC when memory is reclaimed.","weight":50,"key":true},{"id":"retain-cycle-diagnostic","criterion":"Explains failure to run deinit indicates a retain cycle from delegates or closures.","weight":50,"key":true}]},{"id":"view-controller-lifecycle-q29","type":"code-write","difficulty":2,"prompt":"Create a subclass `TrackedVC: UIViewController` with a property `events: [String]`. Append `\"load\"` in `viewDidLoad()` and `\"appear\"` in `viewWillAppear(_:)`. Call `super` in both overrides.","starterCode":"import UIKit\n\n// Define TrackedVC subclass overriding viewDidLoad and viewWillAppear\n","modelAnswer":"import UIKit\n\nclass TrackedVC: UIViewController {\n    var events: [String] = []\n\n    override func viewDidLoad() {\n        super.viewDidLoad()\n        events.append(\"load\")\n    }\n\n    override func viewWillAppear(_ animated: Bool) {\n        super.viewWillAppear(animated)\n        events.append(\"appear\")\n    }\n}\n\nlet tVC = TrackedVC()\n_ = tVC.view\ntVC.viewWillAppear(false)\nprint(\"Events: \\(tVC.events.joined(separator: \",\"))\")","rubric":[{"id":"class-and-properties","criterion":"Declares TrackedVC subclassing UIViewController with events String array.","weight":40,"key":true},{"id":"lifecycle-overrides","criterion":"Overrides viewDidLoad and viewWillAppear calling super and appending strings.","weight":60,"key":true}]},{"id":"view-controller-lifecycle-q30","type":"code-write","difficulty":2,"prompt":"Create a subclass `TeardownVC: UIViewController` with a property `timerRunning: Bool = true`. Override `viewWillDisappear(_:)` to call `super` and set `timerRunning = false`.","starterCode":"import UIKit\n\n// Implement TeardownVC overriding viewWillDisappear\n","modelAnswer":"import UIKit\n\nclass TeardownVC: UIViewController {\n    var timerRunning: Bool = true\n\n    override func viewWillDisappear(_ animated: Bool) {\n        super.viewWillDisappear(animated)\n        timerRunning = false\n    }\n}\n\nlet tdVC = TeardownVC()\ntdVC.viewWillDisappear(false)\nprint(\"Timer running: \\(tdVC.timerRunning)\")","rubric":[{"id":"class-declaration","criterion":"Declares TeardownVC subclassing UIViewController with timerRunning: Bool = true.","weight":40,"key":true},{"id":"override-implementation","criterion":"Overrides viewWillDisappear calling super and setting timerRunning to false.","weight":60,"key":true}]},{"id":"view-controller-lifecycle-q31","type":"code-write","difficulty":2,"prompt":"Create a subclass `RoundedButtonVC: UIViewController` with a property `button: UIButton`. Override `viewDidLayoutSubviews()` to call `super` and set `button.layer.cornerRadius = button.bounds.height / 2`.","starterCode":"import UIKit\n\n// Implement RoundedButtonVC overriding viewDidLayoutSubviews\n","modelAnswer":"import UIKit\n\nclass RoundedButtonVC: UIViewController {\n    let button = UIButton(frame: CGRect(x: 0, y: 0, width: 100, height: 40))\n\n    override func viewDidLayoutSubviews() {\n        super.viewDidLayoutSubviews()\n        button.layer.cornerRadius = button.bounds.height / 2\n    }\n}\n\nlet rbVC = RoundedButtonVC()\nrbVC.view.addSubview(rbVC.button)\nrbVC.viewDidLayoutSubviews()\nprint(\"Radius: \\(rbVC.button.layer.cornerRadius)\")","rubric":[{"id":"class-and-button","criterion":"Declares RoundedButtonVC with button property holding a UIButton.","weight":40,"key":true},{"id":"layoutsubviews-override","criterion":"Overrides viewDidLayoutSubviews calling super and setting cornerRadius to bounds.height / 2.","weight":60,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

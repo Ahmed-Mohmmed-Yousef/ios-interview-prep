@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UIViewController Lifecycle State Machine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --load-color: #0284c7; --load-soft: #e0f2fe;
+  --appear-color: #16a34a; --appear-soft: #dcfce7;
+  --active-color: #7c3aed; --active-soft: #f5f3ff;
+  --leave-color: #ea580c; --leave-soft: #ffedd5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --load-color: #38bdf8; --load-soft: #082f49;
+  --appear-color: #4ade80; --appear-soft: #052e16;
+  --active-color: #a78bfa; --active-soft: #2e1065;
+  --leave-color: #fb923c; --leave-soft: #431407;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.load { background: var(--load-soft); color: var(--load-color); }
+.kind.appear { background: var(--appear-soft); color: var(--appear-color); }
+.kind.active { background: var(--active-soft); color: var(--active-color); }
+.kind.leave { background: var(--leave-soft); color: var(--leave-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--load-color); color: #ffffff; border-color: var(--load-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--load-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="UIViewController Lifecycle Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span>Lifecycle State</span> <span class="kind load" id="stageBadge">Step 1</span></h3>
+      <div class="code" id="lifecycleCode">override func viewDidLoad() {
+  super.viewDidLoad()
+}</div>
+      <svg viewBox="0 0 280 220" aria-hidden="true">
+        <!-- Device Outer Frame -->
+        <rect class="device-frame" x="40" y="10" width="200" height="200"/>
+        <!-- Screen Content Area -->
+        <rect class="base-screen" x="50" y="20" width="180" height="180" rx="10"/>
+
+        <!-- Dynamic Visual Layers -->
+        <g id="lifecycleSvgG"></g>
+      </svg>
+      <p class="caption" id="lifecycleCaption" aria-live="polite">Step 1: viewDidLoad runs once when the view hierarchy is created in memory.</p>
+    </div>
+
+    <div class="panel">
+      <h3><span>Recommended Tasks</span> <span class="kind load" id="taskBadge">Guidance</span></h3>
+      <div class="code" id="taskCode">// One-time setup tasks
+view.addSubview(headerLabel)
+setupConstraints()</div>
+      <div style="font-size: 13px; display: grid; gap: 8px; padding-top: 6px;">
+        <div><strong>Execution Frequency:</strong> <span id="freqText">Runs ONCE per view load</span></div>
+        <div><strong>Geometry Finalized:</strong> <span id="geoText">No (frames are placeholder)</span></div>
+        <div><strong>Must Call super:</strong> <span id="superText">Yes (super.viewDidLoad())</span></div>
+      </div>
+      <p class="caption" id="taskCaption" aria-live="polite">Configure view elements and Auto Layout constraints here.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    badge: '1. Loading & Creation',
+    badgeClass: 'kind load',
+    lifecycleCode: 'override func viewDidLoad() {\n  super.viewDidLoad()\n  view.addSubview(titleLabel)\n}',
+    taskCode: '// Best used for:\n// - Adding subviews\n// - Auto Layout constraints\n// - Initial delegate wiring',
+    lifecycleCap: 'Step 1: viewDidLoad runs once when the view hierarchy is first loaded in memory.',
+    taskCap: 'Perform one-time configuration here. Frames and geometry are not final yet.',
+    freqText: 'Runs ONCE per view load',
+    geoText: 'No (frames are zero or placeholder)',
+    superText: 'Yes (super.viewDidLoad())',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--load-soft)" stroke="var(--load-color)" stroke-width="2"/>
+      <text x="140" y="55" text-anchor="middle" font-size="12" font-weight="700" fill="var(--load-color)">viewDidLoad()</text>
+      <rect x="70" y="75" width="140" height="30" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="94" text-anchor="middle" font-size="10" fill="var(--muted)">+ Subviews Added</text>
+      <rect x="70" y="115" width="140" height="30" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="134" text-anchor="middle" font-size="10" fill="var(--muted)">+ Constraints Activated</text>
+      <text x="140" y="175" text-anchor="middle" font-size="9" font-weight="600" fill="var(--muted)">isViewLoaded = true</text>
+    `
+  },
+  {
+    step: 2,
+    badge: '2. Preparing to Appear',
+    badgeClass: 'kind appear',
+    lifecycleCode: 'override func viewWillAppear(_ animated: Bool) {\n  super.viewWillAppear(animated)\n  refreshFeedData()\n}',
+    taskCode: 'override func viewDidLayoutSubviews() {\n  super.viewDidLayoutSubviews()\n  avatar.layer.cornerRadius = avatar.bounds.h / 2\n}',
+    lifecycleCap: 'Step 2: viewWillAppear runs before display. Layout finishes in viewDidLayoutSubviews.',
+    taskCap: 'Refresh dynamic data in viewWillAppear. Configure corner radii in viewDidLayoutSubviews.',
+    freqText: 'Repeats EVERY screen appearance',
+    geoText: 'Yes in viewDidLayoutSubviews',
+    superText: 'Yes (super.viewWillAppear(animated))',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--appear-soft)" stroke="var(--appear-color)" stroke-width="2"/>
+      <text x="140" y="50" text-anchor="middle" font-size="11" font-weight="700" fill="var(--appear-color)">viewWillAppear(animated)</text>
+      <!-- Layout Card -->
+      <rect x="65" y="70" width="150" height="85" rx="8" fill="var(--surface)" stroke="var(--appear-color)" stroke-width="1.5"/>
+      <circle cx="100" cy="112" r="22" fill="var(--appear-soft)" stroke="var(--appear-color)" stroke-width="2"/>
+      <text x="100" y="116" text-anchor="middle" font-size="9" font-weight="700" fill="var(--appear-color)">Avatar</text>
+      <text x="155" y="105" text-anchor="middle" font-size="10" font-weight="600" fill="currentColor">Final Frames</text>
+      <text x="155" y="122" text-anchor="middle" font-size="9" fill="var(--muted)">Calculated</text>
+      <text x="140" y="180" text-anchor="middle" font-size="9" font-weight="600" fill="var(--muted)">viewDidLayoutSubviews()</text>
+    `
+  },
+  {
+    step: 3,
+    badge: '3. Visible on Screen',
+    badgeClass: 'kind active',
+    lifecycleCode: 'override func viewDidAppear(_ animated: Bool) {\n  super.viewDidAppear(animated)\n  startVideoPlayback()\n}',
+    taskCode: '// Best used for:\n// - Starting animations\n// - Video & audio playback\n// - Screen view analytics tracking',
+    lifecycleCap: 'Step 3: viewDidAppear runs once transition finishes and the screen is fully visible.',
+    taskCap: 'The user can now interact with the view. Start resource-heavy animations here.',
+    freqText: 'Repeats on every appearance',
+    geoText: 'Fully rendered on display',
+    superText: 'Yes (super.viewDidAppear(animated))',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--active-soft)" stroke="var(--active-color)" stroke-width="2.5"/>
+      <text x="140" y="48" text-anchor="middle" font-size="11" font-weight="700" fill="var(--active-color)">viewDidAppear(animated)</text>
+      <!-- Active Screen Elements -->
+      <rect x="65" y="65" width="150" height="95" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <rect x="75" y="78" width="130" height="20" rx="4" fill="var(--code-bg)"/>
+      <text x="140" y="92" text-anchor="middle" font-size="10" font-weight="600" fill="var(--active-color)">Active User Interaction</text>
+      <rect x="75" y="105" width="130" height="24" rx="6" fill="var(--active-color)"/>
+      <text x="140" y="121" text-anchor="middle" font-size="10" font-weight="600" fill="#ffffff">Play Video</text>
+      <text x="140" y="185" text-anchor="middle" font-size="9" font-weight="600" fill="var(--active-color)">Analytics Screen Logged</text>
+    `
+  },
+  {
+    step: 4,
+    badge: '4. Disappearing & Exit',
+    badgeClass: 'kind leave',
+    lifecycleCode: 'override func viewWillDisappear(_ animated: Bool) {\n  super.viewWillDisappear(animated)\n  searchField.resignFirstResponder()\n}',
+    taskCode: 'override func viewDidDisappear(_ animated: Bool) {\n  super.viewDidDisappear(animated)\n  stopLocationTracking()\n}',
+    lifecycleCap: 'Step 4: viewWillDisappear and viewDidDisappear run when leaving or dismissing.',
+    taskCap: 'Dismiss the keyboard, pause active media, stop timers, and save draft state.',
+    freqText: 'Runs on screen exit or modal dismiss',
+    geoText: 'Off-screen or covered',
+    superText: 'Yes (super.viewWillDisappear(animated))',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--leave-soft)" stroke="var(--leave-color)" stroke-width="2"/>
+      <text x="140" y="50" text-anchor="middle" font-size="11" font-weight="700" fill="var(--leave-color)">viewWillDisappear()</text>
+      <rect x="65" y="70" width="150" height="85" rx="8" fill="var(--surface)" stroke="var(--leave-color)" stroke-width="1.5"/>
+      <text x="140" y="95" text-anchor="middle" font-size="10" font-weight="600" fill="currentColor">Teardown Actions:</text>
+      <text x="140" y="115" text-anchor="middle" font-size="9" fill="var(--muted)">- Dismiss keyboard</text>
+      <text x="140" y="132" text-anchor="middle" font-size="9" fill="var(--muted)">- Pause audio / video</text>
+      <text x="140" y="180" text-anchor="middle" font-size="9" font-weight="600" fill="var(--muted)">viewDidDisappear() -> deinit</text>
+    `
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('lifecycleCode').textContent = s.lifecycleCode;
+  document.getElementById('taskCode').textContent = s.taskCode;
+  document.getElementById('lifecycleCaption').textContent = s.lifecycleCap;
+  document.getElementById('taskCaption').textContent = s.taskCap;
+  document.getElementById('stageBadge').textContent = s.badge;
+  document.getElementById('stageBadge').setAttribute('class', s.badgeClass);
+
+  document.getElementById('freqText').textContent = s.freqText;
+  document.getElementById('geoText').textContent = s.geoText;
+  document.getElementById('superText').textContent = s.superText;
+
+  document.getElementById('lifecycleSvgG').innerHTML = s.overlaySvg;
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>

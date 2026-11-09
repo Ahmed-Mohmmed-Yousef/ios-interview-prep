@@ -1,0 +1,234 @@
+export const meta = {
+  id: "view-controller-lifecycle",
+  summary: "Master the UIViewController lifecycle methods from creation to deallocation in UIKit.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "UIViewController (UIKit)", url: "https://developer.apple.com/documentation/uikit/uiviewcontroller", kind: "official" },
+    { title: "Displaying and managing views with a view controller (UIKit)", url: "https://developer.apple.com/documentation/uikit/displaying-and-managing-views-with-a-view-controller", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why should you avoid refreshing user data inside `viewDidLoad` when returning to an existing screen?</Question>
+  <Guess>
+    <Option id="a">Data tasks run on background threads and freeze the main runloop.</Option>
+    <Option id="b" correct>`viewDidLoad` runs only once when the view hierarchy is first created in memory.</Option>
+    <Option id="c">UIKit cancels active network requests when a controller appears.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine an actor preparing for a theater performance.
+
+Building the stage set happens once during morning rehearsal. That is **`viewDidLoad`**.
+
+Right before the curtains rise, the actor checks their costume. That is **`viewWillAppear`**.
+
+When the curtains open and the audience watches, the actor speaks. That is **`viewDidAppear`**.
+
+When the scene ends and curtains close, the actor exits. That is **`viewWillDisappear`** and **`viewDidDisappear`**.
+</Analogy>
+
+In UIKit, every screen is driven by a `UIViewController`.
+
+The system calls specific lifecycle methods as a screen loads, appears, disappears, and leaves memory.
+
+Knowing when each method runs helps you place code in the right location:
+
+1. **`viewDidLoad`**:
+   - Runs once when the view hierarchy is loaded into memory.
+   - Ideal for adding subviews, setting constraints, and configuring delegates.
+2. **`viewWillAppear` & `viewDidAppear`**:
+   - Run every time the screen is about to become visible, and after it appears.
+   - Ideal for refreshing data, starting animations, and tracking analytics.
+3. **`viewWillLayoutSubviews` & `viewDidLayoutSubviews`**:
+   - Run whenever subview frames are calculated or bounds change.
+   - Subview dimensions and safe area insets are final here.
+4. **`viewWillDisappear` & `viewDidDisappear`**:
+   - Run when the screen is dismissed or covered.
+   - Ideal for dismissing keyboards, pausing timers, and saving drafts.
+
+## See it
+
+<Diagram id="view-controller-lifecycle-diagram" caption="The Complete UIViewController Lifecycle Flow in UIKit">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Lifecycle state badges: Unloaded, Loaded, Appearing, Visible, Disappearing.
+    2. Method sequence flow chart with animated indicators.
+    3. Code execution callout panel with recommended tasks per stage.
+    4. Loop arrows showing repeatable appearance transitions vs single load event.
+  - Steps:
+    Step 1: Allocation and loadView() -> viewDidLoad() one-time setup.
+    Step 2: viewWillAppear() and viewDidLayoutSubviews() before display.
+    Step 3: viewDidAppear() active screen state with user interaction.
+    Step 4: viewWillDisappear() and viewDidDisappear() teardown transition.
+  - Static version (reduced motion):
+    A complete chronological flowchart detailing lifecycle hooks and recommended tasks.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which lifecycle method is called every time a screen appears, including when popping back?</Question>
+  <Option id="a">`viewDidLoad`</Option>
+  <Option id="b" correct>`viewWillAppear`</Option>
+  <Option id="c">`loadView`</Option>
+  <Explanation>`viewWillAppear` runs every time the screen is about to appear, while `viewDidLoad` runs only once.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is how a view controller tracks appearance lifecycle events.
+
+Notice how `viewDidLoad` executes first, followed by appearance callbacks.
+
+<CodeExample title="Logging view controller lifecycle transitions">
+
+```swift
+import UIKit
+
+class LifecycleDemoVC: UIViewController {
+    var events: [String] = []
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        events.append("viewDidLoad")
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        events.append("viewWillAppear")
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        events.append("viewDidAppear")
+    }
+}
+
+let vc = LifecycleDemoVC()
+_ = vc.view
+vc.viewWillAppear(false)
+vc.viewDidAppear(false)
+
+print("Logged events: \(vc.events.joined(separator: " -> "))")
+```
+
+```output
+Logged events: viewDidLoad -> viewWillAppear -> viewDidAppear
+```
+
+</CodeExample>
+
+Always call `super` when overriding appearance methods.
+
+Next, observe how layout methods execute when view bounds update.
+
+<CodeExample title="Observing subview layout passes">
+
+```swift
+import UIKit
+
+class LayoutDemoVC: UIViewController {
+    var layoutCount = 0
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        layoutCount += 1
+    }
+}
+
+let layoutVC = LayoutDemoVC()
+layoutVC.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+layoutVC.view.layoutIfNeeded()
+
+print("Layout passes: \(layoutVC.layoutCount)")
+```
+
+```output
+Layout passes: 1
+```
+
+</CodeExample>
+
+In `viewDidLayoutSubviews`, subviews have their final sizes and frames applied.
+
+<QuickCheck>
+  <Question>Where should you configure layer corner radii that depend on view height?</Question>
+  <Option id="a">Inside the class designated initializer.</Option>
+  <Option id="b" correct>Inside `viewDidLayoutSubviews()`.</Option>
+  <Option id="c">Inside `viewWillDisappear()`.</Option>
+  <Explanation>View frames are final in viewDidLayoutSubviews, making it the right place for geometry-based layers.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Refreshing data only in viewDidLoad">
+If you load profile data only in `viewDidLoad`, navigating away and returning leaves old data.
+
+`viewDidLoad` does not run again when popping back from a child screen.
+
+Move data refresh tasks to `viewWillAppear` so the screen updates on every visit.
+</Trap>
+
+<Trap title="Adding subviews repeatedly in viewWillAppear">
+Calling `view.addSubview` inside `viewWillAppear` creates duplicate views on every screen visit.
+
+This wastes memory and degrades rendering performance.
+
+Add subviews once inside `viewDidLoad`.
+</Trap>
+
+<Trap title="Setting corner radii before layout runs">
+Do not use `button.bounds.height / 2` inside `viewDidLoad`.
+
+At that moment, view frames are zero or placeholder values.
+
+Update geometry-dependent corner radii or gradient layer frames in `viewDidLayoutSubviews`.
+</Trap>
+
+<Trap title="Forgetting to call super in lifecycle methods">
+Failing to call `super.viewWillAppear(animated)` breaks UIKit internal state management.
+
+Accessibility announcements and navigation animations may fail.
+
+Always call `super` inside lifecycle overrides, except when overriding `loadView`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"The lifecycle starts with `viewDidLoad`, which runs once when views load into memory. `viewWillAppear` runs every time the screen is about to appear, and `viewDidAppear` runs when visible. When leaving, `viewWillDisappear` and `viewDidDisappear` run. Always call `super` in these methods."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"We place one-time setup like adding subviews and Auto Layout constraints in `viewDidLoad`. We place repeatable tasks like data reloading and keyboard observers in `viewWillAppear`. For tasks requiring final view geometry, such as gradients or round corner radii, we use `viewDidLayoutSubviews`. We tear down timers and hide keyboards in `viewWillDisappear`."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"We manage screen transitions cleanly by respecting the runloop and presentation context. We separate configuration from layout passes, letting Auto Layout solve constraints before touching layer geometries in `viewDidLayoutSubviews`. We also consider presentation styles, since modal sheets do not trigger disappearance on presenting controllers in iOS 13 and later."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `viewDidLoad` runs once per view hierarchy lifetime for one-time setup.
+- `viewWillAppear` runs every time the view is about to appear on screen.
+- `viewDidAppear` runs after transition animations finish; start analytics and timers here.
+- `viewDidLayoutSubviews` runs when bounds update; subview frames are final here.
+- `viewWillDisappear` runs when leaving; dismiss keyboards and pause video playback here.
+- Always call `super` in lifecycle overrides to maintain UIKit system transitions.
+</Recap>
+
+## Go deeper
+
+- [UIViewController (UIKit)](https://developer.apple.com/documentation/uikit/uiviewcontroller) — Official Apple guide for view controller lifecycle.
+- [Displaying and managing views with a view controller](https://developer.apple.com/documentation/uikit/displaying-and-managing-views-with-a-view-controller) — Apple guide for screen layout and presentation.
