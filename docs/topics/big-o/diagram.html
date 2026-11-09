@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Big-O Complexity: How Algorithms Scale in Swift</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --o1-color: #0c765c; --o1-soft: #dcf2ea;
+  --olog-color: #0284c7; --olog-soft: #e0f2fe;
+  --on-color: #d97706; --on-soft: #fef3c7;
+  --on2-color: #dc2626; --on2-soft: #fee2e2;
+  --active-color: var(--o1-color);
+  --active-soft: var(--o1-soft);
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --o1-color: #45cfa3; --o1-soft: #13362c;
+  --olog-color: #38bdf8; --olog-soft: #082f49;
+  --on-color: #fbbf24; --on-soft: #451a03;
+  --on2-color: #f87171; --on2-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.grid-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+.axis { stroke: var(--ink); stroke-width: 2; }
+.curve { fill: none; stroke-width: 3; transition: opacity 0.3s ease; }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div class="diagram-host" tabindex="0" role="region" aria-label="Interactive diagram: Big-O Complexity in Swift">
+
+  <!-- Interactive Animator -->
+  <div class="anim-only" style="display: grid; gap: 16px;">
+    <div class="panels">
+      <!-- Left Panel: Graphic curve -->
+      <div class="panel p-left">
+        <h3><span id="curve-title">Growth Curve</span><span class="kind" id="curve-tag">O(1)</span></h3>
+        <p class="caption" id="curve-desc">Constant time: The number of operations remains exactly the same as the input grows.</p>
+        
+        <svg viewBox="0 0 340 180" aria-hidden="true">
+          <!-- Axes -->
+          <line x1="40" y1="150" x2="310" y2="150" class="axis" />
+          <line x1="40" y1="150" x2="40" y2="20" class="axis" />
+          <text x="300" y="170" class="sub-text">Input (n)</text>
+          <text x="35" y="15" class="sub-text">Ops</text>
+          
+          <!-- Grid lines -->
+          <line x1="40" y1="110" x2="310" y2="110" class="grid-line" />
+          <line x1="40" y1="70" x2="310" y2="70" class="grid-line" />
+          
+          <!-- Background curves -->
+          <path id="bg-o1" d="M 40 140 L 310 140" stroke="var(--o1-color)" class="curve" opacity="0.3" />
+          <path id="bg-olog" d="M 40 145 Q 160 115 310 100" stroke="var(--olog-color)" class="curve" opacity="0.3" />
+          <path id="bg-on" d="M 40 145 L 310 35" stroke="var(--on-color)" class="curve" opacity="0.3" />
+          <path id="bg-on2" d="M 40 145 Q 140 140 220 25" stroke="var(--on2-color)" class="curve" opacity="0.3" />
+          
+          <!-- Active Highlight Curve -->
+          <path id="active-curve" d="M 40 140 L 310 140" stroke="var(--o1-color)" stroke-width="5" fill="none" />
+          
+          <!-- Marker dot -->
+          <circle id="curve-marker" cx="200" cy="140" r="6" fill="var(--o1-color)" />
+        </svg>
+
+        <div class="metrics">
+          <div class="metric-col"><span>n = 10</span><strong id="m-10">1 op</strong></div>
+          <div class="metric-col"><span>n = 1,000</span><strong id="m-1000">1 op</strong></div>
+          <div class="metric-col"><span>n = 1,000,000</span><strong id="m-1m">1 op</strong></div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Code and Swift Application -->
+      <div class="panel p-right">
+        <h3><span id="right-title">Swift Implementation</span><span class="kind" id="right-tag">Instant</span></h3>
+        <div class="code" id="right-code">// Accessing an array element by index:
+let item = numbers[4]
+
+// Checking if string is empty:
+let empty = text.isEmpty</div>
+        <p class="caption" id="right-desc">Swift arrays store elements in contiguous memory. Accessing by index computes the memory address directly without scanning.</p>
+        <div class="metrics">
+          <div class="metric-col"><span>Time</span><strong id="r-time">O(1)</strong></div>
+          <div class="metric-col"><span>Space</span><strong id="r-space">O(1)</strong></div>
+          <div class="metric-col"><span>Interview Rate</span><strong id="r-rate">Excellent</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1: O(1) Constant" onclick="goToStep(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2: O(log n) Logarithmic" onclick="goToStep(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3: O(n) Linear" onclick="goToStep(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4: O(n^2) Quadratic" onclick="goToStep(3)"></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()" aria-label="Next step">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-Motion Static Fallback -->
+  <div class="static-fallback" aria-label="Static comparison of Big-O complexities">
+    <div class="comp-card" style="border-left: 4px solid var(--o1-color);">
+      <h4>O(1) — Constant Time</h4>
+      <p>Operations stay flat regardless of input size. Reading an array index (<code>arr[0]</code>), checking <code>isEmpty</code>, or looking up a dictionary key on average.</p>
+      <div class="code">let value = array[0]
+let isEmpty = text.isEmpty</div>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--olog-color);">
+      <h4>O(log n) — Logarithmic Time</h4>
+      <p>Halves the candidate set at every step. Binary search on a sorted collection finds an item in 20 operations out of 1,000,000 items.</p>
+      <div class="code">binarySearch(sortedArray, target: 42)</div>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--on-color);">
+      <h4>O(n) — Linear Time</h4>
+      <p>Operations scale directly with input size. Single loop over an array, <code>array.contains</code>, <code>array.insert(at: 0)</code>, or <code>string.count</code>.</p>
+      <div class="code">for item in array { ... }
+let count = string.count // walks graphemes</div>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--on2-color);">
+      <h4>O(n^2) — Quadratic Time</h4>
+      <p>Operations scale by the square of input size. Nested loops over the same array or calling <code>contains</code> inside an array loop.</p>
+      <div class="code">for i in array {
+    for j in array { ... }
+}</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    curveTitle: "O(1) Constant Time",
+    curveTag: "O(1)",
+    curveDesc: "Operations stay flat regardless of input size. 1 step for 1 item, and 1 step for 1,000,000 items.",
+    curvePath: "M 40 140 L 310 140",
+    markerCx: 200, markerCy: 140,
+    color: "var(--o1-color)", soft: "var(--o1-soft)",
+    m10: "1 op", m1000: "1 op", m1m: "1 op",
+    rightTitle: "Swift Random Access",
+    rightTag: "Instant",
+    rightCode: "// 1. Access by integer index:\nlet item = numbers[4]\n\n// 2. Checking emptiness:\nlet empty = text.isEmpty",
+    rightDesc: "Swift arrays store elements contiguously in memory. Reading by index calculates the memory address instantly.",
+    rTime: "O(1)", rSpace: "O(1)", rRate: "Excellent"
+  },
+  {
+    curveTitle: "O(log n) Logarithmic Time",
+    curveTag: "O(log n)",
+    curveDesc: "Each step cuts the remaining candidates in half. 1,000 items take only ~10 steps; 1,000,000 take only ~20.",
+    curvePath: "M 40 145 Q 160 115 310 100",
+    markerCx: 220, markerCy: 110,
+    color: "var(--olog-color)", soft: "var(--olog-soft)",
+    m10: "3 ops", m1000: "10 ops", m1m: "20 ops",
+    rightTitle: "Binary Search",
+    rightTag: "Very Fast",
+    rightCode: "// Requires a sorted collection:\nfunc binarySearch(_ arr: [Int], target: Int) -> Bool {\n    // Cuts search space in half each loop\n}",
+    rightDesc: "Logarithmic algorithms discard half the data at each iteration, giving exceptional speed on large datasets.",
+    rTime: "O(log n)", rSpace: "O(1)", rRate: "Very Good"
+  },
+  {
+    curveTitle: "O(n) Linear Time",
+    curveTag: "O(n)",
+    curveDesc: "Operations scale 1:1 with input size. If input doubles, execution time doubles proportionally.",
+    curvePath: "M 40 145 L 310 35",
+    markerCx: 175, markerCy: 90,
+    color: "var(--on-color)", soft: "var(--on-soft)",
+    m10: "10 ops", m1000: "1,000 ops", m1m: "1,000,000 ops",
+    rightTitle: "Linear Scan & Unicode Count",
+    rightTag: "Proportional",
+    rightCode: "// 1. Single loop over collection:\nfor item in numbers { ... }\n\n// 2. Counting string characters:\nlet length = message.count",
+    rightDesc: "Linear search inspects every element in order. Swift string.count must traverse all Unicode scalar boundaries.",
+    rTime: "O(n)", rSpace: "O(1)", rRate: "Fair"
+  },
+  {
+    curveTitle: "O(n^2) Quadratic Time",
+    curveTag: "O(n^2)",
+    curveDesc: "Operations explode as input size grows. Doubling input multiplies the operations by four.",
+    curvePath: "M 40 145 Q 140 140 220 25",
+    markerCx: 180, markerCy: 70,
+    color: "var(--on2-color)", soft: "var(--on2-soft)",
+    m10: "100 ops", m1000: "1,000,000 ops", m1m: "10¹² ops",
+    rightTitle: "Nested Loops Trap",
+    rightTag: "Danger",
+    rightCode: "// Nested loop checking every pair:\nfor i in 0..<n {\n    for j in (i+1)..<n {\n        if arr[i] == arr[j] { ... }\n    }\n}",
+    rightDesc: "Calling array.contains inside a loop also creates O(n^2) complexity. Optimize by using a Set for O(1) lookups.",
+    rTime: "O(n^2)", rSpace: "O(1)", rRate: "Slow"
+  }
+];
+
+let currentStep = 0;
+
+function updateView() {
+  const s = steps[currentStep];
+  
+  // Update tags and colors
+  document.getElementById("curve-title").textContent = s.curveTitle;
+  const cTag = document.getElementById("curve-tag");
+  cTag.textContent = s.curveTag;
+  cTag.style.background = s.soft;
+  cTag.style.color = s.color;
+  
+  document.getElementById("curve-desc").textContent = s.curveDesc;
+  
+  // Curve SVG
+  const curve = document.getElementById("active-curve");
+  curve.setAttribute("d", s.curvePath);
+  curve.setAttribute("stroke", s.color);
+  
+  const marker = document.getElementById("curve-marker");
+  marker.setAttribute("cx", s.markerCx);
+  marker.setAttribute("cy", s.markerCy);
+  marker.setAttribute("fill", s.color);
+  
+  // Metrics
+  document.getElementById("m-10").textContent = s.m10;
+  document.getElementById("m-1000").textContent = s.m1000;
+  document.getElementById("m-1m").textContent = s.m1m;
+  
+  // Right panel
+  document.getElementById("right-title").textContent = s.rightTitle;
+  const rTag = document.getElementById("right-tag");
+  rTag.textContent = s.rightTag;
+  rTag.style.background = s.soft;
+  rTag.style.color = s.color;
+  
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+  document.getElementById("r-time").textContent = s.rTime;
+  document.getElementById("r-space").textContent = s.rSpace;
+  document.getElementById("r-rate").textContent = s.rRate;
+  
+  // Controls
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.classList.toggle("active", idx === currentStep);
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+    dot.style.background = idx === currentStep ? s.color : "";
+  });
+  
+  document.getElementById("btn-prev").disabled = (currentStep === 0);
+  document.getElementById("btn-next").disabled = (currentStep === steps.length - 1);
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateView();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateView();
+  }
+}
+
+function goToStep(i) {
+  currentStep = i;
+  updateView();
+}
+
+// Keyboard navigation
+document.querySelector(".diagram-host").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateView();
+</script>
+
+</body>
+</html>

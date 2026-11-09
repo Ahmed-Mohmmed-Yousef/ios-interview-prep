@@ -36,25 +36,29 @@ The Fresh stage consists of **22 main topics** (0 bonus). `structs-vs-classes` w
 6. `control-flow` (Unit: Swift Language)
 7. `functions` (Unit: Swift Language)
 
-#### Batch 1B: Swift Language Intermediate Types & Logic
+#### Batch 1B: Swift Language Intermediate Types & Logic (5 topics)
 8. `closures-basics` (Unit: Swift Language)
 9. `enumerations` (Unit: Swift Language)
 10. `properties` (Unit: Swift Language)
 11. `methods-and-initialization` (Unit: Swift Language)
 12. `error-handling` (Unit: Swift Language)
-13. `optional-chaining` (Unit: Swift Language)
 
-#### Batch 1C: Swift Object-Oriented & Protocol Design
-14. `inheritance` (Unit: Swift Language)
-15. `type-casting` (Unit: Swift Language)
-16. `protocols` (Unit: Swift Language)
-17. `extensions` (Unit: Swift Language)
-18. `access-control` (Unit: Swift Language)
+#### Batch 1C: Coding Interview (3 topics)
+13. `big-o` (Unit: Coding Interview)
+14. `arrays-and-strings` (Unit: Coding Interview)
+15. `hash-tables` (Unit: Coding Interview)
 
-#### Batch 1D: Platform & UI Basics
-19. `xcode-and-git-basics` (Unit: App and System)
-20. `view-controller-lifecycle` (Unit: UIKit and Foundation)
-21. `swiftui-views-modifiers` (Unit: SwiftUI)
+#### Batch 1D: SwiftUI Basics (5 topics)
+16. `swiftui-views-modifiers` (Unit: SwiftUI)
+17. `swiftui-layout` (Unit: SwiftUI)
+18. `state-and-binding` (Unit: SwiftUI)
+19. `swiftui-lists` (Unit: SwiftUI)
+20. `swiftui-navigation` (Unit: SwiftUI)
+
+#### Batch 1E: App and System (1 topic)
+21. `xcode-and-git-basics` (Unit: App and System)
+
+*(Note: `optional-chaining`, `inheritance`, `type-casting`, `protocols`, `extensions`, `access-control`, and `view-controller-lifecycle` are Junior level topics and will be produced in Wave 2, per the curriculum schema and user decision on 2026-11-09).*
 
 ---
 
