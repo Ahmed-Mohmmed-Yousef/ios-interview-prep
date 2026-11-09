@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 14 remaining topics (8 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 13 remaining topics (9 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -87,8 +87,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **control-flow** (Control Flow) — published (lesson, diagram, 31 questions) → [docs/topics/control-flow/review.html](docs/topics/control-flow/review.html)
     - ✅ **functions** (Functions) — published (lesson, diagram, 31 questions) → [docs/topics/functions/review.html](docs/topics/functions/review.html)
   - 🔄 **Batch 1B: Intermediate Types & Logic (6 topics: `closures-basics` → `optional-chaining`)**
-    - 🔄 **closures-basics** — starting research
-    - ⬜ **enumerations**
+    - ✅ **closures-basics** (Closures: The Basics) — published (lesson, diagram, 31 questions) → [docs/topics/closures-basics/review.html](docs/topics/closures-basics/review.html)
+    - 🔄 **enumerations** — starting research
     - ⬜ **properties**
     - ⬜ **methods-and-initialization**
     - ⬜ **error-handling**
@@ -203,6 +203,10 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — closures-basics approved and published by user. Started topic enumerations: researching official documentation and Swift 6 compiler behavior.
+
+- **2026-11-09** — Built topic closures-basics (Closures: The Basics): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/closures-basics/review.html`). Status: review, waiting for your approval.
 
 - **2026-11-09** — Ran the claude-code-setup recommender for Phase 5, at your request, with web research on official sources. Added the rules `nextjs.md`, `progress-store.md` and `testing.md`, the skills `/build-screen` and `/ui-check`, and the agents `a11y-reviewer` and `rules-tester` (also in `.agents/` through the symlinks). Third-party tools (next-devtools MCP, next-dev-loop, shadcn skill + MCP, Playwright CLI + skills, react-best-practices, Context7) are planned for right after scaffolding. Changed the Context7 item: new official setup command, and Next.js now ships its own docs for agents.
 - **2026-11-09** — Added `.agents/rules` and `.agents/skills` as symlinks to `.claude/rules` and `.claude/skills`, so other agents find the same rules and skills. One source, no copies. Noted in `AGENTS.md`.

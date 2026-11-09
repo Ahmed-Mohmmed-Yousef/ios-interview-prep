@@ -1,0 +1,174 @@
+export const meta = {
+  id: "closures-basics",
+  summary: "Understand Swift closures, inline closure expressions, shorthand argument syntax, trailing closures, and value capturing.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Closures", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/closures", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is the difference between a function and a closure in Swift?</Question>
+  <Guess>
+    <Option id="a">Functions are value types, while closures are reference types.</Option>
+    <Option id="b" correct>Functions are named closures. Closures can also be written anonymously inline.</Option>
+    <Option id="c">Closures can only be executed on background concurrency threads.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a function like a printed recipe card with a title written at the top. A closure is like a handwritten recipe instruction written on a sticky note. You can hand that sticky note to a friend to cook right away. Even though it has no formal title, it carries the exact same steps.
+</Analogy>
+
+In Swift, a **closure** is a self-contained block of functionality that can be passed around and executed later.
+
+In fact, functions are simply special named closures:
+- **Global functions** are closures that have a name and do not capture any values.
+- **Nested functions** are closures that have a name and can capture values from their enclosing function.
+- **Closure expressions** are unnamed blocks of code written with a clean, inline syntax.
+
+Closures are **reference types**. When you assign a closure to two different constants, both constants point to the same underlying closure and its captured values.
+
+The standard closure syntax uses curly braces with the **`in`** keyword:
+`{ (parameters) -> ReturnType in statements }`
+
+The `in` keyword marks where the parameter list ends and where the closure body begins. Swift allows you to shorten this syntax when types can be inferred from context.
+
+## See it
+
+<Diagram id="closures-basics-main" caption="How Swift simplifies closure syntax from full form down to trailing shorthand">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Full syntax card: { (s1: String, s2: String) -> Bool in return s1 < s2 }.
+    2. Inferred types card: { s1, s2 in s1 < s2 }.
+    3. Shorthand arguments card: { $0 < $1 }.
+    4. Trailing closure card: names.sorted { $0 < $1 }.
+  - Steps:
+    Step 1: Display full explicit closure syntax with type annotations and in keyword.
+    Step 2: Swift infers String parameter types and Bool return type, dropping explicit types.
+    Step 3: Replace named parameters with positional shorthand $0 and $1, dropping the in keyword.
+    Step 4: Move the closure outside parentheses as a trailing closure: names.sorted { $0 < $1 }.
+  - Static version (reduced motion):
+    A 4-step progressive transformation diagram showing full syntax simplifying into clean trailing closure syntax.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What does the in keyword signify in a Swift closure expression?</Question>
+  <Option id="a">It imports external system framework modules.</Option>
+  <Option id="b" correct>It separates parameter and return declarations from the closure body statements.</Option>
+  <Option id="c">It tells the closure to iterate through a sequence.</Option>
+  <Explanation>The in keyword tells the compiler that the parameter and return type definitions are complete, and the execution body begins.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Simplifying closure syntax with type inference and shorthand">
+
+```swift
+let names = ["Dana", "Alex", "Jordan"]
+
+let sortedFull = names.sorted(by: { (s1: String, s2: String) -> Bool in
+    return s1 < s2
+})
+print("Full syntax: \(sortedFull)")
+
+let sortedShort = names.sorted { $0 < $1 }
+print("Shorthand: \(sortedShort)")
+```
+
+```output
+Full syntax: ["Alex", "Dana", "Jordan"]
+Shorthand: ["Alex", "Dana", "Jordan"]
+```
+
+</CodeExample>
+
+This example shows how Swift simplifies closure syntax step by step:
+- **Type inference**: Because `sorted(by:)` expects `(String, String) -> Bool`, Swift already knows the parameter and return types.
+- **Shorthand argument names**: `$0` and `$1` refer to the first and second parameters. When using shorthand names, the `in` keyword is omitted.
+- **Trailing closure syntax**: When a closure is the final argument, you can place it outside the function call parentheses.
+
+<CodeExample title="Capturing values and reference semantics">
+
+```swift
+func makeTracker() -> () -> Int {
+    var count = 0
+    return {
+        count += 1
+        return count
+    }
+}
+
+let counterA = makeTracker()
+print("Counter A: \(counterA())")
+print("Counter A: \(counterA())")
+
+let counterB = counterA
+print("Counter B: \(counterB())")
+```
+
+```output
+Counter A: 1
+Counter A: 2
+Counter B: 3
+```
+
+</CodeExample>
+
+This example highlights two fundamental behaviors:
+- **Value capturing**: The returned closure captures the variable `count`. Even after `makeTracker()` finishes, `count` remains alive in memory.
+- **Reference types**: When `counterA` is assigned to `counterB`, both refer to the exact same closure and share the same running `count`.
+
+<QuickCheck>
+  <Question>Are closures in Swift value types or reference types?</Question>
+  <Option id="a">Value types, creating duplicate independent copies when assigned.</Option>
+  <Option id="b" correct>Reference types, sharing the same underlying instance and captured state.</Option>
+  <Option id="c">Dynamic types that switch based on closure size.</Option>
+  <Explanation>Closures and functions are reference types in Swift. Multiple variables assigned to the same closure share its captured state.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Mixing shorthand argument names with explicit parameter lists">
+You cannot mix `$0` with explicit parameter names. If you write `{ name in print($0) }`, the compiler produces an error. Use either explicit parameter names or shorthand `$0`, never both.
+</Trap>
+
+<Trap title="Assuming closures are value types like structs">
+Because closures look like clean functional expressions, candidates often assume they are value types. Closures are reference types. Modifying a captured variable inside one closure reference affects all other references to it.
+</Trap>
+
+<Trap title="Unnecessary parentheses when using trailing closures">
+When a closure is the only argument to a function, you do not need empty parentheses `()`. Writing `names.map() { $0.uppercased() }` works, but `names.map { $0.uppercased() }` is the idiomatic Swift style.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+A closure in Swift is a self-contained block of code that can be stored and passed around. Named functions are actually special cases of closures. Closures use the in keyword to separate parameters from body logic. Swift allows concise syntax using type inference, shorthand argument names like $0 and $1, and trailing closure syntax.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Closures are first-class reference types that can capture and store references to variables from their surrounding context. Swift provides expressive syntax optimizations: type inference eliminates redundant annotations, single-expression closures omit return, and trailing closures allow placing blocks outside parentheses. Because closures are reference types, assigning a closure to multiple variables shares the identical closure instance and captured state.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Functions are named closures; closures can also be written anonymously inline.
+- Standard syntax: `{ (params) -> ReturnType in statements }`.
+- The `in` keyword separates parameter definitions from the closure body.
+- Swift infers parameter and return types from context when possible.
+- Shorthand arguments `$0`, `$1`, and `$2` refer to arguments by position.
+- If a closure is the final argument, write it as a trailing closure outside parentheses.
+- Closures are reference types that capture and retain surrounding variables.
+</Recap>

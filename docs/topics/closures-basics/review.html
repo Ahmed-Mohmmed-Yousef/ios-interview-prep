@@ -1,0 +1,622 @@
+<title>Closures: The Basics Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --full-color: #0284c7; --full-soft: #e0f2fe;
+  --infer-color: #6366f1; --infer-soft: #e0e7ff;
+  --short-color: #0c765c; --short-soft: #dcf2ea;
+  --trail-color: #d97706; --trail-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --full-color: #38bdf8; --full-soft: #082f49;
+  --infer-color: #818cf8; --infer-soft: #1e1b4b;
+  --short-color: #45cfa3; --short-soft: #13362c;
+  --trail-color: #fbbf24; --trail-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--full-soft); color: var(--full-color); }
+.p-right .kind { background: var(--short-soft); color: var(--short-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 2.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.4em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); }
+
+.syntax-text { font-family: var(--font-code); font-size: 12px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.syntax-sub { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--full-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Fresh · Swift Language · Topic 8 of 13 · Prototype</p>
+    <h1>Closures: The Basics</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can write closures and pass them to functions.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">What is the difference between a function and a closure in Swift?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Functions are value types, while closures are reference types.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Functions are named closures. Closures can also be written anonymously inline.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Closures can only be executed on background concurrency threads.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a function like a printed recipe card with a title written at the top. A closure is like a handwritten recipe instruction written on a sticky note. You can hand that sticky note to a friend to cook right away. Even though it has no formal title, it carries the exact same steps.</p></aside>
+<p>In Swift, a <strong>closure</strong> is a self-contained block of functionality that can be passed around and executed later.</p>
+<p>In fact, functions are simply special named closures:</p>
+<ul>
+<li><strong>Global functions</strong> are closures that have a name and do not capture any values.</li>
+<li><strong>Nested functions</strong> are closures that have a name and can capture values from their enclosing function.</li>
+<li><strong>Closure expressions</strong> are unnamed blocks of code written with a clean, inline syntax.</li>
+</ul>
+<p>Closures are <strong>reference types</strong>. When you assign a closure to two different constants, both constants point to the same underlying closure and its captured values.</p>
+<p>The standard closure syntax uses curly braces with the <strong><code>in</code></strong> keyword:
+<code>{ (parameters) -&gt; ReturnType in statements }</code></p>
+<p>The <code>in</code> keyword marks where the parameter list ends and where the closure body begins. Swift allows you to shorten this syntax when types can be inferred from context.</p>
+<h2>See it</h2>
+<div class="diagram-host"><figure class="panels">
+    <!-- Panel 1: Syntax Stage -->
+    <div class="panel p-left" id="panelSyntax">
+      <h3>Closure Form <span class="kind" id="stageKind">Full Syntax</span></h3>
+      <div class="code" id="codeSyntax">names.sorted(by: { (s1: String, s2: String) -> Bool in
+    return s1 &lt; s2
+})</div>
+      <svg viewBox="0 0 280 180" aria-hidden="true" id="svgSyntax">
+        <!-- Visual Container Card -->
+        <rect x="15" y="25" width="250" height="90" rx="10" class="card-shape" id="cardShape" style="stroke: var(--full-color); fill: var(--full-soft);"/>
+        <text x="140" y="60" class="syntax-text" id="syntaxTitle" font-size="13">{ (s1: String, s2: String) -> Bool in ... }</text>
+        <text x="140" y="85" class="syntax-sub" id="syntaxDesc">Explicit parameters, return arrow, and return keyword</text>
+
+        <!-- Summary label -->
+        <text x="140" y="145" class="syntax-sub" id="summarySyntax">Step 1 of 4: Full explicit syntax with all type annotations</text>
+      </svg>
+      <p class="caption" id="capSyntax">Explicit types and keywords provide complete clarity.</p>
+    </div>
+
+    <!-- Panel 2: Result & Optimization -->
+    <div class="panel p-right" id="panelOpt">
+      <h3>Optimization <span class="kind" id="optKind">Full Form</span></h3>
+      <div class="code" id="codeOpt">Result: ["Alex", "Dana", "Jordan"]
+Output is identical across all forms</div>
+      <svg viewBox="0 0 280 180" aria-hidden="true">
+        <!-- Target Result Box -->
+        <rect x="30" y="25" width="220" height="90" rx="10" fill="var(--full-soft)" stroke="var(--full-color)" stroke-width="2" id="resBox"/>
+        <text x="140" y="65" font-family="var(--font-code)" font-size="18" font-weight="700" fill="var(--full-color)" text-anchor="middle" id="resText">Explicit Types</text>
+        <text x="140" y="95" class="syntax-sub" id="resSub">58 characters written</text>
+      </svg>
+      <p class="caption" id="capOpt">Full form is useful when types cannot be inferred.</p>
+    </div>
+  </figure>
+
+  <div class="controls">
+    <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+      <button class="dot active" type="button" data-step="0" aria-label="Step 1 of 4: Full explicit closure syntax"></button>
+      <button class="dot" type="button" data-step="1" aria-label="Step 2 of 4: Inferred types from context"></button>
+      <button class="dot" type="button" data-step="2" aria-label="Step 3 of 4: Shorthand positional arguments $0 and $1"></button>
+      <button class="dot" type="button" data-step="3" aria-label="Step 4 of 4: Clean trailing closure syntax"></button>
+    </div>
+    <div class="btn-group">
+      <button class="btn-nav" id="btnPrev" type="button" disabled>Back</button>
+      <button class="btn-nav" id="btnNext" type="button">Next step</button>
+    </div>
+  </div>
+
+  <div class="sr-only" id="srStatus" aria-live="polite">Step 1 of 4: Full explicit closure syntax with parameter types and return arrow.</div>
+
+  <details style="margin-top: 10px; font-size: 14px; color: var(--muted);">
+    <summary>All steps as text (reduced motion)</summary>
+    <ol style="padding-left: 20px; line-height: 1.6;">
+      <li><b>Full syntax:</b> <code>names.sorted(by: { (s1: String, s2: String) -> Bool in return s1 &lt; s2 })</code> declares all types explicitly.</li>
+      <li><b>Inferred types:</b> <code>names.sorted(by: { s1, s2 in s1 &lt; s2 })</code> drops type annotations and the <code>return</code> keyword.</li>
+      <li><b>Shorthand arguments:</b> <code>names.sorted(by: { $0 &lt; $1 })</code> drops named parameters and the <code>in</code> keyword using <code>$0</code> and <code>$1</code>.</li>
+      <li><b>Trailing closure:</b> <code>names.sorted { $0 &lt; $1 }</code> moves the closure outside parentheses for maximum readability.</li>
+    </ol>
+  </details></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What does the in keyword signify in a Swift closure expression?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It imports external system framework modules.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It separates parameter and return declarations from the closure body statements.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It tells the closure to iterate through a sequence.</span></button><p class="qc-explain" hidden="">The in keyword tells the compiler that the parameter and return type definitions are complete, and the execution body begins.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Simplifying closure syntax with type inference and shorthand</figcaption><pre class="block swift"><code class="language-swift">let names = [&quot;Dana&quot;, &quot;Alex&quot;, &quot;Jordan&quot;]
+
+let sortedFull = names.sorted(by: { (s1: String, s2: String) -&gt; Bool in
+    return s1 &lt; s2
+})
+print(&quot;Full syntax: \(sortedFull)&quot;)
+
+let sortedShort = names.sorted { $0 &lt; $1 }
+print(&quot;Shorthand: \(sortedShort)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Full syntax: [&quot;Alex&quot;, &quot;Dana&quot;, &quot;Jordan&quot;]
+Shorthand: [&quot;Alex&quot;, &quot;Dana&quot;, &quot;Jordan&quot;]
+</code></pre></figure>
+<p>This example shows how Swift simplifies closure syntax step by step:</p>
+<ul>
+<li><strong>Type inference</strong>: Because <code>sorted(by:)</code> expects <code>(String, String) -&gt; Bool</code>, Swift already knows the parameter and return types.</li>
+<li><strong>Shorthand argument names</strong>: <code>$0</code> and <code>$1</code> refer to the first and second parameters. When using shorthand names, the <code>in</code> keyword is omitted.</li>
+<li><strong>Trailing closure syntax</strong>: When a closure is the final argument, you can place it outside the function call parentheses.</li>
+</ul>
+<figure class="code-example"><figcaption>Capturing values and reference semantics</figcaption><pre class="block swift"><code class="language-swift">func makeTracker() -&gt; () -&gt; Int {
+    var count = 0
+    return {
+        count += 1
+        return count
+    }
+}
+
+let counterA = makeTracker()
+print(&quot;Counter A: \(counterA())&quot;)
+print(&quot;Counter A: \(counterA())&quot;)
+
+let counterB = counterA
+print(&quot;Counter B: \(counterB())&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Counter A: 1
+Counter A: 2
+Counter B: 3
+</code></pre></figure>
+<p>This example highlights two fundamental behaviors:</p>
+<ul>
+<li><strong>Value capturing</strong>: The returned closure captures the variable <code>count</code>. Even after <code>makeTracker()</code> finishes, <code>count</code> remains alive in memory.</li>
+<li><strong>Reference types</strong>: When <code>counterA</code> is assigned to <code>counterB</code>, both refer to the exact same closure and share the same running <code>count</code>.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Are closures in Swift value types or reference types?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Value types, creating duplicate independent copies when assigned.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Reference types, sharing the same underlying instance and captured state.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Dynamic types that switch based on closure size.</span></button><p class="qc-explain" hidden="">Closures and functions are reference types in Swift. Multiple variables assigned to the same closure share its captured state.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Mixing shorthand argument names with explicit parameter lists</p><p>You cannot mix <code>$0</code> with explicit parameter names. If you write <code>{ name in print($0) }</code>, the compiler produces an error. Use either explicit parameter names or shorthand <code>$0</code>, never both.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming closures are value types like structs</p><p>Because closures look like clean functional expressions, candidates often assume they are value types. Closures are reference types. Modifying a captured variable inside one closure reference affects all other references to it.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Unnecessary parentheses when using trailing closures</p><p>When a closure is the only argument to a function, you do not need empty parentheses <code>()</code>. Writing <code>names.map() { $0.uppercased() }</code> works, but <code>names.map { $0.uppercased() }</code> is the idiomatic Swift style.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>A closure in Swift is a self-contained block of code that can be stored and passed around. Named functions are actually special cases of closures. Closures use the in keyword to separate parameters from body logic. Swift allows concise syntax using type inference, shorthand argument names like $0 and $1, and trailing closure syntax.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Closures are first-class reference types that can capture and store references to variables from their surrounding context. Swift provides expressive syntax optimizations: type inference eliminates redundant annotations, single-expression closures omit return, and trailing closures allow placing blocks outside parentheses. Because closures are reference types, assigning a closure to multiple variables shares the identical closure instance and captured state.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Functions are named closures; closures can also be written anonymously inline.</li>
+<li>Standard syntax: <code>{ (params) -&gt; ReturnType in statements }</code>.</li>
+<li>The <code>in</code> keyword separates parameter definitions from the closure body.</li>
+<li>Swift infers parameter and return types from context when possible.</li>
+<li>Shorthand arguments <code>$0</code>, <code>$1</code>, and <code>$2</code> refer to arguments by position.</li>
+<li>If a closure is the final argument, write it as a trailing closure outside parentheses.</li>
+<li>Closures are reference types that capture and retain surrounding variables.</li>
+</ul></div></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const S = [
+  {
+    cSyntax: 'names.sorted(by: { (s1: String, s2: String) -> Bool in\n    return s1 < s2\n})',
+    stageKind: 'Full Syntax',
+    capSyntax: 'Explicit types and keywords provide complete clarity.',
+    sumSyntax: 'Step 1 of 4: Full explicit syntax with all type annotations',
+    cardBorder: 'var(--full-color)',
+    cardBg: 'var(--full-soft)',
+    synTitle: '{ (s1: String, s2: String) -> Bool in ... }',
+    synDesc: 'Explicit parameters, return arrow, and return keyword',
+    cOpt: 'sorted(by:) expects (String, String) -> Bool\nSwift can infer all of this for you!',
+    optKind: 'Full Form',
+    resColor: 'var(--full-color)',
+    resSoft: 'var(--full-soft)',
+    resText: 'Explicit Types',
+    resSub: '58 characters written',
+    capOpt: 'Full form is useful when types cannot be inferred.',
+    sr: 'Step 1 of 4: Full explicit closure syntax with parameter types and return arrow.'
+  },
+  {
+    cSyntax: 'names.sorted(by: { s1, s2 in\n    s1 < s2\n})',
+    stageKind: 'Inferred Types',
+    capSyntax: 'Swift infers String inputs and Bool return type automatically.',
+    sumSyntax: 'Step 2 of 4: Drop parameter types, return arrow, and return keyword',
+    cardBorder: 'var(--infer-color)',
+    cardBg: 'var(--infer-soft)',
+    synTitle: '{ s1, s2 in s1 < s2 }',
+    synDesc: 'Types inferred from context + implicit return',
+    cOpt: 'Implicit return:\nsingle expression evaluates and returns automatically',
+    optKind: 'Type Inference',
+    resColor: 'var(--infer-color)',
+    resSoft: 'var(--infer-soft)',
+    resText: 'Inferred Types',
+    resSub: '28 characters written (50% shorter)',
+    capOpt: 'Implicit returns work for any single-expression closure.',
+    sr: 'Step 2 of 4: Swift infers parameter types and return type from context.'
+  },
+  {
+    cSyntax: 'names.sorted(by: { $0 < $1 })',
+    stageKind: 'Shorthand $0, $1',
+    capSyntax: 'Positional arguments $0 and $1 eliminate parameter names and in.',
+    sumSyntax: 'Step 3 of 4: Use positional arguments and omit the in keyword',
+    cardBorder: 'var(--short-color)',
+    cardBg: 'var(--short-soft)',
+    synTitle: '{ $0 < $1 }',
+    synDesc: '$0 = first argument, $1 = second argument',
+    cOpt: 'Omit parameter list and "in" keyword:\n$0 and $1 refer to arguments by position',
+    optKind: 'Shorthand Args',
+    resColor: 'var(--short-color)',
+    resSoft: 'var(--short-soft)',
+    resText: 'Shorthand $0, $1',
+    resSub: '17 characters written',
+    capOpt: 'Shorthand names are ideal for short, self-explanatory closures.',
+    sr: 'Step 3 of 4: Shorthand positional arguments replace explicit parameter names.'
+  },
+  {
+    cSyntax: 'names.sorted { $0 < $1 }',
+    stageKind: 'Trailing Closure',
+    capSyntax: 'Trailing closure syntax moves the block outside parentheses.',
+    sumSyntax: 'Step 4 of 4: Pure idiomatic Swift trailing closure syntax',
+    cardBorder: 'var(--trail-color)',
+    cardBg: 'var(--trail-soft)',
+    synTitle: 'names.sorted { $0 < $1 }',
+    synDesc: 'Parentheses omitted when closure is sole argument',
+    cOpt: 'Final argument closure:\nplaced directly outside call parentheses',
+    optKind: 'Idiomatic Swift',
+    resColor: 'var(--trail-color)',
+    resSoft: 'var(--trail-soft)',
+    resText: 'Trailing Closure',
+    resSub: '13 characters written (cleanest form)',
+    capOpt: 'Trailing closures make Swift collection pipelines feel like native syntax.',
+    sr: 'Step 4 of 4: Trailing closure syntax produces clean, idiomatic Swift code.'
+  }
+];
+
+let cur = 0;
+const codeSyntax = document.getElementById('codeSyntax');
+const stageKind = document.getElementById('stageKind');
+const capSyntax = document.getElementById('capSyntax');
+const summarySyntax = document.getElementById('summarySyntax');
+const cardShape = document.getElementById('cardShape');
+const syntaxTitle = document.getElementById('syntaxTitle');
+const syntaxDesc = document.getElementById('syntaxDesc');
+
+const codeOpt = document.getElementById('codeOpt');
+const optKind = document.getElementById('optKind');
+const resBox = document.getElementById('resBox');
+const resText = document.getElementById('resText');
+const resSub = document.getElementById('resSub');
+const capOpt = document.getElementById('capOpt');
+
+const srStatus = document.getElementById('srStatus');
+const dots = document.querySelectorAll('.dot');
+const btnPrev = document.getElementById('btnPrev');
+const btnNext = document.getElementById('btnNext');
+
+function render(idx) {
+  cur = idx;
+  const s = S[cur];
+  codeSyntax.textContent = s.cSyntax;
+  stageKind.textContent = s.stageKind;
+  capSyntax.textContent = s.capSyntax;
+  summarySyntax.textContent = s.sumSyntax;
+
+  cardShape.style.stroke = s.cardBorder;
+  cardShape.style.fill = s.cardBg;
+  syntaxTitle.textContent = s.synTitle;
+  syntaxDesc.textContent = s.synDesc;
+
+  codeOpt.textContent = s.cOpt;
+  optKind.textContent = s.optKind;
+  resBox.style.fill = s.resSoft;
+  resBox.style.stroke = s.resColor;
+  resText.textContent = s.resText;
+  resText.style.fill = s.resColor;
+  resSub.textContent = s.resSub;
+  capOpt.textContent = s.capOpt;
+
+  dots.forEach((d, i) => d.classList.toggle('active', i === cur));
+  btnPrev.disabled = (cur === 0);
+  btnNext.disabled = (cur === S.length - 1);
+  srStatus.textContent = s.sr;
+}
+
+btnPrev.addEventListener('click', () => { if (cur > 0) render(cur - 1); });
+btnNext.addEventListener('click', () => { if (cur < S.length - 1) render(cur + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight' && cur < S.length - 1) render(cur + 1);
+  if (e.key === 'ArrowLeft' && cur > 0) render(cur - 1);
+});
+
+}
+</script>
+<script>
+const DATA = {"topicId":"closures-basics","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"closures-basics-q1","type":"mcq","difficulty":1,"prompt":"What is a closure in Swift?","options":[{"id":"a","text":"A self-contained block of code that can be passed around and stored in constants or variables.","explanation":"Right. Closures are first-class code blocks that can be passed as arguments or stored."},{"id":"b","text":"A special struct that can only hold static properties and methods without functions.","explanation":"Closures are executable blocks of code, not static structs."},{"id":"c","text":"A background thread worker managed exclusively by the operating system kernel.","explanation":"Closures are language-level blocks of code, not OS threads."},{"id":"d","text":"A memory pointer that always requires manual allocation and deallocation.","explanation":"Swift manages closure memory automatically."}],"answer":"a"},{"id":"closures-basics-q2","type":"mcq","difficulty":1,"prompt":"What does the in keyword do inside a Swift closure expression?","options":[{"id":"a","text":"It imports external framework packages into the local closure scope.","explanation":"Frameworks are imported using the import keyword."},{"id":"b","text":"It separates parameter and return type declarations from the closure body statements.","explanation":"Right. The in keyword marks the start of the execution statements."},{"id":"c","text":"It starts a loop that iterates over each element in a collection.","explanation":"The for-in loop uses in, but inside a closure expression it separates signature from body."},{"id":"d","text":"It marks the closure as an asynchronous background task.","explanation":"Asynchronous functions use the async keyword."}],"answer":"b"},{"id":"closures-basics-q3","type":"mcq","difficulty":1,"prompt":"Are closures and functions in Swift value types or reference types?","options":[{"id":"a","text":"They are value types that create duplicate independent copies upon assignment.","explanation":"Closures are not value types."},{"id":"b","text":"They are value types when defined globally, but reference types when declared inside classes.","explanation":"All closures and functions are reference types regardless of where they are declared."},{"id":"c","text":"They are reference types, meaning multiple assignments point to the same underlying closure.","explanation":"Right. Closures are reference types and share captured values."},{"id":"d","text":"They are primitive scalar types that store data directly on the stack.","explanation":"Closures are reference types, not scalar primitives."}],"answer":"c"},{"id":"closures-basics-q4","type":"mcq","difficulty":2,"prompt":"Which statement accurately describes the relationship between functions and closures in Swift?","options":[{"id":"a","text":"Functions and closures are completely separate types that cannot share signatures.","explanation":"Functions and closures share the exact same function types."},{"id":"b","text":"Closures are value types, whereas functions are reference types.","explanation":"Both functions and closures are reference types."},{"id":"c","text":"Closures cannot accept parameters or return values, while functions can.","explanation":"Closures can accept parameters and return values just like functions."},{"id":"d","text":"Functions are actually special cases of closures that happen to have names.","explanation":"Right. Global and nested functions are named closures."}],"answer":"d"},{"id":"closures-basics-q5","type":"mcq","difficulty":1,"prompt":"What is trailing closure syntax in Swift?","options":[{"id":"a","text":"Writing a closure expression outside function call parentheses when it is the final argument.","explanation":"Right. Trailing closure syntax places the closure block after the parentheses."},{"id":"b","text":"Adding a closure parameter at the beginning of a function parameter list.","explanation":"Trailing closures appear at the end of the argument list, not the beginning."},{"id":"c","text":"Executing a closure after a delayed timer expires on the main thread.","explanation":"Trailing closure is a syntax feature, not a timer mechanism."},{"id":"d","text":"Appending a semicolon to terminate a closure body statement.","explanation":"Swift does not use semicolons for trailing closures."}],"answer":"a"},{"id":"closures-basics-q6","type":"mcq","difficulty":1,"prompt":"When can you omit empty parentheses () completely when calling a function with a trailing closure?","options":[{"id":"a","text":"Only when the closure returns void.","explanation":"The return type does not dictate whether parentheses can be omitted."},{"id":"b","text":"When the closure is the only argument required by the function.","explanation":"Right. If the closure is the sole argument, empty parentheses are not required."},{"id":"c","text":"Whenever the enclosing function is marked with private access.","explanation":"Access levels do not affect trailing closure syntax."},{"id":"d","text":"Never, because call parentheses are always strictly mandatory.","explanation":"Swift explicitly permits omitting parentheses when the closure is the only argument."}],"answer":"b"},{"id":"closures-basics-q7","type":"mcq","difficulty":2,"prompt":"What happens if you try to use $0 inside a closure that already defines explicit parameter names?","options":[{"id":"a","text":"The closure automatically treats $0 as a pointer to the return value.","explanation":"Shorthand names refer to arguments, not return values."},{"id":"b","text":"The code runs normally because Swift aliases parameter names to numbered positions.","explanation":"Swift does not allow mixing named parameters with shorthand positional names."},{"id":"c","text":"The compiler produces an error because you cannot mix shorthand and named parameters.","explanation":"Right. You must choose either explicit parameter names or shorthand arguments."},{"id":"d","text":"The first argument receives a default value of zero.","explanation":"Shorthand names do not supply default values."}],"answer":"c"},{"id":"closures-basics-q8","type":"mcq","difficulty":1,"prompt":"What do the shorthand argument names $0 and $1 represent inside a closure body?","options":[{"id":"a","text":"Global memory registers used by the Swift runtime engine.","explanation":"They represent closure arguments, not hardware registers."},{"id":"b","text":"Static counter variables that increment automatically on each call.","explanation":"They do not increment values automatically."},{"id":"c","text":"Temporary error codes returned from failed operations.","explanation":"Swift uses Error protocols for errors, not dollar signs."},{"id":"d","text":"The closure parameters referenced by their sequential position.","explanation":"Right. $0 refers to the first argument, $1 refers to the second, and so on."}],"answer":"d"},{"id":"closures-basics-q9","type":"mcq","difficulty":1,"prompt":"When using shorthand argument names like $0 and $1, what else can be omitted from the closure expression?","options":[{"id":"a","text":"The entire parameter list and the in keyword.","explanation":"Right. With shorthand names, the parameter declarations and in keyword are omitted."},{"id":"b","text":"The surrounding curly braces around the body.","explanation":"Curly braces are always required to delimit a closure."},{"id":"c","text":"The statements that evaluate the return value.","explanation":"The closure still needs executable expressions to compute results."},{"id":"d","text":"The variable that stores the closure instance.","explanation":"Storing or passing the closure is independent of its internal syntax."}],"answer":"a"},{"id":"closures-basics-q10","type":"mcq","difficulty":2,"prompt":"What does it mean when a closure captures a value from its surrounding context?","options":[{"id":"a","text":"It locks the surrounding variable so that no other function can read it.","explanation":"Capturing does not lock variables against reading."},{"id":"b","text":"It keeps a reference to the variable so it remains usable even after its enclosing scope ends.","explanation":"Right. The captured variable stays alive in memory for the closure to use."},{"id":"c","text":"It forces the variable to convert into a global singleton instance in memory.","explanation":"Captured variables are retained by the closure, not made global singletons."},{"id":"d","text":"It writes the variable directly to persistent storage on the physical device.","explanation":"Capturing is an in-memory mechanism, not disk storage."}],"answer":"b"},{"id":"closures-basics-q11","type":"mcq","difficulty":2,"prompt":"When can a single-expression closure omit the return keyword?","options":[{"id":"a","text":"Only when the closure returns an optional value.","explanation":"Optional return types do not determine whether return can be omitted."},{"id":"b","text":"Only when the closure takes zero parameters.","explanation":"Closures with any number of parameters can omit return if they have a single expression."},{"id":"c","text":"Whenever the closure body consists of a single expression evaluating to the return type.","explanation":"Right. Swift implicitly returns the value of a single expression."},{"id":"d","text":"Whenever the closure is passed to a background execution queue.","explanation":"The queue context does not affect implicit return rules."}],"answer":"c"},{"id":"closures-basics-q12","type":"mcq","difficulty":2,"prompt":"Which type of closure has a name and can capture values from its surrounding function?","options":[{"id":"a","text":"A global function.","explanation":"Global functions have names but do not capture values."},{"id":"b","text":"An inline closure expression.","explanation":"Closure expressions are unnamed blocks."},{"id":"c","text":"An anonymous closure block.","explanation":"Anonymous closures do not have names."},{"id":"d","text":"A nested function.","explanation":"Right. Nested functions are named closures that capture values from enclosing functions."}],"answer":"d"},{"id":"closures-basics-q13","type":"mcq","difficulty":2,"prompt":"Two constants, firstClosure and secondClosure, are assigned the same closure that increments a captured variable. What happens when secondClosure is called?","options":[{"id":"a","text":"It increments the same captured variable shared with firstClosure.","explanation":"Right. Closures are reference types, so both constants share the same captured state."},{"id":"b","text":"It creates a separate copy with its own independent counter starting at zero.","explanation":"Closures do not make separate value copies upon assignment."},{"id":"c","text":"It crashes at runtime due to a simultaneous memory access conflict.","explanation":"Sequential calls to shared closure instances do not crash."},{"id":"d","text":"It resets the captured counter back to its initial value.","explanation":"Calling a closure does not reset its captured variables."}],"answer":"a"},{"id":"closures-basics-q14","type":"mcq","difficulty":3,"prompt":"Why does Swift allow type inference for parameters and return values inside closure arguments like names.sorted(by:)?","options":[{"id":"a","text":"Because closures are dynamically typed at runtime in Swift.","explanation":"Swift is statically typed; types are inferred at compile time."},{"id":"b","text":"Because the parameter types and return type are already declared in the method signature.","explanation":"Right. The sorted(by:) method explicitly expects (Element, Element) -> Bool."},{"id":"c","text":"Because sorted(by:) converts all elements to generic Any types before execution.","explanation":"Array elements preserve their strong concrete types."},{"id":"d","text":"Because the Swift compiler ignores all type rules inside curly braces.","explanation":"The compiler checks types strictly inside closures."}],"answer":"b"},{"id":"closures-basics-q15","type":"mcq","difficulty":3,"prompt":"Which of the following closure expressions demonstrates the most idiomatic Swift syntax for sorting an array of numbers in descending order?","options":[{"id":"a","text":"numbers.sorted(by: { (a: Int, b: Int) -> Bool in return a > b })","explanation":"This syntax is valid but overly verbose in idiomatic Swift."},{"id":"b","text":"numbers.sorted(by: { a, b in return a > b })","explanation":"This omits types but still includes explicit names and an unnecessary return keyword."},{"id":"c","text":"numbers.sorted { $0 > $1 }","explanation":"Right. Trailing closure syntax combined with shorthand arguments is idiomatic."},{"id":"d","text":"numbers.sorted() { (a, b) in a > b }","explanation":"The empty parentheses and explicit parameter names are unnecessary."}],"answer":"c"},{"id":"closures-basics-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"let multiply = { (a: Int, b: Int) -> Int in\n    a * b\n}\nprint(multiply(4, 5))","options":[{"id":"a","text":"a * b","explanation":"The closure executes the multiplication expression, returning the numeric result."},{"id":"b","text":"9","explanation":"The operation is multiplication, not addition."},{"id":"c","text":"multiply(4, 5)","explanation":"The print statement outputs the returned integer, not the function call text."},{"id":"d","text":"20","explanation":"Right. 4 multiplied by 5 evaluates to 20."}],"answer":"d"},{"id":"closures-basics-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"let numbers = [1, 2, 3]\nlet doubled = numbers.map { $0 * 2 }\nprint(doubled)","options":[{"id":"a","text":"[2, 4, 6]","explanation":"Right. The map closure doubles each element in the array."},{"id":"b","text":"[1, 2, 3, 1, 2, 3]","explanation":"Map transforms each element; it does not duplicate the array."},{"id":"c","text":"[2]","explanation":"Map transforms every element in the collection, not only the first."},{"id":"d","text":"[1, 4, 9]","explanation":"The expression multiplies by 2, rather than squaring each element."}],"answer":"a"},{"id":"closures-basics-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"let words = [\"apple\", \"pear\", \"banana\"]\nlet longWords = words.filter { $0.count > 4 }\nprint(longWords)","options":[{"id":"a","text":"[\"pear\"]","explanation":"\"pear\" has 4 characters, which is not greater than 4."},{"id":"b","text":"[\"apple\", \"banana\"]","explanation":"Right. \"apple\" has 5 characters and \"banana\" has 6, both satisfying the filter."},{"id":"c","text":"[\"apple\", \"pear\", \"banana\"]","explanation":"Words with 4 or fewer characters are excluded by the filter condition."},{"id":"d","text":"[5, 4, 6]","explanation":"Filter keeps matching elements; it does not map elements to character counts."}],"answer":"b"},{"id":"closures-basics-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"func makeAdder(amount: Int) -> (Int) -> Int {\n    return { number in\n        number + amount\n    }\n}\nlet addFive = makeAdder(amount: 5)\nprint(addFive(10))","options":[{"id":"a","text":"5","explanation":"The returned closure adds the captured amount to its input argument."},{"id":"b","text":"10","explanation":"10 is the input argument, which is added to the captured 5."},{"id":"c","text":"15","explanation":"Right. The closure captures amount = 5 and adds it to 10, producing 15."},{"id":"d","text":"50","explanation":"The closure performs addition, not multiplication."}],"answer":"c"},{"id":"closures-basics-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"func makeCounter() -> () -> Int {\n    var count = 0\n    return {\n        count += 1\n        return count\n    }\n}\nlet counter = makeCounter()\n_ = counter()\nprint(counter())","options":[{"id":"a","text":"0","explanation":"The counter increments on each invocation."},{"id":"b","text":"makeCounter","explanation":"The print statement prints the integer return value of the closure."},{"id":"c","text":"1","explanation":"The first discarded call increments count to 1; this second call increments it to 2."},{"id":"d","text":"2","explanation":"Right. The closure captures count and retains its state across calls."}],"answer":"d"},{"id":"closures-basics-q21","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"func makeCounter() -> () -> Int {\n    var count = 0\n    return {\n        count += 1\n        return count\n    }\n}\nlet first = makeCounter()\nlet second = first\n_ = first()\nprint(second())","options":[{"id":"a","text":"2","explanation":"Right. Closures are reference types, so first and second share the exact same count."},{"id":"b","text":"1","explanation":"Second refers to the same instance as first, so the first increment affects second."},{"id":"c","text":"0","explanation":"The counter is incremented by both calls."},{"id":"d","text":"3","explanation":"The closure is called only twice in total."}],"answer":"a"},{"id":"closures-basics-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"let scores = [40, 10, 85, 25]\nlet sortedScores = scores.sorted { $0 > $1 }\nprint(sortedScores.first ?? 0)","options":[{"id":"a","text":"10","explanation":"10 is the lowest score, but the array is sorted descending."},{"id":"b","text":"85","explanation":"Right. Sorting with $0 > $1 arranges numbers from highest to lowest."},{"id":"c","text":"40","explanation":"40 is the original first element, but the array was sorted descending."},{"id":"d","text":"25","explanation":"25 is neither the first nor highest element in descending order."}],"answer":"b"},{"id":"closures-basics-q23","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"func performOperation(_ a: Int, _ b: Int, operation: (Int, Int) -> Int) -> Int {\n    operation(a, b)\n}\nlet result = performOperation(12, 3) { $0 / $1 }\nprint(result)","options":[{"id":"a","text":"15","explanation":"The passed operation performs integer division, not addition."},{"id":"b","text":"36","explanation":"The passed operation performs integer division, not multiplication."},{"id":"c","text":"4","explanation":"Right. The trailing closure evaluates 12 divided by 3, yielding 4."},{"id":"d","text":"9","explanation":"The passed operation performs integer division, not subtraction."}],"answer":"c"},{"id":"closures-basics-q24","type":"written","difficulty":1,"prompt":"What is a closure in Swift, and how does it relate to a function? Answer in 2–4 sentences.","rubric":[{"criterion":"Defines a closure as a self-contained block of functionality that can be passed around and executed","weight":35,"key":true},{"criterion":"Explains that named functions are special cases of closures","weight":35,"key":true},{"criterion":"Mentions that closure expressions can be written inline without a formal function name","weight":30}],"modelAnswer":"In Swift, a closure is a self-contained block of functionality that can be passed and stored. Functions are actually special named closures. Global functions have names without capturing values, while nested functions have names and capture values. Closure expressions are lightweight blocks of code written inline without a name."},{"id":"closures-basics-q25","type":"written","difficulty":1,"prompt":"What purpose does the in keyword serve in a Swift closure expression? Answer in 2–4 sentences.","rubric":[{"criterion":"Explains that in marks the boundary between the signature and the body","weight":40,"key":true},{"criterion":"States that the parameter list and return type appear before in","weight":35,"key":true},{"criterion":"Notes that the execution statements appear after in","weight":25}],"modelAnswer":"The in keyword marks the separation between a closure declaration and its body statements. Parameters and the return type definition are placed before the in keyword. The executable code statements follow immediately after the in keyword. When shorthand argument names like $0 are used, the in keyword is omitted completely."},{"id":"closures-basics-q26","type":"written","difficulty":3,"prompt":"Explain value capturing in Swift closures. What happens to a captured local variable when its enclosing function finishes execution? Answer in 2–4 sentences.","rubric":[{"criterion":"Explains that closures capture and store references to constants and variables from surrounding scope","weight":40,"key":true},{"criterion":"States that captured variables remain alive in memory even after the enclosing function returns","weight":35,"key":true},{"criterion":"Mentions that the closure retains access to read or mutate the captured variable","weight":25}],"modelAnswer":"Value capturing allows a closure to reference variables from the surrounding scope where it was defined. Even after the enclosing function finishes execution and leaves the call stack, the captured variable remains alive in memory. The closure retains a reference to the variable, allowing it to read or modify the value across future calls."},{"id":"closures-basics-q27","type":"written","difficulty":3,"prompt":"Why are closures reference types in Swift? What happens when you assign a closure instance to multiple constants or variables? Answer in 2–4 sentences.","rubric":[{"criterion":"Explains that closures and functions are reference types","weight":40,"key":true},{"criterion":"States that assigning a closure to multiple variables points them to the same underlying instance","weight":35,"key":true},{"criterion":"Explains that any captured state is shared across all references","weight":25}],"modelAnswer":"Closures and functions in Swift are reference types rather than value types. When you assign a closure to multiple constants or variables, each reference points to the exact same closure instance. Any captured state or variables are shared between all references, meaning mutations through one reference reflect in all others."},{"id":"closures-basics-q28","type":"written","difficulty":2,"prompt":"Explain trailing closure syntax in Swift. When can the function call parentheses be completely omitted? Answer in 2–4 sentences.","rubric":[{"criterion":"Explains that trailing closures can be written outside parentheses when a closure is the final parameter","weight":40,"key":true},{"criterion":"States that parentheses can be omitted entirely if the closure is the only argument","weight":35,"key":true},{"criterion":"Notes that this provides clean, readable syntax for higher-order functions","weight":25}],"modelAnswer":"Trailing closure syntax allows developers to write a closure expression outside function call parentheses when it is the final argument. If the closure is the only argument passed to the function, the empty parentheses can be omitted entirely. This feature produces clean, readable code when working with functions like map, filter, or custom completion handlers."},{"id":"closures-basics-q29","type":"code-write","difficulty":1,"prompt":"Write a closure named square that takes an integer parameter and returns its square (the number multiplied by itself). Call the closure with the value 6 and print the result.","starterCode":"// Define square closure, call with 6, and print\n","rubric":[{"criterion":"Defines square as a closure accepting an Int parameter and returning its square","weight":40,"key":true},{"criterion":"Calls the square closure with argument 6","weight":35,"key":true},{"criterion":"Prints the result producing output 36","weight":25}],"modelAnswer":"let square = { (x: Int) -> Int in\n    x * x\n}\nprint(square(6))"},{"id":"closures-basics-q30","type":"code-write","difficulty":2,"prompt":"Write code that defines an array of numbers [3, 12, 5, 20, 8]. Filter the array to keep only numbers greater than 9 using a trailing closure with shorthand argument syntax $0. Print the filtered result.","starterCode":"// Define array [3, 12, 5, 20, 8], filter with $0 > 9, and print\n","rubric":[{"criterion":"Defines numbers array with [3, 12, 5, 20, 8]","weight":30,"key":true},{"criterion":"Calls filter using a trailing closure with shorthand syntax $0 > 9","weight":45,"key":true},{"criterion":"Prints the filtered array producing output [12, 20]","weight":25}],"modelAnswer":"let numbers = [3, 12, 5, 20, 8]\nlet filtered = numbers.filter { $0 > 9 }\nprint(filtered)"},{"id":"closures-basics-q31","type":"code-write","difficulty":2,"prompt":"Write a function makeMultiplier(factor: Int) -> (Int) -> Int that returns a closure. The returned closure takes an integer and returns it multiplied by factor. Create a multiplier for 3, call it with 7, and print the result.","starterCode":"// Define makeMultiplier, create multiplier for 3, call with 7, and print\n","rubric":[{"criterion":"Defines makeMultiplier(factor: Int) returning closure (Int) -> Int","weight":40,"key":true},{"criterion":"Returns closure capturing factor and returning parameter multiplied by factor","weight":35,"key":true},{"criterion":"Creates multiplier for 3, calls with 7, and prints 21","weight":25}],"modelAnswer":"func makeMultiplier(factor: Int) -> (Int) -> Int {\n    return { $0 * factor }\n}\nlet multiplyByThree = makeMultiplier(factor: 3)\nprint(multiplyByThree(7))"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
