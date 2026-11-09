@@ -122,8 +122,8 @@ Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ✅ **5.4 Screen 2: Winding Path Map (S3, S4)** — responsive road, 6 stop states, progress bar, path score, locked sheet
 - ✅ **5.5 Screen 3: Lesson Reader & Diagrams (S5)** — section reader, embedded diagrams, text size switcher, QuickChecks
 - ✅ **5.6 Screen 4: Exam Runner & Results (S6–S10)** — 10 questions, option shuffling, instant feedback, scoring, skip tests, path completion
-- 🔄 **5.7 Screen 5: Settings, Progress Export/Import & About (S11, S12)** — stage/unit breakdown, JSON export/import/reset, About page
-- ⬜ **5.8 Accessibility, Testing & Final Verification** — Vitest unit tests, Playwright E2E tests (375px & desktop), axe-core scans, VoiceOver test, reading-time test
+- ✅ **5.7 Screen 5: Settings, Progress Export/Import & About (S11, S12)** — stage/unit breakdown, JSON export/import/reset, About page
+- 🔄 **5.8 Accessibility, Testing & Final Verification** — Vitest unit tests, Playwright E2E tests (375px & desktop), axe-core scans, VoiceOver test, reading-time test
 - ⬜ Progress keeps working when a topic is edited, moved, retired or gets a new version (tested in 5.2 and 5.8)
 - ⬜ **VoiceOver test by you** — one short flow on the real app (moved from step 3.8 on 2026-10-29); steps in [docs/design/a11y-check.md](docs/design/a11y-check.md)
 - ⬜ **Measure the real reading time** of lessons with real learners in the app (moved from step 3.8 on 2026-10-29). Lessons say "about 10 minutes" until then
@@ -225,6 +225,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Step 5.7 done: Built Screen 11 (Progress & Settings) and Screen 12 (About). Features: stage and unit performance breakdown bars, Device/Light/Dark appearance switcher applied to document, JSON progress file export with clipboard fallback, JSON file import with schema preview comparison, typed `RESET` progress confirmation modal, mission and source policy declarations, and Apple trademark notice. 49 pages prerendered cleanly. Starting Step 5.8: Accessibility, Testing & Final Verification.
 
 - **2026-11-09** — Step 5.6 done: Built Screen 6 (Exam Runner), Screen 7 (Topic Result), Screen 8 & 9 (Skip Tests & Skip Results), and Screen 10 (Path Complete). Features: 10-question drawing engine with option shuffling, Tap-then-Check interaction loop, rubric self-check scoring with key point capping, mistakes-first review list, stage and unit skip exams (80% threshold) marking covered stops with skip score, and path completion readiness labels (85% Interview ready, 70% Almost ready) with unit performance breakdown. All 47 pages prerendered cleanly. Starting Step 5.7: Settings, Progress Export/Import & About.
 
