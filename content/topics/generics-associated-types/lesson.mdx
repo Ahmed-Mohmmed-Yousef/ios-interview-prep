@@ -1,0 +1,211 @@
+export const meta = {
+  id: "generics-associated-types",
+  summary: "Use associated types in protocols and add rules to generic code with where clauses.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Generics", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/generics", kind: "official" },
+    { title: "WWDC22: Embrace Swift generics", url: "https://developer.apple.com/videos/play/wwdc2022/110352/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How do protocols define placeholder types when angle bracket generics are not used in protocol declarations?</Question>
+  <Guess>
+    <Option id="a">By casting all types to AnyObject at runtime.</Option>
+    <Option id="b" correct>By declaring an associatedtype inside the protocol definition.</Option>
+    <Option id="c">By forcing conforming types to import Objective-C headers.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a shipping crate blueprint. The blueprint says the crate holds cargo. It does not name the exact item yet. One company uses the blueprint to ship apples. Another company uses it to ship bicycles. In Swift, an associatedtype is that cargo placeholder in the protocol blueprint.
+</Analogy>
+
+Generic structs use angle brackets, such as `Array<Element>`. Protocols work differently. A protocol cannot use generic angle brackets in its definition. Instead, a protocol declares an **associated type** using the `associatedtype` keyword.
+
+An associated type gives a placeholder name to a type used in the protocol. The conforming type picks the real concrete type when it adopts the protocol.
+
+Often, you do not even need to write the type name manually. Swift infers the associated type automatically from the properties and methods you write.
+
+Sometimes you need to set rules for generic types. A **generic where clause** lets you add requirements. You can require that an associated type conforms to a protocol, or that two types are identical.
+
+## See it
+
+<Diagram id="generics-associated-types-main" caption="How associated types and where clauses customize generic protocols">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Protocol Container blueprint with placeholder 'associatedtype Item'.
+    2. Conforming IntStack binding Item to Int.
+    3. Conforming StringQueue binding Item to String.
+    4. Constrained extension with 'where Item: Equatable' adding contains() method.
+  - Steps:
+    Step 1: Protocol defines placeholder associatedtype Item.
+    Step 2: Conforming structs choose concrete types for Item (Int or String).
+    Step 3: Generic where clause restricts capabilities to matching types.
+    Step 4: Swift compiler enforces type safety across generic containers.
+  - Static version (reduced motion):
+    Diagram showing protocol Container blueprint branching into IntStack and StringQueue with where clause rules.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>How does a conforming type specify the concrete type for an associated type?</Question>
+  <Option id="a">It must pass the type as a command line argument.</Option>
+  <Option id="b" correct>It can declare a typealias or let the compiler infer it from method signatures.</Option>
+  <Option id="c">It must subclass the protocol directly.</Option>
+  <Explanation>A conforming type can write an explicit typealias, or Swift infers the type from properties and methods.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Protocol with an associated type and compiler type inference">
+
+```swift
+protocol Container {
+    associatedtype Item
+    var count: Int { get }
+    mutating func append(_ item: Item)
+    subscript(i: Int) -> Item { get }
+}
+
+struct StringStack: Container {
+    // Swift infers that Item is String from the properties and methods below
+    private var storage: [String] = []
+    
+    var count: Int {
+        return storage.count
+    }
+    
+    mutating func append(_ item: String) {
+        storage.append(item)
+    }
+    
+    subscript(i: Int) -> String {
+        return storage[i]
+    }
+}
+
+var stack = StringStack()
+stack.append("First")
+stack.append("Second")
+
+print("Items count: \(stack.count)")
+print("First item: \(stack[0])")
+```
+
+```output
+Items count: 2
+First item: First
+```
+
+</CodeExample>
+
+This example shows how associated types work:
+- **`associatedtype Item`**: Acts as a placeholder in `Container`.
+- **Automatic inference**: `StringStack` writes `append(_ item: String)`. Swift recognizes that `Item` is `String`.
+
+<CodeExample title="Constrained protocol extension using a generic where clause">
+
+```swift
+protocol SimpleList {
+    associatedtype Element
+    var count: Int { get }
+    subscript(index: Int) -> Element { get }
+}
+
+// Add a method only when Element conforms to Equatable
+extension SimpleList where Element: Equatable {
+    func contains(_ target: Element) -> Bool {
+        for i in 0..<count {
+            if self[i] == target {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+struct NumberList: SimpleList {
+    let numbers: [Int]
+    
+    var count: Int {
+        return numbers.count
+    }
+    
+    subscript(index: Int) -> Int {
+        return numbers[index]
+    }
+}
+
+let list = NumberList(numbers: [10, 20, 30])
+print("Contains 20: \(list.contains(20))")
+print("Contains 99: \(list.contains(99))")
+```
+
+```output
+Contains 20: true
+Contains 99: false
+```
+
+</CodeExample>
+
+This example shows the power of generic where clauses:
+- **`where Element: Equatable`**: The `contains(_:)` method only exists on lists whose elements can be checked for equality.
+- **Type safety**: If you create a list of non-equatable types, the compiler prevents calling `contains(_:)`.
+
+<QuickCheck>
+  <Question>When is a method inside 'extension Container where Item: Equatable' available to callers?</Question>
+  <Option id="a" correct>Only when the conforming type uses an Item that conforms to Equatable.</Option>
+  <Option id="b">Only when the caller runs the code in debug mode.</Option>
+  <Option id="c">To all conforming types unconditionally.</Option>
+  <Explanation>The where clause limits the extension methods. They only appear on types where Item conforms to Equatable.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Experiment with associated types and generic where clauses in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Trying to declare generic parameters on protocol definitions">
+You cannot write `protocol Container<T>`. In Swift, protocols declare placeholder types using `associatedtype Item`. Swift 5.7 added primary associated types like `protocol Container<Item>`, but `Item` remains an associated type declared inside the protocol body.
+</Trap>
+
+<Trap title="Assuming associated types require manual typealias declarations">
+Many developers write `typealias Item = String` in every conforming type. This is valid, but often unnecessary. The Swift compiler automatically infers the associated type from property types and function signatures.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+An associated type in Swift is a placeholder type inside a protocol. Conforming types choose the real type when they adopt the protocol. A where clause lets you add rules to generic code, such as requiring a type to conform to Equatable.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Swift protocols use the associatedtype keyword instead of angle brackets. Conforming structs specify the concrete type using a typealias or through compiler inference. We use generic where clauses on functions and protocol extensions. This allows us to provide methods only when type constraints are satisfied, like adding search methods when items conform to Equatable.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Associated types give protocols compile-time type flexibility without type erasure overhead. With generic where clauses, we can express precise type relationships. In modern Swift, primary associated types allow lightweight syntax like some Collection of String. This makes protocols with associated types easy to use as opaque types.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Protocols declare placeholder types using the `associatedtype` keyword.
+- Conforming types can define a typealias or let the compiler infer the type.
+- Associated types can have their own constraints, like `associatedtype Item: Equatable`.
+- Generic `where` clauses add requirements to functions, generics, and protocol extensions.
+- Constrained extensions only provide methods to types that satisfy the where clause rules.
+- Primary associated types let callers use clean opaque types like `some Container<Int>`.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Generics](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/generics)
+- [WWDC22: Embrace Swift generics](https://developer.apple.com/videos/play/wwdc2022/110352/)

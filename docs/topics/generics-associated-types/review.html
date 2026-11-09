@@ -1,0 +1,563 @@
+<title>Generics: Associated Types and Where Clauses Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --proto-color: #0284c7; --proto-soft: #e0f2fe;
+  --type-color: #7c3aed; --type-soft: #ede9fe;
+  --rule-color: #059669; --rule-soft: #d1fae5;
+  --warn-color: #d97706; --warn-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --proto-color: #38bdf8; --proto-soft: #082f49;
+  --type-color: #a78bfa; --type-soft: #2e1065;
+  --rule-color: #34d399; --rule-soft: #064e3b;
+  --warn-color: #fbbf24; --warn-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--proto-soft); color: var(--proto-color); }
+.p-right .kind { background: var(--rule-soft); color: var(--rule-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-proto { stroke: var(--proto-color); stroke-width: 2.5; fill: var(--proto-soft); }
+.node-box.active-type { stroke: var(--type-color); stroke-width: 2.5; fill: var(--type-soft); }
+.node-box.active-rule { stroke: var(--rule-color); stroke-width: 2.5; fill: var(--rule-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--proto-color); color: var(--proto-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Swift Language · Topic 2 of 7 · Prototype</p>
+    <h1>Generics: Associated Types and Where Clauses</h1>
+    <p class="meta-line"><span>About 12 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can use associated types and add rules to generic code.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">How do protocols define placeholder types when angle bracket generics are not used in protocol declarations?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">By casting all types to AnyObject at runtime.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">By declaring an associatedtype inside the protocol definition.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">By forcing conforming types to import Objective-C headers.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a shipping crate blueprint. The blueprint says the crate holds cargo. It does not name the exact item yet. One company uses the blueprint to ship apples. Another company uses it to ship bicycles. In Swift, an associatedtype is that cargo placeholder in the protocol blueprint.</p></aside>
+<p>Generic structs use angle brackets, such as <code>Array&lt;Element&gt;</code>. Protocols work differently. A protocol cannot use generic angle brackets in its definition. Instead, a protocol declares an <strong>associated type</strong> using the <code>associatedtype</code> keyword.</p>
+<p>An associated type gives a placeholder name to a type used in the protocol. The conforming type picks the real concrete type when it adopts the protocol.</p>
+<p>Often, you do not even need to write the type name manually. Swift infers the associated type automatically from the properties and methods you write.</p>
+<p>Sometimes you need to set rules for generic types. A <strong>generic where clause</strong> lets you add requirements. You can require that an associated type conforms to a protocol, or that two types are identical.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">How does a conforming type specify the concrete type for an associated type?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It must pass the type as a command line argument.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It can declare a typealias or let the compiler infer it from method signatures.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It must subclass the protocol directly.</span></button><p class="qc-explain" hidden="">A conforming type can write an explicit typealias, or Swift infers the type from properties and methods.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Protocol with an associated type and compiler type inference</figcaption><pre class="block swift"><code class="language-swift">protocol Container {
+    associatedtype Item
+    var count: Int { get }
+    mutating func append(_ item: Item)
+    subscript(i: Int) -&gt; Item { get }
+}
+
+struct StringStack: Container {
+    // Swift infers that Item is String from the properties and methods below
+    private var storage: [String] = []
+    
+    var count: Int {
+        return storage.count
+    }
+    
+    mutating func append(_ item: String) {
+        storage.append(item)
+    }
+    
+    subscript(i: Int) -&gt; String {
+        return storage[i]
+    }
+}
+
+var stack = StringStack()
+stack.append(&quot;First&quot;)
+stack.append(&quot;Second&quot;)
+
+print(&quot;Items count: \(stack.count)&quot;)
+print(&quot;First item: \(stack[0])&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Items count: 2
+First item: First
+</code></pre></figure>
+<p>This example shows how associated types work:</p>
+<ul>
+<li><strong><code>associatedtype Item</code></strong>: Acts as a placeholder in <code>Container</code>.</li>
+<li><strong>Automatic inference</strong>: <code>StringStack</code> writes <code>append(_ item: String)</code>. Swift recognizes that <code>Item</code> is <code>String</code>.</li>
+</ul>
+<figure class="code-example"><figcaption>Constrained protocol extension using a generic where clause</figcaption><pre class="block swift"><code class="language-swift">protocol SimpleList {
+    associatedtype Element
+    var count: Int { get }
+    subscript(index: Int) -&gt; Element { get }
+}
+
+// Add a method only when Element conforms to Equatable
+extension SimpleList where Element: Equatable {
+    func contains(_ target: Element) -&gt; Bool {
+        for i in 0..&lt;count {
+            if self[i] == target {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+struct NumberList: SimpleList {
+    let numbers: [Int]
+    
+    var count: Int {
+        return numbers.count
+    }
+    
+    subscript(index: Int) -&gt; Int {
+        return numbers[index]
+    }
+}
+
+let list = NumberList(numbers: [10, 20, 30])
+print(&quot;Contains 20: \(list.contains(20))&quot;)
+print(&quot;Contains 99: \(list.contains(99))&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Contains 20: true
+Contains 99: false
+</code></pre></figure>
+<p>This example shows the power of generic where clauses:</p>
+<ul>
+<li><strong><code>where Element: Equatable</code></strong>: The <code>contains(_:)</code> method only exists on lists whose elements can be checked for equality.</li>
+<li><strong>Type safety</strong>: If you create a list of non-equatable types, the compiler prevents calling <code>contains(_:)</code>.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">When is a method inside &#x27;extension Container where Item: Equatable&#x27; available to callers?</p><button type="button" class="opt" data-id="a" data-correct=""><span class="opt-id">A</span><span class="opt-text">Only when the conforming type uses an Item that conforms to Equatable.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Only when the caller runs the code in debug mode.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">To all conforming types unconditionally.</span></button><p class="qc-explain" hidden="">The where clause limits the extension methods. They only appear on types where Item conforms to Equatable.</p></div>
+<p class="try-it"><p>Experiment with associated types and generic where clauses in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Trying to declare generic parameters on protocol definitions</p><p>You cannot write <code>protocol Container&lt;T&gt;</code>. In Swift, protocols declare placeholder types using <code>associatedtype Item</code>. Swift 5.7 added primary associated types like <code>protocol Container&lt;Item&gt;</code>, but <code>Item</code> remains an associated type declared inside the protocol body.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming associated types require manual typealias declarations</p><p>Many developers write <code>typealias Item = String</code> in every conforming type. This is valid, but often unnecessary. The Swift compiler automatically infers the associated type from property types and function signatures.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>An associated type in Swift is a placeholder type inside a protocol. Conforming types choose the real type when they adopt the protocol. A where clause lets you add rules to generic code, such as requiring a type to conform to Equatable.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Swift protocols use the associatedtype keyword instead of angle brackets. Conforming structs specify the concrete type using a typealias or through compiler inference. We use generic where clauses on functions and protocol extensions. This allows us to provide methods only when type constraints are satisfied, like adding search methods when items conform to Equatable.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Associated types give protocols compile-time type flexibility without type erasure overhead. With generic where clauses, we can express precise type relationships. In modern Swift, primary associated types allow lightweight syntax like some Collection of String. This makes protocols with associated types easy to use as opaque types.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Protocols declare placeholder types using the <code>associatedtype</code> keyword.</li>
+<li>Conforming types can define a typealias or let the compiler infer the type.</li>
+<li>Associated types can have their own constraints, like <code>associatedtype Item: Equatable</code>.</li>
+<li>Generic <code>where</code> clauses add requirements to functions, generics, and protocol extensions.</li>
+<li>Constrained extensions only provide methods to types that satisfy the where clause rules.</li>
+<li>Primary associated types let callers use clean opaque types like <code>some Container&lt;Int&gt;</code>.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/generics">The Swift Programming Language: Generics</a></li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2022/110352/">WWDC22: Embrace Swift generics</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    leftCode: "protocol Container {\n    associatedtype Item\n    mutating func append(_ item: Item)\n}",
+    leftCaption: "The protocol declares Item as a flexible placeholder type.",
+    rightCode: "// Where clause waiting for types\n// Container requirements apply to all items",
+    rightCaption: "Any type can adopt Container by choosing what Item represents.",
+    activeBoxes: ["protoBox"]
+  },
+  {
+    step: 2,
+    leftCode: "struct IntStack: Container {\n    // Compiler infers: Item == Int\n    mutating func append(_ item: Int) {}\n}",
+    leftCaption: "IntStack binds Item to Int. Swift infers this without a manual typealias.",
+    rightCode: "struct StringQueue: Container {\n    // Compiler infers: Item == String\n    mutating func append(_ item: String) {}\n}",
+    rightCaption: "Different types adopt the same protocol with completely different Item types.",
+    activeBoxes: ["protoBox", "structBox"]
+  },
+  {
+    step: 3,
+    leftCode: "// Both Int and String conform to Equatable\n// Both gain access to contains()",
+    leftCaption: "Where clause checks if Item conforms to Equatable.",
+    rightCode: "extension Container where Item: Equatable {\n    func contains(_ item: Item) -> Bool {\n        // searches items with ==\n    }\n}",
+    rightCaption: "The contains() method is added only when Item can be compared.",
+    activeBoxes: ["extBox", "capBox"]
+  },
+  {
+    step: 4,
+    leftCode: "let stack = IntStack()\nstack.contains(42) // Compiles cleanly!\n// Int conforms to Equatable",
+    leftCaption: "IntStack satisfies Item: Equatable, so calling contains() is fully valid.",
+    rightCode: "struct HeavyTask {}\nstruct TaskList: Container { /* Item is HeavyTask */ }\n// list.contains(...) -> Compile Error!",
+    rightCaption: "If an Item does not conform to Equatable, the compiler safely rejects the call.",
+    activeBoxes: ["structBox", "extBox", "capBox"]
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.querySelectorAll(".node-box").forEach(el => {
+    el.classList.remove("active-proto", "active-type", "active-rule");
+  });
+
+  if (idx === 0) {
+    document.getElementById("protoBox").classList.add("active-proto");
+  } else if (idx === 1) {
+    document.getElementById("protoBox").classList.add("active-proto");
+    document.getElementById("structBox").classList.add("active-type");
+  } else if (idx === 2) {
+    document.getElementById("extBox").classList.add("active-rule");
+    document.getElementById("capBox").classList.add("active-rule");
+  } else if (idx === 3) {
+    document.getElementById("structBox").classList.add("active-type");
+    document.getElementById("extBox").classList.add("active-rule");
+    document.getElementById("capBox").classList.add("active-rule");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"generics-associated-types","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"gat-q1","type":"mcq","difficulty":1,"prompt":"What is the primary role of an associated type in a Swift protocol?","options":[{"id":"a","text":"It serves as a placeholder type that conforming types define later.","explanation":"An associated type gives a placeholder name to a type used in the protocol without specifying the concrete type."},{"id":"b","text":"It forces conforming types to convert all values to String representations.","explanation":"Associated types can represent any type, not just String."},{"id":"c","text":"It allocates fixed heap storage for all protocol properties at startup.","explanation":"Protocols do not allocate storage."},{"id":"d","text":"It connects Swift code directly to Objective-C dynamic runtime messages.","explanation":"Associated types are a native Swift compile-time generics feature."}],"answer":"a"},{"id":"gat-q2","type":"mcq","difficulty":1,"prompt":"Which keyword is used to declare a placeholder type inside a protocol definition?","options":[{"id":"a","text":"generic","explanation":"Swift does not have a generic keyword."},{"id":"b","text":"associatedtype","explanation":"The associatedtype keyword defines a placeholder type within a protocol declaration."},{"id":"c","text":"placeholder","explanation":"Placeholder is not a valid Swift keyword."},{"id":"d","text":"typedef","explanation":"Typedef is used in C and C++, not Swift."}],"answer":"b"},{"id":"gat-q3","type":"mcq","difficulty":1,"prompt":"How does a conforming struct satisfy an associated type requirement without writing typealias?","options":[{"id":"a","text":"By adding the dynamic attribute to every property.","explanation":"The dynamic attribute is for Objective-C dispatch, not type inference."},{"id":"b","text":"By inheriting from a standard Foundation class.","explanation":"Structs cannot inherit from classes."},{"id":"c","text":"By letting the Swift compiler infer the type from method signatures.","explanation":"When a struct implements protocol methods with concrete types, Swift infers the associated type automatically."},{"id":"d","text":"By declaring the struct as a private file-level enumeration.","explanation":"Enumerations do not replace type inference."}],"answer":"c"},{"id":"gat-q4","type":"mcq","difficulty":2,"prompt":"How can you restrict an associated type so conforming types must provide a comparable type?","options":[{"id":"a","text":"By placing an assert statement inside the protocol body.","explanation":"Protocols cannot contain executable assertions."},{"id":"b","text":"By wrapping the protocol in an unsafe memory pointer struct.","explanation":"Pointers do not constrain associated types."},{"id":"c","text":"By annotating the protocol with the final keyword.","explanation":"Protocols cannot be marked final."},{"id":"d","text":"By adding a protocol inheritance constraint like associatedtype Item: Comparable.","explanation":"Adding ': Comparable' requires any type chosen for Item to conform to Comparable."}],"answer":"d"},{"id":"gat-q5","type":"mcq","difficulty":2,"prompt":"What is the purpose of a generic where clause in Swift?","options":[{"id":"a","text":"It defines specific type constraints and relationships for generic code.","explanation":"A where clause lets you require that associated types conform to protocols or match other types."},{"id":"b","text":"It acts as a SQL query filter inside iOS database tables.","explanation":"A generic where clause is a compile-time type constraint, not a database query."},{"id":"c","text":"It creates a loop that repeats until an optional becomes nil.","explanation":"Looping is done with while or for-in, not generic where clauses."},{"id":"d","text":"It disables type safety checks for third-party libraries.","explanation":"Where clauses increase type safety, not disable it."}],"answer":"a"},{"id":"gat-q6","type":"mcq","difficulty":2,"prompt":"Where can a generic where clause be applied in Swift?","options":[{"id":"a","text":"Only inside the body of a while loop.","explanation":"While loops use boolean conditions, not generic where clauses."},{"id":"b","text":"On generic functions, initializers, type definitions, and protocol extensions.","explanation":"Where clauses can constrain functions, types, and extensions across the language."},{"id":"c","text":"Exclusively inside UIKit view controller subclasses.","explanation":"Where clauses are general Swift language constructs usable anywhere."},{"id":"d","text":"Only within JSON decoding property wrappers.","explanation":"Where clauses apply to all generic Swift constructs."}],"answer":"b"},{"id":"gat-q7","type":"mcq","difficulty":2,"prompt":"What happens if code calls a method in 'extension Container where Item: Equatable' on a non-equatable container?","options":[{"id":"a","text":"The code runs and returns false for all equality checks.","explanation":"The method is not available to call, so it cannot run."},{"id":"b","text":"The app crashes at runtime with an unrecognized selector exception.","explanation":"Swift checks constraints at compile time, preventing runtime selector errors."},{"id":"c","text":"The code fails to compile because the method does not exist for that type.","explanation":"The Swift compiler does not expose constrained extension methods to types that do not satisfy the constraint."},{"id":"d","text":"The compiler automatically generates an empty Equatable implementation.","explanation":"Swift never synthesizes random conformance for non-equatable types."}],"answer":"c"},{"id":"gat-q8","type":"mcq","difficulty":2,"prompt":"How can a generic where clause require that two different containers store the exact same type of item?","options":[{"id":"a","text":"By writing where C1.Item === C2.Item with three equals signs.","explanation":"Three equals signs check object identity, not type equality in where clauses."},{"id":"b","text":"By writing where C1.Item is C2.Item using type checking.","explanation":"The is operator is for runtime type checks, not where clauses."},{"id":"c","text":"By writing where C1.Item : C2.Item with a single colon.","explanation":"A colon specifies protocol conformance or subclassing, not type identity."},{"id":"d","text":"By writing where C1.Item == C2.Item with double equals signs.","explanation":"Double equals in a where clause asserts that two associated types must be identical."}],"answer":"d"},{"id":"gat-q9","type":"mcq","difficulty":3,"prompt":"What is a primary associated type in modern Swift?","options":[{"id":"a","text":"An associated type declared in angle brackets on the protocol header.","explanation":"Declaring 'protocol Collection\u003cElement>' designates Element as a primary associated type."},{"id":"b","text":"The first stored property declared inside an Objective-C protocol.","explanation":"Objective-C protocols do not have primary associated types."},{"id":"c","text":"A global typealias that replaces all generic type parameters.","explanation":"Primary associated types do not replace generic parameters globally."},{"id":"d","text":"A special compiler flag that turns off strict concurrency.","explanation":"Primary associated types are language type features, not compiler flags."}],"answer":"a"},{"id":"gat-q10","type":"mcq","difficulty":3,"prompt":"What syntax does a primary associated type enable when using opaque return types?","options":[{"id":"a","text":"some Collection where Element == String","explanation":"While legal, the primary benefit is the cleaner bracket syntax."},{"id":"b","text":"some Collection\u003cString>","explanation":"Primary associated types allow specifying element types in angle brackets with some or any."},{"id":"c","text":"Collection\u003cString> as an existential without any keyword","explanation":"Swift requires some or any when using protocols with associated types as types."},{"id":"d","text":"Collection::String in C++ namespace format","explanation":"Swift does not use C++ double colon syntax for generics."}],"answer":"b"},{"id":"gat-q11","type":"mcq","difficulty":2,"prompt":"Can a protocol have more than one associated type declared in its body?","options":[{"id":"a","text":"No, Swift protocols are limited to exactly one associated type.","explanation":"Protocols can declare multiple associated types."},{"id":"b","text":"No, multiple associated types are only allowed in classes.","explanation":"Classes use generic type parameters, not associatedtype declarations."},{"id":"c","text":"Yes, a protocol can declare multiple associated types with distinct names.","explanation":"For example, a KeyValueStore protocol can declare both associatedtype Key and associatedtype Value."},{"id":"d","text":"Yes, but only if all associated types are constrained to Int.","explanation":"Associated types can be constrained to any protocol or left unconstrained."}],"answer":"c"},{"id":"gat-q12","type":"mcq","difficulty":3,"prompt":"Why can an associated type have a recursive constraint in Swift standard library protocols?","options":[{"id":"a","text":"Because Swift compilers disable memory limits for recursive functions.","explanation":"Constraints are type checks at compile time, not recursive runtime loops."},{"id":"b","text":"Because protocols must always reference their own subclasses.","explanation":"Protocols do not have subclasses."},{"id":"c","text":"Because recursion allows infinite memory allocation on the stack.","explanation":"Type constraints define relationships and do not allocate stack space."},{"id":"d","text":"To express nested relationships, like an Iterator whose Element matches the container Item.","explanation":"Recursive constraints like 'where Iterator.Element == Item' connect related types safely."}],"answer":"d"},{"id":"gat-q13","type":"mcq","difficulty":1,"prompt":"What keyword explicitly binds an associated type inside a conforming type definition?","options":[{"id":"a","text":"typealias","explanation":"Writing 'typealias Item = Int' explicitly binds the associated type to a concrete type."},{"id":"b","text":"bind","explanation":"There is no bind keyword in Swift."},{"id":"c","text":"concrete","explanation":"There is no concrete keyword in Swift."},{"id":"d","text":"assign","explanation":"Assign is not a Swift type binding keyword."}],"answer":"a"},{"id":"gat-q14","type":"mcq","difficulty":2,"prompt":"Can you provide a default type for an associated type in a protocol declaration?","options":[{"id":"a","text":"No, associated types can never have default types.","explanation":"Associated types can have default types using the equals sign."},{"id":"b","text":"Yes, by assigning a default type such as associatedtype Item = String.","explanation":"Conforming types that do not specify Item will use the default type automatically."},{"id":"c","text":"Yes, but only if the protocol is imported from Objective-C.","explanation":"This is a native Swift feature."},{"id":"d","text":"No, default types are only permitted on global functions.","explanation":"Swift protocols support default associated types."}],"answer":"b"},{"id":"gat-q15","type":"mcq","difficulty":3,"prompt":"How does a generic where clause differ from simple type inheritance constraints in function signatures?","options":[{"id":"a","text":"A where clause is evaluated at runtime, whereas simple constraints are compile time.","explanation":"Both simple constraints and where clauses are verified at compile time."},{"id":"b","text":"Simple constraints only work with Objective-C classes.","explanation":"Simple constraints work with any Swift protocol or class."},{"id":"c","text":"A where clause can express complex rules between multiple associated types.","explanation":"Where clauses allow expressing rules like equality between associated types across different parameters."},{"id":"d","text":"A where clause can only be written inside Xcode playground files.","explanation":"Where clauses are standard Swift language syntax."}],"answer":"c"},{"id":"gat-q16","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"protocol Box {\n    associatedtype Content\n    var content: Content { get }\n}\n\nstruct GiftBox: Box {\n    let content: String\n}\n\nlet box = GiftBox(content: \"Teddy Bear\")\nprint(box.content)","options":[{"id":"a","text":"GiftBox","explanation":"The code prints the content property, not the type name."},{"id":"b","text":"Content","explanation":"Content is the placeholder name, but the instance holds the concrete String."},{"id":"c","text":"It fails to compile because GiftBox does not write typealias Content = String.","explanation":"Swift automatically infers Content is String from the property declaration."},{"id":"d","text":"Teddy Bear","explanation":"GiftBox satisfies Box with Content inferred as String, printing 'Teddy Bear'."}],"answer":"d"},{"id":"gat-q17","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol QueueProtocol {\n    associatedtype Element\n    mutating func push(_ item: Element)\n    mutating func pop() -> Element?\n}\n\nstruct IntQueue: QueueProtocol {\n    var items: [Int] = []\n    mutating func push(_ item: Int) { items.append(item) }\n    mutating func pop() -> Int? { items.isEmpty ? nil : items.removeFirst() }\n}\n\nvar queue = IntQueue()\nqueue.push(10)\nqueue.push(20)\nprint(queue.pop() ?? 0)","options":[{"id":"a","text":"10","explanation":"removeFirst() removes and returns the first element pushed, which is 10."},{"id":"b","text":"20","explanation":"A queue is FIFO (first-in, first-out), so 10 is returned before 20."},{"id":"c","text":"0","explanation":"The queue is not empty, so the nil-coalescing fallback is not used."},{"id":"d","text":"nil","explanation":"10 is unwrapped by the nil-coalescing operator."}],"answer":"a"},{"id":"gat-q18","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol Summable {\n    associatedtype Value: Numeric\n    var values: [Value] { get }\n}\n\nextension Summable {\n    func total() -> Value {\n        return values.reduce(0, +)\n    }\n}\n\nstruct Stats: Summable {\n    let values: [Int]\n}\n\nlet stats = Stats(values: [1, 2, 3, 4])\nprint(stats.total())","options":[{"id":"a","text":"4","explanation":"The total method sums all elements in values."},{"id":"b","text":"10","explanation":"The sum of 1 + 2 + 3 + 4 equals 10, computed by reduce(0, +)."},{"id":"c","text":"0","explanation":"The initial value is 0, but all elements are added to it."},{"id":"d","text":"It fails to compile because Numeric cannot be used as an associated type constraint.","explanation":"Numeric is a standard library protocol and a valid associated type constraint."}],"answer":"b"},{"id":"gat-q19","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol PairContainer {\n    associatedtype First\n    associatedtype Second\n    var first: First { get }\n    var second: Second { get }\n}\n\nextension PairContainer where First == Second {\n    func areIdentical() -> String {\n        return \"Matching Types\"\n    }\n}\n\nstruct IdenticalPair\u003cT>: PairContainer {\n    let first: T\n    let second: T\n}\n\nlet pair = IdenticalPair(first: \"Apple\", second: \"Banana\")\nprint(pair.areIdentical())","options":[{"id":"a","text":"Apple == Banana","explanation":"The method returns the static string 'Matching Types'."},{"id":"b","text":"false","explanation":"The method checks type equality at compile time, not value equality."},{"id":"c","text":"Matching Types","explanation":"Because First and Second are both String, the where First == Second constraint is satisfied."},{"id":"d","text":"It causes a compiler error because protocols cannot declare two associated types.","explanation":"Protocols can declare multiple associated types without issue."}],"answer":"c"},{"id":"gat-q20","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"protocol SequenceHolder {\n    associatedtype Item\n    var items: [Item] { get }\n}\n\nfunc compareFirstElements\u003cS1: SequenceHolder, S2: SequenceHolder>(_ a: S1, _ b: S2) -> Bool\nwhere S1.Item == S2.Item, S1.Item: Equatable {\n    guard let firstA = a.items.first, let firstB = b.items.first else {\n        return false\n    }\n    return firstA == firstB\n}\n\nstruct Holder\u003cT>: SequenceHolder {\n    let items: [T]\n}\n\nlet h1 = Holder(items: [100, 200])\nlet h2 = Holder(items: [100, 300])\nprint(compareFirstElements(h1, h2))","options":[{"id":"a","text":"false","explanation":"Both first items are 100, so firstA == firstB evaluates to true."},{"id":"b","text":"100","explanation":"The function returns a Bool, not an Int."},{"id":"c","text":"It fails to compile because S1.Item and S2.Item cannot be compared with where.","explanation":"The generic where clause validly constrains both items to be identical and Equatable."},{"id":"d","text":"true","explanation":"The where clause requires both items to match and conform to Equatable. Since 100 == 100, it prints true."}],"answer":"d"},{"id":"gat-q21","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol Transformable {\n    associatedtype Input\n    associatedtype Output = String\n    func transform(_ input: Input) -> Output\n}\n\nstruct IntStringifier: Transformable {\n    func transform(_ input: Int) -> String {\n        return \"Number: \\(input)\"\n    }\n}\n\nlet transformer = IntStringifier()\nprint(transformer.transform(7))","options":[{"id":"a","text":"Number: 7","explanation":"IntStringifier uses the default Output type of String and transforms 7 into 'Number: 7'."},{"id":"b","text":"7","explanation":"The string prefix 'Number: ' is included."},{"id":"c","text":"Output: 7","explanation":"The format string specifies 'Number: \\(input)'."},{"id":"d","text":"It fails to compile because associated types cannot have default values.","explanation":"Swift permits default types on associatedtype declarations."}],"answer":"a"},{"id":"gat-q22","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"protocol Stash {\n    associatedtype Value\n    var storage: [Value] { get }\n}\n\nextension Stash where Value: Collection {\n    func totalCount() -> Int {\n        return storage.reduce(0) { $0 + $1.count }\n    }\n}\n\nstruct GroupedWords: Stash {\n    let storage: [[String]]\n}\n\nlet group = GroupedWords(storage: [[\"a\", \"b\"], [\"c\", \"d\", \"e\"]])\nprint(group.totalCount())","options":[{"id":"a","text":"2","explanation":"totalCount counts inner elements across sub-collections, not outer array length."},{"id":"b","text":"5","explanation":"The where Value: Collection constraint allows calling .count on sub-arrays, summing 2 + 3 = 5."},{"id":"c","text":"0","explanation":"The inner arrays are not empty."},{"id":"d","text":"It fails to compile because Collection cannot constrain associated types in extensions.","explanation":"Constraining where Value: Collection is completely valid Swift syntax."}],"answer":"b"},{"id":"gat-q23","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"protocol PrintableValue {\n    associatedtype T\n    func display() -> String\n}\n\nextension PrintableValue where T: CustomStringConvertible {\n    func formatted() -> String {\n        return \"Formatted: \\(display())\"\n    }\n}\n\nstruct Label: PrintableValue {\n    typealias T = String\n    let text: String\n    func display() -> String { text }\n}\n\nlet label = Label(text: \"Swift 6\")\nprint(label.formatted())","options":[{"id":"a","text":"Swift 6","explanation":"formatted() adds the 'Formatted: ' prefix."},{"id":"b","text":"Label: Swift 6","explanation":"The formatted method prepends 'Formatted: ', not the struct name."},{"id":"c","text":"Formatted: Swift 6","explanation":"Since String conforms to CustomStringConvertible, the extension method formatted() executes cleanly."},{"id":"d","text":"It fails to compile because typealias T cannot be explicitly specified.","explanation":"Explicitly declaring typealias T = String is valid Swift syntax."}],"answer":"c"},{"id":"gat-q24","type":"written","difficulty":1,"prompt":"Explain what an associated type is in Swift protocols and why protocols use associatedtype instead of angle brackets. Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that associatedtype acts as a placeholder type within a protocol declaration","weight":50,"key":true},{"criterion":"Explains that conforming types specify or infer the real concrete type when adopting the protocol","weight":50,"key":true}],"modelAnswer":"An associated type in Swift is a placeholder type declared inside a protocol using the associatedtype keyword. Protocols do not use generic angle brackets directly because they specify interface requirements rather than concrete container instantiations. When a struct, enum, or class conforms to the protocol, it provides or infers the actual concrete type."},{"id":"gat-q25","type":"written","difficulty":2,"prompt":"Explain how generic where clauses work in protocol extensions. In 2 to 5 sentences, describe how they affect method availability on conforming types.","rubric":[{"criterion":"Explains that where clauses in extensions restrict added methods to conforming types whose associated types meet specific rules","weight":50,"key":true},{"criterion":"Notes that the compiler hides or prevents calling these methods on types that do not meet the constraints","weight":50,"key":true}],"modelAnswer":"A generic where clause in a protocol extension allows developers to add methods that only apply when associated types satisfy specific constraints. For example, an extension can require that an Element conforms to Equatable. Conforming types that satisfy the requirement can call those extension methods. If a type does not meet the constraint, the compiler prevents calling those methods at compile time."},{"id":"gat-q26","type":"written","difficulty":2,"prompt":"How does compiler type inference work with associated types in conforming Swift types? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that the compiler examines property types and function signatures in conforming types to determine the associated type","weight":50,"key":true},{"criterion":"Notes that explicit typealias declarations are optional when the compiler can deduce the type automatically","weight":50,"key":true}],"modelAnswer":"Swift automatically infers associated types by examining the properties and method signatures of the conforming type. If a protocol requires an append method for an Item, and the conforming struct implements it with String, Swift infers that Item is String. While developers can write an explicit typealias, it is usually optional because compiler type deduction handles it automatically."},{"id":"gat-q27","type":"written","difficulty":3,"prompt":"What are primary associated types introduced in Swift 5.7, and what problem do they solve? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that primary associated types are declared in angle brackets on protocol headers, like protocol Collection\u003cElement>","weight":50,"key":true},{"criterion":"Explains that they enable clean syntax like some Collection\u003cString> without complex existential or generic boilerplate","weight":50,"key":true}],"modelAnswer":"Primary associated types allow protocols to expose their key associated types inside angle brackets, like protocol Collection\u003cElement>. Before this feature, returning or accepting protocols with associated types required verbose generic where clauses. Primary associated types enable concise, expressive syntax like some Collection\u003cString> or any Collection\u003cString>, making protocols with associated types much easier to use."},{"id":"gat-q28","type":"written","difficulty":3,"prompt":"How can a generic where clause enforce type equality between two different generic parameters? In 2 to 5 sentences, describe an example function signature.","rubric":[{"criterion":"Explains the use of the double equals operator (==) in where clauses to mandate type equality","weight":50,"key":true},{"criterion":"Provides or describes a concrete example where two containers must share identical element types","weight":50,"key":true}],"modelAnswer":"A generic where clause can enforce type equality using the double equals operator between associated types. For example, a function comparing two containers can specify 'where C1.Item == C2.Item'. This tells the Swift compiler that although C1 and C2 can be completely different data structures, they must contain the exact same element type. The compiler enforces this relationship at compile time."},{"id":"gat-q29","type":"code-write","difficulty":1,"prompt":"Write a Swift protocol named Repository with an associated type named Model. Declare a method requirement 'func fetch() -> Model'. Then create a struct UserRepo conforming to Repository where Model is String, returning 'User: Alex'. Create an instance and print fetch().","starterCode":"protocol Repository {\n    // associatedtype and fetch requirement\n}\n\n// struct UserRepo conforming\n\n// create instance and print fetch()","rubric":[{"criterion":"Declares protocol Repository with associatedtype Model and func fetch() -> Model","weight":40,"key":true},{"criterion":"Declares struct UserRepo conforming to Repository returning String 'User: Alex'","weight":40,"key":true},{"criterion":"Instantiates UserRepo and prints fetch() output","weight":20,"key":true}],"modelAnswer":"protocol Repository {\n    associatedtype Model\n    func fetch() -> Model\n}\n\nstruct UserRepo: Repository {\n    func fetch() -> String {\n        return \"User: Alex\"\n    }\n}\n\nlet repo = UserRepo()\nprint(repo.fetch())"},{"id":"gat-q30","type":"code-write","difficulty":2,"prompt":"Write a protocol named Storage with an associated type Item. Write an extension on Storage constrained with 'where Item: Equatable' that adds a method 'func areEqual(_ a: Item, _ b: Item) -> Bool' returning whether a == b. Declare a struct IntStorage conforming to Storage. Create an instance and print areEqual(5, 5).","starterCode":"protocol Storage {\n    associatedtype Item\n}\n\n// Constrained extension with where Item: Equatable\n\n// Conforming struct\n\n// Create instance and print areEqual(5, 5)","rubric":[{"criterion":"Declares protocol Storage with associatedtype Item","weight":30,"key":true},{"criterion":"Extends Storage with where Item: Equatable adding areEqual method","weight":40,"key":true},{"criterion":"Declares IntStorage conforming to Storage, calls areEqual(5, 5), and prints result","weight":30,"key":true}],"modelAnswer":"protocol Storage {\n    associatedtype Item\n}\n\nextension Storage where Item: Equatable {\n    func areEqual(_ a: Item, _ b: Item) -> Bool {\n        return a == b\n    }\n}\n\nstruct IntStorage: Storage {\n    typealias Item = Int\n}\n\nlet storage = IntStorage()\nprint(storage.areEqual(5, 5))"},{"id":"gat-q31","type":"code-write","difficulty":3,"prompt":"Write a protocol named Accumulator with associatedtype Element: Numeric. Write an extension on Accumulator adding a method 'func doubleValue(_ val: Element) -> Element' returning val + val. Create a struct FloatAccumulator conforming to Accumulator with Element as Double. Create an instance and print doubleValue(4.5).","starterCode":"protocol Accumulator {\n    // associatedtype with Numeric constraint\n}\n\n// Extension with doubleValue\n\n// Conforming struct FloatAccumulator\n\n// Call and print doubleValue(4.5)","rubric":[{"criterion":"Declares protocol Accumulator with associatedtype Element: Numeric constraint","weight":40,"key":true},{"criterion":"Extends Accumulator with doubleValue method returning val + val","weight":30,"key":true},{"criterion":"Declares FloatAccumulator with Element as Double, instantiates, and prints doubleValue(4.5)","weight":30,"key":true}],"modelAnswer":"protocol Accumulator {\n    associatedtype Element: Numeric\n}\n\nextension Accumulator {\n    func doubleValue(_ val: Element) -> Element {\n        return val + val\n    }\n}\n\nstruct FloatAccumulator: Accumulator {\n    typealias Element = Double\n}\n\nlet acc = FloatAccumulator()\nprint(acc.doubleValue(4.5))"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
