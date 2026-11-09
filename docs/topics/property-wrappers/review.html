@@ -1,0 +1,587 @@
+<title>Property Wrappers Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --prop-color: #0284c7; --prop-soft: #e0f2fe;
+  --wrap-color: #7c3aed; --wrap-soft: #ede9fe;
+  --proj-color: #059669; --proj-soft: #d1fae5;
+  --clamp-color: #d97706; --clamp-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --prop-color: #38bdf8; --prop-soft: #082f49;
+  --wrap-color: #a78bfa; --wrap-soft: #2e1065;
+  --proj-color: #34d399; --proj-soft: #064e3b;
+  --clamp-color: #fbbf24; --clamp-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--prop-soft); color: var(--prop-color); }
+.p-right .kind { background: var(--wrap-soft); color: var(--wrap-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-prop { stroke: var(--prop-color); stroke-width: 2.5; fill: var(--prop-soft); }
+.node-box.active-wrap { stroke: var(--wrap-color); stroke-width: 2.5; fill: var(--wrap-soft); }
+.node-box.active-proj { stroke: var(--proj-color); stroke-width: 2.5; fill: var(--proj-soft); }
+.node-box.active-clamp { stroke: var(--clamp-color); stroke-width: 2.5; fill: var(--clamp-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--prop-color); color: var(--prop-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Swift Language · Topic 5 of 7 · Prototype</p>
+    <h1>Property Wrappers</h1>
+    <p class="meta-line"><span>About 12 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain how property wrappers work and write your own.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">How does SwiftUI allow views to access both a state value and its two-way binding using the dollar sign syntax?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">By evaluating dynamic JavaScript runtime bindings in the web view.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">By implementing a property wrapper with both a wrappedValue and a projectedValue.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">By forcing the view to inherit from an Objective-C KVO proxy class.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a security badge holder. The badge inside holds your employee card. When you show your badge, people see your photo. But the plastic holder also has a clip on the back for a lanyard. A property wrapper works like that holder: it protects your data and adds extra features to it.</p></aside>
+<p>In Swift, a <strong>property wrapper</strong> is a layer of code that manages how a property is stored and accessed. You write the storage logic once in a wrapper type. Then you can apply that wrapper to any property with an attribute like <code>@Clamped</code>.</p>
+<p>Every property wrapper must declare a <strong><code>wrappedValue</code></strong> property. When you read or write the wrapped property, Swift forwards the call to <code>wrappedValue</code>.</p>
+<p>Behind the scenes, the compiler synthesizes a private backing instance. If your property is named <code>score</code>, the compiler creates <code>_score</code> to hold the wrapper instance.</p>
+<p>A property wrapper can also declare an optional <strong><code>projectedValue</code></strong>. You access the projected value by adding a dollar sign (<code>$</code>) before the property name.</p>
+<p>In SwiftUI, <code>@State</code> uses <code>wrappedValue</code> to give you the data, and uses <code>projectedValue</code> to give you a <code>Binding</code> via the dollar sign.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What property must every property wrapper implement?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">projectedValue</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">wrappedValue</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">initialValue</span></button><p class="qc-explain" hidden="">Every property wrapper must implement wrappedValue. projectedValue is optional.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Custom property wrapper with validation logic</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+@propertyWrapper
+struct Capitalized {
+    private var text: String = &quot;&quot;
+    
+    var wrappedValue: String {
+        get { text }
+        set { text = newValue.capitalized }
+    }
+    
+    init(wrappedValue: String) {
+        self.wrappedValue = wrappedValue
+    }
+}
+
+struct UserProfile {
+    @Capitalized var firstName: String
+    @Capitalized var lastName: String
+}
+
+var profile = UserProfile(firstName: &quot;taylor&quot;, lastName: &quot;swift&quot;)
+print(&quot;Full name: \(profile.firstName) \(profile.lastName)&quot;)
+
+profile.firstName = &quot;jordan&quot;
+print(&quot;Updated first name: \(profile.firstName)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Full name: Taylor Swift
+Updated first name: Jordan
+</code></pre></figure>
+<p>This example shows how property wrappers encapsulate validation:</p>
+<ul>
+<li><strong><code>@Capitalized</code></strong>: The wrapper automatically formats incoming strings to capitalized form.</li>
+<li><strong>Synthesized storage</strong>: Swift creates <code>_firstName</code> and <code>_lastName</code> behind the scenes to manage the strings.</li>
+</ul>
+<figure class="code-example"><figcaption>Exposing auxiliary features using projectedValue and dollar sign</figcaption><pre class="block swift"><code class="language-swift">@propertyWrapper
+struct ClampedInt {
+    private var number: Int
+    let min: Int
+    let max: Int
+    
+    // Optional projected value exposes whether clamping occurred
+    var projectedValue: Bool {
+        return number == min || number == max
+    }
+    
+    var wrappedValue: Int {
+        get { number }
+        set {
+            if newValue &lt; min { number = min }
+            else if newValue &gt; max { number = max }
+            else { number = newValue }
+        }
+    }
+    
+    init(wrappedValue: Int, min: Int, max: Int) {
+        self.min = min
+        self.max = max
+        self.number = Swift.min(Swift.max(wrappedValue, min), max)
+    }
+}
+
+struct Settings {
+    @ClampedInt(min: 0, max: 100) var brightness: Int = 50
+}
+
+var screen = Settings()
+print(&quot;Default brightness: \(screen.brightness)&quot;)
+
+screen.brightness = 150 // Clamped to 100
+print(&quot;Clamped brightness: \(screen.brightness)&quot;)
+print(&quot;Is at limit ($brightness): \(screen.$brightness)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Default brightness: 50
+Clamped brightness: 100
+Is at limit ($brightness): true
+</code></pre></figure>
+<p>This example highlights the role of projected values:</p>
+<ul>
+<li><strong><code>screen.brightness</code></strong>: Accesses <code>wrappedValue</code>, returning the clamped integer <code>100</code>.</li>
+<li><strong><code>screen.$brightness</code></strong>: Accesses <code>projectedValue</code>, returning <code>true</code> to signal that the value reached a boundary.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">How do you access the projectedValue of a property named &#x27;count&#x27;?</p><button type="button" class="opt" data-id="a" data-correct=""><span class="opt-id">A</span><span class="opt-text">By writing $count with a dollar sign prefix.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">By writing count.projected.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">By writing count$ with a dollar sign suffix.</span></button><p class="qc-explain" hidden="">In Swift, prefixing a wrapped property with a dollar sign ($count) accesses its projectedValue.</p></div>
+<p class="try-it"><p>Experiment with custom property wrappers in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using property wrappers on global variables or computed properties</p><p>You cannot apply property wrappers to global variables, local top-level script variables, or computed properties. Property wrappers require stored backing properties inside a type declaration.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing the underscore prefix with standard private properties</p><p>When you declare <code>@State var count = 0</code>, the compiler creates <code>_count</code>. Accessing <code>count</code> calls the wrapped value, while accessing <code>_count</code> gives you the wrapper struct itself. Do not name other properties with underscores to avoid compiler naming conflicts.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>A property wrapper in Swift is a type marked with @propertyWrapper that manages how a property is stored and accessed. It must have a wrappedValue property. It can also have an optional projectedValue accessed using a dollar sign prefix.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Property wrappers encapsulate reusable property logic, like validation or persistence. The compiler synthesizes a private backing property with an underscore prefix, such as _score. Reading the property accesses wrappedValue. Property wrappers can also define a projectedValue, which is accessed using the dollar sign prefix. This is how SwiftUI provides bindings from @State properties.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Property wrappers allow declarative property behavior through compiler synthesis. They replace repetitive getter and setter boilerplate. By defining init(wrappedValue:), wrappers support inline initial values. Projected values allow types to project auxiliary capabilities, such as SwiftUI projecting Binding from State. Architecturally, we use them for user defaults, clamping, and dependency injection, while watching out for thread safety and memory footprint in value types.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Property wrappers encapsulate reusable property storage and access logic.</li>
+<li>Defined with the <code>@propertyWrapper</code> attribute on a struct, class, or enum.</li>
+<li>Every property wrapper must implement <code>wrappedValue</code>.</li>
+<li>The compiler synthesizes a private backing property prefixed with an underscore (<code>_name</code>).</li>
+<li>Optional <code>projectedValue</code> is accessed using the dollar sign (<code>$name</code>).</li>
+<li>SwiftUI relies heavily on property wrappers, including <code>@State</code>, <code>@Binding</code>, and <code>@AppStorage</code>.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/properties">The Swift Programming Language: Properties</a></li>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/attributes">The Swift Programming Language: Attributes</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    leftCode: "@Clamped(0...100) var brightness: Int = 50",
+    leftCaption: "Declaring a wrapped property creates backing storage.",
+    rightCode: "private var _brightness = Clamped(\n    wrappedValue: 50, range: 0...100\n)",
+    rightCaption: "Compiler synthesizes the _brightness instance.",
+    propAccess: "brightness (declared)",
+    projAccess: "$brightness (declared)",
+    wrappedValText: "value = 50",
+    projectedValText: "isClamped = false",
+    activeBoxes: ["propBox", "wrapBox"]
+  },
+  {
+    step: 2,
+    leftCode: "print(screen.brightness) // 50",
+    leftCaption: "Reading brightness forwards directly to _brightness.wrappedValue.",
+    rightCode: "var brightness: Int {\n    get { _brightness.wrappedValue }\n}",
+    rightCaption: "Standard property access returns the stored wrappedValue.",
+    propAccess: "get -> _brightness.wrappedValue (50)",
+    projAccess: "$brightness (idle)",
+    wrappedValText: "value = 50",
+    projectedValText: "isClamped = false",
+    activeBoxes: ["propBox", "wrappedValBox"]
+  },
+  {
+    step: 3,
+    leftCode: "screen.brightness = 150 // Clamped!",
+    leftCaption: "Setter runs custom validation logic to clamp the value.",
+    rightCode: "set {\n    _brightness.wrappedValue = min(newValue, 100)\n}",
+    rightCaption: "Value is clamped to 100 before storing in _brightness.",
+    propAccess: "set(150) -> clamped to 100",
+    projAccess: "$brightness (updated)",
+    wrappedValText: "value = 100 (clamped)",
+    projectedValText: "isClamped = true",
+    activeBoxes: ["propBox", "wrappedValBox", "wrapBox"]
+  },
+  {
+    step: 4,
+    leftCode: "print(screen.$brightness) // true",
+    leftCaption: "Dollar sign ($) accesses projectedValue on the wrapper.",
+    rightCode: "var $brightness: Bool {\n    get { _brightness.projectedValue }\n}",
+    rightCaption: "Projected value provides auxiliary information (e.g. boundary reached).",
+    propAccess: "brightness = 100",
+    projAccess: "get -> _brightness.projectedValue (true)",
+    wrappedValText: "value = 100",
+    projectedValText: "isClamped = true ($)",
+    activeBoxes: ["projBox", "projectedValBox"]
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+
+  document.getElementById("propAccess").textContent = s.propAccess;
+  document.getElementById("projAccess").textContent = s.projAccess;
+  document.getElementById("wrappedValText").textContent = s.wrappedValText;
+  document.getElementById("projectedValText").textContent = s.projectedValText;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.querySelectorAll(".node-box").forEach(el => {
+    el.classList.remove("active-prop", "active-wrap", "active-proj", "active-clamp");
+  });
+
+  if (idx === 0) {
+    document.getElementById("propBox").classList.add("active-prop");
+    document.getElementById("wrapBox").classList.add("active-wrap");
+  } else if (idx === 1) {
+    document.getElementById("propBox").classList.add("active-prop");
+    document.getElementById("wrapBox").classList.add("active-wrap");
+  } else if (idx === 2) {
+    document.getElementById("propBox").classList.add("active-clamp");
+    document.getElementById("wrapBox").classList.add("active-clamp");
+  } else if (idx === 3) {
+    document.getElementById("projBox").classList.add("active-proj");
+    document.getElementById("wrapBox").classList.add("active-proj");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"property-wrappers","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"pw-q1","type":"mcq","difficulty":1,"prompt":"What is the primary role of a property wrapper in Swift?","options":[{"id":"a","text":"It encapsulates reusable property storage and access management logic.","explanation":"A property wrapper adds a layer of separation between how a property is stored and how it is defined."},{"id":"b","text":"It converts Swift classes into C-compatible struct types.","explanation":"Property wrappers do not convert classes into C structs."},{"id":"c","text":"It runs unit tests automatically on every property mutation.","explanation":"Property wrappers do not execute unit test runners."},{"id":"d","text":"It forces properties to be saved to disk via SQLite databases.","explanation":"While wrappers can implement persistence, that is not their sole language role."}],"answer":"a"},{"id":"pw-q2","type":"mcq","difficulty":1,"prompt":"Which property requirement must every property wrapper implement?","options":[{"id":"a","text":"projectedValue","explanation":"projectedValue is optional in property wrappers."},{"id":"b","text":"wrappedValue","explanation":"wrappedValue is the mandatory property that handles storage and access for the property wrapper."},{"id":"c","text":"initialValue","explanation":"initialValue was an early proposal name replaced by wrappedValue in the final Swift feature."},{"id":"d","text":"backingStorage","explanation":"backingStorage is not an official Swift property wrapper requirement."}],"answer":"b"},{"id":"pw-q3","type":"mcq","difficulty":1,"prompt":"What does the compiler synthesize behind the scenes for a property named 'score' decorated with a wrapper?","options":[{"id":"a","text":"A global variable named global_score in file scope.","explanation":"Backing storage is kept private within the enclosing type."},{"id":"b","text":"A dynamic Objective-C selector named scoreProxy.","explanation":"Swift property wrappers use native Swift synthesized storage."},{"id":"c","text":"A private backing storage property named _score.","explanation":"The compiler synthesizes a private backing property prefixed with an underscore to hold the wrapper instance."},{"id":"d","text":"An array named scoreValues holding previous edits.","explanation":"Property wrappers do not automatically synthesize history arrays."}],"answer":"c"},{"id":"pw-q4","type":"mcq","difficulty":2,"prompt":"How do you access the optional projectedValue of a wrapped property named 'setting'?","options":[{"id":"a","text":"By calling setting.projected() as a method.","explanation":"Projected values are accessed using prefix syntax, not method calls."},{"id":"b","text":"By writing setting$ with a trailing dollar sign.","explanation":"The dollar sign is placed before the variable name, not after."},{"id":"c","text":"By accessing _setting.projected through reflection.","explanation":"The language provides native dollar sign syntax ($setting)."},{"id":"d","text":"By writing $setting with a leading dollar sign.","explanation":"Prefixing a wrapped property with a dollar sign ($setting) accesses its projectedValue."}],"answer":"d"},{"id":"pw-q5","type":"mcq","difficulty":2,"prompt":"What does SwiftUI's @State property wrapper return as its projectedValue?","options":[{"id":"a","text":"A two-way Binding to the underlying state value.","explanation":"Writing $state on a @State property provides a Binding\u003cValue> for two-way UI controls."},{"id":"b","text":"A raw pointer to the view hierarchy in heap memory.","explanation":"@State does not expose raw memory pointers."},{"id":"c","text":"A publisher that only emits when the app terminates.","explanation":"@State projection yields a Binding, not a termination publisher."},{"id":"d","text":"An immutable JSON copy of the state data.","explanation":"Bindings are two-way reference connections, not JSON copies."}],"answer":"a"},{"id":"pw-q6","type":"mcq","difficulty":2,"prompt":"Where are property wrappers NOT permitted in Swift code?","options":[{"id":"a","text":"Inside standard struct definitions and memberwise inits.","explanation":"Structs commonly declare wrapped properties."},{"id":"b","text":"On computed properties, protocols, and global variables.","explanation":"Property wrappers require stored backing storage and cannot be applied to computed properties, globals, or protocols."},{"id":"c","text":"Inside SwiftUI View struct definitions and subclasses.","explanation":"SwiftUI views rely heavily on property wrappers like @State."},{"id":"d","text":"Inside custom class type declarations across any file.","explanation":"Classes support property wrappers on stored properties."}],"answer":"b"},{"id":"pw-q7","type":"mcq","difficulty":2,"prompt":"How can a property wrapper support inline initial values, like '@Wrapper var count = 10'?","options":[{"id":"a","text":"By conforming to the ExpressibleByIntegerLiteral protocol.","explanation":"Literal protocols are for custom types, not property wrapper inline assignment."},{"id":"b","text":"By marking the wrapper type with the @inline attribute.","explanation":"@inline is a compiler optimization attribute."},{"id":"c","text":"By implementing an initializer with the signature init(wrappedValue:).","explanation":"Defining init(wrappedValue:) allows callers to initialize the wrapped property with an assignment."},{"id":"d","text":"By declaring wrappedValue as a lazy stored property.","explanation":"lazy properties cannot be used as property wrapper implementations."}],"answer":"c"},{"id":"pw-q8","type":"mcq","difficulty":2,"prompt":"Can a property wrapper take custom configuration arguments during declaration?","options":[{"id":"a","text":"No, property wrappers cannot take any custom arguments.","explanation":"Property wrappers can define custom initializers with parameters."},{"id":"b","text":"No, parameters can only be supplied through external Plist files.","explanation":"Arguments are passed directly in code."},{"id":"c","text":"Yes, but only if all arguments are String literal constants.","explanation":"Arguments can be any valid Swift types, including ranges or numbers."},{"id":"d","text":"Yes, by defining initializers that accept additional arguments like range or key.","explanation":"Declaring @Clamped(min: 0, max: 10) invokes init(wrappedValue:min:max:) on the wrapper."}],"answer":"d"},{"id":"pw-q9","type":"mcq","difficulty":3,"prompt":"What happens if a property wrapper struct is applied to a stored property inside another struct?","options":[{"id":"a","text":"The backing wrapper instance is stored directly in the enclosing struct's memory layout.","explanation":"The enclosing struct embeds the wrapper struct, contributing directly to its in-memory size."},{"id":"b","text":"The enclosing struct is automatically converted into a reference class.","explanation":"Structs remain value types."},{"id":"c","text":"The compiler allocates storage exclusively in the global heap region.","explanation":"Struct property wrappers live inline on the stack unless boxed."},{"id":"d","text":"The property is wiped clean whenever the app enters the background.","explanation":"Standard property wrappers maintain state normally."}],"answer":"a"},{"id":"pw-q10","type":"mcq","difficulty":3,"prompt":"Why can property wrappers not be declared on properties marked weak or unowned?","options":[{"id":"a","text":"Because weak references require Objective-C runtime classes.","explanation":"Weak references are part of standard Swift ARC."},{"id":"b","text":"Because property wrappers manage storage themselves, conflicting with ARC modifiers.","explanation":"The wrapper struct holds the backing storage, so weak/unowned cannot modify the outer synthesized property."},{"id":"c","text":"Because ARC was deprecated in modern Swift 6.","explanation":"ARC is active and central to Swift memory management."},{"id":"d","text":"Because property wrappers only support integer values.","explanation":"Property wrappers can be generic over any type."}],"answer":"b"},{"id":"pw-q11","type":"mcq","difficulty":2,"prompt":"Can a property wrapper be generic over its wrappedValue type?","options":[{"id":"a","text":"No, property wrappers must specify one concrete primitive type.","explanation":"Property wrappers can declare generic type parameters."},{"id":"b","text":"No, generic property wrappers are only supported in C++ headers.","explanation":"Generics are a core native Swift feature."},{"id":"c","text":"Yes, property wrappers can declare generic type parameters like struct Clamped\u003cT>.","explanation":"Generics allow a single property wrapper to wrap Int, Double, or any other type."},{"id":"d","text":"Yes, but only if the generic type conforms to Objective-C NSCoding.","explanation":"No Objective-C conformance is required."}],"answer":"c"},{"id":"pw-q12","type":"mcq","difficulty":3,"prompt":"How does access control apply to a synthesized property wrapper?","options":[{"id":"a","text":"The backing _property is always public, regardless of the property access level.","explanation":"The backing storage is private by default."},{"id":"b","text":"The projected value cannot have access control specified.","explanation":"Projected values share the access level of the wrapped property."},{"id":"c","text":"Access control keywords are forbidden on wrapped properties.","explanation":"You can declare private, internal, or public wrapped properties."},{"id":"d","text":"The wrapped property follows its declared access, while _property is private by default.","explanation":"The synthesized backing storage _property is private, preserving encapsulation."}],"answer":"d"},{"id":"pw-q13","type":"mcq","difficulty":1,"prompt":"Which attribute marks a custom struct or class as a property wrapper?","options":[{"id":"a","text":"@propertyWrapper","explanation":"The @propertyWrapper attribute instructs the Swift compiler to treat the type as a property wrapper."},{"id":"b","text":"@wrapper","explanation":"@wrapper is not a valid Swift attribute."},{"id":"c","text":"@propertyStorage","explanation":"@propertyStorage does not exist in Swift."},{"id":"d","text":"@customProperty","explanation":"@customProperty is not an official Swift attribute."}],"answer":"a"},{"id":"pw-q14","type":"mcq","difficulty":2,"prompt":"What is the primary difference between a property wrapper and a Swift macro in modern Swift?","options":[{"id":"a","text":"Macros run on the server, while property wrappers run on the client device.","explanation":"Both run in code compiled for the client."},{"id":"b","text":"Property wrappers encapsulate property storage patterns, while macros manipulate compiler syntax trees.","explanation":"Property wrappers provide runtime storage abstraction, while macros generate arbitrary code at compile time."},{"id":"c","text":"Macros can only be used with Objective-C classes.","explanation":"Swift macros are a pure Swift language feature."},{"id":"d","text":"Property wrappers cannot be used in SwiftUI applications.","explanation":"SwiftUI relies extensively on property wrappers."}],"answer":"b"},{"id":"pw-q15","type":"mcq","difficulty":3,"prompt":"Can a property wrapper's wrappedValue be implemented with a get-only computed property?","options":[{"id":"a","text":"No, wrappedValue must always provide both a getter and a setter.","explanation":"A read-only property wrapper can implement a get-only wrappedValue."},{"id":"b","text":"No, get-only wrapped values cause instant compiler crashes.","explanation":"Read-only property wrappers are fully valid."},{"id":"c","text":"Yes, for read-only property wrappers that wrap immutable data sources.","explanation":"If wrappedValue is get-only, properties decorated with it can only be read, not modified."},{"id":"d","text":"Yes, but only if the wrapper conforms to the Hashable protocol.","explanation":"Hashable is not required for get-only wrappedValue."}],"answer":"c"},{"id":"pw-q16","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"@propertyWrapper\nstruct TenMultiplier {\n    var value: Int\n    var wrappedValue: Int {\n        get { value * 10 }\n        set { value = newValue }\n    }\n    init(wrappedValue: Int) {\n        self.value = wrappedValue\n    }\n}\n\nstruct Score {\n    @TenMultiplier var points: Int = 5\n}\n\nlet s = Score()\nprint(s.points)","options":[{"id":"a","text":"5","explanation":"The getter multiplies the stored value by 10."},{"id":"b","text":"10","explanation":"The initial value is 5, multiplied by 10."},{"id":"c","text":"TenMultiplier","explanation":"s.points evaluates to an Int."},{"id":"d","text":"50","explanation":"The wrappedValue getter returns value * 10 (5 * 10 = 50)."}],"answer":"d"},{"id":"pw-q17","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"import Foundation\n\n@propertyWrapper\nstruct Trimmed {\n    private var text: String = \"\"\n    var wrappedValue: String {\n        get { text }\n        set { text = newValue.trimmingCharacters(in: .whitespaces) }\n    }\n    init(wrappedValue: String) {\n        self.wrappedValue = wrappedValue\n    }\n}\n\nstruct FormInput {\n    @Trimmed var username: String\n}\n\nvar input = FormInput(username: \"   Taylor   \")\nprint(\"#\\(input.username)#\")","options":[{"id":"a","text":"#Taylor#","explanation":"The wrapper trims leading and trailing whitespace, printing '#Taylor#'."},{"id":"b","text":"#   Taylor   #","explanation":"Whitespace is trimmed in the setter."},{"id":"c","text":"Taylor","explanation":"The format string includes hash marks."},{"id":"d","text":"# #","explanation":"The text 'Taylor' is retained after trimming."}],"answer":"a"},{"id":"pw-q18","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"@propertyWrapper\nstruct ValidatedNumber {\n    private var num: Int = 0\n    var projectedValue: Bool = false\n    \n    var wrappedValue: Int {\n        get { num }\n        set {\n            if newValue >= 0 {\n                num = newValue\n                projectedValue = true\n            } else {\n                projectedValue = false\n            }\n        }\n    }\n    \n    init(wrappedValue: Int) {\n        self.wrappedValue = wrappedValue\n    }\n}\n\nstruct Account {\n    @ValidatedNumber var balance: Int = 100\n}\n\nvar acc = Account()\nacc.balance = -50\nprint(\"balance: \\(acc.balance), valid: \\(acc.$balance)\")","options":[{"id":"a","text":"balance: -50, valid: true","explanation":"Negative numbers are rejected by the setter."},{"id":"b","text":"balance: 100, valid: false","explanation":"Because -50 \u003c 0, num remains 100 and projectedValue becomes false."},{"id":"c","text":"balance: 0, valid: false","explanation":"num was initialized to 100 and remains unchanged when -50 is assigned."},{"id":"d","text":"balance: 100, valid: true","explanation":"projectedValue is updated to false on negative inputs."}],"answer":"b"},{"id":"pw-q19","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"@propertyWrapper\nstruct DefaultTen {\n    var wrappedValue: Int\n    init() {\n        self.wrappedValue = 10\n    }\n}\n\nstruct Config {\n    @DefaultTen var limit: Int\n}\n\nlet cfg = Config()\nprint(cfg.limit)","options":[{"id":"a","text":"0","explanation":"The wrapper initializes wrappedValue to 10."},{"id":"b","text":"nil","explanation":"limit is a non-optional Int."},{"id":"c","text":"10","explanation":"The parameterless initializer of DefaultTen sets wrappedValue to 10."},{"id":"d","text":"It fails to compile because Config does not assign a value to limit.","explanation":"A property wrapper with an init() initializer allows declaring properties without an explicit default."}],"answer":"c"},{"id":"pw-q20","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"@propertyWrapper\nstruct Multiplier {\n    var factor: Int\n    var wrappedValue: Int\n    \n    init(wrappedValue: Int, factor: Int) {\n        self.factor = factor\n        self.wrappedValue = wrappedValue * factor\n    }\n}\n\nstruct Calculation {\n    @Multiplier(factor: 3) var result: Int = 10\n}\n\nlet calc = Calculation()\nprint(calc.result)","options":[{"id":"a","text":"10","explanation":"The initializer multiplies 10 by factor 3."},{"id":"b","text":"13","explanation":"The values are multiplied, not added."},{"id":"c","text":"20","explanation":"The factor is 3, so 10 is multiplied by 3 to reach 30."},{"id":"d","text":"30","explanation":"init(wrappedValue: 10, factor: 3) sets wrappedValue to 10 * 3 = 30."}],"answer":"d"},{"id":"pw-q21","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"@propertyWrapper\nstruct ClampedPositive {\n    private var val: Int\n    var wrappedValue: Int {\n        get { val }\n        set { val = max(0, newValue) }\n    }\n    init(wrappedValue: Int) {\n        self.val = max(0, wrappedValue)\n    }\n}\n\nstruct Inventory {\n    @ClampedPositive var stock: Int = 10\n}\n\nvar inv = Inventory()\ninv.stock = -15\nprint(inv.stock)","options":[{"id":"a","text":"0","explanation":"The setter applies max(0, newValue), clamping -15 to 0."},{"id":"b","text":"-15","explanation":"The wrapper prevents negative numbers."},{"id":"c","text":"10","explanation":"The setter overwrote the value with max(0, -15), which is 0."},{"id":"d","text":"15","explanation":"max(0, -15) returns 0, not positive 15."}],"answer":"a"},{"id":"pw-q22","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"@propertyWrapper\nstruct TaggedString {\n    var wrappedValue: String\n    var projectedValue: String {\n        return \"#\\(wrappedValue)\"\n    }\n}\n\nstruct Topic {\n    @TaggedString var title: String = \"swift\"\n}\n\nlet t = Topic()\nprint(\"\\(t.title) vs \\(t.$title)\")","options":[{"id":"a","text":"#swift vs swift","explanation":"title is the wrappedValue and $title is the projectedValue with the hashtag."},{"id":"b","text":"swift vs #swift","explanation":"t.title accesses wrappedValue ('swift') and t.$title accesses projectedValue ('#swift')."},{"id":"c","text":"swift vs swift","explanation":"The projected value adds the hashtag prefix."},{"id":"d","text":"#swift vs #swift","explanation":"wrappedValue does not include the hashtag."}],"answer":"b"},{"id":"pw-q23","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"@propertyWrapper\nstruct DirectBox\u003cT> {\n    var wrappedValue: T\n}\n\nstruct Container {\n    @DirectBox var item: String = \"Hello World\"\n    func isBoxType() -> Bool {\n        return type(of: _item) == DirectBox\u003cString>.self\n    }\n}\n\nlet c = Container()\nprint(c.isBoxType())","options":[{"id":"a","text":"false","explanation":"The backing property is indeed of type DirectBox\u003cString>."},{"id":"b","text":"DirectBox","explanation":"The method returns a boolean indicating whether the types match."},{"id":"c","text":"true","explanation":"The compiler synthesizes _item of type DirectBox\u003cString>, so type(of: _item) matches."},{"id":"d","text":"nil","explanation":"The method returns a non-optional Boolean value."}],"answer":"c"},{"id":"pw-q24","type":"written","difficulty":1,"prompt":"Explain what a property wrapper is in Swift. In 2 to 5 sentences, describe how you define one and what the wrappedValue property does.","rubric":[{"criterion":"Explains that a property wrapper is a struct, class, or enum marked with the @propertyWrapper attribute","weight":50,"key":true},{"criterion":"Explains that wrappedValue is the mandatory property that encapsulates access and storage logic for the wrapped property","weight":50,"key":true}],"modelAnswer":"A property wrapper in Swift is a type marked with the @propertyWrapper attribute that encapsulates property storage and access management. It allows developers to define custom validation, caching, or persistence logic once and reuse it across multiple properties. Every property wrapper must implement a wrappedValue property. Reading or writing the decorated property forwards directly to wrappedValue."},{"id":"pw-q25","type":"written","difficulty":2,"prompt":"What code does the Swift compiler synthesize when you decorate a property with a property wrapper? In 2 to 5 sentences, describe the role of the underscore prefix.","rubric":[{"criterion":"Explains that the compiler creates a private backing instance of the wrapper type prefixed with an underscore (e.g. _score)","weight":50,"key":true},{"criterion":"Notes that the surface property becomes a computed property forwarding getter and setter to _property.wrappedValue","weight":50,"key":true}],"modelAnswer":"When you declare a property like @Clamped var score = 50, the Swift compiler synthesizes a private backing property prefixed with an underscore, named _score. The backing property stores the actual wrapper instance. The surface property score becomes a computed property whose getter and setter forward calls to _score.wrappedValue. This encapsulation separates storage logic from public property access."},{"id":"pw-q26","type":"written","difficulty":2,"prompt":"What is a projectedValue in a Swift property wrapper? In 2 to 5 sentences, describe how you access it and give a real-world example from SwiftUI.","rubric":[{"criterion":"Explains that projectedValue is an optional property wrapper property accessed using the dollar sign ($) prefix","weight":50,"key":true},{"criterion":"Provides an example such as SwiftUI's @State projecting a Binding via $state","weight":50,"key":true}],"modelAnswer":"A projectedValue is an optional property inside a property wrapper that exposes auxiliary functionality or metadata. Callers access it by prefixing the property name with a dollar sign, such as $count. A prime example is SwiftUI's @State wrapper. Reading count gives the wrapped integer value, while writing $count accesses projectedValue, which returns a two-way Binding for controls like Stepper or TextField."},{"id":"pw-q27","type":"written","difficulty":3,"prompt":"How does init(wrappedValue:) enable inline property assignment, and how can property wrappers accept additional configuration parameters? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that implementing init(wrappedValue:) allows writing @Wrapper var x = 10 syntax","weight":50,"key":true},{"criterion":"Explains that additional parameters can be passed in parentheses at the declaration site, like @Clamped(min: 0, max: 100)","weight":50,"key":true}],"modelAnswer":"Implementing init(wrappedValue:) allows developers to use standard inline assignment syntax, such as @Wrapper var count = 10. The compiler automatically translates the initial assignment into an argument passed to init(wrappedValue:). If the wrapper needs extra configuration, like min and max bounds, it can define custom initializers. Callers pass these arguments in parentheses at the declaration site, such as @Clamped(min: 0, max: 100) var volume = 50."},{"id":"pw-q28","type":"written","difficulty":3,"prompt":"What are the key limitations and restrictions of property wrappers in Swift? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Mentions that property wrappers cannot be used on computed properties, global variables, or protocol requirements","weight":50,"key":true},{"criterion":"Mentions that properties decorated with wrappers cannot be marked weak, unowned, or lazy","weight":50,"key":true}],"modelAnswer":"Property wrappers have several strict restrictions in Swift. They can only be applied to stored properties inside types; they cannot decorate computed properties, global top-level variables, or protocol requirements. In addition, wrapped properties cannot be marked with the lazy, weak, or unowned keywords. Finally, a single property cannot be decorated with multiple conflicting wrappers unless they compose cleanly."},{"id":"pw-q29","type":"code-write","difficulty":1,"prompt":"Write a property wrapper named Uppercased that stores a String and converts any assigned value to uppercase in its wrappedValue setter. Declare a struct Message with a property '@Uppercased var text: String = \"hello\"'. Instantiate Message and print text.","starterCode":"@propertyWrapper\nstruct Uppercased {\n    // wrappedValue implementation\n}\n\n// Message struct with @Uppercased var text\n\n// Instantiate Message and print text","rubric":[{"criterion":"Declares @propertyWrapper struct Uppercased with wrappedValue converting to uppercase","weight":40,"key":true},{"criterion":"Declares struct Message with @Uppercased var text: String = 'hello'","weight":30,"key":true},{"criterion":"Instantiates Message and prints 'HELLO'","weight":30,"key":true}],"modelAnswer":"@propertyWrapper\nstruct Uppercased {\n    private var value: String = \"\"\n    var wrappedValue: String {\n        get { value }\n        set { value = newValue.uppercased() }\n    }\n    init(wrappedValue: String) {\n        self.wrappedValue = wrappedValue\n    }\n}\n\nstruct Message {\n    @Uppercased var text: String = \"hello\"\n}\n\nlet msg = Message()\nprint(msg.text)"},{"id":"pw-q30","type":"code-write","difficulty":2,"prompt":"Write a property wrapper named NonNegative that clamps Int values so they cannot drop below 0 in wrappedValue. In addition, provide a projectedValue returning a Bool indicating whether the current wrappedValue is greater than 0. Declare a struct Wallet with '@NonNegative var balance: Int = 10'. Instantiate Wallet, assign balance = -5, and print 'balance: \\(w.balance), hasFunds: \\(w.$balance)'.","starterCode":"@propertyWrapper\nstruct NonNegative {\n    // wrappedValue and projectedValue\n}\n\n// Wallet struct\n\n// Instantiate, assign -5, and print balance and $balance","rubric":[{"criterion":"Declares NonNegative property wrapper clamping values to minimum 0","weight":35,"key":true},{"criterion":"Implements projectedValue returning whether wrappedValue > 0","weight":35,"key":true},{"criterion":"Declares Wallet, sets balance to -5, and prints 'balance: 0, hasFunds: false'","weight":30,"key":true}],"modelAnswer":"@propertyWrapper\nstruct NonNegative {\n    private var amount: Int = 0\n    var wrappedValue: Int {\n        get { amount }\n        set { amount = max(0, newValue) }\n    }\n    var projectedValue: Bool {\n        return amount > 0\n    }\n    init(wrappedValue: Int) {\n        self.wrappedValue = wrappedValue\n    }\n}\n\nstruct Wallet {\n    @NonNegative var balance: Int = 10\n}\n\nvar w = Wallet()\nw.balance = -5\nprint(\"balance: \\(w.balance), hasFunds: \\(w.$balance)\")"},{"id":"pw-q31","type":"code-write","difficulty":3,"prompt":"Write a property wrapper named ClampedRange that clamps an Int to a given ClosedRange\u003cInt>. Its initializer should accept init(wrappedValue: Int, range: ClosedRange\u003cInt>). Create a struct Thermostat with '@ClampedRange(range: 15...25) var temp: Int = 20'. Instantiate Thermostat, set temp = 30, and print temp.","starterCode":"@propertyWrapper\nstruct ClampedRange {\n    // Implementation with range argument\n}\n\n// Thermostat struct with @ClampedRange(range: 15...25)\n\n// Instantiate, set 30, and print temp","rubric":[{"criterion":"Declares ClampedRange with range parameter and init(wrappedValue:range:)","weight":40,"key":true},{"criterion":"Clamps newValue inside range in wrappedValue setter","weight":30,"key":true},{"criterion":"Declares Thermostat, sets temp to 30, and prints clamped value 25","weight":30,"key":true}],"modelAnswer":"@propertyWrapper\nstruct ClampedRange {\n    private var value: Int\n    let range: ClosedRange\u003cInt>\n    \n    var wrappedValue: Int {\n        get { value }\n        set { value = min(max(newValue, range.lowerBound), range.upperBound) }\n    }\n    \n    init(wrappedValue: Int, range: ClosedRange\u003cInt>) {\n        self.range = range\n        self.value = min(max(wrappedValue, range.lowerBound), range.upperBound)\n    }\n}\n\nstruct Thermostat {\n    @ClampedRange(range: 15...25) var temp: Int = 20\n}\n\nvar t = Thermostat()\nt.temp = 30\nprint(t.temp)"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

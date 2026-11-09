@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Property Wrappers in Swift</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --prop-color: #0284c7; --prop-soft: #e0f2fe;
+  --wrap-color: #7c3aed; --wrap-soft: #ede9fe;
+  --proj-color: #059669; --proj-soft: #d1fae5;
+  --clamp-color: #d97706; --clamp-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --prop-color: #38bdf8; --prop-soft: #082f49;
+  --wrap-color: #a78bfa; --wrap-soft: #2e1065;
+  --proj-color: #34d399; --proj-soft: #064e3b;
+  --clamp-color: #fbbf24; --clamp-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--prop-soft); color: var(--prop-color); }
+.p-right .kind { background: var(--wrap-soft); color: var(--wrap-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-prop { stroke: var(--prop-color); stroke-width: 2.5; fill: var(--prop-soft); }
+.node-box.active-wrap { stroke: var(--wrap-color); stroke-width: 2.5; fill: var(--wrap-soft); }
+.node-box.active-proj { stroke: var(--proj-color); stroke-width: 2.5; fill: var(--proj-soft); }
+.node-box.active-clamp { stroke: var(--clamp-color); stroke-width: 2.5; fill: var(--clamp-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--prop-color); color: var(--prop-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+  <div class="interactive-view">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span>Surface Property</span> <span class="kind">Call Site</span></h3>
+        <svg viewBox="0 0 320 220" aria-label="Surface property diagram">
+          <!-- Property Call Site Box -->
+          <rect id="propBox" x="20" y="25" width="280" height="75" rx="8" class="node-box active-prop" />
+          <text id="propDecl" x="40" y="52" font-family="Lexend" font-size="13" font-weight="600" fill="currentColor">@Clamped var brightness: Int</text>
+          <text id="propAccess" x="40" y="74" font-family="JetBrains Mono" font-size="11" fill="var(--prop-color)">screen.brightness</text>
+
+          <!-- Projected Call Site Box -->
+          <rect id="projBox" x="20" y="120" width="280" height="75" rx="8" class="node-box" />
+          <text id="projDecl" x="40" y="148" font-family="Lexend" font-size="13" font-weight="600" fill="currentColor">Projected Property ($)</text>
+          <text id="projAccess" x="40" y="170" font-family="JetBrains Mono" font-size="11" fill="var(--muted)">screen.$brightness</text>
+        </svg>
+        <div class="code" id="leftCode">@Clamped(0...100) var brightness: Int = 50</div>
+        <p class="caption" id="leftCaption">Declaration applies the property wrapper attribute to manage storage.</p>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span>Backing Storage</span> <span class="kind">_brightness</span></h3>
+        <svg viewBox="0 0 320 220" aria-label="Backing storage diagram">
+          <!-- Backing Wrapper Box -->
+          <rect id="wrapBox" x="20" y="25" width="280" height="170" rx="8" class="node-box active-wrap" />
+          <text x="40" y="52" font-family="Lexend" font-size="13" font-weight="600" fill="currentColor">private var _brightness: Clamped</text>
+          
+          <!-- wrappedValue block -->
+          <rect id="wrappedValBox" x="40" y="68" width="240" height="42" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+          <text id="wrappedValTitle" x="55" y="86" font-family="JetBrains Mono" font-size="11" fill="currentColor">wrappedValue: Int</text>
+          <text id="wrappedValText" x="55" y="100" font-family="JetBrains Mono" font-size="10" fill="var(--wrap-color)">value = 50</text>
+
+          <!-- projectedValue block -->
+          <rect id="projectedValBox" x="40" y="122" width="240" height="42" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+          <text id="projectedValTitle" x="55" y="140" font-family="JetBrains Mono" font-size="11" fill="currentColor">projectedValue: Bool</text>
+          <text id="projectedValText" x="55" y="154" font-family="JetBrains Mono" font-size="10" fill="var(--muted)">isClamped = false</text>
+        </svg>
+        <div class="code" id="rightCode">// Compiler synthesizes:
+private var _brightness = Clamped(wrappedValue: 50, range: 0...100)</div>
+        <p class="caption" id="rightCaption">The compiler synthesizes a private backing instance prefixed with an underscore.</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+      <div class="btn-group">
+        <button id="btnBack" disabled aria-label="Previous step">Back</button>
+        <button id="btnNext" aria-label="Next step">Next</button>
+        <button id="btnReplay" aria-label="Replay animation">Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="static-summary" role="region" aria-label="Summary of Property Wrappers">
+    <h3>Summary: Property Wrappers</h3>
+    <ul>
+      <li><strong>Step 1: Compiler Synthesis</strong> — Applying <code>@Clamped</code> creates a private backing storage instance named <code>_brightness</code>.</li>
+      <li><strong>Step 2: wrappedValue Access</strong> — Reading or writing <code>brightness</code> forwards directly to <code>_brightness.wrappedValue</code>.</li>
+      <li><strong>Step 3: Validation and Clamping</strong> — Writing <code>brightness = 150</code> triggers custom setter logic, clamping the value to 100.</li>
+      <li><strong>Step 4: projectedValue ($)</strong> — Prefixing with a dollar sign (<code>$brightness</code>) accesses <code>_brightness.projectedValue</code> to expose helper state or bindings.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    leftCode: "@Clamped(0...100) var brightness: Int = 50",
+    leftCaption: "Declaring a wrapped property creates backing storage.",
+    rightCode: "private var _brightness = Clamped(\n    wrappedValue: 50, range: 0...100\n)",
+    rightCaption: "Compiler synthesizes the _brightness instance.",
+    propAccess: "brightness (declared)",
+    projAccess: "$brightness (declared)",
+    wrappedValText: "value = 50",
+    projectedValText: "isClamped = false",
+    activeBoxes: ["propBox", "wrapBox"]
+  },
+  {
+    step: 2,
+    leftCode: "print(screen.brightness) // 50",
+    leftCaption: "Reading brightness forwards directly to _brightness.wrappedValue.",
+    rightCode: "var brightness: Int {\n    get { _brightness.wrappedValue }\n}",
+    rightCaption: "Standard property access returns the stored wrappedValue.",
+    propAccess: "get -> _brightness.wrappedValue (50)",
+    projAccess: "$brightness (idle)",
+    wrappedValText: "value = 50",
+    projectedValText: "isClamped = false",
+    activeBoxes: ["propBox", "wrappedValBox"]
+  },
+  {
+    step: 3,
+    leftCode: "screen.brightness = 150 // Clamped!",
+    leftCaption: "Setter runs custom validation logic to clamp the value.",
+    rightCode: "set {\n    _brightness.wrappedValue = min(newValue, 100)\n}",
+    rightCaption: "Value is clamped to 100 before storing in _brightness.",
+    propAccess: "set(150) -> clamped to 100",
+    projAccess: "$brightness (updated)",
+    wrappedValText: "value = 100 (clamped)",
+    projectedValText: "isClamped = true",
+    activeBoxes: ["propBox", "wrappedValBox", "wrapBox"]
+  },
+  {
+    step: 4,
+    leftCode: "print(screen.$brightness) // true",
+    leftCaption: "Dollar sign ($) accesses projectedValue on the wrapper.",
+    rightCode: "var $brightness: Bool {\n    get { _brightness.projectedValue }\n}",
+    rightCaption: "Projected value provides auxiliary information (e.g. boundary reached).",
+    propAccess: "brightness = 100",
+    projAccess: "get -> _brightness.projectedValue (true)",
+    wrappedValText: "value = 100",
+    projectedValText: "isClamped = true ($)",
+    activeBoxes: ["projBox", "projectedValBox"]
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+
+  document.getElementById("propAccess").textContent = s.propAccess;
+  document.getElementById("projAccess").textContent = s.projAccess;
+  document.getElementById("wrappedValText").textContent = s.wrappedValText;
+  document.getElementById("projectedValText").textContent = s.projectedValText;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.querySelectorAll(".node-box").forEach(el => {
+    el.classList.remove("active-prop", "active-wrap", "active-proj", "active-clamp");
+  });
+
+  if (idx === 0) {
+    document.getElementById("propBox").classList.add("active-prop");
+    document.getElementById("wrapBox").classList.add("active-wrap");
+  } else if (idx === 1) {
+    document.getElementById("propBox").classList.add("active-prop");
+    document.getElementById("wrapBox").classList.add("active-wrap");
+  } else if (idx === 2) {
+    document.getElementById("propBox").classList.add("active-clamp");
+    document.getElementById("wrapBox").classList.add("active-clamp");
+  } else if (idx === 3) {
+    document.getElementById("projBox").classList.add("active-proj");
+    document.getElementById("wrapBox").classList.add("active-proj");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>

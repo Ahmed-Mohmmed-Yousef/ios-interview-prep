@@ -1,0 +1,214 @@
+export const meta = {
+  id: "property-wrappers",
+  summary: "Encapsulate property storage and access patterns using Swift property wrappers and projected values.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Properties", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/properties", kind: "official" },
+    { title: "The Swift Programming Language: Attributes", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/attributes", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How does SwiftUI allow views to access both a state value and its two-way binding using the dollar sign syntax?</Question>
+  <Guess>
+    <Option id="a">By evaluating dynamic JavaScript runtime bindings in the web view.</Option>
+    <Option id="b" correct>By implementing a property wrapper with both a wrappedValue and a projectedValue.</Option>
+    <Option id="c">By forcing the view to inherit from an Objective-C KVO proxy class.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a security badge holder. The badge inside holds your employee card. When you show your badge, people see your photo. But the plastic holder also has a clip on the back for a lanyard. A property wrapper works like that holder: it protects your data and adds extra features to it.
+</Analogy>
+
+In Swift, a **property wrapper** is a layer of code that manages how a property is stored and accessed. You write the storage logic once in a wrapper type. Then you can apply that wrapper to any property with an attribute like `@Clamped`.
+
+Every property wrapper must declare a **`wrappedValue`** property. When you read or write the wrapped property, Swift forwards the call to `wrappedValue`.
+
+Behind the scenes, the compiler synthesizes a private backing instance. If your property is named `score`, the compiler creates `_score` to hold the wrapper instance.
+
+A property wrapper can also declare an optional **`projectedValue`**. You access the projected value by adding a dollar sign (`$`) before the property name.
+
+In SwiftUI, `@State` uses `wrappedValue` to give you the data, and uses `projectedValue` to give you a `Binding` via the dollar sign.
+
+## See it
+
+<Diagram id="property-wrappers-main" caption="How property wrappers translate property access, backing storage, and projected values">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. User Code: @Clamped(max: 100) var volume = 50.
+    2. Backing Storage: _volume of type Clamped<Int>.
+    3. Wrapped Value: volume forwarding to _volume.wrappedValue (clamping inputs).
+    4. Projected Value: $volume forwarding to _volume.projectedValue (returning isClamped bool).
+  - Steps:
+    Step 1: Declaration creates private _property backing wrapper instance.
+    Step 2: Normal property access reads and writes _property.wrappedValue.
+    Step 3: Wrapper logic clamps or validates data before storing.
+    Step 4: Dollar sign ($) access retrieves _property.projectedValue.
+  - Static version (reduced motion):
+    Diagram showing user variable branching into _storage, wrappedValue access, and $projectedValue access.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What property must every property wrapper implement?</Question>
+  <Option id="a">projectedValue</Option>
+  <Option id="b" correct>wrappedValue</Option>
+  <Option id="c">initialValue</Option>
+  <Explanation>Every property wrapper must implement wrappedValue. projectedValue is optional.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Custom property wrapper with validation logic">
+
+```swift
+import Foundation
+
+@propertyWrapper
+struct Capitalized {
+    private var text: String = ""
+    
+    var wrappedValue: String {
+        get { text }
+        set { text = newValue.capitalized }
+    }
+    
+    init(wrappedValue: String) {
+        self.wrappedValue = wrappedValue
+    }
+}
+
+struct UserProfile {
+    @Capitalized var firstName: String
+    @Capitalized var lastName: String
+}
+
+var profile = UserProfile(firstName: "taylor", lastName: "swift")
+print("Full name: \(profile.firstName) \(profile.lastName)")
+
+profile.firstName = "jordan"
+print("Updated first name: \(profile.firstName)")
+```
+
+```output
+Full name: Taylor Swift
+Updated first name: Jordan
+```
+
+</CodeExample>
+
+This example shows how property wrappers encapsulate validation:
+- **`@Capitalized`**: The wrapper automatically formats incoming strings to capitalized form.
+- **Synthesized storage**: Swift creates `_firstName` and `_lastName` behind the scenes to manage the strings.
+
+<CodeExample title="Exposing auxiliary features using projectedValue and dollar sign">
+
+```swift
+@propertyWrapper
+struct ClampedInt {
+    private var number: Int
+    let min: Int
+    let max: Int
+    
+    // Optional projected value exposes whether clamping occurred
+    var projectedValue: Bool {
+        return number == min || number == max
+    }
+    
+    var wrappedValue: Int {
+        get { number }
+        set {
+            if newValue < min { number = min }
+            else if newValue > max { number = max }
+            else { number = newValue }
+        }
+    }
+    
+    init(wrappedValue: Int, min: Int, max: Int) {
+        self.min = min
+        self.max = max
+        self.number = Swift.min(Swift.max(wrappedValue, min), max)
+    }
+}
+
+struct Settings {
+    @ClampedInt(min: 0, max: 100) var brightness: Int = 50
+}
+
+var screen = Settings()
+print("Default brightness: \(screen.brightness)")
+
+screen.brightness = 150 // Clamped to 100
+print("Clamped brightness: \(screen.brightness)")
+print("Is at limit ($brightness): \(screen.$brightness)")
+```
+
+```output
+Default brightness: 50
+Clamped brightness: 100
+Is at limit ($brightness): true
+```
+
+</CodeExample>
+
+This example highlights the role of projected values:
+- **`screen.brightness`**: Accesses `wrappedValue`, returning the clamped integer `100`.
+- **`screen.$brightness`**: Accesses `projectedValue`, returning `true` to signal that the value reached a boundary.
+
+<QuickCheck>
+  <Question>How do you access the projectedValue of a property named 'count'?</Question>
+  <Option id="a" correct>By writing $count with a dollar sign prefix.</Option>
+  <Option id="b">By writing count.projected.</Option>
+  <Option id="c">By writing count$ with a dollar sign suffix.</Option>
+  <Explanation>In Swift, prefixing a wrapped property with a dollar sign ($count) accesses its projectedValue.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Experiment with custom property wrappers in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Using property wrappers on global variables or computed properties">
+You cannot apply property wrappers to global variables, local top-level script variables, or computed properties. Property wrappers require stored backing properties inside a type declaration.
+</Trap>
+
+<Trap title="Confusing the underscore prefix with standard private properties">
+When you declare `@State var count = 0`, the compiler creates `_count`. Accessing `count` calls the wrapped value, while accessing `_count` gives you the wrapper struct itself. Do not name other properties with underscores to avoid compiler naming conflicts.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+A property wrapper in Swift is a type marked with @propertyWrapper that manages how a property is stored and accessed. It must have a wrappedValue property. It can also have an optional projectedValue accessed using a dollar sign prefix.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Property wrappers encapsulate reusable property logic, like validation or persistence. The compiler synthesizes a private backing property with an underscore prefix, such as _score. Reading the property accesses wrappedValue. Property wrappers can also define a projectedValue, which is accessed using the dollar sign prefix. This is how SwiftUI provides bindings from @State properties.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Property wrappers allow declarative property behavior through compiler synthesis. They replace repetitive getter and setter boilerplate. By defining init(wrappedValue:), wrappers support inline initial values. Projected values allow types to project auxiliary capabilities, such as SwiftUI projecting Binding from State. Architecturally, we use them for user defaults, clamping, and dependency injection, while watching out for thread safety and memory footprint in value types.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Property wrappers encapsulate reusable property storage and access logic.
+- Defined with the `@propertyWrapper` attribute on a struct, class, or enum.
+- Every property wrapper must implement `wrappedValue`.
+- The compiler synthesizes a private backing property prefixed with an underscore (`_name`).
+- Optional `projectedValue` is accessed using the dollar sign (`$name`).
+- SwiftUI relies heavily on property wrappers, including `@State`, `@Binding`, and `@AppStorage`.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Properties](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/properties)
+- [The Swift Programming Language: Attributes](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/attributes)

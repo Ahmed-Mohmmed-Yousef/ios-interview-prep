@@ -156,15 +156,15 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (5 of 53 published: 44 main + 9 bonus)
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (6 of 53 published: 5 main + 1 bonus)
   - 🔄 **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)**
     - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
     - ✅ **generics-associated-types** (Generics: Associated Types and Where Clauses) — published (lesson, diagram, 31 questions) → [docs/topics/generics-associated-types/review.html](docs/topics/generics-associated-types/review.html)
     - ✅ **opaque-and-boxed-types** (Opaque and Boxed Types: some vs any) — published (lesson, diagram, 31 questions) → [docs/topics/opaque-and-boxed-types/review.html](docs/topics/opaque-and-boxed-types/review.html)
     - ✅ **copy-on-write** (Copy-on-Write and Value Semantics) — published (lesson, diagram, 31 questions) → [docs/topics/copy-on-write/review.html](docs/topics/copy-on-write/review.html)
     - ✅ **key-paths** (Key Paths) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/key-paths/review.html](docs/topics/key-paths/review.html)
-    - 🔄 **property-wrappers** (Property Wrappers) — starting research
-    - ⬜ **result-builders** (Result Builders) [bonus]
+    - ✅ **property-wrappers** (Property Wrappers) — published (lesson, diagram, 31 questions) → [docs/topics/property-wrappers/review.html](docs/topics/property-wrappers/review.html)
+    - 🔄 **result-builders** (Result Builders) [bonus] — starting research
   - ⬜ **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)**
   - ⬜ **Batch 3C: Memory Profiling & Swift Concurrency (8 topics: 1 memory + 7 concurrency)**
   - ⬜ **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)**
@@ -321,6 +321,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic property-wrappers (Property Wrappers): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/property-wrappers/review.html`). All checks passed. Starting result-builders.
 
 - **2026-11-09** — Built and published topic key-paths (Key Paths) [bonus]: researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/key-paths/review.html`). All checks passed. Starting property-wrappers.
 
