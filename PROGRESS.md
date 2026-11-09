@@ -134,8 +134,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **observable-object** (ObservableObject and @StateObject) — published (lesson, diagram, 31 questions) → [docs/topics/observable-object/review.html](docs/topics/observable-object/review.html)
     - ✅ **forms-and-input** (Forms and User Input) — published (lesson, diagram, 31 questions) → [docs/topics/forms-and-input/review.html](docs/topics/forms-and-input/review.html)
     - ✅ **sheets-alerts-dialogs** (Sheets, Alerts and Dialogs) — published (lesson, diagram, 31 questions) → [docs/topics/sheets-alerts-dialogs/review.html](docs/topics/sheets-alerts-dialogs/review.html)
-    - 🔄 **uiviews-and-view-controllers** (Views and View Controllers) — starting research
-    - ⬜ **view-controller-lifecycle** (View Controller Lifecycle)
+    - ✅ **uiviews-and-view-controllers** (Views and View Controllers) — published (lesson, diagram, 31 questions) → [docs/topics/uiviews-and-view-controllers/review.html](docs/topics/uiviews-and-view-controllers/review.html)
+    - 🔄 **view-controller-lifecycle** (View Controller Lifecycle) — starting research
     - ⬜ **auto-layout** (Auto Layout)
     - ⬜ **uikit-navigation** (Navigation in UIKit)
     - ⬜ **table-collection-views** (Table and Collection Views)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic uiviews-and-view-controllers (Views and View Controllers): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/uiviews-and-view-controllers/review.html`). All checks passed. Starting view-controller-lifecycle.
 
 - **2026-11-09** — Built and published topic sheets-alerts-dialogs (Sheets, Alerts and Dialogs): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/sheets-alerts-dialogs/review.html`). All checks passed. Starting uiviews-and-view-controllers.
 

@@ -1,0 +1,220 @@
+export const meta = {
+  id: "uiviews-and-view-controllers",
+  summary: "Understand the core building blocks of UIKit screens using UIView and UIViewController.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "UIView (UIKit)", url: "https://developer.apple.com/documentation/uikit/uiview", kind: "official" },
+    { title: "UIViewController (UIKit)", url: "https://developer.apple.com/documentation/uikit/uiviewcontroller", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is the key difference between `frame` and `bounds` on a `UIView`?</Question>
+  <Guess>
+    <Option id="a">Frame is measured in pixels while bounds is measured in points.</Option>
+    <Option id="b" correct>Frame describes position in superview space, while bounds describes position in its own space.</Option>
+    <Option id="c">Frame applies only to labels, while bounds applies only to images.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a framed painting hanging in an art gallery.
+
+The **frame** describes where the painting hangs on the gallery wall. It records the position relative to the room.
+
+The **bounds** describes the dimensions of the canvas itself. The canvas starts at point zero on its own surface.
+
+The **gallery curator** is the view controller. The curator decides when to hang the painting and organizes the room.
+</Analogy>
+
+In UIKit, screen interfaces are built with views and view controllers.
+
+A `UIView` draws content on the screen. It also handles touch events and manages subviews.
+
+A `UIViewController` manages a hierarchy of views. It coordinates screen updates and responds to user actions.
+
+1. **`UIView`**:
+   - Manages a rectangular area on the device screen.
+   - Organizes elements in a tree with `superview` and `subviews`.
+   - Persists in memory as a mutable reference class.
+2. **`UIViewController`**:
+   - Owns a root view accessible through the `view` property.
+   - Loads the view lazily when first accessed.
+   - Manages containment hierarchies and system events.
+
+## See it
+
+<Diagram id="uiview-and-viewcontroller-diagram" caption="The Relationship Between UIViewController, Root UIView, and Subview Trees in UIKit">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. UIViewController container box with view property pointer.
+    2. Root UIView with bounds (0, 0, 390, 844).
+    3. Child views (header label, button, image view) with frames relative to root.
+    4. Coordinate overlay showing frame (superview) vs bounds (own space).
+  - Steps:
+    Step 1: UIViewController initialized without loading its root view.
+    Step 2: Lazy loading triggers loadView() and viewDidLoad() to attach root UIView.
+    Step 3: Subviews added with distinct frames inside the root view coordinate space.
+    Step 4: Frame versus bounds comparison highlighting local coordinates and superview offsets.
+  - Static version (reduced motion):
+    A 4-step diagram showing controller ownership, lazy loading, and coordinate system mapping.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>When does a view controller load its root `view` into memory?</Question>
+  <Option id="a">Immediately when the class initializer `init` executes.</Option>
+  <Option id="b" correct>Lazily when the `view` property is first accessed or displayed.</Option>
+  <Option id="c">Only after the user rotates the device screen.</Option>
+  <Explanation>UIKit loads the root view lazily when the view property is first accessed in code or presented.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is how a view controller constructs and arranges views in code.
+
+Subviews are added to the root view hierarchy and positioned using frames.
+
+<CodeExample title="Constructing views and comparing frame with bounds">
+
+```swift
+import UIKit
+
+let superview = UIView(frame: CGRect(x: 0, y: 0, width: 300, height: 400))
+let childView = UIView(frame: CGRect(x: 20, y: 50, width: 100, height: 60))
+
+superview.addSubview(childView)
+
+print("Child frame origin: \(childView.frame.origin.x), \(childView.frame.origin.y)")
+print("Child bounds origin: \(childView.bounds.origin.x), \(childView.bounds.origin.y)")
+print("Subviews count: \(superview.subviews.count)")
+```
+
+```output
+Child frame origin: 20.0, 50.0
+Child bounds origin: 0.0, 0.0
+Subviews count: 1
+```
+
+</CodeExample>
+
+Notice that the child frame origin is at `(20, 50)` within the superview.
+
+Its bounds origin remains `(0, 0)` within its own local canvas.
+
+Next, observe how a parent view controller manages child view controller containment.
+
+<CodeExample title="Child view controller containment">
+
+```swift
+import UIKit
+
+class ParentViewController: UIViewController {
+    var loadedChildren: [String] = []
+
+    func embed(child: UIViewController, named: String) {
+        addChild(child)
+        view.addSubview(child.view)
+        child.didMove(toParent: self)
+        loadedChildren.append(named)
+    }
+}
+
+let parentVC = ParentViewController()
+let childVC = UIViewController()
+
+parentVC.embed(child: childVC, named: "ProfileHeader")
+print("Children count: \(parentVC.children.count)")
+print("Loaded: \(parentVC.loadedChildren.first ?? "none")")
+```
+
+```output
+Children count: 1
+Loaded: ProfileHeader
+```
+
+</CodeExample>
+
+Following the three-step containment sequence ensures lifecycle events pass correctly to child controllers.
+
+<QuickCheck>
+  <Question>What is the first step when adding a child view controller to a parent in UIKit?</Question>
+  <Option id="a">Call `child.view.removeFromSuperview()`.</Option>
+  <Option id="b" correct>Call `addChild(child)` on the parent controller.</Option>
+  <Option id="c">Call `child.didMove(toParent: nil)`.</Option>
+  <Explanation>The parent controller must first call `addChild(child)` before inserting its view.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Accessing view too early inside init">
+Do not access `self.view` inside the view controller initializer.
+
+Reading `self.view` forces UIKit to load the entire view hierarchy before dependencies are ready.
+
+Wait until `viewDidLoad` to configure views and subview properties.
+</Trap>
+
+<Trap title="Confusing frame and bounds with rotation">
+When you apply a rotation transform to a view, its `frame` changes size to fit the bounding box.
+
+Never use `frame` to measure transformed views.
+
+Use `bounds` for width and height, and use `center` for positioning.
+</Trap>
+
+<Trap title="Calling super.loadView() with custom views">
+When overriding `loadView` to assign a custom root view, do not call `super.loadView()`.
+
+Calling super creates an unnecessary default blank view.
+
+Assign your custom view directly to `self.view`.
+</Trap>
+
+<Trap title="Skipping child containment steps">
+Only calling `view.addSubview(childVC.view)` breaks view controller containment.
+
+The child controller will not receive appearance callbacks or rotation events.
+
+Always call `addChild`, `view.addSubview`, and `child.didMove(toParent: self)`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"In UIKit, `UIView` draws rectangular elements and handles user taps. `UIViewController` manages the screen lifecycle and controls the root view. We add child views with `addSubview` and configure them in `viewDidLoad`."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"`UIView` handles drawing, touches, and subview layout. `UIViewController` coordinates business logic, lifecycle events, and screen transitions. The key difference between `frame` and `bounds` is that frame uses the superview coordinate space, while bounds uses its own local space starting at zero."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"UIKit follows an imperative MVC design. `UIView` wraps a `CALayer` for GPU rendering, while `UIViewController` participates in the responder chain and manages containment. For robust architectures, we keep view controllers thin by separating custom layout into dedicated `UIView` subclasses and using coordinators for screen navigation."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `UIView` is a mutable class that draws screen content and handles touches.
+- `UIViewController` manages a view hierarchy and responds to lifecycle events.
+- The `view` property loads lazily when accessed or displayed.
+- `frame` is relative to the superview, while `bounds` is in local coordinates.
+- Containment requires calling `addChild`, adding the subview, and calling `didMove(toParent:)`.
+- Avoid accessing `self.view` during `init` to prevent premature view loading.
+</Recap>
+
+## Go deeper
+
+- [UIView (UIKit)](https://developer.apple.com/documentation/uikit/uiview) — Official Apple documentation for views.
+- [UIViewController (UIKit)](https://developer.apple.com/documentation/uikit/uiviewcontroller) — Official guide for view controllers.
+- [Creating a Custom Container View Controller](https://developer.apple.com/documentation/uikit/view_controllers/creating_a_custom_container_view_controller) — Apple guide for parent-child controllers.

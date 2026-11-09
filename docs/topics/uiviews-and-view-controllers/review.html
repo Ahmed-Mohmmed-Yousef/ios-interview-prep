@@ -1,0 +1,588 @@
+<title>Views and View Controllers Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --vc-color: #7c3aed; --vc-soft: #f5f3ff;
+  --view-color: #0284c7; --view-soft: #e0f2fe;
+  --frame-color: #ea580c; --frame-soft: #ffedd5;
+  --bounds-color: #16a34a; --bounds-soft: #dcfce7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --vc-color: #a78bfa; --vc-soft: #2e1065;
+  --view-color: #38bdf8; --view-soft: #082f49;
+  --frame-color: #fb923c; --frame-soft: #431407;
+  --bounds-color: #4ade80; --bounds-soft: #052e16;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.vc { background: var(--vc-soft); color: var(--vc-color); }
+.kind.view { background: var(--view-soft); color: var(--view-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--vc-color); color: #ffffff; border-color: var(--vc-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--vc-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · UIKit · Topic 1 of 5 · Prototype</p>
+    <h1>Views and View Controllers</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can build a screen with UIView and UIViewController.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">What is the key difference between <code>frame</code> and <code>bounds</code> on a <code>UIView</code>?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Frame is measured in pixels while bounds is measured in points.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Frame describes position in superview space, while bounds describes position in its own space.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Frame applies only to labels, while bounds applies only to images.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a framed painting hanging in an art gallery.</p><p>The <strong>frame</strong> describes where the painting hangs on the gallery wall. It records the position relative to the room.</p><p>The <strong>bounds</strong> describes the dimensions of the canvas itself. The canvas starts at point zero on its own surface.</p><p>The <strong>gallery curator</strong> is the view controller. The curator decides when to hang the painting and organizes the room.</p></aside>
+<p>In UIKit, screen interfaces are built with views and view controllers.</p>
+<p>A <code>UIView</code> draws content on the screen. It also handles touch events and manages subviews.</p>
+<p>A <code>UIViewController</code> manages a hierarchy of views. It coordinates screen updates and responds to user actions.</p>
+<ol>
+<li><strong><code>UIView</code></strong>:
+<ul>
+<li>Manages a rectangular area on the device screen.</li>
+<li>Organizes elements in a tree with <code>superview</code> and <code>subviews</code>.</li>
+<li>Persists in memory as a mutable reference class.</li>
+</ul>
+</li>
+<li><strong><code>UIViewController</code></strong>:
+<ul>
+<li>Owns a root view accessible through the <code>view</code> property.</li>
+<li>Loads the view lazily when first accessed.</li>
+<li>Manages containment hierarchies and system events.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">When does a view controller load its root <code>view</code> into memory?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Immediately when the class initializer <code>init</code> executes.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Lazily when the <code>view</code> property is first accessed or displayed.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Only after the user rotates the device screen.</span></button><p class="qc-explain" hidden="">UIKit loads the root view lazily when the view property is first accessed in code or presented.</p></div>
+<h2>In code</h2>
+<p>Here is how a view controller constructs and arranges views in code.</p>
+<p>Subviews are added to the root view hierarchy and positioned using frames.</p>
+<figure class="code-example"><figcaption>Constructing views and comparing frame with bounds</figcaption><pre class="block swift"><code class="language-swift">import UIKit
+
+let superview = UIView(frame: CGRect(x: 0, y: 0, width: 300, height: 400))
+let childView = UIView(frame: CGRect(x: 20, y: 50, width: 100, height: 60))
+
+superview.addSubview(childView)
+
+print(&quot;Child frame origin: \(childView.frame.origin.x), \(childView.frame.origin.y)&quot;)
+print(&quot;Child bounds origin: \(childView.bounds.origin.x), \(childView.bounds.origin.y)&quot;)
+print(&quot;Subviews count: \(superview.subviews.count)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Child frame origin: 20.0, 50.0
+Child bounds origin: 0.0, 0.0
+Subviews count: 1
+</code></pre></figure>
+<p>Notice that the child frame origin is at <code>(20, 50)</code> within the superview.</p>
+<p>Its bounds origin remains <code>(0, 0)</code> within its own local canvas.</p>
+<p>Next, observe how a parent view controller manages child view controller containment.</p>
+<figure class="code-example"><figcaption>Child view controller containment</figcaption><pre class="block swift"><code class="language-swift">import UIKit
+
+class ParentViewController: UIViewController {
+    var loadedChildren: [String] = []
+
+    func embed(child: UIViewController, named: String) {
+        addChild(child)
+        view.addSubview(child.view)
+        child.didMove(toParent: self)
+        loadedChildren.append(named)
+    }
+}
+
+let parentVC = ParentViewController()
+let childVC = UIViewController()
+
+parentVC.embed(child: childVC, named: &quot;ProfileHeader&quot;)
+print(&quot;Children count: \(parentVC.children.count)&quot;)
+print(&quot;Loaded: \(parentVC.loadedChildren.first ?? &quot;none&quot;)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Children count: 1
+Loaded: ProfileHeader
+</code></pre></figure>
+<p>Following the three-step containment sequence ensures lifecycle events pass correctly to child controllers.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What is the first step when adding a child view controller to a parent in UIKit?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Call <code>child.view.removeFromSuperview()</code>.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Call <code>addChild(child)</code> on the parent controller.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Call <code>child.didMove(toParent: nil)</code>.</span></button><p class="qc-explain" hidden="">The parent controller must first call <code>addChild(child)</code> before inserting its view.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Accessing view too early inside init</p><p>Do not access <code>self.view</code> inside the view controller initializer.</p><p>Reading <code>self.view</code> forces UIKit to load the entire view hierarchy before dependencies are ready.</p><p>Wait until <code>viewDidLoad</code> to configure views and subview properties.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing frame and bounds with rotation</p><p>When you apply a rotation transform to a view, its <code>frame</code> changes size to fit the bounding box.</p><p>Never use <code>frame</code> to measure transformed views.</p><p>Use <code>bounds</code> for width and height, and use <code>center</code> for positioning.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Calling super.loadView() with custom views</p><p>When overriding <code>loadView</code> to assign a custom root view, do not call <code>super.loadView()</code>.</p><p>Calling super creates an unnecessary default blank view.</p><p>Assign your custom view directly to <code>self.view</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Skipping child containment steps</p><p>Only calling <code>view.addSubview(childVC.view)</code> breaks view controller containment.</p><p>The child controller will not receive appearance callbacks or rotation events.</p><p>Always call <code>addChild</code>, <code>view.addSubview</code>, and <code>child.didMove(toParent: self)</code>.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;In UIKit, <code>UIView</code> draws rectangular elements and handles user taps. <code>UIViewController</code> manages the screen lifecycle and controls the root view. We add child views with <code>addSubview</code> and configure them in <code>viewDidLoad</code>.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;<code>UIView</code> handles drawing, touches, and subview layout. <code>UIViewController</code> coordinates business logic, lifecycle events, and screen transitions. The key difference between <code>frame</code> and <code>bounds</code> is that frame uses the superview coordinate space, while bounds uses its own local space starting at zero.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;UIKit follows an imperative MVC design. <code>UIView</code> wraps a <code>CALayer</code> for GPU rendering, while <code>UIViewController</code> participates in the responder chain and manages containment. For robust architectures, we keep view controllers thin by separating custom layout into dedicated <code>UIView</code> subclasses and using coordinators for screen navigation.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>UIView</code> is a mutable class that draws screen content and handles touches.</li>
+<li><code>UIViewController</code> manages a view hierarchy and responds to lifecycle events.</li>
+<li>The <code>view</code> property loads lazily when accessed or displayed.</li>
+<li><code>frame</code> is relative to the superview, while <code>bounds</code> is in local coordinates.</li>
+<li>Containment requires calling <code>addChild</code>, adding the subview, and calling <code>didMove(toParent:)</code>.</li>
+<li>Avoid accessing <code>self.view</code> during <code>init</code> to prevent premature view loading.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/uikit/uiview">UIView (UIKit)</a> — Official Apple documentation for views.</li>
+<li><a href="https://developer.apple.com/documentation/uikit/uiviewcontroller">UIViewController (UIKit)</a> — Official guide for view controllers.</li>
+<li><a href="https://developer.apple.com/documentation/uikit/view_controllers/creating_a_custom_container_view_controller">Creating a Custom Container View Controller</a> — Apple guide for parent-child controllers.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    badge: 'Controller Init',
+    badgeClass: 'kind vc',
+    viewCode: 'let vc = ProfileViewController()\n// view is not created yet',
+    archCode: '// Lazy loading check:\nvc.isViewLoaded // returns false',
+    viewCap: 'Step 1: UIViewController is created. The root view is not loaded yet.',
+    archCap: 'UIKit defers view creation until the view is actually needed on screen.',
+    rootStatus: 'Unloaded (nil)',
+    hookText: 'init(nibName:bundle:)',
+    coordText: 'None (no view allocated)',
+    overlaySvg: `
+      <!-- Controller Indicator Box -->
+      <rect x="65" y="60" width="150" height="100" rx="10" fill="var(--surface)" stroke="var(--vc-color)" stroke-width="2"/>
+      <text x="140" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="var(--vc-color)">UIViewController</text>
+      <text x="140" y="112" text-anchor="middle" font-size="11" fill="var(--muted)">var view: UIView!</text>
+      <text x="140" y="132" text-anchor="middle" font-size="10" font-weight="600" fill="#dc2626">isViewLoaded = false</text>
+    `
+  },
+  {
+    step: 2,
+    badge: 'Lazy Loading',
+    badgeClass: 'kind view',
+    viewCode: 'window.rootViewController = vc\n// Triggers loadView() -> viewDidLoad()',
+    archCode: 'override func viewDidLoad() {\n  super.viewDidLoad()\n  view.backgroundColor = .systemBackground\n}',
+    viewCap: 'Step 2: Accessing vc.view triggers loadView() and then viewDidLoad().',
+    archCap: 'The root UIView is instantiated and sized to fill the screen window.',
+    rootStatus: 'Loaded in Memory',
+    hookText: 'loadView() -> viewDidLoad()',
+    coordText: 'Root Bounds: (0, 0, 180, 180)',
+    overlaySvg: `
+      <!-- Root UIView Screen Layer -->
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--view-soft)" stroke="var(--view-color)" stroke-width="2"/>
+      <text x="140" y="50" text-anchor="middle" font-size="12" font-weight="700" fill="var(--view-color)">Root UIView</text>
+      <text x="140" y="70" text-anchor="middle" font-size="10" fill="var(--muted)">bounds: (0, 0, 390, 844)</text>
+      <rect x="70" y="90" width="140" height="80" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="125" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor">viewDidLoad() executed</text>
+      <text x="140" y="145" text-anchor="middle" font-size="10" fill="var(--muted)">Configure UI elements here</text>
+    `
+  },
+  {
+    step: 3,
+    badge: 'Subview Tree',
+    badgeClass: 'kind vc',
+    viewCode: 'let card = UIView(frame: CGRect(x: 20, y: 40, w: 140, h: 90))\nview.addSubview(card)',
+    archCode: '// View Hierarchy:\nview.subviews.count // 1\ncard.superview === view // true',
+    viewCap: 'Step 3: Subviews are added to the hierarchy using view.addSubview(child).',
+    archCap: 'Each child view retains a reference to its superview and its own subviews.',
+    rootStatus: 'Active with 1 subview',
+    hookText: 'viewWillAppear() / viewDidAppear()',
+    coordText: 'Child Frame: (20, 40, 140, 90)',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--view-soft)" stroke="var(--view-color)" stroke-width="1.5"/>
+      <text x="140" y="42" text-anchor="middle" font-size="10" font-weight="600" fill="var(--view-color)">Root UIView (Superview)</text>
+      <!-- Subview Card -->
+      <rect x="70" y="55" width="140" height="90" rx="8" fill="var(--surface)" stroke="var(--vc-color)" stroke-width="2"/>
+      <text x="140" y="80" text-anchor="middle" font-size="11" font-weight="700" fill="var(--vc-color)">Child Subview</text>
+      <rect x="85" y="95" width="110" height="20" rx="4" fill="var(--code-bg)"/>
+      <text x="140" y="109" text-anchor="middle" font-size="9" fill="var(--muted)">UILabel & UIButton</text>
+      <text x="140" y="132" text-anchor="middle" font-size="9" fill="var(--muted)">superview = root</text>
+    `
+  },
+  {
+    step: 4,
+    badge: 'Frame vs Bounds',
+    badgeClass: 'kind view',
+    viewCode: '// Subview Coordinate Spaces:\nchild.frame  // (x: 20, y: 55, w: 140, h: 90)\nchild.bounds // (x: 0,  y: 0,  w: 140, h: 90)',
+    archCode: '// Rule of Thumb:\n// frame: Where am I in my parent?\n// bounds: How big am I inside myself?',
+    viewCap: 'Step 4: Frame specifies position in superview space; bounds in local space.',
+    archCap: 'Bounds origin starts at (0, 0); frame origin locates the child inside the parent.',
+    rootStatus: 'Coordinate Space Analysis',
+    hookText: 'viewDidLayoutSubviews()',
+    coordText: 'Frame: superview space | Bounds: local space',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--view-soft)" stroke="var(--view-color)" stroke-width="1"/>
+      <!-- Frame arrow indicators -->
+      <line x1="52" y1="55" x2="70" y2="55" stroke="var(--frame-color)" stroke-width="2"/>
+      <text x="61" y="50" font-size="8" font-weight="700" fill="var(--frame-color)">x=20</text>
+      <line x1="70" y1="22" x2="70" y2="55" stroke="var(--frame-color)" stroke-width="2"/>
+      <text x="74" y="38" font-size="8" font-weight="700" fill="var(--frame-color)">y=33</text>
+
+      <!-- Child Box with Bounds Highlight -->
+      <rect x="70" y="55" width="140" height="90" rx="8" fill="var(--surface)" stroke="var(--bounds-color)" stroke-width="2.5"/>
+      <text x="140" y="80" text-anchor="middle" font-size="11" font-weight="700" fill="var(--bounds-color)">bounds: (0, 0, 140, 90)</text>
+      <text x="140" y="105" text-anchor="middle" font-size="10" font-weight="600" fill="var(--frame-color)">frame: (20, 33, 140, 90)</text>
+      <text x="140" y="130" text-anchor="middle" font-size="9" fill="var(--muted)">center: (90, 78)</text>
+    `
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('viewCode').textContent = s.viewCode;
+  document.getElementById('archCode').textContent = s.archCode;
+  document.getElementById('viewCaption').textContent = s.viewCap;
+  document.getElementById('archCaption').textContent = s.archCap;
+  document.getElementById('vcBadge').textContent = s.badge;
+  document.getElementById('vcBadge').setAttribute('class', s.badgeClass);
+
+  document.getElementById('rootStatus').textContent = s.rootStatus;
+  document.getElementById('hookText').textContent = s.hookText;
+  document.getElementById('coordText').textContent = s.coordText;
+
+  document.getElementById('visualOverlayG').innerHTML = s.overlaySvg;
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"uiviews-and-view-controllers","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"uiviews-and-view-controllers-q1","type":"mcq","difficulty":1,"prompt":"Which coordinate space does the `frame` property of a `UIView` describe?","options":[{"id":"a","text":"The coordinate space of its immediate superview.","explanation":"Right. Frame positions and sizes a view relative to its superview."},{"id":"b","text":"The local coordinate space of its own inner canvas.","explanation":"Local coordinate space is described by bounds, not frame."},{"id":"c","text":"The global screen bounds of the active device display.","explanation":"Frame is relative to the superview, not the device window."},{"id":"d","text":"The pixel density matrix of the rendering GPU hardware.","explanation":"Frame uses point coordinates, not GPU hardware matrices."}],"answer":"a"},{"id":"uiviews-and-view-controllers-q2","type":"mcq","difficulty":1,"prompt":"What is the typical default origin of the `bounds` rectangle for a standard `UIView`?","options":[{"id":"a","text":"The center point of the application window.","explanation":"Bounds origin starts in its own local coordinates, not the window."},{"id":"b","text":"The point (x: 0, y: 0) within its own local coordinate space.","explanation":"Right. Bounds origin is (0, 0) in its own coordinates unless scrolled."},{"id":"c","text":"The top leading offset inherited from the superview.","explanation":"Superview offsets determine the frame origin, not bounds."},{"id":"d","text":"The current safe area margin inset of the parent device.","explanation":"Safe area margins do not alter the default bounds origin."}],"answer":"b"},{"id":"uiviews-and-view-controllers-q3","type":"mcq","difficulty":1,"prompt":"When does a `UIViewController` load its root `view` into memory?","options":[{"id":"a","text":"Immediately when the application finishes launching on the device.","explanation":"Controllers created later do not load views at app launch."},{"id":"b","text":"Directly inside the controller designated initializer `init`.","explanation":"Root views are not loaded during initialization unless requested."},{"id":"c","text":"Lazily when the `view` property is first accessed or presented.","explanation":"Right. UIKit loads the view hierarchy on demand when first accessed."},{"id":"d","text":"Only when the device screen changes from portrait to landscape.","explanation":"Rotation events adjust layout after the view is already loaded."}],"answer":"c"},{"id":"uiviews-and-view-controllers-q4","type":"mcq","difficulty":2,"prompt":"Which method should you override to construct a custom programmatic root view in UIKit?","options":[{"id":"a","text":"The `viewWillAppear(_:)` appearance transition method.","explanation":"ViewWillAppear is called every time a view is about to appear on screen."},{"id":"b","text":"The `updateViewConstraints()` layout calculation method.","explanation":"This method updates Auto Layout constraints, not view creation."},{"id":"c","text":"The `viewDidLayoutSubviews()` geometry adjustment callback.","explanation":"ViewDidLayoutSubviews runs after subviews have been positioned."},{"id":"d","text":"The `loadView()` method, assigning a custom view directly to `self.view`.","explanation":"Right. Overriding loadView allows setting a custom root view."}],"answer":"d"},{"id":"uiviews-and-view-controllers-q5","type":"mcq","difficulty":2,"prompt":"Why is accessing `self.view` inside a view controller initializer an anti-pattern?","options":[{"id":"a","text":"It forces early view loading before dependencies or models are injected.","explanation":"Right. Accessing self.view triggers loadView before setup finishes."},{"id":"b","text":"It terminates the application with a memory corruption fatal error.","explanation":"It does not crash; it loads views too early in the lifecycle."},{"id":"c","text":"It prevents the view controller from receiving touch gesture events.","explanation":"Touch handling continues normally once the view appears."},{"id":"d","text":"It forces the compiler to reject the file during static analysis.","explanation":"Accessing self.view in init compiles cleanly but causes bugs."}],"answer":"a"},{"id":"uiviews-and-view-controllers-q6","type":"mcq","difficulty":2,"prompt":"What happens to the `frame` of a view when a 45-degree rotation transform is applied?","options":[{"id":"a","text":"The frame remains unchanged because transforms only affect pixels.","explanation":"Transforms modify view geometry and the enclosing bounding box."},{"id":"b","text":"The frame expands to fit the non-rotated bounding box of the view.","explanation":"Right. Frame becomes the smallest enclosing upright rectangle."},{"id":"c","text":"The frame automatically resets both width and height to zero.","explanation":"The view does not collapse to zero dimensions when rotated."},{"id":"d","text":"The frame throws a runtime exception warning about invalid geometry.","explanation":"Transforms are valid operations and do not throw exceptions."}],"answer":"b"},{"id":"uiviews-and-view-controllers-q7","type":"mcq","difficulty":2,"prompt":"Which sequence correctly embeds a child view controller into a parent in UIKit?","options":[{"id":"a","text":"Call `view.addSubview` then immediately call `removeFromParent()`.","explanation":"RemoveFromParent is used to detach child controllers, not embed them."},{"id":"b","text":"Call `child.viewWillAppear(true)` followed by `parent.loadView()`.","explanation":"Do not call lifecycle methods like viewWillAppear directly in code."},{"id":"c","text":"Call `addChild(child)`, add subview, then call `child.didMove(toParent: self)`.","explanation":"Right. This 3-step sequence ensures proper containment notifications."},{"id":"d","text":"Call `present(child, animated: true)` inside a navigation stack.","explanation":"Present displays a modal screen rather than embedding a child."}],"answer":"c"},{"id":"uiviews-and-view-controllers-q8","type":"mcq","difficulty":1,"prompt":"Which method removes a child view from its parent view hierarchy in UIKit?","options":[{"id":"a","text":"Call `parent.deleteSubview(child)` on the root view.","explanation":"DeleteSubview does not exist in standard UIKit."},{"id":"b","text":"Call `child.dismiss(animated: false)` on the child.","explanation":"Dismiss is for modal view controllers, not view hierarchy removal."},{"id":"c","text":"Call `parent.remove(child)` from the collection stack.","explanation":"Views are removed by calling removeFromSuperview on the child."},{"id":"d","text":"Call `child.removeFromSuperview()` on the target view.","explanation":"Right. RemoveFromSuperview detaches a view from its superview."}],"answer":"d"},{"id":"uiviews-and-view-controllers-q9","type":"mcq","difficulty":1,"prompt":"How does `UIView` memory management differ from SwiftUI `View`?","options":[{"id":"a","text":"UIView is a mutable reference class instance that persists in memory.","explanation":"Right. UIKit views are persistent objects managed by reference counting."},{"id":"b","text":"UIView is an immutable value struct recreated on every state change.","explanation":"SwiftUI views are immutable structs, while UIViews are classes."},{"id":"c","text":"UIView is stored exclusively on the thread call stack as raw bytes.","explanation":"Class instances in Swift and Objective-C are allocated on the heap."},{"id":"d","text":"UIView does not participate in Automatic Reference Counting.","explanation":"UIViews are standard ARC objects inheriting from NSObject."}],"answer":"a"},{"id":"uiviews-and-view-controllers-q10","type":"mcq","difficulty":1,"prompt":"Which property specifies the midpoint of a view frame in superview coordinates?","options":[{"id":"a","text":"The `origin` property inside the bounds rectangle.","explanation":"Origin specifies the top-left corner point, not the midpoint."},{"id":"b","text":"The `center` property of the `UIView` instance.","explanation":"Right. Center gives the midpoint of the frame in superview coordinates."},{"id":"c","text":"The `anchorPoint` property on the root window.","explanation":"AnchorPoint is a CALayer property normalized between 0.0 and 1.0."},{"id":"d","text":"The `contentOffset` property on the scroll view.","explanation":"ContentOffset tracks scrolling distance inside a UIScrollView."}],"answer":"b"},{"id":"uiviews-and-view-controllers-q11","type":"mcq","difficulty":2,"prompt":"Why should you avoid calling `super.loadView()` when assigning a custom root view?","options":[{"id":"a","text":"It triggers a fatal assertion crash inside the UIKit render server.","explanation":"It does not crash; it just performs an unnecessary view allocation."},{"id":"b","text":"It locks the screen orientation to upside down portrait mode.","explanation":"Orientation handling is unrelated to loadView super implementation."},{"id":"c","text":"It unnecessarily allocates a blank default UIView before you replace it.","explanation":"Right. Super.loadView creates an unused default blank view."},{"id":"d","text":"It causes all child subviews to lose their gesture recognizers.","explanation":"Gesture recognizers are attached directly to subviews in viewDidLoad."}],"answer":"c"},{"id":"uiviews-and-view-controllers-q12","type":"mcq","difficulty":1,"prompt":"Which array property holds all direct child views contained inside a `UIView`?","options":[{"id":"a","text":"The `childElements` property from Foundation.","explanation":"ChildElements is not a valid property on UIView."},{"id":"b","text":"The `contentList` property from AppKit frameworks.","explanation":"ContentList is not a standard UIKit view property."},{"id":"c","text":"The `layerHierarchy` property on Core Animation.","explanation":"Layers hold sublayers, whereas views hold subviews."},{"id":"d","text":"The `subviews` property containing an array of views.","explanation":"Right. Subviews returns an array of direct child views."}],"answer":"d"},{"id":"uiviews-and-view-controllers-q13","type":"mcq","difficulty":1,"prompt":"What is the primary role of `UIViewController` in a UIKit application?","options":[{"id":"a","text":"To manage a view hierarchy, handle lifecycle, and coordinate screen updates.","explanation":"Right. Controllers manage view lifecycles and screen interactions."},{"id":"b","text":"To encode data models into JSON strings for network requests.","explanation":"Data serialization is handled by models and Codable parsers."},{"id":"c","text":"To render bitmap textures directly on the GPU canvas.","explanation":"GPU graphics rendering is performed by Metal and Core Animation."},{"id":"d","text":"To compile Swift code into executable machine binaries.","explanation":"Code compilation is handled by the Swift compiler toolchain."}],"answer":"a"},{"id":"uiviews-and-view-controllers-q14","type":"mcq","difficulty":1,"prompt":"Which method is called immediately after a controller root view is loaded into memory?","options":[{"id":"a","text":"The `viewWillDisappear(_:)` transition callback.","explanation":"ViewWillDisappear runs when the view is about to leave the screen."},{"id":"b","text":"The `viewDidLoad()` lifecycle callback method.","explanation":"Right. ViewDidLoad runs once after the view hierarchy is loaded."},{"id":"c","text":"The `viewDidAppear(_:)` presentation notification.","explanation":"ViewDidAppear runs after the view is visible on the screen."},{"id":"d","text":"The `viewWillLayoutSubviews()` geometry pass.","explanation":"This method runs during Auto Layout geometry calculation passes."}],"answer":"b"},{"id":"uiviews-and-view-controllers-q15","type":"mcq","difficulty":2,"prompt":"What issue happens when embedding a child controller view with only `view.addSubview`?","options":[{"id":"a","text":"The application immediately crashes with an invalid frame exception.","explanation":"Adding a subview is valid and does not cause a crash directly."},{"id":"b","text":"The child view is hidden behind the status bar permanently.","explanation":"Subview visibility depends on frame and layout constraints."},{"id":"c","text":"The child view controller misses lifecycle and appearance events.","explanation":"Right. Without addChild, lifecycle callbacks are not forwarded."},{"id":"d","text":"The operating system terminates all running background tasks.","explanation":"Background task management is handled by UIApplication."}],"answer":"c"},{"id":"uiviews-and-view-controllers-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking the child frame origin?","code":"import UIKit\n\nlet container = UIView(frame: CGRect(x: 0, y: 0, width: 200, height: 200))\nlet box = UIView(frame: CGRect(x: 10, y: 25, width: 80, height: 40))\ncontainer.addSubview(box)\nprint(\"Frame origin: \\(box.frame.origin.x), \\(box.frame.origin.y)\")","options":[{"id":"a","text":"Frame origin: 0.0, 0.0","explanation":"Bounds origin is (0, 0), but the frame was set with origin (10, 25)."},{"id":"b","text":"Frame origin: 80.0, 40.0","explanation":"80 and 40 are the width and height, not the origin coordinates."},{"id":"c","text":"Frame origin: 200.0, 200.0","explanation":"200 and 200 are the dimensions of the parent container view."},{"id":"d","text":"Frame origin: 10.0, 25.0","explanation":"Right. The child frame origin is at (10.0, 25.0) in the superview."}],"answer":"d"},{"id":"uiviews-and-view-controllers-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when inspecting the view bounds origin?","code":"import UIKit\n\nlet viewA = UIView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))\nprint(\"Bounds origin: \\(viewA.bounds.origin.x), \\(viewA.bounds.origin.y)\")","options":[{"id":"a","text":"Bounds origin: 0.0, 0.0","explanation":"Right. Default bounds origin for a new UIView is (0.0, 0.0)."},{"id":"b","text":"Bounds origin: 100.0, 100.0","explanation":"100.0 is the width and height, not the bounds origin."},{"id":"c","text":"Bounds origin: 50.0, 50.0","explanation":"50.0 is the midpoint, not the bounds origin."},{"id":"d","text":"Bounds origin: -100.0, -100.0","explanation":"Bounds origin starts at zero for non-scrolling views."}],"answer":"a"},{"id":"uiviews-and-view-controllers-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print after removing one child view?","code":"import UIKit\n\nlet parent = UIView(frame: CGRect(x: 0, y: 0, width: 300, height: 300))\nlet child1 = UIView()\nlet child2 = UIView()\nparent.addSubview(child1)\nparent.addSubview(child2)\nchild1.removeFromSuperview()\nprint(\"Subviews count: \\(parent.subviews.count)\")","options":[{"id":"a","text":"Subviews count: 0","explanation":"Only child1 was removed, so child2 remains in parent."},{"id":"b","text":"Subviews count: 1","explanation":"Right. Two views were added and one was removed, leaving 1."},{"id":"c","text":"Subviews count: 2","explanation":"Child1 was removed from the hierarchy, so count drops to 1."},{"id":"d","text":"Subviews count: 3","explanation":"Only two views were added originally."}],"answer":"b"},{"id":"uiviews-and-view-controllers-q19","type":"code-reading","difficulty":2,"prompt":"What are the midX and midY values computed from this rectangle?","code":"import UIKit\n\nlet rect = CGRect(x: 10, y: 20, width: 100, height: 60)\nlet midX = rect.midX\nlet midY = rect.midY\nprint(\"Center: \\(midX), \\(midY)\")","options":[{"id":"a","text":"Center: 50.0, 30.0","explanation":"Half width is 50, but adding origin x: 10 gives 60."},{"id":"b","text":"Center: 10.0, 20.0","explanation":"10.0 and 20.0 are the origin points, not the midpoints."},{"id":"c","text":"Center: 60.0, 50.0","explanation":"Right. midX is 10 + 50 = 60, and midY is 20 + 30 = 50."},{"id":"d","text":"Center: 100.0, 60.0","explanation":"100.0 and 60.0 are the width and height dimensions."}],"answer":"c"},{"id":"uiviews-and-view-controllers-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when checking the superview reference equality?","code":"import UIKit\n\nlet base = UIView(frame: CGRect(x: 0, y: 0, width: 150, height: 80))\nlet sub = UIView()\nbase.addSubview(sub)\nlet isSame = sub.superview === base\nprint(\"Is same superview: \\(isSame)\")","options":[{"id":"a","text":"Is same superview: false","explanation":"Base is indeed the superview of sub after addSubview is called."},{"id":"b","text":"Is same superview: nil","explanation":"The identity comparison === returns a boolean value."},{"id":"c","text":"Is same superview: Optional(true)","explanation":"The comparison result is a plain Bool, not an optional."},{"id":"d","text":"Is same superview: true","explanation":"Right. Calling addSubview sets sub.superview to point to base."}],"answer":"d"},{"id":"uiviews-and-view-controllers-q21","type":"code-reading","difficulty":2,"prompt":"What does this custom container print after embedding a child controller?","code":"import UIKit\n\nclass TestContainer: UIViewController {\n    var stepCount = 0\n    func add(child: UIViewController) {\n        addChild(child)\n        view.addSubview(child.view)\n        child.didMove(toParent: self)\n        stepCount = children.count\n    }\n}\nlet cont = TestContainer()\nlet cVC = UIViewController()\ncont.add(child: cVC)\nprint(\"Children: \\(cont.stepCount)\")","options":[{"id":"a","text":"Children: 1","explanation":"Right. AddChild adds the controller to children, making count 1."},{"id":"b","text":"Children: 0","explanation":"AddChild successfully registers the child in the parent."},{"id":"c","text":"Children: 2","explanation":"Only one child controller was embedded."},{"id":"d","text":"Children: nil","explanation":"Children is a non-optional array property."}],"answer":"a"},{"id":"uiviews-and-view-controllers-q22","type":"code-reading","difficulty":1,"prompt":"What does this code print when assigning an integer tag to a view?","code":"import UIKit\n\nlet v = UIView()\nv.tag = 101\nprint(\"Tag: \\(v.tag)\")","options":[{"id":"a","text":"Tag: 0","explanation":"Default tag is 0, but it was assigned 101."},{"id":"b","text":"Tag: 101","explanation":"Right. The tag property stores the assigned integer 101."},{"id":"c","text":"Tag: view_101","explanation":"Tag is an Int in UIKit, not a string."},{"id":"d","text":"Tag: nil","explanation":"The tag property is a non-optional Int."}],"answer":"b"},{"id":"uiviews-and-view-controllers-q23","type":"code-reading","difficulty":1,"prompt":"What is the printed value of `isHidden` after setting it to true?","code":"import UIKit\n\nlet v1 = UIView(frame: CGRect(x: 0, y: 0, width: 50, height: 50))\nv1.isHidden = true\nprint(\"Is hidden: \\(v1.isHidden)\")","options":[{"id":"a","text":"Is hidden: false","explanation":"The property was explicitly assigned true."},{"id":"b","text":"Is hidden: nil","explanation":"IsHidden is a non-optional Boolean property."},{"id":"c","text":"Is hidden: true","explanation":"Right. Setting isHidden to true updates the visibility state."},{"id":"d","text":"Is hidden: 1","explanation":"Swift prints boolean values as true or false, not numbers."}],"answer":"c"},{"id":"uiviews-and-view-controllers-q24","type":"written","difficulty":2,"prompt":"Explain the difference between `frame` and `bounds` on a `UIView`.","modelAnswer":"`frame` describes the position and size of a view in its superview's coordinate system. It is used to position the view relative to its parent. `bounds` describes the position and size of a view in its own local coordinate system. Its origin is usually (0, 0). When a view is rotated with a transform, frame expands to fit the outer bounding box, while bounds preserves the true width and height.","rubric":[{"id":"frame-coordinates","criterion":"Explains frame is relative to superview coordinate space for positioning.","weight":50,"key":true},{"id":"bounds-coordinates","criterion":"Explains bounds is in local coordinate space with default origin (0, 0).","weight":50,"key":true}]},{"id":"uiviews-and-view-controllers-q25","type":"written","difficulty":2,"prompt":"Describe lazy view loading in `UIViewController` and explain why reading `self.view` inside `init` is problematic.","modelAnswer":"In UIKit, a view controller loads its view lazily. The view is not created when `init` executes. It is created only when `self.view` is first accessed or when the controller is presented on screen. Reading `self.view` inside `init` forces UIKit to load the entire view hierarchy before dependencies or model data are ready. This can cause blank UI states or layout bugs.","rubric":[{"id":"lazy-loading-definition","criterion":"Defines lazy view loading as creating views only on first access or presentation.","weight":50,"key":true},{"id":"init-anti-pattern","criterion":"Explains reading self.view in init forces premature loading before dependencies are set.","weight":50,"key":true}]},{"id":"uiviews-and-view-controllers-q26","type":"written","difficulty":2,"prompt":"What is the purpose of overriding `loadView()` in a view controller, and why should you not call `super.loadView()` when setting a custom view?","modelAnswer":"`loadView()` is the lifecycle method responsible for instantiating the root view hierarchy in code. When you build interfaces programmatically without storyboards, you override `loadView()` to assign a custom view directly to `self.view`. You should not call `super.loadView()` because the default implementation allocates an unneeded blank `UIView` before you replace it.","rubric":[{"id":"loadview-purpose","criterion":"Explains loadView instantiates the root view hierarchy for programmatic view controllers.","weight":50,"key":true},{"id":"no-super-call","criterion":"Explains calling super.loadView() allocates an unnecessary default blank UIView.","weight":50,"key":true}]},{"id":"uiviews-and-view-controllers-q27","type":"written","difficulty":2,"prompt":"Explain the three steps required for child view controller containment in UIKit and why each step is necessary.","modelAnswer":"The three steps are: 1. `addChild(child)` notifies UIKit that the child is joining the parent hierarchy. 2. `view.addSubview(child.view)` attaches the child view into the visual view tree. 3. `child.didMove(toParent: self)` informs the child that transition is complete. These steps are necessary so that appearance events like `viewWillAppear` and rotation callbacks forward correctly to the child.","rubric":[{"id":"containment-steps","criterion":"Lists addChild, addSubview, and didMove(toParent:) in correct sequence.","weight":50,"key":true},{"id":"containment-reason","criterion":"Explains the steps make sure lifecycle, appearance, and trait events are forwarded to the child.","weight":50,"key":true}]},{"id":"uiviews-and-view-controllers-q28","type":"written","difficulty":2,"prompt":"Compare UIKit `UIView` with SwiftUI `View` in terms of memory semantics and lifecycle.","modelAnswer":"`UIView` is a mutable class instance that persists in memory on the heap and manages its own state and subviews. It is referenced through pointers and released via ARC. In contrast, SwiftUI `View` is an immutable struct that represents a lightweight recipe for the UI. SwiftUI recreates view structs frequently during state changes and diffs them against the internal render graph.","rubric":[{"id":"uiview-class-reference","criterion":"Describes UIView as a persistent mutable reference class instance managed by ARC.","weight":50,"key":true},{"id":"swiftui-struct-value","criterion":"Describes SwiftUI View as a lightweight immutable struct recreated on state changes.","weight":50,"key":true}]},{"id":"uiviews-and-view-controllers-q29","type":"code-write","difficulty":2,"prompt":"Create a subclass `ContainerVC: UIViewController` with a method `@MainActor func embed(child: UIViewController)` that executes the 3 containment steps: `addChild`, `view.addSubview`, and `child.didMove(toParent: self)`.","starterCode":"import UIKit\n\n// Define ContainerVC subclass with embed method\n","modelAnswer":"import UIKit\n\nclass ContainerVC: UIViewController {\n    @MainActor\n    func embed(child: UIViewController) {\n        addChild(child)\n        view.addSubview(child.view)\n        child.didMove(toParent: self)\n    }\n}\n\nlet root = ContainerVC()\nlet child = UIViewController()\nroot.embed(child: child)\nprint(\"Embedded children: \\(root.children.count)\")","rubric":[{"id":"class-subclass","criterion":"Declares ContainerVC inheriting from UIViewController.","weight":40,"key":true},{"id":"embed-steps","criterion":"Implements embed calling addChild, view.addSubview, and child.didMove(toParent: self).","weight":60,"key":true}]},{"id":"uiviews-and-view-controllers-q30","type":"code-write","difficulty":2,"prompt":"Create a function `@MainActor func centerOf(view: UIView) -> CGPoint` that returns the midpoint of the view using `view.bounds.midX` and `view.bounds.midY`.","starterCode":"import UIKit\n\n// Implement centerOf(view:) function\n","modelAnswer":"import UIKit\n\n@MainActor\nfunc centerOf(view: UIView) -> CGPoint {\n    return CGPoint(x: view.bounds.midX, y: view.bounds.midY)\n}\n\nlet sampleView = UIView(frame: CGRect(x: 50, y: 50, width: 200, height: 100))\nlet centerPoint = centerOf(view: sampleView)\nprint(\"Center: \\(centerPoint.x), \\(centerPoint.y)\")","rubric":[{"id":"function-signature","criterion":"Declares @MainActor func centerOf(view: UIView) returning CGPoint.","weight":50,"key":true},{"id":"midpoint-calculation","criterion":"Returns CGPoint created from view.bounds.midX and view.bounds.midY.","weight":50,"key":true}]},{"id":"uiviews-and-view-controllers-q31","type":"code-write","difficulty":2,"prompt":"Create a struct `SubviewManager` with a stored property `subviewCount: Int` and a method `@MainActor mutating func addViews(to parent: UIView, count: Int)` that adds `count` new `UIView()` instances to `parent` and updates `subviewCount`.","starterCode":"import UIKit\n\n// Implement SubviewManager struct\n","modelAnswer":"import UIKit\n\nstruct SubviewManager {\n    var subviewCount: Int = 0\n\n    @MainActor\n    mutating func addViews(to parent: UIView, count: Int) {\n        for _ in 0..\u003ccount {\n            let child = UIView()\n            parent.addSubview(child)\n        }\n        subviewCount = parent.subviews.count\n    }\n}\n\nlet mainView = UIView()\nvar manager = SubviewManager()\nmanager.addViews(to: mainView, count: 3)\nprint(\"Count: \\(manager.subviewCount)\")","rubric":[{"id":"struct-declaration","criterion":"Declares SubviewManager with stored property subviewCount: Int.","weight":40,"key":true},{"id":"addviews-method","criterion":"Implements mutating addViews adding count subviews and setting subviewCount.","weight":60,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

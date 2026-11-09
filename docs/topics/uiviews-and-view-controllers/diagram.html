@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UIKit Views and View Controllers: Lifecycle & Hierarchy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --vc-color: #7c3aed; --vc-soft: #f5f3ff;
+  --view-color: #0284c7; --view-soft: #e0f2fe;
+  --frame-color: #ea580c; --frame-soft: #ffedd5;
+  --bounds-color: #16a34a; --bounds-soft: #dcfce7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --vc-color: #a78bfa; --vc-soft: #2e1065;
+  --view-color: #38bdf8; --view-soft: #082f49;
+  --frame-color: #fb923c; --frame-soft: #431407;
+  --bounds-color: #4ade80; --bounds-soft: #052e16;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.vc { background: var(--vc-soft); color: var(--vc-color); }
+.kind.view { background: var(--view-soft); color: var(--view-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--vc-color); color: #ffffff; border-color: var(--vc-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--vc-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="UIKit Views and View Controllers Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span>View Hierarchy</span> <span class="kind vc" id="vcBadge">Step 1</span></h3>
+      <div class="code" id="viewCode">let vc = ProfileViewController()</div>
+      <svg viewBox="0 0 280 220" aria-hidden="true">
+        <!-- Device Outer Frame -->
+        <rect class="device-frame" x="40" y="10" width="200" height="200"/>
+        <!-- Screen Content Area -->
+        <rect class="base-screen" x="50" y="20" width="180" height="180" rx="10"/>
+
+        <!-- Dynamic Visual Layers -->
+        <g id="visualOverlayG"></g>
+      </svg>
+      <p class="caption" id="viewCaption" aria-live="polite">Step 1: UIViewController initialized. Root view is not yet loaded in memory.</p>
+    </div>
+
+    <div class="panel">
+      <h3><span>UIKit Architecture</span> <span class="kind view" id="archBadge">Lifecycle</span></h3>
+      <div class="code" id="archCode">// Memory State:
+isViewLoaded == false</div>
+      <div style="font-size: 13px; display: grid; gap: 8px; padding-top: 6px;">
+        <div><strong>Root View Status:</strong> <span id="rootStatus">Unloaded (nil)</span></div>
+        <div><strong>Active Lifecycle Hook:</strong> <code id="hookText" style="font-family: var(--font-code);">init(coder:) / init(nibName:)</code></div>
+        <div><strong>Coordinate Space:</strong> <span id="coordText">None</span></div>
+      </div>
+      <p class="caption" id="archCaption" aria-live="polite">UIViewController separates business logic and lifecycle from screen rendering.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    badge: 'Controller Init',
+    badgeClass: 'kind vc',
+    viewCode: 'let vc = ProfileViewController()\n// view is not created yet',
+    archCode: '// Lazy loading check:\nvc.isViewLoaded // returns false',
+    viewCap: 'Step 1: UIViewController is created. The root view is not loaded yet.',
+    archCap: 'UIKit defers view creation until the view is actually needed on screen.',
+    rootStatus: 'Unloaded (nil)',
+    hookText: 'init(nibName:bundle:)',
+    coordText: 'None (no view allocated)',
+    overlaySvg: `
+      <!-- Controller Indicator Box -->
+      <rect x="65" y="60" width="150" height="100" rx="10" fill="var(--surface)" stroke="var(--vc-color)" stroke-width="2"/>
+      <text x="140" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="var(--vc-color)">UIViewController</text>
+      <text x="140" y="112" text-anchor="middle" font-size="11" fill="var(--muted)">var view: UIView!</text>
+      <text x="140" y="132" text-anchor="middle" font-size="10" font-weight="600" fill="#dc2626">isViewLoaded = false</text>
+    `
+  },
+  {
+    step: 2,
+    badge: 'Lazy Loading',
+    badgeClass: 'kind view',
+    viewCode: 'window.rootViewController = vc\n// Triggers loadView() -> viewDidLoad()',
+    archCode: 'override func viewDidLoad() {\n  super.viewDidLoad()\n  view.backgroundColor = .systemBackground\n}',
+    viewCap: 'Step 2: Accessing vc.view triggers loadView() and then viewDidLoad().',
+    archCap: 'The root UIView is instantiated and sized to fill the screen window.',
+    rootStatus: 'Loaded in Memory',
+    hookText: 'loadView() -> viewDidLoad()',
+    coordText: 'Root Bounds: (0, 0, 180, 180)',
+    overlaySvg: `
+      <!-- Root UIView Screen Layer -->
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--view-soft)" stroke="var(--view-color)" stroke-width="2"/>
+      <text x="140" y="50" text-anchor="middle" font-size="12" font-weight="700" fill="var(--view-color)">Root UIView</text>
+      <text x="140" y="70" text-anchor="middle" font-size="10" fill="var(--muted)">bounds: (0, 0, 390, 844)</text>
+      <rect x="70" y="90" width="140" height="80" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="125" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor">viewDidLoad() executed</text>
+      <text x="140" y="145" text-anchor="middle" font-size="10" fill="var(--muted)">Configure UI elements here</text>
+    `
+  },
+  {
+    step: 3,
+    badge: 'Subview Tree',
+    badgeClass: 'kind vc',
+    viewCode: 'let card = UIView(frame: CGRect(x: 20, y: 40, w: 140, h: 90))\nview.addSubview(card)',
+    archCode: '// View Hierarchy:\nview.subviews.count // 1\ncard.superview === view // true',
+    viewCap: 'Step 3: Subviews are added to the hierarchy using view.addSubview(child).',
+    archCap: 'Each child view retains a reference to its superview and its own subviews.',
+    rootStatus: 'Active with 1 subview',
+    hookText: 'viewWillAppear() / viewDidAppear()',
+    coordText: 'Child Frame: (20, 40, 140, 90)',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--view-soft)" stroke="var(--view-color)" stroke-width="1.5"/>
+      <text x="140" y="42" text-anchor="middle" font-size="10" font-weight="600" fill="var(--view-color)">Root UIView (Superview)</text>
+      <!-- Subview Card -->
+      <rect x="70" y="55" width="140" height="90" rx="8" fill="var(--surface)" stroke="var(--vc-color)" stroke-width="2"/>
+      <text x="140" y="80" text-anchor="middle" font-size="11" font-weight="700" fill="var(--vc-color)">Child Subview</text>
+      <rect x="85" y="95" width="110" height="20" rx="4" fill="var(--code-bg)"/>
+      <text x="140" y="109" text-anchor="middle" font-size="9" fill="var(--muted)">UILabel & UIButton</text>
+      <text x="140" y="132" text-anchor="middle" font-size="9" fill="var(--muted)">superview = root</text>
+    `
+  },
+  {
+    step: 4,
+    badge: 'Frame vs Bounds',
+    badgeClass: 'kind view',
+    viewCode: '// Subview Coordinate Spaces:\nchild.frame  // (x: 20, y: 55, w: 140, h: 90)\nchild.bounds // (x: 0,  y: 0,  w: 140, h: 90)',
+    archCode: '// Rule of Thumb:\n// frame: Where am I in my parent?\n// bounds: How big am I inside myself?',
+    viewCap: 'Step 4: Frame specifies position in superview space; bounds in local space.',
+    archCap: 'Bounds origin starts at (0, 0); frame origin locates the child inside the parent.',
+    rootStatus: 'Coordinate Space Analysis',
+    hookText: 'viewDidLayoutSubviews()',
+    coordText: 'Frame: superview space | Bounds: local space',
+    overlaySvg: `
+      <rect x="52" y="22" width="176" height="176" rx="8" fill="var(--view-soft)" stroke="var(--view-color)" stroke-width="1"/>
+      <!-- Frame arrow indicators -->
+      <line x1="52" y1="55" x2="70" y2="55" stroke="var(--frame-color)" stroke-width="2"/>
+      <text x="61" y="50" font-size="8" font-weight="700" fill="var(--frame-color)">x=20</text>
+      <line x1="70" y1="22" x2="70" y2="55" stroke="var(--frame-color)" stroke-width="2"/>
+      <text x="74" y="38" font-size="8" font-weight="700" fill="var(--frame-color)">y=33</text>
+
+      <!-- Child Box with Bounds Highlight -->
+      <rect x="70" y="55" width="140" height="90" rx="8" fill="var(--surface)" stroke="var(--bounds-color)" stroke-width="2.5"/>
+      <text x="140" y="80" text-anchor="middle" font-size="11" font-weight="700" fill="var(--bounds-color)">bounds: (0, 0, 140, 90)</text>
+      <text x="140" y="105" text-anchor="middle" font-size="10" font-weight="600" fill="var(--frame-color)">frame: (20, 33, 140, 90)</text>
+      <text x="140" y="130" text-anchor="middle" font-size="9" fill="var(--muted)">center: (90, 78)</text>
+    `
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('viewCode').textContent = s.viewCode;
+  document.getElementById('archCode').textContent = s.archCode;
+  document.getElementById('viewCaption').textContent = s.viewCap;
+  document.getElementById('archCaption').textContent = s.archCap;
+  document.getElementById('vcBadge').textContent = s.badge;
+  document.getElementById('vcBadge').setAttribute('class', s.badgeClass);
+
+  document.getElementById('rootStatus').textContent = s.rootStatus;
+  document.getElementById('hookText').textContent = s.hookText;
+  document.getElementById('coordText').textContent = s.coordText;
+
+  document.getElementById('visualOverlayG').innerHTML = s.overlaySvg;
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>
