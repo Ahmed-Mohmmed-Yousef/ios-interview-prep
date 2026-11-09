@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI @StateObject vs @ObservedObject Lifecycle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --state-color: #16a34a; --state-soft: #dcfce7;
+  --observed-color: #dc2626; --observed-soft: #fee2e2;
+  --parent-color: #0284c7; --parent-soft: #e0f2fe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --state-color: #4ade80; --state-soft: #14532d;
+  --observed-color: #f87171; --observed-soft: #450a0a;
+  --parent-color: #38bdf8; --parent-soft: #082f49;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.safe { background: var(--state-soft); color: var(--state-color); }
+.kind.trap { background: var(--observed-soft); color: var(--observed-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 8px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.safe { fill: var(--state-soft); stroke: var(--state-color); stroke-width: 2; }
+.box-rect.reset { fill: var(--observed-soft); stroke: var(--observed-color); stroke-width: 2.5; stroke-dasharray: 4 4; }
+.box-rect.idle { fill: var(--code-bg); stroke: var(--line); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--parent-color); color: #ffffff; border-color: var(--parent-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--parent-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .box-rect { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="SwiftUI StateObject vs ObservedObject Lifecycle">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span>Owned Instance</span> <span class="kind safe">@StateObject</span></h3>
+      <div class="code" id="stateCode">struct ChildA: View {
+  @StateObject var vm = ViewModel()
+}</div>
+      <svg viewBox="0 0 320 180" aria-hidden="true">
+        <rect id="stateBox" class="box-rect safe" x="20" y="20" width="280" height="140"/>
+        <text x="160" y="55" text-anchor="middle" font-weight="700" font-size="15" fill="currentColor">ViewModel Instance #1</text>
+        <rect class="box-rect" x="40" y="80" width="240" height="55" fill="var(--surface)"/>
+        <text x="60" y="102" font-size="12" fill="var(--muted)">Stored text:</text>
+        <text id="stateVal" x="60" y="124" font-weight="600" font-size="14" fill="currentColor">"" (empty)</text>
+      </svg>
+      <p class="caption" id="stateCaption" aria-live="polite">Step 1: Child A creates its view model with @StateObject. SwiftUI manages its memory.</p>
+    </div>
+
+    <div class="panel">
+      <h3><span>Inline Bug</span> <span class="kind trap">@ObservedObject</span></h3>
+      <div class="code" id="observedCode">struct ChildB: View {
+  @ObservedObject var vm = ViewModel() // TRAP
+}</div>
+      <svg viewBox="0 0 320 180" aria-hidden="true">
+        <rect id="observedBox" class="box-rect idle" x="20" y="20" width="280" height="140"/>
+        <text id="observedTitle" x="160" y="55" text-anchor="middle" font-weight="700" font-size="15" fill="currentColor">ViewModel Instance #1</text>
+        <rect class="box-rect" x="40" y="80" width="240" height="55" fill="var(--surface)"/>
+        <text x="60" y="102" font-size="12" fill="var(--muted)">Stored text:</text>
+        <text id="observedVal" x="60" y="124" font-weight="600" font-size="14" fill="currentColor">"" (empty)</text>
+      </svg>
+      <p class="caption" id="observedCaption" aria-live="polite">Child B initializes @ObservedObject inline. It has no lifecycle ownership.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    stateCode: 'struct ChildA: View {\n  @StateObject var vm = ViewModel()\n}',
+    observedCode: 'struct ChildB: View {\n  @ObservedObject var vm = ViewModel() // TRAP\n}',
+    stateCap: 'Step 1: Both views instantiate their view model with initial empty text.',
+    observedCap: 'Child B makes the mistake of using @ObservedObject for ownership.',
+    stateTitle: 'ViewModel Instance #1',
+    stateVal: '"" (empty)',
+    observedTitle: 'ViewModel Instance #1',
+    observedVal: '"" (empty)',
+    stateBoxClass: 'box-rect safe',
+    observedBoxClass: 'box-rect idle'
+  },
+  {
+    step: 2,
+    stateCode: 'vm.text = "Hello World"\n// User enters text into form',
+    observedCode: 'vm.text = "Hello World"\n// User enters text into form',
+    stateCap: 'Step 2: The user enters "Hello World" into both views. State is updated.',
+    observedCap: 'Both view models now store the user text "Hello World".',
+    stateTitle: 'ViewModel Instance #1',
+    stateVal: '"Hello World"',
+    observedTitle: 'ViewModel Instance #1',
+    observedVal: '"Hello World"',
+    stateBoxClass: 'box-rect safe',
+    observedBoxClass: 'box-rect safe'
+  },
+  {
+    step: 3,
+    stateCode: '// Parent View re-evaluates body!\n// e.g. parent timer or count changed',
+    observedCode: '// Parent View re-evaluates body!\n// Reconstructs ChildA and ChildB structs',
+    stateCap: 'Step 3: Parent view redraws. Child view structs are reconstructed in memory.',
+    observedCap: 'SwiftUI prepares to evaluate both child view bodies.',
+    stateTitle: 'ViewModel Instance #1',
+    stateVal: '"Hello World"',
+    observedTitle: 'Reconstruction in progress...',
+    observedVal: '"Hello World"',
+    stateBoxClass: 'box-rect safe',
+    observedBoxClass: 'box-rect idle'
+  },
+  {
+    step: 4,
+    stateCode: '// @StateObject preserves Instance #1\nText is intact!',
+    observedCode: '// vm = ViewModel() runs AGAIN!\nCreates Instance #2 -> State LOST!',
+    stateCap: 'Step 4: @StateObject retains Instance #1. "Hello World" is safely preserved.',
+    observedCap: 'Inline @ObservedObject creates Instance #2! User input was completely wiped out.',
+    stateTitle: 'ViewModel Instance #1 (Preserved)',
+    stateVal: '"Hello World" (Retained)',
+    observedTitle: 'ViewModel Instance #2 (Reset!)',
+    observedVal: '"" (Wiped out)',
+    stateBoxClass: 'box-rect safe',
+    observedBoxClass: 'box-rect reset'
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('stateCode').textContent = s.stateCode;
+  document.getElementById('observedCode').textContent = s.observedCode;
+  document.getElementById('stateCaption').textContent = s.stateCap;
+  document.getElementById('observedCaption').textContent = s.observedCap;
+  document.getElementById('stateVal').textContent = s.stateVal;
+  document.getElementById('observedVal').textContent = s.observedVal;
+  document.getElementById('observedTitle').textContent = s.observedTitle;
+
+  document.getElementById('stateBox').setAttribute('class', s.stateBoxClass);
+  document.getElementById('observedBox').setAttribute('class', s.observedBoxClass);
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+export const meta = {
+  id: "observable-object",
+  summary: "Use ObservableObject, @StateObject, and @ObservedObject to manage data flow in older SwiftUI code.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Migrating from the Observable Object protocol to the Observable macro (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/migrating-from-the-observable-object-protocol-to-the-observable-macro", kind: "official" },
+    { title: "ObservableObject (Combine)", url: "https://developer.apple.com/documentation/combine/observableobject", kind: "official" },
+    { title: "StateObject (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/stateobject", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What happens if you create a view model using `@ObservedObject var vm = ViewModel()` instead of `@StateObject`?</Question>
+  <Guess>
+    <Option id="a">The app crashes immediately because SwiftUI forbids inline initialization.</Option>
+    <Option id="b" correct>The model is recreated every time the parent view redraws, losing stored state.</Option>
+    <Option id="c">The model becomes read-only and ignores all property mutations.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of owning versus renting an apartment.
+
+When you **own** the apartment, you keep your furniture even when the building repaints the hallway.
+
+When you **rent a hotel room for one night**, the room is cleaned and reset every morning.
+
+`@StateObject` is like owning the apartment. SwiftUI creates the object once and keeps it alive.
+
+`@ObservedObject` is like a guest room. It does not own the object.
+
+If you create an object inside `@ObservedObject`, SwiftUI creates a new one every time the parent view redraws.
+</Analogy>
+
+Before iOS 17 introduced `@Observable`, SwiftUI used Combine to track data changes.
+
+You conform a class to the `ObservableObject` protocol.
+
+You mark properties that change with the `@Published` property wrapper.
+
+1. **`@StateObject` owns the object**:
+   - Use `@StateObject` where the object is created for the first time.
+   - SwiftUI keeps the instance alive across view redraws.
+2. **`@ObservedObject` receives an object**:
+   - Use `@ObservedObject` when a parent view passes an existing object down to a child view.
+   - The child view watches for changes, but does not own the lifecycle.
+3. **`objectWillChange` notifies views**:
+   - When any `@Published` property changes, `objectWillChange` sends a signal.
+   - All observing views redraw, even if they only read a different property.
+
+## See it
+
+<Diagram id="stateobject-vs-observedobject" caption="How @StateObject preserves model state across parent view redraws while @ObservedObject does not">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Parent View redrawing.
+    2. Child View with @StateObject retaining its instance.
+    3. Child View with inline @ObservedObject creating a brand-new instance.
+    4. State reset indicator showing data loss with @ObservedObject.
+  - Steps:
+    Step 1: Parent View displays Child View A (@StateObject) and Child View B (@ObservedObject).
+    Step 2: Both child view models store user input: text = "Hello".
+    Step 3: Parent View state changes and triggers a full body evaluation.
+    Step 4: Child View A preserves "Hello". Child View B reinitializes its model and resets to "".
+  - Static version (reduced motion):
+    A 4-step diagram contrasting persistent @StateObject lifecycle with transient @ObservedObject recreation.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which property wrapper should you use when a child view receives an existing `ObservableObject` from its parent?</Question>
+  <Option id="a">`@StateObject`</Option>
+  <Option id="b" correct>`@ObservedObject`</Option>
+  <Option id="c">`@Binding`</Option>
+  <Explanation>Use `@ObservedObject` to observe an object created and owned by an ancestor view.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is how you define a model class using `ObservableObject` and `@Published`.
+
+<CodeExample title="Defining an ObservableObject model">
+
+```swift
+import Combine
+
+class UserAccount: ObservableObject {
+    @Published var username: String
+    @Published var score: Int
+
+    init(username: String, score: Int) {
+        self.username = username
+        self.score = score
+    }
+}
+
+let account = UserAccount(username: "Sam", score: 10)
+print("User: \(account.username), Score: \(account.score)")
+account.score = 25
+print("Updated score: \(account.score)")
+```
+
+```output
+User: Sam, Score: 10
+Updated score: 25
+```
+
+</CodeExample>
+
+In this example, changing `score` notifies any subscriber through `objectWillChange`.
+
+You can also send change notifications manually using `objectWillChange.send()`.
+
+This is useful when working with custom setters or properties that cannot use `@Published`.
+
+<CodeExample title="Sending change notifications manually">
+
+```swift
+import Combine
+
+class TemperatureSensor: ObservableObject {
+    var celsius: Double = 20.0 {
+        willSet {
+            objectWillChange.send()
+        }
+    }
+}
+
+let sensor = TemperatureSensor()
+var changed = false
+let sub = sensor.objectWillChange.sink {
+    changed = true
+}
+
+sensor.celsius = 22.5
+print("Sensor updated: \(changed), Value: \(sensor.celsius)")
+```
+
+```output
+Sensor updated: true, Value: 22.5
+```
+
+</CodeExample>
+
+When `celsius` changes, `willSet` calls `objectWillChange.send()`.
+
+The subscriber receives the event immediately, before the property changes its value.
+
+<QuickCheck>
+  <Question>When does `objectWillChange` fire relative to the property update?</Question>
+  <Option id="a">After the property value has already changed.</Option>
+  <Option id="b" correct>Before the property value changes, in the willSet phase.</Option>
+  <Option id="c">Only when the view finishes redrawing on screen.</Option>
+  <Explanation>Combine publishers on ObservableObject fire during `willSet`, right before the change occurs.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Initializing @ObservedObject inline">
+Never write `@ObservedObject var model = Model()` inside a view.
+
+SwiftUI views are temporary structs recreated frequently by parent updates.
+
+Every time the parent redraws, a brand-new model instance is created, erasing existing state.
+
+Always use `@StateObject` when creating the instance inside a view.
+</Trap>
+
+<Trap title="Assuming objectWillChange tracks individual properties">
+Unlike `@Observable`, `ObservableObject` invalidates the entire object.
+
+If your model has ten `@Published` properties, changing one property redraws all observing views.
+
+Keep view models focused to avoid unnecessary view redraws in large view hierarchies.
+</Trap>
+
+<Trap title="Forgetting to inject @EnvironmentObject">
+If a child view uses `@EnvironmentObject var model: Model`, an ancestor must provide it.
+
+If you forget `.environmentObject(model)` on a parent view, the app crashes at runtime.
+
+This is a common crash in production codebases that have deep navigation stacks.
+</Trap>
+
+<Trap title="Using @Published on structs">
+`@Published` only works inside classes that conform to `ObservableObject`.
+
+Attaching `@Published` to a property in a `struct` causes a compilation error.
+
+For value types, use regular `@State` or `@Binding` instead.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"`ObservableObject` is a protocol for classes in SwiftUI that share data with views. We mark properties with `@Published` to trigger updates. In views, we use `@StateObject` to create and own the object, and `@ObservedObject` when a parent passes the object down."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"`@StateObject` manages the lifecycle of an `ObservableObject`. It guarantees that SwiftUI creates the instance once and keeps it across view redraws. In contrast, `@ObservedObject` does not own the lifecycle. Initializing an `@ObservedObject` inline causes state loss whenever the parent view redraws."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Internally, `ObservableObject` synthesizes an `ObservableObjectPublisher` that emits on `willSet`. This results in coarse-grained view invalidation: changing any `@Published` property redraws all observing views. In iOS 17, Apple recommends migrating to `@Observable`, which provides property-level dependency tracking and replaces `@StateObject` with `@State`."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `ObservableObject` is a protocol from Combine for sharing data with SwiftUI views.
+- Mark mutable properties with `@Published` to emit change events automatically.
+- Use `@StateObject` to create and own a model instance inside a view.
+- Use `@ObservedObject` when receiving an existing model passed in from a parent.
+- Use `@EnvironmentObject` to inject models down a view subtree.
+- Remember that `objectWillChange` invalidates views at the object level, not the property level.
+</Recap>
+
+## Go deeper
+
+- [Migrating from ObservableObject to @Observable](https://developer.apple.com/documentation/swiftui/migrating-from-the-observable-object-protocol-to-the-observable-macro) — Official Apple guide for updating legacy SwiftUI code.
+- [StateObject Documentation](https://developer.apple.com/documentation/swiftui/stateobject) — Detailed reference for state object lifecycle.
+- [ObservableObject Protocol](https://developer.apple.com/documentation/combine/observableobject) — API reference for Combine-based observation.

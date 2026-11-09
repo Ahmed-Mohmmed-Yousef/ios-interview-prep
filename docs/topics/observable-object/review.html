@@ -1,0 +1,557 @@
+<title>ObservableObject and @StateObject Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --state-color: #16a34a; --state-soft: #dcfce7;
+  --observed-color: #dc2626; --observed-soft: #fee2e2;
+  --parent-color: #0284c7; --parent-soft: #e0f2fe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --state-color: #4ade80; --state-soft: #14532d;
+  --observed-color: #f87171; --observed-soft: #450a0a;
+  --parent-color: #38bdf8; --parent-soft: #082f49;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.safe { background: var(--state-soft); color: var(--state-color); }
+.kind.trap { background: var(--observed-soft); color: var(--observed-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 8px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.safe { fill: var(--state-soft); stroke: var(--state-color); stroke-width: 2; }
+.box-rect.reset { fill: var(--observed-soft); stroke: var(--observed-color); stroke-width: 2.5; stroke-dasharray: 4 4; }
+.box-rect.idle { fill: var(--code-bg); stroke: var(--line); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--parent-color); color: #ffffff; border-color: var(--parent-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--parent-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .box-rect { transition: none; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · SwiftUI · Topic 2 of 4 · Prototype</p>
+    <h1>ObservableObject and @StateObject</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can use ObservableObject, @StateObject and @ObservedObject in older code.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">What happens if you create a view model using <code>@ObservedObject var vm = ViewModel()</code> instead of <code>@StateObject</code>?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The app crashes immediately because SwiftUI forbids inline initialization.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The model is recreated every time the parent view redraws, losing stored state.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The model becomes read-only and ignores all property mutations.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of owning versus renting an apartment.</p><p>When you <strong>own</strong> the apartment, you keep your furniture even when the building repaints the hallway.</p><p>When you <strong>rent a hotel room for one night</strong>, the room is cleaned and reset every morning.</p><p><code>@StateObject</code> is like owning the apartment. SwiftUI creates the object once and keeps it alive.</p><p><code>@ObservedObject</code> is like a guest room. It does not own the object.</p><p>If you create an object inside <code>@ObservedObject</code>, SwiftUI creates a new one every time the parent view redraws.</p></aside>
+<p>Before iOS 17 introduced <code>@Observable</code>, SwiftUI used Combine to track data changes.</p>
+<p>You conform a class to the <code>ObservableObject</code> protocol.</p>
+<p>You mark properties that change with the <code>@Published</code> property wrapper.</p>
+<ol>
+<li><strong><code>@StateObject</code> owns the object</strong>:
+<ul>
+<li>Use <code>@StateObject</code> where the object is created for the first time.</li>
+<li>SwiftUI keeps the instance alive across view redraws.</li>
+</ul>
+</li>
+<li><strong><code>@ObservedObject</code> receives an object</strong>:
+<ul>
+<li>Use <code>@ObservedObject</code> when a parent view passes an existing object down to a child view.</li>
+<li>The child view watches for changes, but does not own the lifecycle.</li>
+</ul>
+</li>
+<li><strong><code>objectWillChange</code> notifies views</strong>:
+<ul>
+<li>When any <code>@Published</code> property changes, <code>objectWillChange</code> sends a signal.</li>
+<li>All observing views redraw, even if they only read a different property.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which property wrapper should you use when a child view receives an existing <code>ObservableObject</code> from its parent?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>@StateObject</code></span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>@ObservedObject</code></span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text"><code>@Binding</code></span></button><p class="qc-explain" hidden="">Use <code>@ObservedObject</code> to observe an object created and owned by an ancestor view.</p></div>
+<h2>In code</h2>
+<p>Here is how you define a model class using <code>ObservableObject</code> and <code>@Published</code>.</p>
+<figure class="code-example"><figcaption>Defining an ObservableObject model</figcaption><pre class="block swift"><code class="language-swift">import Combine
+
+class UserAccount: ObservableObject {
+    @Published var username: String
+    @Published var score: Int
+
+    init(username: String, score: Int) {
+        self.username = username
+        self.score = score
+    }
+}
+
+let account = UserAccount(username: &quot;Sam&quot;, score: 10)
+print(&quot;User: \(account.username), Score: \(account.score)&quot;)
+account.score = 25
+print(&quot;Updated score: \(account.score)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">User: Sam, Score: 10
+Updated score: 25
+</code></pre></figure>
+<p>In this example, changing <code>score</code> notifies any subscriber through <code>objectWillChange</code>.</p>
+<p>You can also send change notifications manually using <code>objectWillChange.send()</code>.</p>
+<p>This is useful when working with custom setters or properties that cannot use <code>@Published</code>.</p>
+<figure class="code-example"><figcaption>Sending change notifications manually</figcaption><pre class="block swift"><code class="language-swift">import Combine
+
+class TemperatureSensor: ObservableObject {
+    var celsius: Double = 20.0 {
+        willSet {
+            objectWillChange.send()
+        }
+    }
+}
+
+let sensor = TemperatureSensor()
+var changed = false
+let sub = sensor.objectWillChange.sink {
+    changed = true
+}
+
+sensor.celsius = 22.5
+print(&quot;Sensor updated: \(changed), Value: \(sensor.celsius)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Sensor updated: true, Value: 22.5
+</code></pre></figure>
+<p>When <code>celsius</code> changes, <code>willSet</code> calls <code>objectWillChange.send()</code>.</p>
+<p>The subscriber receives the event immediately, before the property changes its value.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">When does <code>objectWillChange</code> fire relative to the property update?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">After the property value has already changed.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Before the property value changes, in the willSet phase.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Only when the view finishes redrawing on screen.</span></button><p class="qc-explain" hidden="">Combine publishers on ObservableObject fire during <code>willSet</code>, right before the change occurs.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Initializing @ObservedObject inline</p><p>Never write <code>@ObservedObject var model = Model()</code> inside a view.</p><p>SwiftUI views are temporary structs recreated frequently by parent updates.</p><p>Every time the parent redraws, a brand-new model instance is created, erasing existing state.</p><p>Always use <code>@StateObject</code> when creating the instance inside a view.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming objectWillChange tracks individual properties</p><p>Unlike <code>@Observable</code>, <code>ObservableObject</code> invalidates the entire object.</p><p>If your model has ten <code>@Published</code> properties, changing one property redraws all observing views.</p><p>Keep view models focused to avoid unnecessary view redraws in large view hierarchies.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Forgetting to inject @EnvironmentObject</p><p>If a child view uses <code>@EnvironmentObject var model: Model</code>, an ancestor must provide it.</p><p>If you forget <code>.environmentObject(model)</code> on a parent view, the app crashes at runtime.</p><p>This is a common crash in production codebases that have deep navigation stacks.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using @Published on structs</p><p><code>@Published</code> only works inside classes that conform to <code>ObservableObject</code>.</p><p>Attaching <code>@Published</code> to a property in a <code>struct</code> causes a compilation error.</p><p>For value types, use regular <code>@State</code> or <code>@Binding</code> instead.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;<code>ObservableObject</code> is a protocol for classes in SwiftUI that share data with views. We mark properties with <code>@Published</code> to trigger updates. In views, we use <code>@StateObject</code> to create and own the object, and <code>@ObservedObject</code> when a parent passes the object down.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;<code>@StateObject</code> manages the lifecycle of an <code>ObservableObject</code>. It guarantees that SwiftUI creates the instance once and keeps it across view redraws. In contrast, <code>@ObservedObject</code> does not own the lifecycle. Initializing an <code>@ObservedObject</code> inline causes state loss whenever the parent view redraws.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;Internally, <code>ObservableObject</code> synthesizes an <code>ObservableObjectPublisher</code> that emits on <code>willSet</code>. This results in coarse-grained view invalidation: changing any <code>@Published</code> property redraws all observing views. In iOS 17, Apple recommends migrating to <code>@Observable</code>, which provides property-level dependency tracking and replaces <code>@StateObject</code> with <code>@State</code>.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>ObservableObject</code> is a protocol from Combine for sharing data with SwiftUI views.</li>
+<li>Mark mutable properties with <code>@Published</code> to emit change events automatically.</li>
+<li>Use <code>@StateObject</code> to create and own a model instance inside a view.</li>
+<li>Use <code>@ObservedObject</code> when receiving an existing model passed in from a parent.</li>
+<li>Use <code>@EnvironmentObject</code> to inject models down a view subtree.</li>
+<li>Remember that <code>objectWillChange</code> invalidates views at the object level, not the property level.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/swiftui/migrating-from-the-observable-object-protocol-to-the-observable-macro">Migrating from ObservableObject to @Observable</a> — Official Apple guide for updating legacy SwiftUI code.</li>
+<li><a href="https://developer.apple.com/documentation/swiftui/stateobject">StateObject Documentation</a> — Detailed reference for state object lifecycle.</li>
+<li><a href="https://developer.apple.com/documentation/combine/observableobject">ObservableObject Protocol</a> — API reference for Combine-based observation.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    stateCode: 'struct ChildA: View {\n  @StateObject var vm = ViewModel()\n}',
+    observedCode: 'struct ChildB: View {\n  @ObservedObject var vm = ViewModel() // TRAP\n}',
+    stateCap: 'Step 1: Both views instantiate their view model with initial empty text.',
+    observedCap: 'Child B makes the mistake of using @ObservedObject for ownership.',
+    stateTitle: 'ViewModel Instance #1',
+    stateVal: '"" (empty)',
+    observedTitle: 'ViewModel Instance #1',
+    observedVal: '"" (empty)',
+    stateBoxClass: 'box-rect safe',
+    observedBoxClass: 'box-rect idle'
+  },
+  {
+    step: 2,
+    stateCode: 'vm.text = "Hello World"\n// User enters text into form',
+    observedCode: 'vm.text = "Hello World"\n// User enters text into form',
+    stateCap: 'Step 2: The user enters "Hello World" into both views. State is updated.',
+    observedCap: 'Both view models now store the user text "Hello World".',
+    stateTitle: 'ViewModel Instance #1',
+    stateVal: '"Hello World"',
+    observedTitle: 'ViewModel Instance #1',
+    observedVal: '"Hello World"',
+    stateBoxClass: 'box-rect safe',
+    observedBoxClass: 'box-rect safe'
+  },
+  {
+    step: 3,
+    stateCode: '// Parent View re-evaluates body!\n// e.g. parent timer or count changed',
+    observedCode: '// Parent View re-evaluates body!\n// Reconstructs ChildA and ChildB structs',
+    stateCap: 'Step 3: Parent view redraws. Child view structs are reconstructed in memory.',
+    observedCap: 'SwiftUI prepares to evaluate both child view bodies.',
+    stateTitle: 'ViewModel Instance #1',
+    stateVal: '"Hello World"',
+    observedTitle: 'Reconstruction in progress...',
+    observedVal: '"Hello World"',
+    stateBoxClass: 'box-rect safe',
+    observedBoxClass: 'box-rect idle'
+  },
+  {
+    step: 4,
+    stateCode: '// @StateObject preserves Instance #1\nText is intact!',
+    observedCode: '// vm = ViewModel() runs AGAIN!\nCreates Instance #2 -> State LOST!',
+    stateCap: 'Step 4: @StateObject retains Instance #1. "Hello World" is safely preserved.',
+    observedCap: 'Inline @ObservedObject creates Instance #2! User input was completely wiped out.',
+    stateTitle: 'ViewModel Instance #1 (Preserved)',
+    stateVal: '"Hello World" (Retained)',
+    observedTitle: 'ViewModel Instance #2 (Reset!)',
+    observedVal: '"" (Wiped out)',
+    stateBoxClass: 'box-rect safe',
+    observedBoxClass: 'box-rect reset'
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('stateCode').textContent = s.stateCode;
+  document.getElementById('observedCode').textContent = s.observedCode;
+  document.getElementById('stateCaption').textContent = s.stateCap;
+  document.getElementById('observedCaption').textContent = s.observedCap;
+  document.getElementById('stateVal').textContent = s.stateVal;
+  document.getElementById('observedVal').textContent = s.observedVal;
+  document.getElementById('observedTitle').textContent = s.observedTitle;
+
+  document.getElementById('stateBox').setAttribute('class', s.stateBoxClass);
+  document.getElementById('observedBox').setAttribute('class', s.observedBoxClass);
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"observable-object","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"observable-object-q1","type":"mcq","difficulty":1,"prompt":"What does the `ObservableObject` protocol provide in SwiftUI?","options":[{"id":"a","text":"It provides an objectWillChange publisher for views to observe.","explanation":"Right. ObservableObject synthesizes objectWillChange to notify views."},{"id":"b","text":"It converts classes into immutable Swift structs automatically.","explanation":"ObservableObject is a protocol for reference types, not value types."},{"id":"c","text":"It creates a background thread pool for long asynchronous queries.","explanation":"ObservableObject is a Combine data flow protocol, not a thread pool."},{"id":"d","text":"It renders UI components directly onto an offscreen canvas texture.","explanation":"ObservableObject does not handle drawing or graphics rendering."}],"answer":"a"},{"id":"observable-object-q2","type":"mcq","difficulty":1,"prompt":"Which property wrapper attaches change publishers to stored properties in an `ObservableObject`?","options":[{"id":"a","text":"The `@Binding` wrapper from SwiftUI data flow.","explanation":"@Binding provides two-way connections between views."},{"id":"b","text":"The `@Published` wrapper from Combine framework.","explanation":"Right. @Published notifies objectWillChange when properties change."},{"id":"c","text":"The `@Observed` wrapper from SwiftUI layout system.","explanation":"@Observed is not a valid Swift property wrapper."},{"id":"d","text":"The `@Stateful` wrapper from Swift modern macros.","explanation":"@Stateful does not exist in standard Swift or Combine."}],"answer":"b"},{"id":"observable-object-q3","type":"mcq","difficulty":2,"prompt":"When should you use `@StateObject` instead of `@ObservedObject`?","options":[{"id":"a","text":"When a child view reads an existing model passed down by its parent.","explanation":"Child views receiving existing models should use @ObservedObject."},{"id":"b","text":"When a view model is stored inside a shared global static constant.","explanation":"Static constants do not need SwiftUI view property wrappers."},{"id":"c","text":"When the current view creates and owns the model lifecycle instance.","explanation":"Right. @StateObject guarantees single instantiation and persistence."},{"id":"d","text":"When the model class conforms to the Swift Decodable protocol.","explanation":"Decodable conformance is unrelated to view model ownership."}],"answer":"c"},{"id":"observable-object-q4","type":"mcq","difficulty":2,"prompt":"What bug occurs if you initialize an `@ObservedObject` inline inside a view struct?","options":[{"id":"a","text":"The view crashes with an unhandled fatal Swift runtime exception.","explanation":"Inline initialization compiles and runs, but causes state loss."},{"id":"b","text":"The view permanently freezes user touch input on modern iOS.","explanation":"Touch input continues to work, but data resets unexpectedly."},{"id":"c","text":"The compiler issues a warning and converts it to a StateObject.","explanation":"The compiler does not convert ObservedObject to StateObject."},{"id":"d","text":"The model is recreated on parent redraws, wiping out user state.","explanation":"Right. View struct reconstruction creates brand-new model instances."}],"answer":"d"},{"id":"observable-object-q5","type":"mcq","difficulty":2,"prompt":"When does the `objectWillChange` publisher fire relative to property assignment?","options":[{"id":"a","text":"Before the property value changes, during the willSet phase.","explanation":"Right. objectWillChange fires before the new value is stored."},{"id":"b","text":"After the property changes, during the didSet phase of execution.","explanation":"didSet is too late; SwiftUI relies on pre-change notifications."},{"id":"c","text":"Only when the view completes drawing its pixels onto the screen.","explanation":"The publisher fires immediately in code when the property is written."},{"id":"d","text":"Whenever the parent view controller executes its viewDidAppear call.","explanation":"Combine publishers are independent of UIKit lifecycle hooks."}],"answer":"a"},{"id":"observable-object-q6","type":"mcq","difficulty":2,"prompt":"How does view invalidation differ between `ObservableObject` and iOS 17 `@Observable`?","options":[{"id":"a","text":"`ObservableObject` tracks access per property while `@Observable` does not.","explanation":"It is the opposite; @Observable tracks at the property level."},{"id":"b","text":"`ObservableObject` invalidates on any change; `@Observable` tracks properties.","explanation":"Right. ObservableObject causes coarse-grained view invalidations."},{"id":"c","text":"Both protocols invalidate only the specific property that was modified.","explanation":"ObservableObject has no property-level granularity."},{"id":"d","text":"Neither protocol triggers redraws until the device screen is locked.","explanation":"Both protocols trigger view invalidations during active app usage."}],"answer":"b"},{"id":"observable-object-q7","type":"mcq","difficulty":2,"prompt":"What happens if a view reads `@EnvironmentObject var model: MyModel` and no ancestor injected it?","options":[{"id":"a","text":"The model property initializes to nil and the view renders normally.","explanation":"@EnvironmentObject is non-optional and forces unboxing."},{"id":"b","text":"SwiftUI constructs a default instance of MyModel using init().","explanation":"SwiftUI cannot construct arbitrary models without explicit injection."},{"id":"c","text":"The application crashes at runtime with a missing environment object error.","explanation":"Right. Missing environment objects cause a fatal runtime crash."},{"id":"d","text":"The view displays an empty red rectangle in debug simulator builds.","explanation":"It triggers a fatal exception, not an inline error view."}],"answer":"c"},{"id":"observable-object-q8","type":"mcq","difficulty":2,"prompt":"Can you attach `@Published` to stored properties inside a Swift `struct`?","options":[{"id":"a","text":"Yes, `@Published` works on both struct and class stored values.","explanation":"@Published is restricted to class types conforming to ObservableObject."},{"id":"b","text":"Yes, but only if the struct conforms to the Identifiable protocol.","explanation":"Identifiable conformance does not enable @Published for structs."},{"id":"c","text":"Only if all mutating methods on the struct are marked with async.","explanation":"Concurrency keywords do not change property wrapper restrictions."},{"id":"d","text":"No, `@Published` is only permitted inside class declarations.","explanation":"Right. @Published requires a class type conforming to ObservableObject."}],"answer":"d"},{"id":"observable-object-q9","type":"mcq","difficulty":2,"prompt":"How do you migrate an `@StateObject` property to modern iOS 17 `@Observable`?","options":[{"id":"a","text":"Replace the `@StateObject` attribute with standard `@State`.","explanation":"Right. In iOS 17+, @State owns observable class instances."},{"id":"b","text":"Replace the `@StateObject` attribute with `@ObservedObject`.","explanation":"@ObservedObject is also legacy and does not own the model."},{"id":"c","text":"Replace the `@StateObject` attribute with `@EnvironmentObject`.","explanation":"@EnvironmentObject is for environment injection in legacy code."},{"id":"d","text":"Replace the `@StateObject` attribute with `@ObservableObject`.","explanation":"ObservableObject is a protocol name, not a property wrapper."}],"answer":"a"},{"id":"observable-object-q10","type":"mcq","difficulty":1,"prompt":"Which iOS version first introduced the `@StateObject` property wrapper?","options":[{"id":"a","text":"iOS 13, when SwiftUI was first released by Apple.","explanation":"iOS 13 only had @ObservedObject, causing lifecycle bugs."},{"id":"b","text":"iOS 14, to solve model recreation bugs with ObservedObject.","explanation":"Right. Apple introduced @StateObject in iOS 14 for ownership."},{"id":"c","text":"iOS 16, alongside the NavigationStack components.","explanation":"iOS 16 introduced NavigationStack, not StateObject."},{"id":"d","text":"iOS 17, alongside the new Observation framework.","explanation":"iOS 17 introduced @Observable, which replaced @StateObject with @State."}],"answer":"b"},{"id":"observable-object-q11","type":"mcq","difficulty":2,"prompt":"How do you trigger view updates manually on an `ObservableObject` without `@Published`?","options":[{"id":"a","text":"Call `NotificationCenter.default.post` with the view model pointer.","explanation":"SwiftUI views do not subscribe to NotificationCenter by default."},{"id":"b","text":"Call `self.setNeedsDisplay()` inside the model class body.","explanation":"setNeedsDisplay is a UIKit UIView method, not SwiftUI data flow."},{"id":"c","text":"Call `objectWillChange.send()` right before changing the property.","explanation":"Right. objectWillChange.send() triggers view invalidation manually."},{"id":"d","text":"Re-instantiate the view struct from an asynchronous background task.","explanation":"Views should not be instantiated manually from background tasks."}],"answer":"c"},{"id":"observable-object-q12","type":"mcq","difficulty":2,"prompt":"If a parent view passes a model to a child view for editing, which wrapper should the child use?","options":[{"id":"a","text":"The child view must declare the model using `@StateObject`.","explanation":"@StateObject creates a new lifecycle, disconnecting from parent."},{"id":"b","text":"The child view must declare the model using `@Published`.","explanation":"@Published is for class properties, not view parameters."},{"id":"c","text":"The child view must declare the model using `@AppStorage`.","explanation":"@AppStorage connects to UserDefaults, not ObservableObject instances."},{"id":"d","text":"The child view must declare the model using `@ObservedObject`.","explanation":"Right. @ObservedObject connects to an existing parent model."}],"answer":"d"},{"id":"observable-object-q13","type":"mcq","difficulty":3,"prompt":"On which thread must mutations to `@Published` properties occur?","options":[{"id":"a","text":"On the main thread, because view invalidations trigger UI redraws.","explanation":"Right. UI updates must be scheduled on the main thread."},{"id":"b","text":"On any global background queue without actor synchronization.","explanation":"Background mutations to @Published cause runtime purple warnings or crashes."},{"id":"c","text":"Exclusively on a dedicated background audio rendering thread.","explanation":"Audio threads are reserved for real-time audio buffers."},{"id":"d","text":"On a private serial GCD queue created with quality of service utility.","explanation":"The main thread is required for view invalidation events."}],"answer":"a"},{"id":"observable-object-q14","type":"mcq","difficulty":2,"prompt":"How do you pass an `ObservableObject` down the view tree through the environment?","options":[{"id":"a","text":"Apply the `.modelEnvironment(model)` modifier to the root view.","explanation":"The correct SwiftUI modifier name is .environmentObject(model)."},{"id":"b","text":"Apply the `.environmentObject(model)` modifier to the root view.","explanation":"Right. .environmentObject injects ObservableObject instances."},{"id":"c","text":"Attach a custom key-path subscript to the View protocol extension.","explanation":"EnvironmentObject does not require manual key-path subscripts."},{"id":"d","text":"Store the instance in UserDefaults using a custom JSON encoder.","explanation":"UserDefaults persists settings to disk, not view tree state."}],"answer":"b"},{"id":"observable-object-q15","type":"mcq","difficulty":2,"prompt":"What happens if a property in an `ObservableObject` class does NOT have `@Published`?","options":[{"id":"a","text":"The property is automatically deleted when the model is initialized.","explanation":"Unpublished properties remain stored in memory normally."},{"id":"b","text":"The property still triggers view updates whenever it is reassigned.","explanation":"Without @Published or manual notification, views do not redraw."},{"id":"c","text":"The property value changes, but observing views are not notified.","explanation":"Right. Stored values update in memory without notifying views."},{"id":"d","text":"The Swift compiler reports an error forbidding unannotated properties.","explanation":"Unannotated properties are completely legal in ObservableObject classes."}],"answer":"c"},{"id":"observable-object-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Combine\n\nclass Counter: ObservableObject {\n    @Published var count = 10\n}\n\nlet c = Counter()\nc.count += 5\nc.count *= 2\nprint(c.count)","options":[{"id":"a","text":"15 (added five)","explanation":"c.count is multiplied by 2 after adding 5."},{"id":"b","text":"20 (twenty total)","explanation":"15 multiplied by 2 evaluates to 30, not 20."},{"id":"c","text":"10 (initial value)","explanation":"The counter is mutated twice before printing."},{"id":"d","text":"30 (final counter)","explanation":"Right. 10 + 5 = 15, and 15 * 2 = 30."}],"answer":"d"},{"id":"observable-object-q17","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import Combine\n\nclass Settings: ObservableObject {\n    @Published var title = \"Original\"\n}\n\nlet s = Settings()\nvar captured = \"\"\nlet sub = s.objectWillChange.sink {\n    captured = s.title\n}\n\ns.title = \"Updated\"\nprint(\"Captured: \\(captured)\")","options":[{"id":"a","text":"Captured: Original","explanation":"Right. objectWillChange fires before the property updates in willSet."},{"id":"b","text":"Captured: Updated","explanation":"The sink block runs before title updates, so it reads the old value."},{"id":"c","text":"Captured: Empty","explanation":"The publisher fired, assigning the current string to captured."},{"id":"d","text":"Captured: nil","explanation":"captured is a non-optional String, not an optional."}],"answer":"a"},{"id":"observable-object-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import Combine\n\nclass ScoreBoard: ObservableObject {\n    @Published var home = 0\n    @Published var away = 0\n}\n\nlet board = ScoreBoard()\nvar events = 0\nlet sub = board.objectWillChange.sink {\n    events += 1\n}\n\nboard.home = 1\nboard.away = 2\nprint(\"Total events: \\(events)\")","options":[{"id":"a","text":"Total events: 0","explanation":"The publisher fired on each property mutation."},{"id":"b","text":"Total events: 2","explanation":"Right. Mutating home and away each triggers objectWillChange once."},{"id":"c","text":"Total events: 1","explanation":"Both properties are @Published and each mutation triggers an event."},{"id":"d","text":"Total events: 3","explanation":"Only two property assignments were performed."}],"answer":"b"},{"id":"observable-object-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import Combine\n\nclass Profile: ObservableObject {\n    var name = \"Alex\"\n    @Published var age = 20\n}\n\nlet p = Profile()\nvar fired = false\nlet sub = p.objectWillChange.sink {\n    fired = true\n}\n\np.name = \"Jordan\"\nprint(\"Fired: \\(fired)\")","options":[{"id":"a","text":"Fired: true","explanation":"name is not marked with @Published, so no notification is sent."},{"id":"b","text":"Fired: nil","explanation":"fired is a non-optional Boolean initialized to false."},{"id":"c","text":"Fired: false","explanation":"Right. Mutating unannotated properties does not fire objectWillChange."},{"id":"d","text":"Fired: 20","explanation":"The print statement prints the Boolean variable fired."}],"answer":"c"},{"id":"observable-object-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import Combine\n\nclass Wallet: ObservableObject {\n    var coins: Int = 50 {\n        willSet {\n            objectWillChange.send()\n        }\n    }\n}\n\nlet w = Wallet()\nvar notified = false\nlet sub = w.objectWillChange.sink {\n    notified = true\n}\n\nw.coins = 75\nprint(\"Notified: \\(notified), Coins: \\(w.coins)\")","options":[{"id":"a","text":"Notified: false, Coins: 50","explanation":"coins was reassigned to 75 and notified became true."},{"id":"b","text":"Notified: false, Coins: 75","explanation":"The sink block ran when objectWillChange.send() was invoked."},{"id":"c","text":"Notified: true, Coins: 50","explanation":"coins was updated to 75 by the assignment."},{"id":"d","text":"Notified: true, Coins: 75","explanation":"Right. willSet called send(), setting notified to true, and coins is 75."}],"answer":"d"},{"id":"observable-object-q21","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Combine\n\nclass Temperature: ObservableObject {\n    @Published var celsius: Double = 0.0\n    var fahrenheit: Double {\n        return (celsius * 9.0 / 5.0) + 32.0\n    }\n}\n\nlet t = Temperature()\nt.celsius = 25.0\nprint(\"Fahrenheit: \\(Int(t.fahrenheit))\")","options":[{"id":"a","text":"Fahrenheit: 77","explanation":"Right. (25 * 9 / 5) + 32 = 45 + 32 = 77."},{"id":"b","text":"Fahrenheit: 32","explanation":"32 was the initial value when celsius was 0.0."},{"id":"c","text":"Fahrenheit: 25","explanation":"25 is the celsius value, not fahrenheit."},{"id":"d","text":"Fahrenheit: 100","explanation":"100 celsius equals 212 fahrenheit."}],"answer":"a"},{"id":"observable-object-q22","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"import Combine\n\nclass ItemList: ObservableObject {\n    @Published var items: [String] = [\"A\"]\n}\n\nlet list = ItemList()\nlist.items.append(\"B\")\nlist.items.append(\"C\")\nprint(\"Items count: \\(list.items.count)\")","options":[{"id":"a","text":"Items count: 1","explanation":"The array contained one item before appending B and C."},{"id":"b","text":"Items count: 3","explanation":"Right. Appending two elements to an array of one gives three."},{"id":"c","text":"Items count: 2","explanation":"Two items were appended to the single initial item."},{"id":"d","text":"Items count: 4","explanation":"Only three total elements exist in the array."}],"answer":"b"},{"id":"observable-object-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"import Combine\n\nclass Device: ObservableObject {\n    @Published var isOn = false\n}\n\nlet d = Device()\nvar stateBeforeChange = false\nlet sub = d.objectWillChange.sink {\n    stateBeforeChange = d.isOn\n}\n\nd.isOn = true\nprint(\"State before change was \\(stateBeforeChange)\")","options":[{"id":"a","text":"State before change was true","explanation":"objectWillChange executes in willSet, capturing the original false."},{"id":"b","text":"State before change was nil","explanation":"stateBeforeChange is a non-optional Boolean value."},{"id":"c","text":"State before change was false","explanation":"Right. The sink ran during willSet when isOn was still false."},{"id":"d","text":"State before change was 1","explanation":"The printed value is a Swift Boolean false."}],"answer":"c"},{"id":"observable-object-q24","type":"written","difficulty":2,"prompt":"What is the critical difference between `@StateObject` and `@ObservedObject` in SwiftUI? Provide your answer in 2 to 5 sentences.","modelAnswer":"`@StateObject` creates and owns the lifecycle of an observable object. SwiftUI creates the instance once and preserves it across view redraws. In contrast, `@ObservedObject` does not own the object lifecycle. If you initialize an `@ObservedObject` inline inside a view, it is recreated every time the parent view redraws, losing state.","rubric":[{"id":"stateobject-ownership","criterion":"Explains that @StateObject owns the object lifecycle and persists across redraws.","weight":50,"key":true},{"id":"observedobject-contrast","criterion":"Contrasts with @ObservedObject which does not own the lifecycle.","weight":30,"key":true},{"id":"recreation-hazard","criterion":"Explains that inline @ObservedObject causes recreation and state loss on redraw.","weight":20}]},{"id":"observable-object-q25","type":"written","difficulty":2,"prompt":"Explain what the `objectWillChange` publisher is and when it fires in Combine. Answer in 2 to 5 sentences.","modelAnswer":"`objectWillChange` is a Combine publisher required by the `ObservableObject` protocol. When a property marked with `@Published` changes, the publisher automatically sends an event. It fires during the `willSet` phase before the new value is stored. This tells observing SwiftUI views that data is about to change so they can prepare to redraw.","rubric":[{"id":"combine-publisher","criterion":"Identifies objectWillChange as a publisher from the ObservableObject protocol.","weight":40,"key":true},{"id":"willset-timing","criterion":"Explains that it fires in willSet before the property value updates.","weight":40,"key":true},{"id":"view-notification","criterion":"Explains that it signals observing views to redraw.","weight":20}]},{"id":"observable-object-q26","type":"written","difficulty":2,"prompt":"Why can coarse-grained invalidation in `ObservableObject` hurt performance in large view hierarchies? Explain in 2 to 5 sentences.","modelAnswer":"`ObservableObject` invalidates views at the object level rather than the property level. When any `@Published` property changes, every view observing the object evaluates its body. Even if a view only displays an unchanged property, it still redraws. In large view hierarchies, this creates unnecessary view recalculations and diffing work.","rubric":[{"id":"coarse-grained","criterion":"States that ObservableObject invalidates at the whole-object level rather than property level.","weight":50,"key":true},{"id":"unnecessary-redraws","criterion":"Explains that views reading unchanged properties still redraw.","weight":30,"key":true},{"id":"performance-impact","criterion":"Mentions excess body evaluations and diffing overhead in large hierarchies.","weight":20}]},{"id":"observable-object-q27","type":"written","difficulty":2,"prompt":"What are the key steps to migrate a legacy `ObservableObject` class to the iOS 17 `@Observable` macro? Answer in 2 to 5 sentences.","modelAnswer":"First, replace `ObservableObject` protocol conformance with the `@Observable` macro on the class declaration. Second, remove all `@Published` wrappers from stored properties because stored properties are tracked automatically. Finally, update observing views by replacing `@StateObject` with `@State`, and replacing `@ObservedObject` with regular properties or `@Bindable`.","rubric":[{"id":"macro-replacement","criterion":"Mentions replacing ObservableObject conformance with the @Observable macro.","weight":40,"key":true},{"id":"remove-published","criterion":"Mentions removing @Published property wrappers from stored properties.","weight":30,"key":true},{"id":"update-wrappers","criterion":"Mentions replacing @StateObject with @State and @ObservedObject with regular properties or @Bindable.","weight":30}]},{"id":"observable-object-q28","type":"written","difficulty":3,"prompt":"Why can using `@EnvironmentObject` lead to runtime crashes, and how do you prevent them? Answer in 2 to 5 sentences.","modelAnswer":"`@EnvironmentObject` expects an instance of the requested type to be present in the environment. If an ancestor view forgets to call `.environmentObject(model)`, SwiftUI crashes with a fatal runtime exception when the view renders. You can prevent this crash by injecting the model at the root of the navigation hierarchy or by migrating to `@Environment(Model.self)` with optional types.","rubric":[{"id":"runtime-crash-cause","criterion":"Explains that missing environment objects cause fatal runtime crashes.","weight":50,"key":true},{"id":"prevention-strategy","criterion":"Explains root injection or migrating to type-based environment models.","weight":50,"key":true}]},{"id":"observable-object-q29","type":"code-write","difficulty":1,"prompt":"Create an `ObservableObject` class named `TaskTracker`. Add a `@Published` property `completedCount: Int` initialized to 0, and a method `completeTask()` that adds 1.","starterCode":"import Combine\n\n// Write your TaskTracker class here\n","modelAnswer":"import Combine\n\nclass TaskTracker: ObservableObject {\n    @Published var completedCount: Int = 0\n\n    func completeTask() {\n        completedCount += 1\n    }\n}\n\nlet tracker = TaskTracker()\ntracker.completeTask()\ntracker.completeTask()\nprint(\"Completed tasks: \\(tracker.completedCount)\")","rubric":[{"id":"conforms-protocol","criterion":"Declares TaskTracker conforming to ObservableObject.","weight":40,"key":true},{"id":"published-property","criterion":"Declares completedCount marked with @Published initialized to 0.","weight":30,"key":true},{"id":"complete-method","criterion":"Implements completeTask() that increments completedCount by 1.","weight":30}]},{"id":"observable-object-q30","type":"code-write","difficulty":2,"prompt":"Create an `ObservableObject` class named `MessageFeed`. Add a `@Published` string array `messages` initialized as empty and a method `postMessage(_ text: String)` that appends to it.","starterCode":"import Combine\n\n// Define MessageFeed class\n","modelAnswer":"import Combine\n\nclass MessageFeed: ObservableObject {\n    @Published var messages: [String] = []\n\n    func postMessage(_ text: String) {\n        messages.append(text)\n    }\n}\n\nlet feed = MessageFeed()\nfeed.postMessage(\"Welcome\")\nfeed.postMessage(\"SwiftUI\")\nprint(\"Feed count: \\(feed.messages.count)\")","rubric":[{"id":"conformance","criterion":"Declares MessageFeed class conforming to ObservableObject.","weight":40,"key":true},{"id":"published-array","criterion":"Declares @Published var messages: [String] initialized to empty array.","weight":30,"key":true},{"id":"post-method","criterion":"Implements postMessage(_ text: String) that appends text to messages.","weight":30}]},{"id":"observable-object-q31","type":"code-write","difficulty":3,"prompt":"Create a class `CustomCounter` conforming to `ObservableObject`. Add a property `value: Int` with a `willSet` observer that calls `objectWillChange.send()`.","starterCode":"import Combine\n\n// Implement CustomCounter with manual objectWillChange.send()\n","modelAnswer":"import Combine\n\nclass CustomCounter: ObservableObject {\n    var value: Int = 0 {\n        willSet {\n            objectWillChange.send()\n        }\n    }\n}\n\nlet counter = CustomCounter()\nvar changeDetected = false\nlet sub = counter.objectWillChange.sink {\n    changeDetected = true\n}\n\ncounter.value = 10\nprint(\"Value: \\(counter.value), Change detected: \\(changeDetected)\")","rubric":[{"id":"class-conformance","criterion":"Declares CustomCounter class conforming to ObservableObject.","weight":30,"key":true},{"id":"value-property","criterion":"Declares value property of type Int initialized to 0.","weight":30},{"id":"willset-send","criterion":"Implements willSet observer calling objectWillChange.send().","weight":40,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
