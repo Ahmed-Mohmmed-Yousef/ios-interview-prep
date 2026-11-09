@@ -149,8 +149,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **urlsession** (URLSession) — published (lesson, diagram, 31 questions) → [docs/topics/urlsession/review.html](docs/topics/urlsession/review.html)
     - ✅ **userdefaults-and-files** (UserDefaults and Files) — published (lesson, diagram, 31 questions) → [docs/topics/userdefaults-and-files/review.html](docs/topics/userdefaults-and-files/review.html)
     - ✅ **keychain-basics** (Keychain Basics) — published (lesson, diagram, 31 questions) → [docs/topics/keychain-basics/review.html](docs/topics/keychain-basics/review.html)
-  - 🔄 **Batch 2F: Architecture & Testing (6 topics)** — next
-    - ⬜ **communication-patterns** (Delegates, Closures and Notifications)
+  - 🔄 **Batch 2F: Architecture & Testing (6 topics)**
+    - 🔄 **communication-patterns** (Delegates, Closures and Notifications) — starting research
     - ⬜ **mvc** (MVC and Its Problems)
     - ⬜ **solid-basics** (SOLID Basics)
     - ⬜ **debugging-lldb** (Debugging with Breakpoints and LLDB)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Completed Batch 2E (Design, System & Data: 9 topics published and committed). Launching dedicated autonomous subagent for the final Junior batch: Batch 2F (Architecture & Testing: 6 topics, `communication-patterns` through `unit-testing`).
 
 - **2026-11-09** — Completed Batch 2E (Design, System & Data: all 9 topics published and committed). Junior level progress is now 39 of 45 topics published (61 total published topics across curriculum). Final Junior batch is Batch 2F (Architecture & Testing, 6 topics).
 
