@@ -149,10 +149,10 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **urlsession** (URLSession) — published (lesson, diagram, 31 questions) → [docs/topics/urlsession/review.html](docs/topics/urlsession/review.html)
     - ✅ **userdefaults-and-files** (UserDefaults and Files) — published (lesson, diagram, 31 questions) → [docs/topics/userdefaults-and-files/review.html](docs/topics/userdefaults-and-files/review.html)
     - ✅ **keychain-basics** (Keychain Basics) — published (lesson, diagram, 31 questions) → [docs/topics/keychain-basics/review.html](docs/topics/keychain-basics/review.html)
-  - 🔄 **Batch 2F: Architecture & Testing (6 topics, 1/6 published)**
+  - 🔄 **Batch 2F: Architecture & Testing (6 topics, 2/6 published)**
     - ✅ **communication-patterns** (Delegates, Closures and Notifications) — published (lesson, diagram, 31 questions) → [docs/topics/communication-patterns/review.html](docs/topics/communication-patterns/review.html)
-    - 🔄 **mvc** (MVC and Its Problems) — starting research
-    - ⬜ **solid-basics** (SOLID Basics)
+    - ✅ **mvc** (MVC and Its Problems) — published (lesson, diagram, 31 questions) → [docs/topics/mvc/review.html](docs/topics/mvc/review.html)
+    - 🔄 **solid-basics** (SOLID Basics) — starting research
     - ⬜ **debugging-lldb** (Debugging with Breakpoints and LLDB)
     - ⬜ **logging-oslog** (Logging with OSLog)
     - ⬜ **unit-testing** (Unit Tests)
@@ -306,6 +306,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic mvc (MVC and Its Problems): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/mvc/review.html`). All checks passed. Starting solid-basics.
 
 - **2026-11-09** — Built and published topic communication-patterns (Delegates, Closures and Notifications): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/communication-patterns/review.html`). All checks passed. Starting mvc.
 

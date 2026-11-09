@@ -1,0 +1,238 @@
+export const meta = {
+  id: "mvc",
+  summary: "Understand the Model-View-Controller design pattern and how to solve Massive View Controller problems.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Model-View-Controller", url: "https://developer.apple.com/library/archive/documentation/General/Conceptual/DevPedia-CocoaCore/MVC.html", kind: "official" },
+    { title: "UIViewController (UIKit)", url: "https://developer.apple.com/documentation/uikit/uiviewcontroller", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why do iOS view controllers often turn into massive files with thousands of lines of code?</Question>
+  <Guess>
+    <Option id="a">Because UIKit limits apps to a single view controller class per screen.</Option>
+    <Option id="b" correct>Because view controllers often absorb networking, view layout, data sources, and business logic.</Option>
+    <Option id="c">Because Swift classes require all model definitions to live in the same file.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a busy restaurant with three distinct roles.
+
+The **kitchen chef** prepares the food and manages ingredients.
+The chef does not care which table the customer sits at.
+This chef represents the **Model**.
+
+The **dining table** holds clean plates, napkins, and decorative flowers.
+The table displays food to the customer, but cannot cook meals.
+This table represents the **View**.
+
+The **waiter** takes orders from the customer and gives tickets to the chef.
+When food is ready, the waiter carries plates to the table.
+This waiter represents the **Controller**.
+
+Now imagine what happens if the restaurant fires the dishwasher, the host, and the accountant.
+The waiter must now cook soup, wash plates, seat guests, and balance the cash register.
+The waiter becomes exhausted and makes errors.
+In iOS development, this problem is called the **Massive View Controller**.
+</Analogy>
+
+In Apple Cocoa MVC, the three layers have strict jobs:
+
+1. **Model**: Stores data, database records, and core business rules. It knows nothing about the user interface.
+2. **View**: Shows visual elements on the screen. It displays information and forwards user gestures to the controller.
+3. **Controller**: Mediates between Model and View. It responds to user input, updates data models, and refreshes views.
+
+In UIKit, `UIViewController` is closely tied to its root `UIView`.
+Because of this tight connection, developers often put table data sources, network requests, and navigation inside the view controller.
+The file grows too large, becomes hard to read, and is difficult to unit test.
+
+## See it
+
+<Diagram id="mvc-diagram">
+{/*
+  Interactive 4-step diagram of MVC architecture:
+  1. Cocoa MVC Flow: Model, View, and Controller mediation flow.
+  2. The Massive Controller Trap: Overloading UIViewController with 8 responsibilities.
+  3. Extracting Responsibilities: Splitting networking, formatters, and data sources.
+  4. Modular Architecture: Lean view controller coordinating dedicated helper objects.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>In Apple's Cocoa MVC pattern, how do the Model and View communicate with each other?</Question>
+  <Option id="a">The View observes the Model directly through automatic memory bindings.</Option>
+  <Option id="b" correct>They do not talk directly; the Controller mediates all communication between them.</Option>
+  <Option id="c">The Model updates the View directly through global notification callbacks.</Option>
+  <Explanation>In Cocoa MVC, the Controller sits in the middle. The Model and View never communicate directly.</Explanation>
+</QuickCheck>
+
+## In code
+
+To keep view controllers slim, move tasks into dedicated helper types.
+Here, a network service handles data loading, and a custom view handles presentation.
+
+<CodeExample title="Separating Model, View, and Service from the Controller">
+
+```swift
+import Foundation
+
+struct User {
+    let name: String
+    let email: String
+}
+
+final class UserService {
+    func fetchUser() -> User {
+        return User(name: "Taylor", email: "taylor@example.com")
+    }
+}
+
+final class UserView {
+    func display(name: String, email: String) {
+        print("Name: \(name)")
+        print("Email: \(email)")
+    }
+}
+
+final class UserController {
+    private let service: UserService
+    private let view: UserView
+
+    init(service: UserService, view: UserView) {
+        self.service = service
+        self.view = view
+    }
+
+    func loadData() {
+        let user = service.fetchUser()
+        view.display(name: user.name, email: user.email)
+    }
+}
+
+let controller = UserController(service: UserService(), view: UserView())
+controller.loadData()
+```
+
+```output
+Name: Taylor
+Email: taylor@example.com
+```
+
+</CodeExample>
+
+Another way to slim down controllers is extracting formatting logic.
+Instead of formatting currency inside a view controller, use a dedicated formatter struct.
+
+<CodeExample title="Extracting formatting logic into a dedicated helper">
+
+```swift
+import Foundation
+
+struct Product {
+    let title: String
+    let priceInCents: Int
+}
+
+struct PriceFormatter {
+    static func format(cents: Int) -> String {
+        let dollars = Double(cents) / 100.0
+        return String(format: "$%.2f", dollars)
+    }
+}
+
+final class ProductDisplayCoordinator {
+    func prepareText(for product: Product) -> String {
+        let price = PriceFormatter.format(cents: product.priceInCents)
+        return "\(product.title) costs \(price)"
+    }
+}
+
+let item = Product(title: "Keyboard", priceInCents: 9999)
+let coordinator = ProductDisplayCoordinator()
+print(coordinator.prepareText(for: item))
+```
+
+```output
+Keyboard costs $99.99
+```
+
+</CodeExample>
+
+<TryIt>
+Open an Xcode playground. Create a model struct, a view class, and a slim controller. Move data validation into a separate validator type.
+</TryIt>
+
+<QuickCheck>
+  <Question>What is a major benefit of extracting business logic out of a view controller into pure Swift types?</Question>
+  <Option id="a">The app binary size shrinks by more than fifty percent.</Option>
+  <Option id="b" correct>You can unit test business logic quickly without loading UIKit views or view lifecycles.</Option>
+  <Option id="c">Xcode compiles the code without checking types at build time.</Option>
+  <Explanation>Pure Swift types can be tested in isolation in milliseconds without initializing complex UIKit view hierarchies.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Letting the View know the Model">
+Developers often pass a domain model directly into a custom view class.
+This couples the view to that specific model and prevents view reuse.
+Pass primitive values or view data structures to views instead of raw database models.
+</Trap>
+
+<Trap title="Writing network calls in viewDidLoad">
+Calling `URLSession` directly inside `viewDidLoad` couples the view controller to networking details.
+This makes mock data impossible to inject during unit tests.
+Always wrap network requests inside a dedicated service protocol or class.
+</Trap>
+
+<Trap title="Confusing Apple MVC with Smalltalk MVC">
+In original Smalltalk MVC from 1979, the View observed the Model directly.
+In Apple Cocoa MVC, the View and Model never talk directly.
+The Controller mediates every exchange.
+</Trap>
+
+<Trap title="Assuming MVC is always bad">
+Some developers believe MVC must never be used and that every screen requires complex architecture.
+For simple screens, standard MVC is lightweight and easy to understand.
+The goal is disciplined separation of responsibilities, not architecture overhead.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+MVC stands for Model, View, and Controller.
+The Model holds data, the View shows the user interface, and the Controller connects them.
+In iOS, view controllers often get too big because developers put network calls, layout, and business logic into one file.
+We can fix this by moving networking into services and formatting into helper structs.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+In Cocoa MVC, the controller acts as an explicit mediator between dumb views and domain models.
+The Massive View Controller problem occurs because `UIViewController` connects directly to the view lifecycle.
+Developers often put table data sources, network requests, and navigation into one class.
+I solve this by extracting services for networking and persistence.
+I also use Diffable Data Sources and break complex screens into child view controllers.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+The core design tension in UIKit MVC is that `UIViewController` combines view management with controller mediation.
+This violates the Single Responsibility Principle and creates testing friction, because business rules require loading view hierarchies to test.
+While modern architectures like MVVM and Coordinator decouple presentation and navigation, disciplined MVC can remain clean.
+We achieve this through container child view controllers, dedicated service boundaries, and pure presentation formatters.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- **Model** holds data and business logic; it knows nothing about the user interface.
+- **View** presents visual elements and forwards user interactions to the controller.
+- **Controller** coordinates data flow between the Model and the View.
+- **Massive View Controller** happens when networking, data sources, and formatting pile into one file.
+- Fix bloated controllers by extracting dedicated services, formatters, and child view controllers.
+- Keeping business logic in pure Swift types makes unit testing fast and reliable.
+</Recap>
