@@ -77,16 +77,22 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 15 remaining topics (7 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`)
-  - 🔄 Batch 1A: Swift Language Core (7 topics: `swift-basics` → `functions`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 14 remaining topics (8 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`)
+  - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
     - ✅ **operators** (Operators) — published (lesson, diagram, 31 questions) → [docs/topics/operators/review.html](docs/topics/operators/review.html)
     - ✅ **strings-and-characters** (Strings and Characters) — published (lesson, diagram, 31 questions) → [docs/topics/strings-and-characters/review.html](docs/topics/strings-and-characters/review.html)
     - ✅ **collections** (Arrays, Sets and Dictionaries) — published (lesson, diagram, 31 questions) → [docs/topics/collections/review.html](docs/topics/collections/review.html)
     - ✅ **control-flow** (Control Flow) — published (lesson, diagram, 31 questions) → [docs/topics/control-flow/review.html](docs/topics/control-flow/review.html)
-    - 🔄 **functions** — starting research
-  - ⬜ Batch 1B: Intermediate Types & Logic (6 topics: `closures-basics` → `optional-chaining`)
+    - ✅ **functions** (Functions) — published (lesson, diagram, 31 questions) → [docs/topics/functions/review.html](docs/topics/functions/review.html)
+  - 🔄 **Batch 1B: Intermediate Types & Logic (6 topics: `closures-basics` → `optional-chaining`)**
+    - 🔄 **closures-basics** — starting research
+    - ⬜ **enumerations**
+    - ⬜ **properties**
+    - ⬜ **methods-and-initialization**
+    - ⬜ **error-handling**
+    - ⬜ **optional-chaining**
   - ⬜ Batch 1C: Object-Oriented & Protocols (5 topics: `inheritance` → `access-control`)
   - ⬜ Batch 1D: Platform & UI Basics (3 topics: `xcode-and-git-basics`, `view-controller-lifecycle`, `swiftui-views-modifiers`)
 - ⬜ **4.2 Junior level topics (Wave 2)** — 44 main + 1 bonus
@@ -101,7 +107,16 @@ Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ⬜ Progress keeps working when a topic is edited, moved, retired or gets a new version (tested)
 - ⬜ **VoiceOver test by you** — one short flow on the real app (moved from step 3.8 on 2026-10-29); steps in [docs/design/a11y-check.md](docs/design/a11y-check.md)
 - ⬜ **Measure the real reading time** of lessons with real learners in the app (moved from step 3.8 on 2026-10-29). Lessons say "about 10 minutes" until then
-- ⬜ **Install context7** (live docs for Next.js, Tailwind, shadcn and Motion) when the app is scaffolded. Command to verify again then: `claude mcp add context7 -- npx -y @upstash/context7-mcp`
+- ✅ **Agent rules, skills and helper agents for Phase 5** (2026-11-09, chosen by you from the setup recommender): rules [nextjs.md](.claude/rules/nextjs.md), [progress-store.md](.claude/rules/progress-store.md), [testing.md](.claude/rules/testing.md); skills [/build-screen](.claude/skills/build-screen/SKILL.md), [/ui-check](.claude/skills/ui-check/SKILL.md); agents [a11y-reviewer](.claude/agents/a11y-reviewer.md), [rules-tester](.claude/agents/rules-tester.md)
+- ⬜ **Install the official agent tools right after the app is scaffolded** (commands verified 2026-11-09; check them again then):
+  - ⬜ Keep the managed Next.js block that `next dev` (16.3+) writes into `AGENTS.md`, and commit it ([AI agents guide](https://nextjs.org/docs/app/guides/ai-agents))
+  - ⬜ Next.js dev-server MCP: add `next-devtools` (`npx -y next-devtools-mcp@latest`) to `.mcp.json` ([guide](https://nextjs.org/docs/app/guides/mcp))
+  - ⬜ Next.js skill: `npx skills add vercel/next.js --skill next-dev-loop`
+  - ⬜ shadcn skill (needs `components.json`): `pnpm dlx skills add shadcn/ui` ([docs](https://ui.shadcn.com/docs/skills)); shadcn MCP: `pnpm dlx shadcn@latest mcp init --client claude` ([docs](https://ui.shadcn.com/docs/mcp))
+  - ⬜ Playwright CLI + skills (your choice for browser testing): `npm install -g @playwright/cli@latest`, then `playwright-cli install --skills` ([repo](https://github.com/microsoft/playwright-cli))
+  - ⬜ Vercel React skill: `npx skills add vercel-labs/agent-skills --skill react-best-practices` ([repo](https://github.com/vercel-labs/agent-skills))
+  - ⬜ Context7 for Tailwind, shadcn, Motion and Zustand docs (Next.js now uses its bundled docs): `npx ctx7 setup --claude` ([docs](https://context7.com/docs/clients/claude-code))
+- ❌ ~~Install context7 with `claude mcp add context7 -- npx -y @upstash/context7-mcp`~~ — replaced by the item above (new official setup command; Next.js docs now come bundled)
 
 ## Phase 6 — AI grading ⬜
 
@@ -189,6 +204,10 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — Ran the claude-code-setup recommender for Phase 5, at your request, with web research on official sources. Added the rules `nextjs.md`, `progress-store.md` and `testing.md`, the skills `/build-screen` and `/ui-check`, and the agents `a11y-reviewer` and `rules-tester` (also in `.agents/` through the symlinks). Third-party tools (next-devtools MCP, next-dev-loop, shadcn skill + MCP, Playwright CLI + skills, react-best-practices, Context7) are planned for right after scaffolding. Changed the Context7 item: new official setup command, and Next.js now ships its own docs for agents.
+- **2026-11-09** — Added `.agents/rules` and `.agents/skills` as symlinks to `.claude/rules` and `.claude/skills`, so other agents find the same rules and skills. One source, no copies. Noted in `AGENTS.md`.
+- **2026-11-09** — functions approved and published by user. Completed Batch 1A (Swift Language Core - 7 topics). Started Batch 1B (Intermediate Types & Logic): topic closures-basics.
+- **2026-11-09** — Built topic functions (Functions): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/functions/review.html`). Status: review, waiting for your approval.
 - **2026-11-09** — control-flow approved and published by user. Started topic functions: researching official documentation and Swift 6 compiler behavior.
 - **2026-11-09** — Built topic control-flow (Control Flow): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/control-flow/review.html`). Status: review, waiting for your approval.
 - **2026-11-09** — collections approved and published by user. Started topic control-flow: researching official documentation and Swift 6 compiler behavior.

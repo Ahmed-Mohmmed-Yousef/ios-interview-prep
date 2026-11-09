@@ -25,7 +25,7 @@ Update it in the same turn as the work, every time:
 
 ## Rules every agent must read
 
-The detailed rules live in `.claude/rules/`. Claude Code loads them on its own; **other agents must open the matching file before they work on that kind of file**.
+The detailed rules live in `.claude/rules/` (also at `.agents/rules/`, a symlink to the same files). Claude Code loads them on its own; **other agents must open the matching file before they work on that kind of file**.
 
 | Before you… | Read |
 |---|---|
@@ -35,10 +35,13 @@ The detailed rules live in `.claude/rules/`. Claude Code loads them on its own; 
 | Edit `content/**` (lessons, topics, curriculum) | `.claude/rules/content.md` |
 | Edit `questions.json` | `.claude/rules/questions.md` |
 | Build or change any UI | `.claude/rules/design.md` |
+| Write web app code (Next.js, Phase 5) | `.claude/rules/nextjs.md` — read the docs bundled in `node_modules/next/dist/docs/` first |
+| Touch learner progress or the store | `.claude/rules/progress-store.md` |
+| Write app code or tests | `.claude/rules/testing.md` — every product rule has a test |
 
 ## Workflows
 
-The step-by-step workflows are in `.claude/skills/<name>/SKILL.md`. Claude Code runs them as `/name`; other agents should open the file and follow it.
+The step-by-step workflows are in `.claude/skills/<name>/SKILL.md` (also at `.agents/skills/<name>/SKILL.md`, a symlink to the same files, so agents that read `.agents/skills/` find them). Claude Code runs them as `/name`; other agents should open the file and follow it. Edit the files under `.claude/` — the `.agents/` paths are symlinks, not copies.
 
 | Workflow | File |
 |---|---|
@@ -48,6 +51,10 @@ The step-by-step workflows are in `.claude/skills/<name>/SKILL.md`. Claude Code 
 | Fact-check a topic | `.claude/skills/content-fact-checker/SKILL.md` |
 | Build a lesson diagram | `.claude/skills/diagram-animator/SKILL.md` |
 | Review learner text as a B1 reader | `.claude/agents/plain-english-reviewer.md` |
+| Build one web app screen from its approved design | `.claude/skills/build-screen/SKILL.md` |
+| Check a screen (errors, 375px, dark mode, axe, keyboard) | `.claude/skills/ui-check/SKILL.md` |
+| Review app code for accessibility | `.claude/agents/a11y-reviewer.md` |
+| Check rule logic and its tests against the product rules | `.claude/agents/rules-tester.md` |
 
 ## Checks to run
 
@@ -113,6 +120,7 @@ prototype/                   # MDX lesson builders (npm install in prototype/ fi
 .claude/skills/              # workflows (see "Workflows")
 .claude/agents/              # helper agents
 .claude/hooks/               # automatic checks for Claude Code
+.agents/rules, .agents/skills # symlinks to .claude/rules and .claude/skills, for other agents
 ```
 
 ## Git
