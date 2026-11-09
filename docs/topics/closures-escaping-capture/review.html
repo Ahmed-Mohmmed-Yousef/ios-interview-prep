@@ -1,0 +1,585 @@
+<title>Closures: Escaping and Capture Lists Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --stack-color: #0284c7; --stack-soft: #e0f2fe;
+  --heap-color: #7c3aed; --heap-soft: #ede9fe;
+  --retain-color: #dc2626; --retain-soft: #fee2e2;
+  --weak-color: #0c765c; --weak-soft: #dcf2ea;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --stack-color: #38bdf8; --stack-soft: #082f49;
+  --heap-color: #a78bfa; --heap-soft: #2e1065;
+  --retain-color: #f87171; --retain-soft: #450a0a;
+  --weak-color: #45cfa3; --weak-soft: #13362c;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--stack-soft); color: var(--stack-color); }
+.p-right .kind { background: var(--heap-soft); color: var(--heap-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.mem-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.mem-box.active-stack { stroke: var(--stack-color); stroke-width: 2.5; fill: var(--stack-soft); }
+.mem-box.active-heap { stroke: var(--heap-color); stroke-width: 2.5; fill: var(--heap-soft); }
+.mem-box.active-retain { stroke: var(--retain-color); stroke-width: 2.5; fill: var(--retain-soft); }
+.mem-box.active-weak { stroke: var(--weak-color); stroke-width: 2.5; fill: var(--weak-soft); }
+
+.arrow { stroke-width: 2.5; fill: none; transition: all 0.3s ease; }
+.arrow-head { fill: currentColor; }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--stack-color); color: var(--stack-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Swift Language · Topic 8 of 9 · Prototype</p>
+    <h1>Closures: Escaping and Capture Lists</h1>
+    <p class="meta-line"><span>About 12 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain escaping closures and how closures capture values.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Why must an asynchronous completion handler be marked with <code>@escaping</code> in Swift?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because asynchronous closures run only on background dispatch queues.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because the closure is called after the function body has finished execution and returned.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because the closure takes arguments that are passed by reference.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of ordering food. When you order coffee at a counter, you wait and receive your cup immediately before leaving the register. That is a non-escaping closure. When you order a pizza delivery, you hang up the phone and receive your pizza thirty minutes later. The restaurant needs your phone number and address after the initial call ends. That is an escaping closure.</p></aside>
+<p>In Swift, function closure parameters are <strong>non-escaping</strong> by default.</p>
+<p>A non-escaping closure runs inside the function body. The enclosing function does not finish until the closure finishes. Because the closure cannot outlive the function, Swift allocates it on the stack.</p>
+<p>An <strong>escaping closure</strong> outlives the function that received it.</p>
+<p>It is passed into a function, but it executes after that function returns. Common examples include network requests and scheduled timers. Because an escaping closure must stay alive in memory, Swift stores it on the heap. You must mark that parameter with <code>@escaping</code>.</p>
+<p>Closures also capture variables from surrounding scope by reference by default.</p>
+<p>If a class instance stores an escaping closure, and the closure holds a strong reference to that instance, a <strong>retain cycle</strong> occurs. Neither object can ever be deallocated.</p>
+<p>A <strong>capture list</strong> like <code>[weak self]</code> breaks retain cycles by converting the reference into an optional weak reference.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What is the default behavior of closure parameters in Swift?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">They are escaping and allocated on the heap.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">They are non-escaping and execute before the function returns.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">They create strong retain cycles automatically.</span></button><p class="qc-explain" hidden="">Closure parameters in Swift are non-escaping by default. They execute synchronously and cannot outlive the function call.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Non-escaping closures versus escaping closures</figcaption><pre class="block swift"><code class="language-swift">class NetworkService {
+    var onComplete: (() -&gt; Void)?
+    
+    // Escaping closure stored for execution after the function returns
+    func download(completion: @escaping () -&gt; Void) {
+        onComplete = completion
+    }
+    
+    // Non-escaping closure executed immediately within the function
+    func runNow(action: () -&gt; Void) {
+        action()
+    }
+}
+
+let service = NetworkService()
+service.runNow {
+    print(&quot;Runs immediately&quot;)
+}
+service.download {
+    print(&quot;Runs later&quot;)
+}
+service.onComplete?()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Runs immediately
+Runs later
+</code></pre></figure>
+<p>This code shows the lifecycle difference:</p>
+<ul>
+<li><strong><code>runNow</code></strong>: The closure runs synchronously during the function call. No modifier is needed.</li>
+<li><strong><code>download</code></strong>: The closure is stored in <code>onComplete</code> and called later. The <code>@escaping</code> attribute is required.</li>
+</ul>
+<figure class="code-example"><figcaption>Breaking retain cycles and capturing value snapshots</figcaption><pre class="block swift"><code class="language-swift">class DownloadTask {
+    var completion: (() -&gt; Void)?
+    func start(handler: @escaping () -&gt; Void) {
+        completion = handler
+    }
+}
+
+class DetailViewModel {
+    var title = &quot;Loaded&quot;
+    let task = DownloadTask()
+    
+    func load() {
+        task.start { [weak self] in
+            // Weak self is an optional and becomes nil if deallocated
+            guard let self = self else { return }
+            print(self.title)
+        }
+    }
+}
+
+var number = 5
+let snapClosure = { [number] in
+    // Captures immutable copy of number at definition time
+    print(&quot;Snapshot: \(number)&quot;)
+}
+let liveClosure = {
+    // Captures reference to number variable
+    print(&quot;Live: \(number)&quot;)
+}
+number = 20
+
+snapClosure()
+liveClosure()
+
+let vm = DetailViewModel()
+vm.load()
+vm.task.completion?()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Snapshot: 5
+Live: 20
+Loaded
+</code></pre></figure>
+<p>This example highlights two capture rules:</p>
+<ul>
+<li><strong><code>[weak self]</code></strong>: Captures <code>self</code> weakly to prevent a retain cycle between <code>DetailViewModel</code> and <code>DownloadTask</code>.</li>
+<li><strong><code>[number]</code></strong>: Takes an immutable snapshot of value type <code>number</code> when the closure is created.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens to a weak self reference when the class instance deallocates?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It throws a fatal runtime exception.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">ARC automatically zeroes the reference to nil.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It retains the instance in memory permanently.</span></button><p class="qc-explain" hidden="">weak references in Swift are always optional. When the referenced object deallocates, ARC sets the weak reference to nil.</p></div>
+<p class="try-it"><p>Experiment with escaping closures and weak references in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming non-escaping closures cause retain cycles</p><p>Non-escaping closures execute synchronously during the function call and are discarded immediately. They cannot create retain cycles. Adding <code>[weak self]</code> inside non-escaping functions like <code>map</code> or <code>filter</code> is unnecessary.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using unowned self for asynchronous network tasks</p><p><code>unowned</code> assumes that the referenced object will never deallocate before the closure executes. If a user dismisses a view controller before a network call finishes, accessing <code>unowned self</code> crashes the app. Always prefer <code>[weak self]</code> for asynchronous network completions.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Believing capture lists only work with self</p><p>Capture lists can capture any variable from the surrounding scope. When capturing a value type like <code>[count]</code>, Swift creates an immutable copy at the moment of closure creation.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>In Swift, closure parameters are non-escaping by default and run before the function returns. When a closure runs later, like after an asynchronous network call, we mark it <code>@escaping</code>. We use <code>[weak self]</code> to avoid retain cycles and memory leaks.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Swift closure parameters are non-escaping by default, enabling stack allocation optimizations. If a closure is stored or executed after the enclosing function returns, it must be annotated with <code>@escaping</code> and moves to the heap. When an escaping closure captures <code>self</code> strongly, and <code>self</code> owns the closure, a retain cycle occurs. We write <code>[weak self]</code> in the capture list to break the cycle by creating an optional weak reference.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Escaping closures outlive their calling scope and require heap allocation. They demand deliberate reference management to avoid retain cycles with view models or controllers. Using capture lists with <code>[weak self]</code> prevents strong reference cycles by creating non-retaining optional pointers that ARC zeroes on deallocation. In modern Swift, structured concurrency with <code>async/await</code> replaces many escaping completion handlers, eliminating callback lifecycle hazards entirely.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Closure parameters in Swift are non-escaping by default.</li>
+<li>An escaping closure executes after the enclosing function returns and requires <code>@escaping</code>.</li>
+<li>Closures capture surrounding variables by reference by default.</li>
+<li><code>[weak self]</code> creates an optional weak reference to prevent strong reference cycles.</li>
+<li><code>[unowned self]</code> creates an unowned reference that crashes if the instance has already deallocated.</li>
+<li>Capture lists take immutable snapshot copies of value types at creation time.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/closures">The Swift Programming Language: Closures</a></li>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting">The Swift Programming Language: Automatic Reference Counting</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    leftCode: "func runNow(action: () -> Void) {\n    action() // Synchronous call\n}",
+    leftCaption: "Non-escaping closure: executes synchronously on the stack before the function returns.",
+    rightCode: "// Stack allocation\n// No reference held after return",
+    rightCaption: "Closure is discarded immediately; memory is reclaimed automatically.",
+    stackClass: "active-stack",
+    heapClass: "",
+    cycleStatus: "Safe: discarded upon return",
+    cycleColor: "var(--stack-color)",
+    arrowForward: "none",
+    arrowBack: "none",
+    closureHeapText: "no heap ref"
+  },
+  {
+    step: 2,
+    leftCode: "func download(completion: @escaping () -> Void) {\n    onComplete = completion\n}",
+    leftCaption: "The closure is assigned to a stored property. It must survive after download() returns.",
+    rightCode: "class NetworkService {\n    var onComplete: (() -> Void)?\n}",
+    rightCaption: "Swift moves the escaping closure to heap memory so it can execute later.",
+    stackClass: "",
+    heapClass: "active-heap",
+    cycleStatus: "Escaping: allocated on heap",
+    cycleColor: "var(--heap-color)",
+    arrowForward: "var(--heap-color)",
+    arrowBack: "none",
+    closureHeapText: "stored on heap"
+  },
+  {
+    step: 3,
+    leftCode: "task.start {\n    // Strong capture of self\n    self.updateUI()\n}",
+    leftCaption: "Strong reference hazard: ViewModel retains Task, and Task closure retains ViewModel strongly.",
+    rightCode: "// Strong Retain Cycle!\n// ViewModel ⟷ Closure (leak)",
+    rightCaption: "Both references stay at 1+. Neither object can ever be deallocated by ARC.",
+    stackClass: "",
+    heapClass: "active-retain",
+    cycleStatus: "Memory Leak: Strong Retain Cycle",
+    cycleColor: "var(--retain-color)",
+    arrowForward: "var(--retain-color)",
+    arrowBack: "var(--retain-color)",
+    closureHeapText: "strong self"
+  },
+  {
+    step: 4,
+    leftCode: "task.start { [weak self] in\n    guard let self = self else { return }\n    self.updateUI()\n}",
+    leftCaption: "Capture list [weak self] creates an optional weak reference that does not increment retain count.",
+    rightCode: "// Broken Retain Cycle\n// ARC zeroes self to nil if dismissed",
+    rightCaption: "When ViewModel dismisses, ARC zeroes weak self to nil and deallocates cleanly.",
+    stackClass: "",
+    heapClass: "active-weak",
+    cycleStatus: "Safe: weak reference (Optional)",
+    cycleColor: "var(--weak-color)",
+    arrowForward: "var(--weak-color)",
+    arrowBack: "var(--weak-color)",
+    closureHeapText: "weak self?"
+  }
+];
+
+let cur = 0;
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+const stackFrame = document.getElementById("stackFrame");
+const heapFrame = document.getElementById("heapFrame");
+const cycleStatus = document.getElementById("cycleStatus");
+const arrowForward = document.getElementById("arrowForward");
+const arrowBack = document.getElementById("arrowBack");
+const closureHeapText = document.getElementById("closureHeapText");
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function render(idx) {
+  const s = steps[idx];
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+  
+  stackFrame.className.baseVal = "mem-box " + s.stackClass;
+  heapFrame.className.baseVal = "mem-box " + s.heapClass;
+  
+  cycleStatus.textContent = s.cycleStatus;
+  cycleStatus.setAttribute("fill", s.cycleColor);
+  
+  arrowForward.style.display = s.arrowForward === "none" ? "none" : "block";
+  if (s.arrowForward !== "none") arrowForward.setAttribute("stroke", s.arrowForward);
+  
+  arrowBack.style.display = s.arrowBack === "none" ? "none" : "block";
+  if (s.arrowBack !== "none") arrowBack.setAttribute("stroke", s.arrowBack);
+  
+  closureHeapText.textContent = s.closureHeapText;
+  
+  stepCounter.textContent = "Step " + (idx + 1) + " of " + steps.length;
+  btnBack.disabled = idx === 0;
+  btnNext.disabled = idx === steps.length - 1;
+}
+
+btnBack.addEventListener("click", () => { if (cur > 0) { cur--; render(cur); } });
+btnNext.addEventListener("click", () => { if (cur < steps.length - 1) { cur++; render(cur); } });
+btnReplay.addEventListener("click", () => { cur = 0; render(cur); });
+
+render(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"closures-escaping-capture","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"closures-escaping-capture-q1","type":"mcq","difficulty":1,"prompt":"What is the default lifecycle behavior of closure parameters in Swift?","options":[{"id":"a","text":"They are non-escaping and execute before the function returns.","explanation":"Right. Closure parameters in Swift are non-escaping by default, executing synchronously within the function body."},{"id":"b","text":"They are escaping and allocated permanently on the heap.","explanation":"Escaping closures require an explicit @escaping annotation."},{"id":"c","text":"They capture all surrounding variables as weak references.","explanation":"Closures capture variables strongly by reference unless a capture list is specified."},{"id":"d","text":"They run automatically on background concurrency queues.","explanation":"Closures execute on the calling thread unless scheduled on a queue explicitly."}],"answer":"a"},{"id":"closures-escaping-capture-q2","type":"mcq","difficulty":1,"prompt":"When is a closure considered an escaping closure in Swift?","options":[{"id":"a","text":"When it accepts more than two parameters from callers.","explanation":"The number of parameters does not dictate closure escaping behavior."},{"id":"b","text":"When it is called after the enclosing function returns.","explanation":"Right. An escaping closure is passed into a function but executes after the function body has returned."},{"id":"c","text":"When it is declared as a private method inside a struct.","explanation":"Private methods are member declarations, not escaping closure arguments."},{"id":"d","text":"When it mutates value types using the inout keyword.","explanation":"inout parameters are evaluated during function execution, not after return."}],"answer":"b"},{"id":"closures-escaping-capture-q3","type":"mcq","difficulty":1,"prompt":"Where does Swift allocate non-escaping closures in memory?","options":[{"id":"a","text":"In static global application data storage.","explanation":"Static data storage is used for global variables, not short-lived closures."},{"id":"b","text":"On the garbage collected runtime pool.","explanation":"Swift uses Automatic Reference Counting, not a garbage collector."},{"id":"c","text":"On the local function call stack.","explanation":"Right. Non-escaping closures cannot outlive the enclosing function call, so they are allocated on the stack."},{"id":"d","text":"In a dedicated external framework bundle.","explanation":"Bundles contain resources and compiled binaries, not runtime closure instances."}],"answer":"c"},{"id":"closures-escaping-capture-q4","type":"mcq","difficulty":1,"prompt":"Which keyword attribute must be added to a closure parameter that is stored for later execution?","options":[{"id":"a","text":"The @autoclosure attribute.","explanation":"@autoclosure automatically wraps an expression in a closure without escaping it."},{"id":"b","text":"The @discardableResult attribute.","explanation":"@discardableResult suppresses compiler warnings when a function return value is unused."},{"id":"c","text":"The @convention attribute.","explanation":"@convention specifies the calling convention (such as c or block)."},{"id":"d","text":"The @escaping attribute.","explanation":"Right. @escaping tells the compiler that the closure may outlive the function call."}],"answer":"d"},{"id":"closures-escaping-capture-q5","type":"mcq","difficulty":2,"prompt":"How does a closure capture variables from surrounding scope by default?","options":[{"id":"a","text":"By reference, reading the current value when executing.","explanation":"Right. By default, closures capture variables by reference, observing any mutations made before execution."},{"id":"b","text":"By creating an immutable value copy at declaration.","explanation":"Creating an immutable copy requires an explicit capture list like [count]."},{"id":"c","text":"By boxing every variable into an optional weak pointer.","explanation":"Weak references require explicit capture lists and only apply to class types."},{"id":"d","text":"By converting all referenced types into reference types.","explanation":"Swift does not change the underlying type of value types."}],"answer":"a"},{"id":"closures-escaping-capture-q6","type":"mcq","difficulty":2,"prompt":"What happens when an escaping closure captures self strongly and is stored on self?","options":[{"id":"a","text":"The compiler releases the closure upon dismissal.","explanation":"ARC cannot automatically break strong reference cycles between objects."},{"id":"b","text":"A strong retain cycle occurs, preventing deallocation.","explanation":"Right. The instance retains the closure and the closure retains the instance, creating a memory leak."},{"id":"c","text":"The class instance is converted into a value type.","explanation":"Classes remain reference types on the heap regardless of capture."},{"id":"d","text":"The closure executes immediately on the main thread.","explanation":"Retain cycles affect memory retention, not execution timing or thread scheduling."}],"answer":"b"},{"id":"closures-escaping-capture-q7","type":"mcq","difficulty":2,"prompt":"What does the capture list [weak self] do inside a closure?","options":[{"id":"a","text":"It turns self into an unowned non-optional reference.","explanation":"unowned creates a non-optional reference, whereas weak creates an optional reference."},{"id":"b","text":"It forces the closure to run synchronously on stack.","explanation":"Capture lists govern memory reference semantics, not execution synchronicity."},{"id":"c","text":"It captures self as an optional that becomes nil at exit.","explanation":"Right. [weak self] captures self weakly as an optional, and ARC zeroes it to nil if the instance deallocates."},{"id":"d","text":"It prevents other threads from accessing self directly.","explanation":"weak references do not provide thread synchronization or locks."}],"answer":"c"},{"id":"closures-escaping-capture-q8","type":"mcq","difficulty":2,"prompt":"Why is [unowned self] risky for asynchronous network completion handlers?","options":[{"id":"a","text":"unowned references cannot access any stored properties.","explanation":"unowned references access properties identically to strong references."},{"id":"b","text":"The compiler rejects unowned references in callbacks.","explanation":"The compiler permits unowned references, but they are unsafe if the object deallocates."},{"id":"c","text":"unowned references consume twice as much memory space.","explanation":"unowned references have negligible overhead and do not consume double memory."},{"id":"d","text":"It crashes at runtime if the instance has deallocated.","explanation":"Right. unowned assumes the instance is always alive; accessing it after deallocation causes a fatal crash."}],"answer":"d"},{"id":"closures-escaping-capture-q9","type":"mcq","difficulty":1,"prompt":"What is the standard pattern to safely use a weak self reference inside a closure body?","options":[{"id":"a","text":"guard let self = self else { return }","explanation":"Right. This safely unwraps the optional weak reference and ensures self stays alive for the closure scope."},{"id":"b","text":"try self!.performOperationAction()","explanation":"Force unwrapping self! causes crashes if the instance has deallocated."},{"id":"c","text":"fatalError(self.descriptionText)","explanation":"fatalError terminates the application intentionally."},{"id":"d","text":"assert(self != nil, \"Failed ref\")","explanation":"Assertions are disabled in production release builds and do not unwrap optionals."}],"answer":"a"},{"id":"closures-escaping-capture-q10","type":"mcq","difficulty":2,"prompt":"What does writing [count] in a closure capture list do when count is an Int variable?","options":[{"id":"a","text":"It allows the closure to mutate count in the scope.","explanation":"The captured variable inside the closure is an immutable constant."},{"id":"b","text":"It captures an immutable snapshot of count at start.","explanation":"Right. Capture lists take an immutable snapshot copy of value types at the moment the closure is created."},{"id":"c","text":"It converts count into a mutable reference pointer.","explanation":"Default capture captures by reference; capture lists capture an immutable copy."},{"id":"d","text":"It makes count optional inside the closure body.","explanation":"Value types in capture lists remain non-optional."}],"answer":"b"},{"id":"closures-escaping-capture-q11","type":"mcq","difficulty":2,"prompt":"Why do non-escaping closures not cause retain cycles with self?","options":[{"id":"a","text":"Non-escaping closures cannot reference classes.","explanation":"Non-escaping closures can freely reference class instances and properties."},{"id":"b","text":"The compiler forces all references to be weak.","explanation":"References inside non-escaping closures remain strong."},{"id":"c","text":"They execute and finish before the function exits.","explanation":"Right. Non-escaping closures are released as soon as the function returns, so no cycle can persist."},{"id":"d","text":"They run exclusively inside background task groups.","explanation":"Non-escaping closures run synchronously on the calling thread."}],"answer":"c"},{"id":"closures-escaping-capture-q12","type":"mcq","difficulty":2,"prompt":"What compiler error occurs if you assign a non-escaping closure parameter to a stored property?","options":[{"id":"a","text":"error: closure must return an optional value.","explanation":"Return types do not influence escaping validation."},{"id":"b","text":"error: cannot convert value to closure type.","explanation":"The types match, but the lifetime semantics conflict."},{"id":"c","text":"error: closures must be marked with mutating.","explanation":"mutating applies to methods on structs, not escaping attributes."},{"id":"d","text":"error: assigning non-escaping to '@escaping'.","explanation":"Right. Swift forbids storing non-escaping closures in properties that outlive the call."}],"answer":"d"},{"id":"closures-escaping-capture-q13","type":"mcq","difficulty":2,"prompt":"Why does Swift require explicit self inside escaping closures?","options":[{"id":"a","text":"To make developers acknowledge reference capture.","explanation":"Right. Swift forces explicit self so developers are reminded that the closure will capture and retain self."},{"id":"b","text":"Because the compiler cannot resolve method names.","explanation":"The compiler can resolve names; the rule exists purely for capture clarity."},{"id":"c","text":"To force the compiler to allocate code on stack.","explanation":"Escaping closures are allocated on the heap regardless of self syntax."},{"id":"d","text":"To enable Objective-C dynamic method resolution.","explanation":"Swift uses static and vtable dispatch, not dynamic Objective-C resolution by default."}],"answer":"a"},{"id":"closures-escaping-capture-q14","type":"mcq","difficulty":2,"prompt":"Which of the following closures is non-escaping by default in the Swift Standard Library?","options":[{"id":"a","text":"The DispatchQueue async function.","explanation":"DispatchQueue.async takes an @escaping closure because it runs on a queue later."},{"id":"b","text":"The Array map transformation method.","explanation":"Right. Array.map executes its closure synchronously on elements before returning."},{"id":"c","text":"The UIView animate block function.","explanation":"UIView animation blocks escape to be executed by the Core Animation engine."},{"id":"d","text":"The Timer scheduled timer method.","explanation":"Timers execute closures repeatedly or after a time delay, escaping the initial setup call."}],"answer":"b"},{"id":"closures-escaping-capture-q15","type":"mcq","difficulty":3,"prompt":"How did Swift 5.3 improve the ergonomics of self inside closures with capture lists?","options":[{"id":"a","text":"It removed the need for weak references in calls.","explanation":"Weak references are still necessary to prevent retain cycles."},{"id":"b","text":"It converted unowned references to weak pointers.","explanation":"unowned references remain distinct from weak references."},{"id":"c","text":"It allowed implicit self when self is in capture.","explanation":"Right. SE-0269 allowed omitting self. inside closure bodies when self is listed in the capture list."},{"id":"d","text":"It banned strong self captures across all scopes.","explanation":"Strong captures are still permitted when explicitly requested."}],"answer":"c"},{"id":"closures-escaping-capture-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"var count = 10\nlet getCount = { [count] in\n    count\n}\ncount = 50\nprint(getCount())","options":[{"id":"a","text":"It prints the number 50.","explanation":"The capture list took an immutable snapshot when count was 10."},{"id":"b","text":"It prints the number 0.","explanation":"count was initialized to 10, not 0."},{"id":"c","text":"It prints the value nil.","explanation":"count is a non-optional Int."},{"id":"d","text":"It prints the number 10.","explanation":"Right. [count] captured an immutable copy of 10 when the closure was declared."}],"answer":"d"},{"id":"closures-escaping-capture-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"var total = 10\nlet addValue = {\n    total += 5\n}\naddValue()\naddValue()\nprint(total)","options":[{"id":"a","text":"It prints the number 20.","explanation":"Right. The closure captures total by reference and increments it twice from 10 to 20."},{"id":"b","text":"It prints the number 10.","explanation":"The closure mutates total during each call."},{"id":"c","text":"It prints the number 15.","explanation":"addValue() was called twice, adding 5 each time."},{"id":"d","text":"It prints the number 25.","explanation":"10 + 5 + 5 equals 20, not 25."}],"answer":"a"},{"id":"closures-escaping-capture-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class Handler {\n    var stored: (() -> Int)?\n    func setup() {\n        var multiplier = 3\n        stored = { [multiplier] in\n            return multiplier * 4\n        }\n        multiplier = 10\n    }\n}\nlet handler = Handler()\nhandler.setup()\nprint(handler.stored?() ?? 0)","options":[{"id":"a","text":"It prints the number 40.","explanation":"multiplier was captured with value 3, so it does not evaluate to 10 * 4."},{"id":"b","text":"It prints the number 12.","explanation":"Right. [multiplier] captured an immutable snapshot of 3, resulting in 3 * 4 = 12."},{"id":"c","text":"It prints the number 30.","explanation":"The multiplier calculation multiplies by 4, producing 12."},{"id":"d","text":"It prints the number 0.","explanation":"handler.stored is non-nil after calling setup()."}],"answer":"b"},{"id":"closures-escaping-capture-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class Person {\n    var name = \"Alex\"\n}\nvar person: Person? = Person()\nlet closure = { [weak person] in\n    print(person?.name ?? \"None\")\n}\nperson = nil\nclosure()","options":[{"id":"a","text":"It prints the string Alex.","explanation":"person was set to nil before the closure executed."},{"id":"b","text":"It prints the value nil.","explanation":"The nil-coalescing operator ?? provides the fallback string None."},{"id":"c","text":"It prints the string None.","explanation":"Right. Setting person to nil deallocates the instance, causing weak person to become nil."},{"id":"d","text":"It crashes at runtime.","explanation":"weak references become nil safely without crashing."}],"answer":"c"},{"id":"closures-escaping-capture-q20","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"func executeTwice(action: () -> Void) {\n    action()\n    action()\n}\nvar counter = 0\nexecuteTwice {\n    counter += 1\n}\nprint(counter)","options":[{"id":"a","text":"It prints the number 0.","explanation":"The closure executes twice and mutates counter."},{"id":"b","text":"It prints the number 1.","explanation":"executeTwice runs the action closure two times."},{"id":"c","text":"It prints the number 4.","explanation":"counter increments by 1 twice, reaching 2."},{"id":"d","text":"It prints the number 2.","explanation":"Right. Non-escaping action() executes synchronously two times, incrementing counter to 2."}],"answer":"d"},{"id":"closures-escaping-capture-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class Worker {\n    var job: (() -> String)?\n    func register(work: @escaping () -> String) {\n        job = work\n    }\n}\nlet worker = Worker()\nlet greeting = \"Hello\"\nworker.register {\n    return \"\\(greeting) World\"\n}\nprint(worker.job?() ?? \"Empty\")","options":[{"id":"a","text":"It prints the text Hello World.","explanation":"Right. The escaping closure captures greeting and evaluates Hello World when called."},{"id":"b","text":"It prints the text Empty.","explanation":"job was assigned a valid closure, so the fallback Empty is not used."},{"id":"c","text":"It prints the text Hello.","explanation":"The string interpolation adds World after greeting."},{"id":"d","text":"It prints the text World.","explanation":"greeting is evaluated as Hello, producing Hello World."}],"answer":"a"},{"id":"closures-escaping-capture-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"var factor = 2\nlet calculate = { (num: Int) -> Int in\n    return num * factor\n}\nfactor = 5\nprint(calculate(4))","options":[{"id":"a","text":"It prints the number 8.","explanation":"calculate captures factor by reference, not as a snapshot of 2."},{"id":"b","text":"It prints the number 20.","explanation":"Right. Without a capture list, factor is captured by reference, so factor is 5 when calculate(4) runs: 4 * 5 = 20."},{"id":"c","text":"It prints the number 10.","explanation":"4 multiplied by 5 produces 20."},{"id":"d","text":"It prints the number 4.","explanation":"The factor of 5 multiplies num."}],"answer":"b"},{"id":"closures-escaping-capture-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class DataStore {\n    var value = 100\n    func makeGetter() -> () -> Int {\n        return { [weak self] in\n            return self?.value ?? -1\n        }\n    }\n}\nvar store: DataStore? = DataStore()\nlet getter = store!.makeGetter()\nprint(getter())","options":[{"id":"a","text":"It prints the number -1.","explanation":"store is still alive in memory, so self is non-nil."},{"id":"b","text":"It prints the number 0.","explanation":"value is initialized to 100."},{"id":"c","text":"It prints the number 100.","explanation":"Right. store is still allocated, so self?.value unwraps to 100."},{"id":"d","text":"It prints the value nil.","explanation":"The getter returns an Int, not an optional."}],"answer":"c"},{"id":"closures-escaping-capture-q24","type":"written","difficulty":2,"prompt":"Explain the difference between escaping and non-escaping closures in Swift. When must a closure parameter be marked @escaping? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that non-escaping closures execute synchronously within the function body before returning","weight":50,"key":true},{"criterion":"Explains that escaping closures outlive the function call, such as when stored in properties or passed to async callbacks","weight":50,"key":true}],"modelAnswer":"In Swift, closure parameters are non-escaping by default, meaning they execute synchronously within the function body before the function returns. A closure must be marked @escaping when it outlives the function that received it. Common examples include stored properties and asynchronous callbacks. Escaping closures are allocated on the heap rather than the stack."},{"id":"closures-escaping-capture-q25","type":"written","difficulty":2,"prompt":"What is a strong reference cycle between a class instance and a closure, and how does [weak self] prevent it? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains how a retain cycle forms when an instance retains a closure that captures the instance strongly","weight":50,"key":true},{"criterion":"Explains that [weak self] creates an optional weak reference that avoids incrementing retain count and zeroes on deallocation","weight":50,"key":true}],"modelAnswer":"A strong reference cycle occurs when a class instance holds a strong reference to an escaping closure, and that closure captures the instance strongly. Because each holds a retain count on the other, neither can ever be deallocated by ARC. Using [weak self] breaks this cycle by capturing an optional weak reference that does not increment retain count and becomes nil when the instance deallocates."},{"id":"closures-escaping-capture-q26","type":"written","difficulty":2,"prompt":"Compare [weak self] and [unowned self] in Swift closure capture lists. Why is [weak self] generally preferred for asynchronous callbacks? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that weak creates an optional reference zeroed on deallocation, while unowned assumes the instance is always alive","weight":50,"key":true},{"criterion":"Explains that unowned crashes if the instance deallocates before asynchronous callback execution","weight":50,"key":true}],"modelAnswer":"Both weak and unowned break retain cycles by not increasing the retain count of the captured instance. However, weak captures self as an optional that ARC zeroes to nil upon deallocation, while unowned assumes the instance will never be deallocated. Weak self is preferred for asynchronous callbacks. If a user dismisses a screen before a network call completes, unowned self causes a fatal crash."},{"id":"closures-escaping-capture-q27","type":"written","difficulty":2,"prompt":"How does capturing a value type in a closure capture list differ from capturing it without a capture list? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that default capture is by reference and reflects subsequent changes to the variable","weight":50,"key":true},{"criterion":"Explains that capture lists take an immutable snapshot copy of value types at closure creation time","weight":50,"key":true}],"modelAnswer":"By default, a closure captures variables from surrounding scope by reference, meaning it observes changes made to the variable after the closure is declared. When a value type is included in a capture list like [count], Swift captures an immutable copy of its current value at declaration time. Subsequent changes to the outer variable do not affect the captured copy inside the closure."},{"id":"closures-escaping-capture-q28","type":"written","difficulty":3,"prompt":"Why does the Swift compiler require explicit self inside escaping closures, and how does this requirement protect developers? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that explicit self requires developers to acknowledge capturing the enclosing instance","weight":50,"key":true},{"criterion":"Explains that it prevents accidental retain cycles and memory leaks in escaping closures","weight":50,"key":true}],"modelAnswer":"The Swift compiler requires explicit self inside escaping closures to make sure developers consciously acknowledge that the closure captures reference semantics. Because escaping closures outlive their calling scope and can create retain cycles, requiring self. or [weak self] makes memory capture explicit. This warning prevents accidental memory leaks caused by unintentionally retaining the enclosing class instance."},{"id":"closures-escaping-capture-q29","type":"code-write","difficulty":2,"prompt":"Create a class AsyncFetcher with an optional closure property completion of type (() -> Void)?. Add a method fetch(callback: @escaping () -> Void) that stores callback into completion.","starterCode":"// Create AsyncFetcher class here","modelAnswer":"class AsyncFetcher {\n    var completion: (() -> Void)?\n    func fetch(callback: @escaping () -> Void) {\n        completion = callback\n    }\n}\nlet fetcher = AsyncFetcher()\nfetcher.fetch {\n    print(\"Fetched data\")\n}\nfetcher.completion?()","rubric":[{"criterion":"Declares class AsyncFetcher with var completion: (() -> Void)?","weight":40,"key":true},{"criterion":"Declares fetch method with @escaping () -> Void parameter","weight":30,"key":true},{"criterion":"Assigns callback parameter to completion property","weight":30,"key":true}]},{"id":"closures-escaping-capture-q30","type":"code-write","difficulty":2,"prompt":"Create a class ViewModel with an integer property count initialized to 10. Implement a method makeHandler() -> () -> Int that returns a closure capturing self weakly with [weak self] and returning self?.count ?? 0.","starterCode":"// Create ViewModel class here","modelAnswer":"class ViewModel {\n    var count = 10\n    func makeHandler() -> () -> Int {\n        return { [weak self] in\n            return self?.count ?? 0\n        }\n    }\n}\nlet vm = ViewModel()\nlet actionHandler = vm.makeHandler()\nprint(actionHandler())","rubric":[{"criterion":"Declares class ViewModel with var count = 10","weight":30,"key":true},{"criterion":"Implements makeHandler returning closure with [weak self] capture list","weight":40,"key":true},{"criterion":"Safely accesses self?.count with nil coalescing","weight":30,"key":true}]},{"id":"closures-escaping-capture-q31","type":"code-write","difficulty":2,"prompt":"Write a function applyOperation(value: Int, operation: (Int) -> Int) -> Int that applies the non-escaping closure operation to value and returns the integer result.","starterCode":"// Write applyOperation function here","modelAnswer":"func applyOperation(value: Int, operation: (Int) -> Int) -> Int {\n    return operation(value)\n}\nlet result = applyOperation(value: 7) { $0 * 3 }\nprint(result)","rubric":[{"criterion":"Declares function applyOperation taking Int and non-escaping closure (Int) -> Int","weight":50,"key":true},{"criterion":"Executes operation passing value and returns the Int result","weight":50,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

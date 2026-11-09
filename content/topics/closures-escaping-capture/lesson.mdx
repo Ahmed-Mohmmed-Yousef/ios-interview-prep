@@ -1,0 +1,218 @@
+export const meta = {
+  id: "closures-escaping-capture",
+  summary: "Understand escaping closures, capture lists, and reference cycle prevention with weak self.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Closures", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/closures", kind: "official" },
+    { title: "The Swift Programming Language: Automatic Reference Counting", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why must an asynchronous completion handler be marked with `@escaping` in Swift?</Question>
+  <Guess>
+    <Option id="a">Because asynchronous closures run only on background dispatch queues.</Option>
+    <Option id="b" correct>Because the closure is called after the function body has finished execution and returned.</Option>
+    <Option id="c">Because the closure takes arguments that are passed by reference.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of ordering food. When you order coffee at a counter, you wait and receive your cup immediately before leaving the register. That is a non-escaping closure. When you order a pizza delivery, you hang up the phone and receive your pizza thirty minutes later. The restaurant needs your phone number and address after the initial call ends. That is an escaping closure.
+</Analogy>
+
+In Swift, function closure parameters are **non-escaping** by default.
+
+A non-escaping closure runs inside the function body. The enclosing function does not finish until the closure finishes. Because the closure cannot outlive the function, Swift allocates it on the stack.
+
+An **escaping closure** outlives the function that received it.
+
+It is passed into a function, but it executes after that function returns. Common examples include network requests and scheduled timers. Because an escaping closure must stay alive in memory, Swift stores it on the heap. You must mark that parameter with `@escaping`.
+
+Closures also capture variables from surrounding scope by reference by default.
+
+If a class instance stores an escaping closure, and the closure holds a strong reference to that instance, a **retain cycle** occurs. Neither object can ever be deallocated.
+
+A **capture list** like `[weak self]` breaks retain cycles by converting the reference into an optional weak reference.
+
+## See it
+
+<Diagram id="closures-escaping-capture-main" caption="How escaping closures move to the heap and require weak references to avoid retain cycles">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Stack frame box showing enclosing function execution.
+    2. Heap memory area showing stored escaping closure and class instance.
+    3. Strong reference arrows forming a closed cycle.
+    4. Broken cycle using weak self arrow pointing optionally to instance.
+  - Steps:
+    Step 1: Non-escaping closure executes on the stack synchronously before the function returns.
+    Step 2: Escaping closure is assigned to a stored property and moves to the heap.
+    Step 3: Escaping closure captures self strongly, creating a retain cycle between instance and closure.
+    Step 4: Capture list [weak self] creates an optional weak reference, breaking the cycle safely.
+  - Static version (reduced motion):
+    Side-by-side comparison of non-escaping stack execution versus escaping heap retention with weak self.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What is the default behavior of closure parameters in Swift?</Question>
+  <Option id="a">They are escaping and allocated on the heap.</Option>
+  <Option id="b" correct>They are non-escaping and execute before the function returns.</Option>
+  <Option id="c">They create strong retain cycles automatically.</Option>
+  <Explanation>Closure parameters in Swift are non-escaping by default. They execute synchronously and cannot outlive the function call.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Non-escaping closures versus escaping closures">
+
+```swift
+class NetworkService {
+    var onComplete: (() -> Void)?
+    
+    // Escaping closure stored for execution after the function returns
+    func download(completion: @escaping () -> Void) {
+        onComplete = completion
+    }
+    
+    // Non-escaping closure executed immediately within the function
+    func runNow(action: () -> Void) {
+        action()
+    }
+}
+
+let service = NetworkService()
+service.runNow {
+    print("Runs immediately")
+}
+service.download {
+    print("Runs later")
+}
+service.onComplete?()
+```
+
+```output
+Runs immediately
+Runs later
+```
+
+</CodeExample>
+
+This code shows the lifecycle difference:
+- **`runNow`**: The closure runs synchronously during the function call. No modifier is needed.
+- **`download`**: The closure is stored in `onComplete` and called later. The `@escaping` attribute is required.
+
+<CodeExample title="Breaking retain cycles and capturing value snapshots">
+
+```swift
+class DownloadTask {
+    var completion: (() -> Void)?
+    func start(handler: @escaping () -> Void) {
+        completion = handler
+    }
+}
+
+class DetailViewModel {
+    var title = "Loaded"
+    let task = DownloadTask()
+    
+    func load() {
+        task.start { [weak self] in
+            // Weak self is an optional and becomes nil if deallocated
+            guard let self = self else { return }
+            print(self.title)
+        }
+    }
+}
+
+var number = 5
+let snapClosure = { [number] in
+    // Captures immutable copy of number at definition time
+    print("Snapshot: \(number)")
+}
+let liveClosure = {
+    // Captures reference to number variable
+    print("Live: \(number)")
+}
+number = 20
+
+snapClosure()
+liveClosure()
+
+let vm = DetailViewModel()
+vm.load()
+vm.task.completion?()
+```
+
+```output
+Snapshot: 5
+Live: 20
+Loaded
+```
+
+</CodeExample>
+
+This example highlights two capture rules:
+- **`[weak self]`**: Captures `self` weakly to prevent a retain cycle between `DetailViewModel` and `DownloadTask`.
+- **`[number]`**: Takes an immutable snapshot of value type `number` when the closure is created.
+
+<QuickCheck>
+  <Question>What happens to a weak self reference when the class instance deallocates?</Question>
+  <Option id="a">It throws a fatal runtime exception.</Option>
+  <Option id="b" correct>ARC automatically zeroes the reference to nil.</Option>
+  <Option id="c">It retains the instance in memory permanently.</Option>
+  <Explanation>weak references in Swift are always optional. When the referenced object deallocates, ARC sets the weak reference to nil.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Experiment with escaping closures and weak references in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming non-escaping closures cause retain cycles">
+Non-escaping closures execute synchronously during the function call and are discarded immediately. They cannot create retain cycles. Adding `[weak self]` inside non-escaping functions like `map` or `filter` is unnecessary.
+</Trap>
+
+<Trap title="Using unowned self for asynchronous network tasks">
+`unowned` assumes that the referenced object will never deallocate before the closure executes. If a user dismisses a view controller before a network call finishes, accessing `unowned self` crashes the app. Always prefer `[weak self]` for asynchronous network completions.
+</Trap>
+
+<Trap title="Believing capture lists only work with self">
+Capture lists can capture any variable from the surrounding scope. When capturing a value type like `[count]`, Swift creates an immutable copy at the moment of closure creation.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+In Swift, closure parameters are non-escaping by default and run before the function returns. When a closure runs later, like after an asynchronous network call, we mark it `@escaping`. We use `[weak self]` to avoid retain cycles and memory leaks.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Swift closure parameters are non-escaping by default, enabling stack allocation optimizations. If a closure is stored or executed after the enclosing function returns, it must be annotated with `@escaping` and moves to the heap. When an escaping closure captures `self` strongly, and `self` owns the closure, a retain cycle occurs. We write `[weak self]` in the capture list to break the cycle by creating an optional weak reference.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Escaping closures outlive their calling scope and require heap allocation. They demand deliberate reference management to avoid retain cycles with view models or controllers. Using capture lists with `[weak self]` prevents strong reference cycles by creating non-retaining optional pointers that ARC zeroes on deallocation. In modern Swift, structured concurrency with `async/await` replaces many escaping completion handlers, eliminating callback lifecycle hazards entirely.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Closure parameters in Swift are non-escaping by default.
+- An escaping closure executes after the enclosing function returns and requires `@escaping`.
+- Closures capture surrounding variables by reference by default.
+- `[weak self]` creates an optional weak reference to prevent strong reference cycles.
+- `[unowned self]` creates an unowned reference that crashes if the instance has already deallocated.
+- Capture lists take immutable snapshot copies of value types at creation time.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Closures](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/closures)
+- [The Swift Programming Language: Automatic Reference Counting](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting)

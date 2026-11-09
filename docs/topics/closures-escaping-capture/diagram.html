@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Escaping Closures and Capture Lists</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --stack-color: #0284c7; --stack-soft: #e0f2fe;
+  --heap-color: #7c3aed; --heap-soft: #ede9fe;
+  --retain-color: #dc2626; --retain-soft: #fee2e2;
+  --weak-color: #0c765c; --weak-soft: #dcf2ea;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --stack-color: #38bdf8; --stack-soft: #082f49;
+  --heap-color: #a78bfa; --heap-soft: #2e1065;
+  --retain-color: #f87171; --retain-soft: #450a0a;
+  --weak-color: #45cfa3; --weak-soft: #13362c;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--stack-soft); color: var(--stack-color); }
+.p-right .kind { background: var(--heap-soft); color: var(--heap-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.mem-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.mem-box.active-stack { stroke: var(--stack-color); stroke-width: 2.5; fill: var(--stack-soft); }
+.mem-box.active-heap { stroke: var(--heap-color); stroke-width: 2.5; fill: var(--heap-soft); }
+.mem-box.active-retain { stroke: var(--retain-color); stroke-width: 2.5; fill: var(--retain-soft); }
+.mem-box.active-weak { stroke: var(--weak-color); stroke-width: 2.5; fill: var(--weak-soft); }
+
+.arrow { stroke-width: 2.5; fill: none; transition: all 0.3s ease; }
+.arrow-head { fill: currentColor; }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--stack-color); color: var(--stack-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+  <div class="interactive-view">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span>Stack Memory</span> <span class="kind">Synchronous</span></h3>
+        <svg viewBox="0 0 320 200" aria-label="Stack execution diagram">
+          <rect id="stackFrame" x="20" y="20" width="280" height="160" rx="10" class="mem-box active-stack" />
+          <text id="stackTitle" x="40" y="55" font-family="Lexend" font-size="14" font-weight="600" fill="currentColor">Function Call Stack</text>
+          
+          <rect id="closureStack" x="40" y="75" width="240" height="45" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+          <text id="closureStackText" x="55" y="103" font-family="JetBrains Mono" font-size="12" fill="currentColor">closure() runs immediately</text>
+          
+          <text id="stackStatus" x="40" y="150" font-family="Lexend" font-size="12" fill="var(--muted)">Deallocated on return</text>
+        </svg>
+        <div class="code" id="leftCode">func runNow(action: () -> Void) {
+    action() // Synchronous execution
+}</div>
+        <p class="caption" id="leftCaption">Non-escaping closure executes before the function returns.</p>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span>Heap Memory</span> <span class="kind">Lifecycle & Retain</span></h3>
+        <svg viewBox="0 0 320 200" aria-label="Heap execution diagram">
+          <rect id="heapFrame" x="20" y="20" width="280" height="160" rx="10" class="mem-box" />
+          
+          <rect id="instanceBox" x="40" y="45" width="105" height="60" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+          <text x="50" y="72" font-family="Lexend" font-size="12" font-weight="600" fill="currentColor">ViewModel</text>
+          <text x="50" y="90" font-family="JetBrains Mono" font-size="10" fill="var(--muted)">task: Task</text>
+
+          <rect id="closureHeapBox" x="175" y="45" width="110" height="60" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+          <text x="185" y="72" font-family="Lexend" font-size="12" font-weight="600" fill="currentColor">@escaping</text>
+          <text id="closureHeapText" x="185" y="90" font-family="JetBrains Mono" font-size="10" fill="var(--muted)">completion</text>
+
+          <!-- Retain arrows -->
+          <path id="arrowForward" d="M 145 65 L 175 65" stroke="var(--line)" stroke-width="2" marker-end="url(#arrow)" fill="none" />
+          <path id="arrowBack" d="M 175 85 L 145 85" stroke="var(--line)" stroke-width="2" marker-end="url(#arrow)" fill="none" />
+          
+          <text id="cycleStatus" x="40" y="150" font-family="Lexend" font-size="12" font-weight="600" fill="var(--muted)">No long-term reference</text>
+          
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 8 5 L 0 9 z" fill="currentColor" />
+            </marker>
+          </defs>
+        </svg>
+        <div class="code" id="rightCode">// Escaping closure moves to heap</div>
+        <p class="caption" id="rightCaption">Passed into function, lives past function return.</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+      <div class="btn-group">
+        <button id="btnBack" disabled aria-label="Previous step">Back</button>
+        <button id="btnNext" aria-label="Next step">Next</button>
+        <button id="btnReplay" aria-label="Replay animation">Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="static-summary" role="region" aria-label="Summary of escaping closures and capture lists">
+    <h3>Summary: Escaping Closures and Memory Lifecycles</h3>
+    <ul>
+      <li><strong>Non-escaping (default)</strong>: Runs synchronously on the call stack before the function returns. No heap allocation, no retain cycles.</li>
+      <li><strong>@escaping</strong>: Stored and called after the enclosing function returns. Moves to the heap memory.</li>
+      <li><strong>Retain cycle hazard</strong>: If an escaping closure captures <code>self</code> strongly and <code>self</code> owns the closure, neither can ever be deallocated.</li>
+      <li><strong>Capture list [weak self]</strong>: Breaks retain cycles by turning <code>self</code> into an optional reference that ARC zeroes automatically upon deallocation.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    leftCode: "func runNow(action: () -> Void) {\n    action() // Synchronous call\n}",
+    leftCaption: "Non-escaping closure: executes synchronously on the stack before the function returns.",
+    rightCode: "// Stack allocation\n// No reference held after return",
+    rightCaption: "Closure is discarded immediately; memory is reclaimed automatically.",
+    stackClass: "active-stack",
+    heapClass: "",
+    cycleStatus: "Safe: discarded upon return",
+    cycleColor: "var(--stack-color)",
+    arrowForward: "none",
+    arrowBack: "none",
+    closureHeapText: "no heap ref"
+  },
+  {
+    step: 2,
+    leftCode: "func download(completion: @escaping () -> Void) {\n    onComplete = completion\n}",
+    leftCaption: "The closure is assigned to a stored property. It must survive after download() returns.",
+    rightCode: "class NetworkService {\n    var onComplete: (() -> Void)?\n}",
+    rightCaption: "Swift moves the escaping closure to heap memory so it can execute later.",
+    stackClass: "",
+    heapClass: "active-heap",
+    cycleStatus: "Escaping: allocated on heap",
+    cycleColor: "var(--heap-color)",
+    arrowForward: "var(--heap-color)",
+    arrowBack: "none",
+    closureHeapText: "stored on heap"
+  },
+  {
+    step: 3,
+    leftCode: "task.start {\n    // Strong capture of self\n    self.updateUI()\n}",
+    leftCaption: "Strong reference hazard: ViewModel retains Task, and Task closure retains ViewModel strongly.",
+    rightCode: "// Strong Retain Cycle!\n// ViewModel ⟷ Closure (leak)",
+    rightCaption: "Both references stay at 1+. Neither object can ever be deallocated by ARC.",
+    stackClass: "",
+    heapClass: "active-retain",
+    cycleStatus: "Memory Leak: Strong Retain Cycle",
+    cycleColor: "var(--retain-color)",
+    arrowForward: "var(--retain-color)",
+    arrowBack: "var(--retain-color)",
+    closureHeapText: "strong self"
+  },
+  {
+    step: 4,
+    leftCode: "task.start { [weak self] in\n    guard let self = self else { return }\n    self.updateUI()\n}",
+    leftCaption: "Capture list [weak self] creates an optional weak reference that does not increment retain count.",
+    rightCode: "// Broken Retain Cycle\n// ARC zeroes self to nil if dismissed",
+    rightCaption: "When ViewModel dismisses, ARC zeroes weak self to nil and deallocates cleanly.",
+    stackClass: "",
+    heapClass: "active-weak",
+    cycleStatus: "Safe: weak reference (Optional)",
+    cycleColor: "var(--weak-color)",
+    arrowForward: "var(--weak-color)",
+    arrowBack: "var(--weak-color)",
+    closureHeapText: "weak self?"
+  }
+];
+
+let cur = 0;
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+const stackFrame = document.getElementById("stackFrame");
+const heapFrame = document.getElementById("heapFrame");
+const cycleStatus = document.getElementById("cycleStatus");
+const arrowForward = document.getElementById("arrowForward");
+const arrowBack = document.getElementById("arrowBack");
+const closureHeapText = document.getElementById("closureHeapText");
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function render(idx) {
+  const s = steps[idx];
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+  
+  stackFrame.className.baseVal = "mem-box " + s.stackClass;
+  heapFrame.className.baseVal = "mem-box " + s.heapClass;
+  
+  cycleStatus.textContent = s.cycleStatus;
+  cycleStatus.setAttribute("fill", s.cycleColor);
+  
+  arrowForward.style.display = s.arrowForward === "none" ? "none" : "block";
+  if (s.arrowForward !== "none") arrowForward.setAttribute("stroke", s.arrowForward);
+  
+  arrowBack.style.display = s.arrowBack === "none" ? "none" : "block";
+  if (s.arrowBack !== "none") arrowBack.setAttribute("stroke", s.arrowBack);
+  
+  closureHeapText.textContent = s.closureHeapText;
+  
+  stepCounter.textContent = "Step " + (idx + 1) + " of " + steps.length;
+  btnBack.disabled = idx === 0;
+  btnNext.disabled = idx === steps.length - 1;
+}
+
+btnBack.addEventListener("click", () => { if (cur > 0) { cur--; render(cur); } });
+btnNext.addEventListener("click", () => { if (cur < steps.length - 1) { cur++; render(cur); } });
+btnReplay.addEventListener("click", () => { cur = 0; render(cur); });
+
+render(0);
+</script>
+</body>
+</html>

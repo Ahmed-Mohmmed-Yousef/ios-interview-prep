@@ -105,7 +105,7 @@ Write all lessons and question banks, level by level, with fact checks.
   - ✅ **Batch 1E: App and System (1 topic: `xcode-and-git-basics`)** — Complete
     - ✅ **xcode-and-git-basics** (Xcode, Projects and Git) — published (lesson, diagram, 31 questions) → [docs/topics/xcode-and-git-basics/review.html](docs/topics/xcode-and-git-basics/review.html)
 - 🔄 **4.2 Junior level topics (Wave 2)** — 45 topics (44 main + 1 bonus), starting Batch 2A
-  - 🔄 **Batch 2A: Swift Language Advanced (9 topics: 7 published, 2 remaining)**
+  - 🔄 **Batch 2A: Swift Language Advanced (9 topics: 8 published, 1 remaining)**
     - ✅ **optional-chaining** (Optional Chaining) — published (lesson, diagram, 31 questions) → [docs/topics/optional-chaining/review.html](docs/topics/optional-chaining/review.html)
     - ✅ **inheritance** (Inheritance) — published (lesson, diagram, 31 questions) → [docs/topics/inheritance/review.html](docs/topics/inheritance/review.html)
     - ✅ **type-casting** (Type Casting and Any) — published (lesson, diagram, 31 questions) → [docs/topics/type-casting/review.html](docs/topics/type-casting/review.html)
@@ -113,8 +113,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **extensions** (Extensions) — published (lesson, diagram, 31 questions) → [docs/topics/extensions/review.html](docs/topics/extensions/review.html)
     - ✅ **generics-basics** (Generics: The Basics) — published (lesson, diagram, 31 questions) → [docs/topics/generics-basics/review.html](docs/topics/generics-basics/review.html)
     - ✅ **access-control** (Access Control) — published (lesson, diagram, 31 questions) → [docs/topics/access-control/review.html](docs/topics/access-control/review.html)
-    - 🔄 **closures-escaping-capture** (Closures: Escaping and Capture Lists)
-    - ⬜ **codable** (Codable and JSON)
+    - ✅ **closures-escaping-capture** (Closures: Escaping and Capture Lists) — published (lesson, diagram, 31 questions) → [docs/topics/closures-escaping-capture/review.html](docs/topics/closures-escaping-capture/review.html)
+    - 🔄 **codable** (Codable and JSON)
   - ⬜ **Batch 2B: Coding Interview Algorithms (6 topics)**
     - ⬜ **sorting-binary-search** (Sorting and Binary Search)
     - ⬜ **two-pointers-sliding-window** (Two Pointers and Sliding Window)
@@ -187,6 +187,11 @@ Level picker, path, lessons, browser-graded exams, saved progress, results.
   - ⬜ Playwright CLI + skills (your choice for browser testing): `npm install -g @playwright/cli@latest`, then `playwright-cli install --skills` ([repo](https://github.com/microsoft/playwright-cli))
   - ⬜ Vercel React skill: `npx skills add vercel-labs/agent-skills --skill react-best-practices` ([repo](https://github.com/vercel-labs/agent-skills))
   - ⬜ Context7 for Tailwind, shadcn, Motion and Zustand docs (Next.js now uses its bundled docs): `npx ctx7 setup --claude` ([docs](https://context7.com/docs/clients/claude-code))
+- ⬜ **Theme: no flash on load** — a tiny script in `<head>` reads the saved Light / Dark / Device choice and sets the `.light` or `.dark` class on `<html>` before the page appears, so dark-mode learners never see a white flash. Test it with a hard reload in dark mode
+- ⬜ **Theme: status bar colors** — a light and a dark `themeColor` in the Next.js `viewport` export, from `config/brand.json` ([viewport docs](https://nextjs.org/docs/app/api-reference/functions/generate-viewport), checked 2026-11-09). The manifest takes one color only
+- ⬜ **PWA: installable** — `app/manifest.ts` (built into Next.js) with the name and colors from `config/brand.json`, plus 192px and 512px icons. Learners can add the app to the home screen; on iPhone through Share → "Add to Home Screen". Vercel gives the HTTPS this needs ([Next.js PWA guide](https://nextjs.org/docs/app/guides/progressive-web-apps), checked 2026-11-09)
+- ⬜ **PWA: works offline** — a service worker with Serwist (`@serwist/turbopack` 9.5.13 on npm, 2026-11-09; check again then) keeps the visited lessons, MCQ and code-reading exams and the app shell on the device. Test offline in the e2e tests (`.claude/rules/testing.md`)
+- ❌ ~~Certificate of completion (PDF) in Phase 5~~ — moved to Phase 8: you want certificates only for logged-in learners (2026-11-09)
 - ❌ ~~Install context7 with `claude mcp add context7 -- npx -y @upstash/context7-mcp`~~ — replaced by the item above (new official setup command; Next.js docs now come bundled)
 
 ## Phase 6 — AI grading ⬜
@@ -201,6 +206,8 @@ Search engine setup, privacy-friendly analytics, deploy, feedback button.
 ## Phase 8 — Later ⬜
 
 Login and sync, running real Swift code, review reminders, mock interviews.
+- ⬜ **Certificate (PDF), for logged-in learners only** — earned when all main topics of the chosen level are done **and** the path score is at least the pass mark (`topicPassMark` in `content/rules.json`, now 70%). The name comes from the learner's account. Shows the level, path score, number of topics, date and a check link (for example `/verify/<id>`) that an employer can open, so every certificate is verified from day one. The server checks the results before it issues a certificate, so it cannot be faked by editing browser data. Calm, branded design (Calm Trail, level color, path-stop mark), always the light theme, app name from `config/brand.json`. PDF library to choose then (`@react-pdf/renderer` 4.9.0, MIT, was current on npm 2026-11-09). Needs a short design step first for your OK. Guests see a note on the results screen: "Log in to get your certificate"
+- ⬜ **PWA push notifications** for review reminders (iOS 16.4+ when the app is installed). Needs a server and a database for subscriptions, so it comes with login ([Next.js PWA guide](https://nextjs.org/docs/app/guides/progressive-web-apps))
 
 ---
 
@@ -270,6 +277,8 @@ New rules and changes you ask for are added here, with the date.
 | 2026-11-08 | All main AI coding agents follow the same rules: one shared `AGENTS.md` (Claude Code imports it). Added from the setup recommender: protect generated files, brand check hook, `/new-topic` skill, plain-English reviewer agent; context7 planned for Phase 5 | [AGENTS.md](AGENTS.md) |
 | 2026-11-08 | Per-topic research, fact checks and rubric test notes live in `docs/topics/<topic-id>/` | [docs/phase-4-plan.md](docs/phase-4-plan.md) |
 | 2026-11-08 | Content production runs level by level, starting with Fresh level (21 remaining topics) | [docs/phase-4-plan.md](docs/phase-4-plan.md) |
+| 2026-11-09 | The web app is a PWA: installable and works offline in Phase 5; push notifications later in Phase 8 | this file (Phase 5, Phase 8) |
+| 2026-11-09 | Downloadable PDF certificate when a level is done with a path score at the pass mark or more; **only for logged-in learners**, verified with a check link; calm branded design | this file (Phase 8) |
 | 2026-11-09 | Complete all 22 Fresh level topics first (Coding Interview, SwiftUI, App and System); keep optional-chaining in Wave 2 (Junior) | ask_question decision |
 | 2026-11-09 | Delegate Phase 4 content production to autonomous workflow without manual approvals; each topic auto-publishes upon passing compiler and linter checks | User instruction |
 
@@ -277,6 +286,10 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — Changed the certificate plan: only logged-in learners get a certificate, so it moved from Phase 5 to Phase 8 (login). Every certificate is now verified, with a check link, and the name comes from the account.
+- **2026-11-09** — Your new idea: a downloadable PDF certificate. Added to Phase 5 as the last step (level done + path score at the pass mark, calm branded design, made in the browser, name never stored). Added verified check links to Phase 8, because they need login.
+- **2026-11-09** — Added two theme items to Phase 5: no wrong-theme flash on load, and light and dark status-bar colors for the PWA. Light and dark mode itself was already planned in Phase 3.
+- **2026-11-09** — You asked for PWA support. Added to Phase 5: installable (web app manifest) and works offline (Serwist service worker). Added push notifications for review reminders to Phase 8, because they need a server and a database.
 - **2026-11-09** — Step 4.2 started: Junior level topics (Wave 2, 45 topics across 6 batches). Launching dedicated autonomous subagent for Batch 2A (`optional-chaining` through `codable`).
 
 - **2026-11-09** — Step 5.8 done, Phase 5 complete: Verified Web App MVP with 26 passing Vitest unit tests, 14 passing Playwright E2E tests (mobile 375px & desktop), 0 axe-core WCAG 2.1 A/AA violations, Next.js 16 SSG build producing 52 static routes with Turbopack, and authored docs/phase-5-summary.md. Phase 5 Web App MVP is 100% complete and approved!
@@ -294,6 +307,8 @@ Newest first.
 - **2026-11-09** — Step 5.5 done: Built Screen 5 (Lesson Reader & Animated Diagrams). Features: section-by-section reader splitting by headings, interactive guess-first hook with recap reveal, interactive QuickCheck with explanation toggles, animated 4-step diagram stepper with Back/Next/Replay and accessible descriptions, A/A+/A++ text size switcher tied to store, copyable Swift code figures, keyboard focus management on step headings, official sources drawer, and SSG static prerendering for all published topic lessons. Clean Next.js build and 26 passing tests. Starting Step 5.6: Exam Runner & Results.
 
 - **2026-11-09** — Step 5.4 done: Built Screen 3 (Winding Path Map) and Screen 4 (Locked Notice bottom sheet). Features: sticky top stats bar (done count, path score, accessible progress bar), zig-zag responsive road, 6 visual stop states (passed, updated with amber badge, current with pulse ring, locked with prerequisite guidance, skipped with dashed outline, bonus branch), completed stage folding, unit and stage skip test triggers, and floating "Go to my stop" jump button. Next.js build passes cleanly with 26 unit tests. Starting Step 5.5: Lesson Reader & Diagrams.
+
+- **2026-11-09** — Built and published topic closures-escaping-capture (Closures: Escaping and Capture Lists): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/closures-escaping-capture/review.html`). All checks passed. Starting codable.
 
 - **2026-11-09** — Built and published topic access-control (Access Control): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/access-control/review.html`). All checks passed. Starting closures-escaping-capture.
 
