@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swift Inheritance and Method Overriding</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --base-color: #0284c7; --base-soft: #e0f2fe;
+  --sub-color: #7c3aed; --sub-soft: #ede9fe;
+  --override-color: #0c765c; --override-soft: #dcf2ea;
+  --final-color: #d97706; --final-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --base-color: #38bdf8; --base-soft: #082f49;
+  --sub-color: #a78bfa; --sub-soft: #2e1065;
+  --override-color: #45cfa3; --override-soft: #13362c;
+  --final-color: #fbbf24; --final-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--base-soft); color: var(--base-color); }
+.p-right .kind { background: var(--sub-soft); color: var(--sub-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.card-shape.active-base { stroke: var(--base-color); stroke-width: 2.5; fill: var(--base-soft); }
+.card-shape.active-sub { stroke: var(--sub-color); stroke-width: 2.5; fill: var(--sub-soft); }
+.card-shape.active-override { stroke: var(--override-color); stroke-width: 2.5; fill: var(--override-soft); }
+.card-shape.active-final { stroke: var(--final-color); stroke-width: 2.5; fill: var(--final-soft); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--base-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div class="diagram-host" tabindex="0" role="region" aria-label="Interactive diagram: Swift Inheritance">
+
+  <!-- Interactive Animator -->
+  <div class="anim-only" style="display: grid; gap: 16px;">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span id="left-title">1. Base Class</span><span class="kind" id="left-tag">Superclass</span></h3>
+        <div class="code" id="left-code">class Vehicle {
+    var speed = 0
+    func makeNoise() { ... }
+}</div>
+        <p class="caption" id="left-desc">A class with no superclass is an independent root class in Swift.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="card-super" x="40" y="20" width="260" height="85" rx="10" class="card-shape active-base" />
+          <text x="170" y="50" class="title-text">Superclass: Vehicle</text>
+          <text x="170" y="72" class="sub-text">var speed = 0</text>
+          <text x="170" y="90" class="sub-text">func makeNoise()</text>
+        </svg>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span id="right-title">Subclass Hierarchy</span><span class="kind" id="right-tag">Subclass</span></h3>
+        <div class="code" id="right-code">class Train: Vehicle {
+    // Inherits speed & makeNoise()
+}</div>
+        <p class="caption" id="right-desc">Train subclasses Vehicle, gaining access to all properties and methods.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="card-sub" x="40" y="20" width="260" height="85" rx="10" class="card-shape" />
+          <text id="sub-title" x="170" y="50" class="title-text">Subclass: Train</text>
+          <text id="sub-line1" x="170" y="72" class="sub-text">inherits: speed</text>
+          <text id="sub-line2" x="170" y="90" class="sub-text">inherits: makeNoise()</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1" onclick="jumpTo(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2" onclick="jumpTo(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3" onclick="jumpTo(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4" onclick="jumpTo(3)"></button>
+      </div>
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" disabled onclick="prevStep()">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accessible Static Fallback (Reduced Motion) -->
+  <div class="static-fallback" role="region" aria-label="Inheritance summary">
+    <div class="comp-card">
+      <h4>1. Base Class Definition</h4>
+      <p>Swift classes do not require a universal root object. Any class without a superclass is a base class.</p>
+    </div>
+    <div class="comp-card">
+      <h4>2. Subclassing</h4>
+      <p>A subclass inherits stored properties, computed properties, and methods from its superclass.</p>
+    </div>
+    <div class="comp-card">
+      <h4>3. Overriding and Super</h4>
+      <p>Subclasses use the <code>override</code> keyword to customize behavior and can call <code>super</code> to run parent logic.</p>
+    </div>
+    <div class="comp-card">
+      <h4>4. The Final Keyword</h4>
+      <p>Marking classes or methods <code>final</code> prevents future subclassing and enables fast direct static dispatch.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    leftTitle: "1. Base Class",
+    leftTag: "Superclass",
+    leftCode: "class Vehicle {\n    var speed = 0\n    func makeNoise() { ... }\n}",
+    leftDesc: "A class with no superclass is an independent root class in Swift.",
+    rightTitle: "Class Architecture",
+    rightTag: "Single Inheritance",
+    rightCode: "// Swift classes support single inheritance\n// Structs and enums cannot inherit",
+    rightDesc: "Inheritance is strictly a class-only capability in Swift.",
+    subTitle: "Subclass: Pending",
+    subLine1: "Single inheritance model",
+    subLine2: "No universal root class",
+    superStyle: "active-base",
+    subStyle: ""
+  },
+  {
+    leftTitle: "2. Subclass Declaration",
+    leftTag: "Subclassing",
+    leftCode: "class Train: Vehicle {\n    // Gains speed and makeNoise()\n}",
+    leftDesc: "Train adopts all stored and computed characteristics from Vehicle.",
+    rightTitle: "Inherited Characteristics",
+    rightTag: "Inherited",
+    rightCode: "let train = Train()\ntrain.speed = 120 // Accessible directly!",
+    rightDesc: "Subclasses inherit stored properties and methods without duplicating code.",
+    subTitle: "Subclass: Train",
+    subLine1: "inherits: speed",
+    subLine2: "inherits: makeNoise()",
+    superStyle: "active-base",
+    subStyle: "active-sub"
+  },
+  {
+    leftTitle: "3. Overriding & super",
+    leftTag: "override func",
+    leftCode: "override func makeNoise() {\n    super.makeNoise()\n    print(\"Choo Choo!\")\n}",
+    leftDesc: "The override keyword is verified by the compiler. super executes parent logic.",
+    rightTitle: "Overridden Dispatch",
+    rightTag: "Custom Behavior",
+    rightCode: "train.makeNoise()\n// 1. super.makeNoise()\n// 2. Choo Choo!",
+    rightDesc: "Polymorphism lets the caller treat Train as a Vehicle while running custom logic.",
+    subTitle: "Subclass: Train (Overridden)",
+    subLine1: "override func makeNoise()",
+    subLine2: "calls: super.makeNoise()",
+    superStyle: "card-shape",
+    subStyle: "active-override"
+  },
+  {
+    leftTitle: "4. The final Keyword",
+    leftTag: "Closed Class",
+    leftCode: "final class Train: Vehicle {\n    // No further subclassing allowed\n}",
+    leftDesc: "final prevents other classes from inheriting and unlocks compiler direct dispatch.",
+    rightTitle: "Devirtualized Dispatch",
+    rightTag: "Direct Call",
+    rightCode: "// Compiler uses fast direct dispatch\n// instead of dynamic vtable lookup",
+    rightDesc: "Marking classes final optimizes performance and prevents fragile base classes.",
+    subTitle: "final class Train",
+    subLine1: "subclassing: BLOCKED",
+    subLine2: "dispatch: DIRECT (STATIC)",
+    superStyle: "card-shape",
+    subStyle: "active-final"
+  }
+];
+
+let currentStep = 0;
+
+function updateUI() {
+  const s = steps[currentStep];
+  document.getElementById("left-title").textContent = s.leftTitle;
+  document.getElementById("left-tag").textContent = s.leftTag;
+  document.getElementById("left-code").textContent = s.leftCode;
+  document.getElementById("left-desc").textContent = s.leftDesc;
+  
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("sub-title").textContent = s.subTitle;
+  document.getElementById("sub-line1").textContent = s.subLine1;
+  document.getElementById("sub-line2").textContent = s.subLine2;
+
+  const cardSuper = document.getElementById("card-super");
+  const cardSub = document.getElementById("card-sub");
+  cardSuper.className = "card-shape " + s.superStyle;
+  cardSub.className = "card-shape " + s.subStyle;
+
+  // Update dots and buttons
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.className = "dot" + (idx === currentStep ? " active" : "");
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = currentStep === 0;
+  document.getElementById("btn-next").disabled = currentStep === steps.length - 1;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateUI();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateUI();
+  }
+}
+
+function jumpTo(idx) {
+  currentStep = idx;
+  updateUI();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateUI();
+</script>
+</body>
+</html>
