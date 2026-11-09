@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swift Extensions: Capabilities and Constraints</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --base-color: #0284c7; --base-soft: #e0f2fe;
+  --prop-color: #0c765c; --prop-soft: #dcf2ea;
+  --init-color: #7c3aed; --init-soft: #ede9fe;
+  --proto-color: #d97706; --proto-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --base-color: #38bdf8; --base-soft: #082f49;
+  --prop-color: #45cfa3; --prop-soft: #13362c;
+  --init-color: #a78bfa; --init-soft: #2e1065;
+  --proto-color: #fbbf24; --proto-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--base-soft); color: var(--base-color); }
+.p-right .kind { background: var(--prop-soft); color: var(--prop-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.card-shape.active-base { stroke: var(--base-color); stroke-width: 2.5; fill: var(--base-soft); }
+.card-shape.active-prop { stroke: var(--prop-color); stroke-width: 2.5; fill: var(--prop-soft); }
+.card-shape.active-init { stroke: var(--init-color); stroke-width: 2.5; fill: var(--init-soft); }
+.card-shape.active-proto { stroke: var(--proto-color); stroke-width: 2.5; fill: var(--proto-soft); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--base-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div class="diagram-host" tabindex="0" role="region" aria-label="Interactive diagram: Swift Extensions">
+
+  <!-- Interactive Animator -->
+  <div class="anim-only" style="display: grid; gap: 16px;">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span id="left-title">1. Original Type</span><span class="kind" id="left-tag">Core Declaration</span></h3>
+        <div class="code" id="left-code">struct Rectangle {
+    var width: Double
+    var height: Double
+}</div>
+        <p class="caption" id="left-desc">The primary definition holds stored properties and memory layout.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="card-base" x="40" y="20" width="260" height="85" rx="10" class="card-shape active-base" />
+          <text id="base-title" x="170" y="50" class="title-text">struct Rectangle</text>
+          <text id="base-line1" x="170" y="72" class="sub-text">stored: width: Double</text>
+          <text id="base-line2" x="170" y="90" class="sub-text">stored: height: Double</text>
+        </svg>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span id="right-title">Extension Feature</span><span class="kind" id="right-tag">Added Capability</span></h3>
+        <div class="code" id="right-code">// Ready to add capabilities
+// without modifying original type</div>
+        <p class="caption" id="right-desc">Extensions cannot add stored properties or change memory size.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="card-ext" x="40" y="20" width="260" height="85" rx="10" class="card-shape" />
+          <text id="ext-title" x="170" y="50" class="title-text">Extension Scope</text>
+          <text id="ext-line1" x="170" y="72" class="sub-text">Zero extra memory bytes</text>
+          <text id="ext-line2" x="170" y="90" class="sub-text">Retroactive Modeling</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1" onclick="jumpTo(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2" onclick="jumpTo(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3" onclick="jumpTo(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4" onclick="jumpTo(3)"></button>
+      </div>
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" disabled onclick="prevStep()">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accessible Static Fallback (Reduced Motion) -->
+  <div class="static-fallback" role="region" aria-label="Extensions summary">
+    <div class="comp-card">
+      <h4>1. Core Declaration</h4>
+      <p>Original types define stored properties and physical memory allocations.</p>
+    </div>
+    <div class="comp-card">
+      <h4>2. Computed Properties & Methods</h4>
+      <p>Extensions add computed properties and instance/type methods without modifying memory layout.</p>
+    </div>
+    <div class="comp-card">
+      <h4>3. Preserving Memberwise Initializers</h4>
+      <p>Adding initializers in a struct extension keeps both the new initializer and the automatic memberwise initializer.</p>
+    </div>
+    <div class="comp-card">
+      <h4>4. Protocol Extensions</h4>
+      <p>Protocol extensions provide default implementations across all conforming types, avoiding repetitive code.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    leftTitle: "1. Original Type",
+    leftTag: "Core Declaration",
+    leftCode: "struct Rectangle {\n    var width: Double\n    var height: Double\n}",
+    leftDesc: "The primary definition holds stored properties and memory layout.",
+    rightTitle: "Memory Layout",
+    rightTag: "Allocated",
+    rightCode: "// Memberwise init generated:\n// init(width:height:)",
+    rightDesc: "Extensions cannot add stored properties or change memory size.",
+    extTitle: "Memory Frozen",
+    extLine1: "16 bytes stored state",
+    extLine2: "Stored properties fixed",
+    baseStyle: "active-base",
+    extStyle: "card-shape"
+  },
+  {
+    leftTitle: "2. Computed Property",
+    leftTag: "extension Rectangle",
+    leftCode: "extension Rectangle {\n    var area: Double {\n        width * height\n    }\n}",
+    leftDesc: "Extensions add computed properties. They calculate values on the fly without storing state.",
+    rightTitle: "Zero Memory Overhead",
+    rightTag: "Computed",
+    rightCode: "let r = Rectangle(width: 4, height: 5)\nprint(r.area) // 20.0",
+    rightDesc: "Available on all instances just like native properties.",
+    extTitle: "extension Rectangle",
+    extLine1: "var area: Double { get }",
+    extLine2: "Zero stored bytes added",
+    baseStyle: "card-shape",
+    extStyle: "active-prop"
+  },
+  {
+    leftTitle: "3. Extension Initializer",
+    leftTag: "Preserved Init",
+    leftCode: "extension Rectangle {\n    init(squareSide: Double) {\n        self.init(width: s, height: s)\n    }\n}",
+    leftDesc: "Adding an initializer in an extension preserves the automatic memberwise initializer.",
+    rightTitle: "Dual Initializers",
+    rightTag: "Both Inits Active",
+    rightCode: "// 1. Memberwise: Rectangle(w: 4, h: 5)\n// 2. Custom: Rectangle(squareSide: 8)",
+    rightDesc: "If declared inside the struct body, the memberwise init would be replaced.",
+    extTitle: "Two Inits Available",
+    extLine1: "init(width:height:) kept",
+    extLine2: "init(squareSide:) added",
+    baseStyle: "card-shape",
+    extStyle: "active-init"
+  },
+  {
+    leftTitle: "4. Protocol Extension",
+    leftTag: "Default Implementation",
+    leftCode: "extension Describable {\n    func describe() -> String {\n        \"Object named \\(name)\"\n    }\n}",
+    leftDesc: "Protocol extensions provide shared default logic across all conforming types.",
+    rightTitle: "Shared Default Logic",
+    rightTag: "Boilerplate Gone",
+    rightCode: "struct Book: Describable { let name: String }\nbook.describe() // Uses default!",
+    rightDesc: "Conforming types get default methods for free or can override them.",
+    extTitle: "Protocol Extension",
+    extLine1: "Default: describe()",
+    extLine2: "Shared across conformances",
+    baseStyle: "card-shape",
+    extStyle: "active-proto"
+  }
+];
+
+let currentStep = 0;
+
+function updateUI() {
+  const s = steps[currentStep];
+  document.getElementById("left-title").textContent = s.leftTitle;
+  document.getElementById("left-tag").textContent = s.leftTag;
+  document.getElementById("left-code").textContent = s.leftCode;
+  document.getElementById("left-desc").textContent = s.leftDesc;
+  
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("ext-title").textContent = s.extTitle;
+  document.getElementById("ext-line1").textContent = s.extLine1;
+  document.getElementById("ext-line2").textContent = s.extLine2;
+
+  const cardBase = document.getElementById("card-base");
+  const cardExt = document.getElementById("card-ext");
+  cardBase.className = "card-shape " + s.baseStyle;
+  cardExt.className = "card-shape " + s.extStyle;
+
+  // Update dots and buttons
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.className = "dot" + (idx === currentStep ? " active" : "");
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = currentStep === 0;
+  document.getElementById("btn-next").disabled = currentStep === steps.length - 1;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateUI();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateUI();
+  }
+}
+
+function jumpTo(idx) {
+  currentStep = idx;
+  updateUI();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateUI();
+</script>
+</body>
+</html>

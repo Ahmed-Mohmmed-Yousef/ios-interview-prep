@@ -1,0 +1,226 @@
+export const meta = {
+  id: "extensions",
+  summary: "Add computed properties, methods, initializers, and protocol conformances to existing Swift types without modifying source code.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Extensions", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/extensions", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How can you add a custom initializer to a struct while keeping its automatic memberwise initializer?</Question>
+  <Guess>
+    <Option id="a">Mark the custom initializer with the convenience keyword inside the struct definition.</Option>
+    <Option id="b" correct>Declare the custom initializer in an extension rather than inside the primary struct definition.</Option>
+    <Option id="c">Add the @memberwise attribute directly above the custom initializer signature.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of adding an external phone case that includes an extra kickstand and card holder. You do not break open or redesign the original phone. Instead, you add useful accessories to an existing product. In Swift, extensions add new capabilities to existing types without modifying their original source code.
+</Analogy>
+
+In Swift, an **extension** adds new functionality to an existing class, structure, enumeration, or protocol.
+
+Extensions work even on types you do not own, including standard library types like `Double` or `String`. This practice is known as retroactive modeling.
+
+What extensions can add:
+- **Computed properties**: Instance and type computed properties.
+- **Methods**: Instance and type methods, including mutating methods on value types.
+- **Initializers**: Convenience initializers for classes, and custom initializers for structs that preserve the automatic memberwise initializer.
+- **Protocol conformance**: Adopt and satisfy protocols in separate, organized blocks.
+- **Default implementations**: Provide default protocol logic through protocol extensions.
+
+What extensions cannot do:
+- **No stored properties**: Extensions cannot add stored properties or allocate new instance memory.
+- **No property observers**: Extensions cannot attach `didSet` or `willSet` to existing stored properties.
+- **No method overriding**: Extensions cannot override existing class methods. Overriding is reserved for subclasses.
+
+## See it
+
+<Diagram id="extensions-main" caption="How extensions expand existing types with computed properties, methods, and protocol adoption">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Base Type Double card from Standard Library.
+    2. Extension card adding computed properties km, m, and cm.
+    3. Extension card adopting a custom Protocol retroactively.
+    4. Memory indicator proving instance size remains unchanged (no stored properties).
+  - Steps:
+    Step 1: Start with standard library type Double.
+    Step 2: Add extension Double with computed conversion properties.
+    Step 3: Add protocol conformance via extension without touching original definition.
+    Step 4: Highlight memory boundary showing zero added stored bytes.
+  - Static version (reduced motion):
+    Central type box with extension branches for computed properties, initializers, and protocols.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Can an extension add a new stored property to an existing class?</Question>
+  <Option id="a">Yes, if a default value is supplied.</Option>
+  <Option id="b" correct>No, extensions can never add stored properties.</Option>
+  <Option id="c">Only if the class is marked final.</Option>
+  <Explanation>Extensions cannot alter the memory layout of a type. They can only add computed properties.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Adding computed properties and preserving memberwise initializers">
+
+```swift
+extension Double {
+    var km: Double { self * 1000.0 }
+    var m: Double { self }
+    var cm: Double { self / 100.0 }
+}
+
+let marathon = 42.km + 195.m
+print("Marathon distance in meters: \(marathon)")
+
+// Preserving memberwise initializers in structs
+struct Rectangle {
+    var width: Double
+    var height: Double
+}
+
+extension Rectangle {
+    init(squareSide: Double) {
+        self.init(width: squareSide, height: squareSide)
+    }
+}
+
+// 1. Memberwise initializer remains available
+let rect = Rectangle(width: 10.0, height: 5.0)
+// 2. Custom extension initializer is also available
+let square = Rectangle(squareSide: 8.0)
+
+print("Rectangle: \(rect.width) x \(rect.height)")
+print("Square: \(square.width) x \(square.height)")
+```
+
+```output
+Marathon distance in meters: 42195.0
+Rectangle: 10.0 x 5.0
+Square: 8.0 x 8.0
+```
+
+</CodeExample>
+
+This example shows two practical extension patterns:
+- **Extending built-in types**: Adds custom metric conversion helpers directly to `Double`.
+- **Preserving memberwise initialization**: Defining `init(squareSide:)` in an extension keeps the compiler-generated `init(width:height:)`.
+
+<CodeExample title="Protocol default implementations and retroactive conformance">
+
+```swift
+protocol Describable {
+    var name: String { get }
+    func describe() -> String
+}
+
+// 1. Default implementation via protocol extension
+extension Describable {
+    func describe() -> String {
+        return "Object named \(name)."
+    }
+}
+
+struct Book: Describable {
+    let name: String
+}
+
+struct User: Describable {
+    let name: String
+    // Overriding the default implementation
+    func describe() -> String {
+        return "User profile: \(name)"
+    }
+}
+
+let book = Book(name: "Swift Programming")
+let user = User(name: "Taylor")
+
+print(book.describe())
+print(user.describe())
+
+// 2. Adding protocol conformance retroactively
+extension Int: Describable {
+    var name: String { "Integer \(self)" }
+}
+
+print(42.describe())
+```
+
+```output
+Object named Swift Programming.
+User profile: Taylor
+Object named Integer 42.
+```
+
+</CodeExample>
+
+This example highlights protocol extensions:
+- **Default implementations**: `Book` gets `describe()` for free without writing code.
+- **Custom overrides**: `User` can replace the default implementation with specialized logic.
+- **Retroactive conformance**: `Int` conforms to `Describable` through an extension, adding behavior cleanly.
+
+<QuickCheck>
+  <Question>What type of initializer can an extension add to a class?</Question>
+  <Option id="a">Designated initializers only.</Option>
+  <Option id="b" correct>Convenience initializers only.</Option>
+  <Option id="c">Both designated and convenience initializers.</Option>
+  <Explanation>Class extensions can only add convenience initializers. Designated initializers must be declared in the main class definition.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try extending Swift standard library types like String or Array in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Attempting to add stored properties in an extension">
+Developers often try to add a stored property with a default value inside an extension. The Swift compiler rejects this immediately. Extensions cannot change the memory footprint of a type.
+</Trap>
+
+<Trap title="Assuming protocol extension methods always dispatch dynamically">
+If a method is defined in a protocol extension but omitted from the protocol blueprint, it uses static dispatch. Conforming types that reimplement it cannot override it dynamically when referenced as the protocol type.
+</Trap>
+
+<Trap title="Overriding class methods inside an extension">
+You cannot override an existing method inside an extension. Method overriding belongs exclusively to class inheritance hierarchies.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Extensions add new functionality to existing types without modifying their original code. You can add computed properties, new methods, and protocol conformances. Extensions cannot add stored properties or override existing methods.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Extensions enable retroactive modeling by adding computed properties, convenience initializers, and methods to existing types. Putting a custom initializer in a struct extension preserves its memberwise initializer. Protocol extensions provide default implementations for requirements, reducing boilerplate across conforming types.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Extensions split monolithic types into clean, protocol-oriented modules. Requirements declared in the protocol blueprint dispatch dynamically via witness tables. In contrast, methods added solely in the extension dispatch statically.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Extensions add computed properties, methods, and initializers to existing types.
+- Extensions cannot add stored properties or property observers.
+- Adding initializers in struct extensions preserves automatic memberwise initializers.
+- Class extensions can only add convenience initializers, not designated initializers.
+- Extensions allow retroactive modeling, conforming existing types to protocols.
+- Protocol extensions provide default implementations to all conforming types.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Extensions](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/extensions)
+- [WWDC Session: Protocol-Oriented Programming in Swift](https://developer.apple.com/videos/play/wwdc2015/408/)
