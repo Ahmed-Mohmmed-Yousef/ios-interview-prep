@@ -1,0 +1,260 @@
+export const meta = {
+  id: "matrix-problems",
+  summary: "Master 2D matrix problems in Swift, including grid indexing, bounds checking, direction vectors, DFS island counting, and in-place rotation.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Apple Developer Documentation: Array", url: "https://developer.apple.com/documentation/swift/array", kind: "official" },
+    { title: "Apple Developer Documentation: Collection", url: "https://developer.apple.com/documentation/swift/collection", kind: "official" },
+    { title: "Tech Interview Handbook: Matrix Cheatsheet", url: "https://www.techinterviewhandbook.org/algorithms/matrix/", kind: "community" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why must you check `matrix.isEmpty` before reading `matrix[0].count` in Swift?</Question>
+  <Guess>
+    <Option id="a">Swift arrays do not allow reading column counts directly.</Option>
+    <Option id="b" correct>Accessing index zero on an empty matrix causes an immediate index out of range runtime crash.</Option>
+    <Option id="c">Empty arrays automatically allocate default zero elements on index access.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a spreadsheet grid of rows and columns.
+
+Each cell has an address like row 2, column 3.
+
+You can move up, down, left, or right to visit neighboring cells.
+
+If you step outside the sheet boundaries, you fall off the page.
+</Analogy>
+
+A **matrix** is a two-dimensional grid of rows and columns.
+
+In Swift, a matrix is commonly stored as an array of arrays: `[[Element]]`.
+
+1. **Coordinates and Indexing**:
+   - `matrix[row][col]` accesses the element at row index `row` and column index `col`.
+   - `row` moves vertically from top `0` to bottom `rows - 1`.
+   - `col` moves horizontally from left `0` to right `cols - 1`.
+2. **Bounds Checking**:
+   - Always confirm coordinates are valid before accessing a cell.
+   - A valid cell satisfies `r >= 0 && r < rows && c >= 0 && c < cols`.
+3. **Direction Vectors**:
+   - Moving in 4 directions uses row and column offsets: `[(-1, 0), (0, 1), (1, 0), (0, -1)]`.
+   - Direction vectors keep navigation loops clean and readable.
+
+## See it
+
+<Diagram id="matrix-problems-concept" caption="Depth-first search exploring connected island cells on a 2D matrix">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. A 3x4 grid showing land ('1') and water ('0') cells.
+    2. Pointer highlighting the active cell (r, c).
+    3. Traversal path showing DFS exploration across adjacent neighbors.
+  - Steps:
+    Step 1: Scan grid and discover land at cell (0, 0). Increment island count to 1.
+    Step 2: Start DFS. Mark (0, 0) as visited ('0') and move right to (0, 1).
+    Step 3: Mark (0, 1) as visited. Explore downward to (1, 1) and mark it visited.
+    Step 4: All connected land cells are sunk. Backtrack to main loop. Total islands found: 1.
+  - Static version (reduced motion):
+    A 4-step sequence showing the grid before, during, and after DFS traversal.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which condition correctly checks if row `r` and column `c` are inside matrix bounds?</Question>
+  <Option id="a">`r > 0 && r <= rows && c > 0 && c <= cols`</Option>
+  <Option id="b" correct>`r >= 0 && r < rows && c >= 0 && c < cols`</Option>
+  <Option id="c">`r < rows || c < cols`</Option>
+  <Explanation>Swift arrays use zero-based indexing, so valid indices range from 0 to count - 1.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Counting connected islands using depth-first search">
+
+```swift
+func numIslands(_ grid: [[Character]]) -> Int {
+    guard !grid.isEmpty, !grid[0].isEmpty else { return 0 }
+    
+    var matrix = grid
+    let rows = matrix.count
+    let cols = matrix[0].count
+    var islandCount = 0
+    let directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+    
+    func dfs(_ r: Int, _ c: Int) {
+        guard r >= 0, r < rows, c >= 0, c < cols, matrix[r][c] == "1" else {
+            return
+        }
+        
+        matrix[r][c] = "0"
+        
+        for (dr, dc) in directions {
+            dfs(r + dr, c + dc)
+        }
+    }
+    
+    for r in 0..<rows {
+        for c in 0..<cols {
+            if matrix[r][c] == "1" {
+                islandCount += 1
+                dfs(r, c)
+            }
+        }
+    }
+    
+    return islandCount
+}
+
+let map: [[Character]] = [
+    ["1", "1", "0", "0"],
+    ["1", "1", "0", "0"],
+    ["0", "0", "1", "0"],
+    ["0", "0", "0", "1"]
+]
+
+print("Islands count: \(numIslands(map))")
+```
+
+```output
+Islands count: 3
+```
+
+</CodeExample>
+
+In this example, `numIslands` scans every cell in the grid.
+
+When it finds an unvisited land cell `'1'`, it increments the island count and calls `dfs`.
+
+The recursive `dfs` helper uses direction vectors to visit all four adjacent neighbors.
+
+It marks visited cells as `'0'` in place to prevent infinite recursion cycles.
+
+This algorithm visits every cell a constant number of times, giving $O(m \cdot n)$ time complexity.
+
+<CodeExample title="Rotating a square matrix 90 degrees clockwise in place">
+
+```swift
+func rotate(_ matrix: inout [[Int]]) {
+    let n = matrix.count
+    guard n > 1 else { return }
+    
+    for r in 0..<n {
+        for c in (r + 1)..<n {
+            let temp = matrix[r][c]
+            matrix[r][c] = matrix[c][r]
+            matrix[c][r] = temp
+        }
+    }
+    
+    for r in 0..<n {
+        matrix[r].reverse()
+    }
+}
+
+var grid = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+]
+
+rotate(&grid)
+print("Rotated matrix: \(grid)")
+```
+
+```output
+Rotated matrix: [[7, 4, 1], [8, 5, 2], [9, 6, 3]]
+```
+
+</CodeExample>
+
+To rotate an $n \times n$ matrix 90 degrees clockwise in place, we use two simple steps.
+
+First, we transpose the matrix along the main diagonal by swapping `matrix[r][c]` with `matrix[c][r]`.
+
+Second, we reverse each row horizontally.
+
+This achieves a 90-degree clockwise rotation with $O(1)$ auxiliary space.
+
+<QuickCheck>
+  <Question>How can you rotate a square matrix 90 degrees clockwise in place?</Question>
+  <Option id="a">Reverse every column and then sort all rows.</Option>
+  <Option id="b" correct>Transpose the matrix across its main diagonal, then reverse each row.</Option>
+  <Option id="c">Shift each row right by one position and swap the corners.</Option>
+  <Explanation>Transposing flips coordinates across the diagonal, and reversing rows produces a 90-degree clockwise rotation.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Swapping row and column coordinates">
+Writing `matrix[col][row]` instead of `matrix[row][col]` is a very common bug.
+
+When the matrix has different row and column counts, this error causes index out of range crashes.
+
+Always remember that the first index selects the row and the second index selects the column.
+</Trap>
+
+<Trap title="Accessing empty matrices without guarding">
+Calling `matrix[0].count` on an empty array `[]` crashes your app immediately.
+
+Always check `guard !matrix.isEmpty && !matrix[0].isEmpty else { return }` at the start of your function.
+
+Handling empty matrices prevents unexpected runtime aborts during edge case tests.
+</Trap>
+
+<Trap title="Infinite loops from missing visited marks">
+During depth-first search or breadth-first search, forgetting to mark visited cells causes infinite cycles.
+
+The algorithm will bounce back and forth between adjacent cells indefinitely.
+
+Always mark a cell as visited before exploring its neighbors.
+</Trap>
+
+<Trap title="Transposing non-square matrices in place">
+Transposing in place by swapping `matrix[r][c]` and `matrix[c][r]` only works on square matrices where rows equal columns.
+
+For rectangular matrices where $m \neq n$, in-place transposition changes dimensions and requires a new matrix allocation.
+
+Always ask the interviewer if the matrix is guaranteed to be square.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"A matrix is a two-dimensional grid of rows and columns, stored as an array of arrays in Swift. I access cells using `matrix[row][col]`. Before accessing any cell, I always verify that row and column indices stay inside bounds. For grid searches, I use direction vectors to move between adjacent cells cleanly."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"I solve matrix problems using depth-first search or breadth-first search. For problems like Number of Islands, I scan the grid and trigger DFS to sink connected components. I mark visited cells in place to save memory, or use a boolean array. I use direction tuples for 4-directional moves and always guard against empty matrices at the start."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"In production Swift, matrix layout impacts cache locality. Traversing row by row accesses contiguous array buffers, which maximizes CPU cache hits. Column-by-column traversal causes frequent cache misses across separate heap buffers. For graph traversals, I guard against deep recursion stack overflows by switching to iterative BFS with an explicit queue. When performance is critical, I represent matrices as flat 1D arrays with index calculations to eliminate multiple heap pointer indirection."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- A matrix in Swift is commonly represented as an array of arrays: `[[Element]]`.
+- Access elements using `matrix[row][col]`, where row is vertical and column is horizontal.
+- Always guard against empty matrices before reading `matrix[0].count`.
+- Use direction vectors like `[(-1, 0), (0, 1), (1, 0), (0, -1)]` to navigate neighbors cleanly.
+- Rotate square matrices 90 degrees clockwise by transposing along the diagonal and reversing each row.
+- Mark visited cells during DFS or BFS traversals to prevent infinite cycles.
+</Recap>
+
+## Go deeper
+
+- [Apple Developer Documentation: Array](https://developer.apple.com/documentation/swift/array) — Methods, memory model, and indexing on Swift arrays.
+- [Apple Developer Documentation: Collection](https://developer.apple.com/documentation/swift/collection) — Protocol requirements, indices, and performance guarantees.
+- [Tech Interview Handbook: Matrix Cheatsheet](https://www.techinterviewhandbook.org/algorithms/matrix/) — Essential matrix patterns, direction vectors, and corner cases.

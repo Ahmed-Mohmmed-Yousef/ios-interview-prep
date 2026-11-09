@@ -115,15 +115,13 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **access-control** (Access Control) — published (lesson, diagram, 31 questions) → [docs/topics/access-control/review.html](docs/topics/access-control/review.html)
     - ✅ **closures-escaping-capture** (Closures: Escaping and Capture Lists) — published (lesson, diagram, 31 questions) → [docs/topics/closures-escaping-capture/review.html](docs/topics/closures-escaping-capture/review.html)
     - ✅ **codable** (Codable and JSON) — published (lesson, diagram, 31 questions) → [docs/topics/codable/review.html](docs/topics/codable/review.html)
-  - 🔄 **Batch 2B: Coding Interview Algorithms (6 topics)**
+  - ✅ **Batch 2B: Coding Interview Algorithms (6 topics)** — all 6 topics published
     - ✅ **sorting-binary-search** (Sorting and Binary Search) — published (lesson, diagram, 31 questions) → [docs/topics/sorting-binary-search/review.html](docs/topics/sorting-binary-search/review.html)
     - ✅ **two-pointers-sliding-window** (Two Pointers and Sliding Window) — published (lesson, diagram, 31 questions) → [docs/topics/two-pointers-sliding-window/review.html](docs/topics/two-pointers-sliding-window/review.html)
     - ✅ **stacks-and-queues** (Stacks and Queues) — published (lesson, diagram, 31 questions) → [docs/topics/stacks-and-queues/review.html](docs/topics/stacks-and-queues/review.html)
     - ✅ **linked-lists** (Linked Lists) — published (lesson, diagram, 31 questions) → [docs/topics/linked-lists/review.html](docs/topics/linked-lists/review.html)
     - ✅ **recursion** (Recursion) — published (lesson, diagram, 31 questions) → [docs/topics/recursion/review.html](docs/topics/recursion/review.html)
-    - 🔄 **matrix-problems** (Matrix Problems) — starting research
-    - ⬜ **recursion** (Recursion)
-    - ⬜ **matrix-problems** (Matrix Problems)
+    - ✅ **matrix-problems** (Matrix Problems) — published (lesson, diagram, 31 questions) → [docs/topics/matrix-problems/review.html](docs/topics/matrix-problems/review.html)
   - ⬜ **Batch 2C: Memory & Concurrency (6 topics)**
     - ⬜ **arc-basics** (How ARC Works)
     - ⬜ **strong-weak-unowned** (Strong, Weak and Unowned)
@@ -301,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic matrix-problems (Matrix Problems): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/matrix-problems/review.html`). All checks passed. Batch 2B (Coding Interview Algorithms - 6 topics) is now 100% complete and published!
 
 - **2026-11-09** — Phase 6 (AI Grading) complete: Built Gemini 2.5 Flash and Mock grading providers with structured Zod output, pure rubric scoring math (100/50/0 with 50% key missed cap), `POST /api/grade` with sliding window rate limiting and 2000 char bounds, Exam Runner UI integration with "Grade with AI Coach" and offline fallback, 41 passing Vitest tests (including rubric benchmarks), 16 passing Playwright E2E and axe-core tests, and authored [docs/phase-6-summary.md](docs/phase-6-summary.md).
 

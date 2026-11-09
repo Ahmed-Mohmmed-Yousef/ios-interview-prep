@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Matrix Depth-First Search: Number of Islands</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --land-color: #0284c7; --land-soft: #e0f2fe;
+  --visited-color: #16a34a; --visited-soft: #dcfce7;
+  --water-color: #94a3b8; --water-soft: #f1f5f9;
+  --active-color: #f59e0b; --active-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --land-color: #38bdf8; --land-soft: #082f49;
+  --visited-color: #4ade80; --visited-soft: #14532d;
+  --water-color: #64748b; --water-soft: #1e293b;
+  --active-color: #fbbf24; --active-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.cell-rect { stroke: var(--line); stroke-width: 2; rx: 8px; transition: fill 0.25s, stroke 0.25s; }
+.cell-rect.land { fill: var(--land-soft); stroke: var(--land-color); }
+.cell-rect.water { fill: var(--water-soft); stroke: var(--line); }
+.cell-rect.active { fill: var(--active-soft); stroke: var(--active-color); stroke-width: 3.5; }
+.cell-rect.visited { fill: var(--visited-soft); stroke: var(--visited-color); }
+
+.cell-coord { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); }
+.cell-val { font-family: var(--font-code); font-size: 20px; font-weight: 700; fill: var(--ink); }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--land-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Matrix depth-first search interactive diagram">
+
+  <div class="interactive-diagram">
+    <div class="panel">
+      <h3>
+        <span>Grid Traversal &amp; Island Sinking (DFS)</span>
+        <span class="kind" style="background:var(--land-soft);color:var(--land-color);">3 &times; 4 Matrix</span>
+      </h3>
+      
+      <!-- Metrics row -->
+      <div class="metrics">
+        <div class="metric-col">
+          <span>Active Cell (r, c)</span>
+          <strong id="metric-active">(0, 0)</strong>
+        </div>
+        <div class="metric-col">
+          <span>Cells Explored</span>
+          <strong id="metric-explored">1</strong>
+        </div>
+        <div class="metric-col">
+          <span>Islands Count</span>
+          <strong id="metric-islands">1</strong>
+        </div>
+      </div>
+
+      <!-- SVG 3x4 Matrix Visualization -->
+      <svg viewBox="0 0 420 220" role="img" aria-label="3 by 4 grid animation" id="matrix-svg">
+        <!-- Row 0 -->
+        <g id="c-0-0">
+          <rect x="20" y="20" width="80" height="50" class="cell-rect active" />
+          <text x="30" y="36" class="cell-coord">(0,0)</text>
+          <text x="60" y="54" class="cell-val" text-anchor="middle">1</text>
+        </g>
+        <g id="c-0-1">
+          <rect x="115" y="20" width="80" height="50" class="cell-rect land" />
+          <text x="125" y="36" class="cell-coord">(0,1)</text>
+          <text x="155" y="54" class="cell-val" text-anchor="middle">1</text>
+        </g>
+        <g id="c-0-2">
+          <rect x="210" y="20" width="80" height="50" class="cell-rect water" />
+          <text x="220" y="36" class="cell-coord">(0,2)</text>
+          <text x="250" y="54" class="cell-val" text-anchor="middle">0</text>
+        </g>
+        <g id="c-0-3">
+          <rect x="305" y="20" width="80" height="50" class="cell-rect water" />
+          <text x="315" y="36" class="cell-coord">(0,3)</text>
+          <text x="345" y="54" class="cell-val" text-anchor="middle">0</text>
+        </g>
+
+        <!-- Row 1 -->
+        <g id="c-1-0">
+          <rect x="20" y="85" width="80" height="50" class="cell-rect land" />
+          <text x="30" y="101" class="cell-coord">(1,0)</text>
+          <text x="60" y="119" class="cell-val" text-anchor="middle">1</text>
+        </g>
+        <g id="c-1-1">
+          <rect x="115" y="85" width="80" height="50" class="cell-rect land" />
+          <text x="125" y="101" class="cell-coord">(1,1)</text>
+          <text x="155" y="119" class="cell-val" text-anchor="middle">1</text>
+        </g>
+        <g id="c-1-2">
+          <rect x="210" y="85" width="80" height="50" class="cell-rect water" />
+          <text x="220" y="101" class="cell-coord">(1,2)</text>
+          <text x="250" y="119" class="cell-val" text-anchor="middle">0</text>
+        </g>
+        <g id="c-1-3">
+          <rect x="305" y="85" width="80" height="50" class="cell-rect water" />
+          <text x="315" y="101" class="cell-coord">(1,3)</text>
+          <text x="345" y="119" class="cell-val" text-anchor="middle">0</text>
+        </g>
+
+        <!-- Row 2 -->
+        <g id="c-2-0">
+          <rect x="20" y="150" width="80" height="50" class="cell-rect water" />
+          <text x="30" y="166" class="cell-coord">(2,0)</text>
+          <text x="60" y="184" class="cell-val" text-anchor="middle">0</text>
+        </g>
+        <g id="c-2-1">
+          <rect x="115" y="150" width="80" height="50" class="cell-rect water" />
+          <text x="125" y="166" class="cell-coord">(2,1)</text>
+          <text x="155" y="184" class="cell-val" text-anchor="middle">0</text>
+        </g>
+        <g id="c-2-2">
+          <rect x="210" y="150" width="80" height="50" class="cell-rect land" />
+          <text x="220" y="166" class="cell-coord">(2,2)</text>
+          <text x="250" y="184" class="cell-val" text-anchor="middle">1</text>
+        </g>
+        <g id="c-2-3">
+          <rect x="305" y="150" width="80" height="50" class="cell-rect water" />
+          <text x="315" y="166" class="cell-coord">(2,3)</text>
+          <text x="345" y="184" class="cell-val" text-anchor="middle">0</text>
+        </g>
+      </svg>
+
+      <!-- Code trace box -->
+      <div class="code" id="step-code">if grid[r][c] == "1" { islandCount += 1; dfs(0, 0) }</div>
+      <p class="caption" id="step-caption">Step 1: Scan grid and discover land at cell (0, 0). Increment island count to 1.</p>
+
+      <!-- Controls -->
+      <div class="controls">
+        <div class="steps-dots" role="tablist" aria-label="Animation steps">
+          <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1" onclick="setStep(0)"></button>
+          <button class="dot" role="tab" aria-selected="false" aria-label="Step 2" onclick="setStep(1)"></button>
+          <button class="dot" role="tab" aria-selected="false" aria-label="Step 3" onclick="setStep(2)"></button>
+          <button class="dot" role="tab" aria-selected="false" aria-label="Step 4" onclick="setStep(3)"></button>
+        </div>
+        <div class="btn-group">
+          <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled>Back</button>
+          <button class="btn-nav" id="btn-next" onclick="nextStep()">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-motion static fallback -->
+  <div class="static-fallback">
+    <div class="comp-card">
+      <h4>Step 1: Discover Island</h4>
+      <p>The scanner hits cell (0, 0) with value '1'. Island count increments to 1. DFS begins.</p>
+    </div>
+    <div class="comp-card">
+      <h4>Step 2: Sink &amp; Branch</h4>
+      <p>Cell (0, 0) is marked '0' (visited). Direction vectors explore neighbor (0, 1) which is also land.</p>
+    </div>
+    <div class="comp-card">
+      <h4>Step 3: Connect Remaining Land</h4>
+      <p>DFS recurses into (1, 1) and (1, 0), marking all connected land cells as '0' to avoid re-counting.</p>
+    </div>
+    <div class="comp-card">
+      <h4>Step 4: Backtrack &amp; Complete</h4>
+      <p>Entire first island is sunk. Linear scan continues until (2, 2) is reached, forming Island #2.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    active: "(0, 0)",
+    explored: "1",
+    islands: "1",
+    code: 'if grid[r][c] == "1" { islandCount += 1; dfs(0, 0) }',
+    caption: 'Step 1: Scan grid and discover land at cell (0, 0). Increment island count to 1.',
+    cells: {
+      "0-0": { cls: "active", val: "1" },
+      "0-1": { cls: "land", val: "1" },
+      "1-0": { cls: "land", val: "1" },
+      "1-1": { cls: "land", val: "1" },
+      "2-2": { cls: "land", val: "1" }
+    }
+  },
+  {
+    active: "(0, 1)",
+    explored: "2",
+    islands: "1",
+    code: 'grid[0][0] = "0" // sink visited cell\ndfs(0, 1) // visit right neighbor',
+    caption: 'Step 2: Mark (0, 0) as visited ("0"). Direction vector moves right to (0, 1).',
+    cells: {
+      "0-0": { cls: "visited", val: "0" },
+      "0-1": { cls: "active", val: "1" },
+      "1-0": { cls: "land", val: "1" },
+      "1-1": { cls: "land", val: "1" },
+      "2-2": { cls: "land", val: "1" }
+    }
+  },
+  {
+    active: "(1, 1)",
+    explored: "4",
+    islands: "1",
+    code: 'grid[0][1] = "0"; dfs(1, 1)\ngrid[1][1] = "0"; dfs(1, 0); grid[1][0] = "0"',
+    caption: 'Step 3: Mark (0, 1) as visited. Explore downward to (1, 1) and left to (1, 0), sinking them.',
+    cells: {
+      "0-0": { cls: "visited", val: "0" },
+      "0-1": { cls: "visited", val: "0" },
+      "1-0": { cls: "visited", val: "0" },
+      "1-1": { cls: "active", val: "0" },
+      "2-2": { cls: "land", val: "1" }
+    }
+  },
+  {
+    active: "(2, 2)",
+    explored: "5",
+    islands: "2",
+    code: '// All cells of Island #1 sunk to "0"\n// Main loop reaches (2, 2) -> islandCount += 1',
+    caption: 'Step 4: Island #1 is completely mapped. Scanner resumes and finds Island #2 at (2, 2).',
+    cells: {
+      "0-0": { cls: "visited", val: "0" },
+      "0-1": { cls: "visited", val: "0" },
+      "1-0": { cls: "visited", val: "0" },
+      "1-1": { cls: "visited", val: "0" },
+      "2-2": { cls: "active", val: "1" }
+    }
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("metric-active").textContent = s.active;
+  document.getElementById("metric-explored").textContent = s.explored;
+  document.getElementById("metric-islands").textContent = s.islands;
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+
+  // Update cell styles and values
+  for (const [coord, info] of Object.entries(s.cells)) {
+    const g = document.getElementById("c-" + coord);
+    if (!g) continue;
+    const rect = g.querySelector("rect");
+    const valText = g.querySelector(".cell-val");
+    rect.className.baseVal = "cell-rect " + info.cls;
+    valText.textContent = info.val;
+  }
+
+  // Update dots
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  // Buttons state
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+// Keyboard arrow navigation
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+</script>
+
+</body>
+</html>
