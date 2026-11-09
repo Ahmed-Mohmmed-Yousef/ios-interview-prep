@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI List Lazy Loading and Row Recycling</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --list-color: #0284c7; --list-soft: #e0f2fe;
+  --recycled-color: #0c765c; --recycled-soft: #dcf2ea;
+  --eager-color: #d97706; --eager-soft: #fef3c7;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --list-color: #38bdf8; --list-soft: #082f49;
+  --recycled-color: #45cfa3; --recycled-soft: #13362c;
+  --eager-color: #fbbf24; --eager-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.row-slot { rx: 6px; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+
+  <div class="interactive-diagram">
+    <div class="panels">
+      <!-- Left Panel: SVG Visualization -->
+      <div class="panel">
+        <h3>
+          <span id="vis-title">1. Viewport Allocates Visible Rows</span>
+          <span class="kind" id="vis-tag" style="background:var(--list-soft);color:var(--list-color);">Lazy Load</span>
+        </h3>
+        
+        <svg viewBox="0 0 340 220" role="img" aria-label="SwiftUI List Lazy Recycling Animation">
+          <!-- Device Frame / Viewport Window -->
+          <rect x="70" y="20" width="200" height="175" rx="10" fill="var(--surface)" stroke="var(--list-color)" stroke-width="2"/>
+          <text x="80" y="40" font-family="var(--font-body)" font-size="11" font-weight="700" fill="var(--list-color)">Screen Viewport (3 Rows)</text>
+
+          <!-- Top Offscreen Zone -->
+          <g id="grp-top-off" transform="translate(85, 48)" opacity="0">
+            <rect x="0" y="0" width="170" height="24" rx="4" fill="var(--code-bg)" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 3"/>
+            <text x="85" y="16" font-family="var(--font-code)" font-size="10" font-weight="600" fill="var(--muted)" text-anchor="middle">Row 0 (Recycled)</text>
+          </g>
+
+          <!-- Slot 1 -->
+          <g id="grp-slot1" transform="translate(85, 52)">
+            <rect id="rect-slot1" x="0" y="0" width="170" height="34" class="row-slot" fill="var(--list-soft)" stroke="var(--list-color)" stroke-width="1.5"/>
+            <text id="txt-slot1" x="12" y="22" font-family="var(--font-body)" font-size="12" font-weight="600" fill="var(--ink)">Item 0: Setup</text>
+          </g>
+
+          <!-- Slot 2 -->
+          <g id="grp-slot2" transform="translate(85, 94)">
+            <rect id="rect-slot2" x="0" y="0" width="170" height="34" class="row-slot" fill="var(--list-soft)" stroke="var(--list-color)" stroke-width="1.5"/>
+            <text id="txt-slot2" x="12" y="22" font-family="var(--font-body)" font-size="12" font-weight="600" fill="var(--ink)">Item 1: Coding</text>
+          </g>
+
+          <!-- Slot 3 -->
+          <g id="grp-slot3" transform="translate(85, 136)">
+            <rect id="rect-slot3" x="0" y="0" width="170" height="34" class="row-slot" fill="var(--list-soft)" stroke="var(--list-color)" stroke-width="1.5"/>
+            <text id="txt-slot3" x="12" y="22" font-family="var(--font-body)" font-size="12" font-weight="600" fill="var(--ink)">Item 2: Testing</text>
+          </g>
+
+          <!-- Bottom Offscreen Row -->
+          <text id="lbl-dataset" x="170" y="210" font-family="var(--font-body)" font-size="11" font-weight="600" fill="var(--muted)" text-anchor="middle">Dataset: 1,000 Total Items</text>
+        </svg>
+
+        <p class="caption" id="vis-desc">List loads only rows 0, 1, and 2 into active memory because only three fit inside the viewport.</p>
+      </div>
+
+      <!-- Right Panel: Code & Operation Details -->
+      <div class="panel">
+        <h3>
+          <span id="right-title">Lazy Row Loading</span>
+          <span class="kind" id="right-tag" style="background:var(--code-bg);color:var(--muted);">O(Visible)</span>
+        </h3>
+        <div class="code" id="right-code">List(items) { item in
+    Text(item.title)
+}
+
+// Only 3 row views instantiated</div>
+        <p class="caption" id="right-desc">List defers body calls until rows scroll into view. Memory remains small regardless of dataset size.</p>
+        <div class="metrics">
+          <div class="metric-col"><span>Allocated</span><strong id="m-alloc">3 Rows</strong></div>
+          <div class="metric-col"><span>Total Data</span><strong id="m-total">1,000</strong></div>
+          <div class="metric-col"><span>Memory</span><strong id="m-mem">Minimal</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1: Visible rows" onclick="goToStep(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2: Scroll up" onclick="goToStep(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3: Lazy bottom load" onclick="goToStep(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4: Eager comparison" onclick="goToStep(3)"></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()" aria-label="Next step">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-Motion Static Fallback -->
+  <div class="static-fallback" aria-label="Static explanation of List lazy loading and recycling">
+    <div class="comp-card" style="border-left: 4px solid var(--list-color);">
+      <h4>Step 1: Viewport Sizing</h4>
+      <p>Only rows currently fitting inside the visible screen bounds (Rows 0, 1, 2) are instantiated in memory.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--recycled-color);">
+      <h4>Step 2: Scroll Recycling</h4>
+      <p>As the user scrolls, rows leaving the top edge are recycled and removed from active rendering.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--list-color);">
+      <h4>Step 3: Just-In-Time Allocation</h4>
+      <p>New rows entering the bottom edge are constructed lazily just before appearing on screen.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--eager-color);">
+      <h4>Step 4: Contrast with Eager Layouts</h4>
+      <p>A <code>ScrollView</code> with a <code>VStack</code> instantiates all 1,000 views immediately, creating high memory overhead.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    visTitle: "1. Viewport Allocates Visible Rows",
+    visTag: "Lazy Load",
+    visDesc: "List loads only rows 0, 1, and 2 into active memory because only three fit inside the viewport.",
+    s1Text: "Item 0: Setup",
+    s2Text: "Item 1: Coding",
+    s3Text: "Item 2: Testing",
+    s1Color: "var(--list-soft)",
+    s2Color: "var(--list-soft)",
+    s3Color: "var(--list-soft)",
+    showTopOff: false,
+    rightTitle: "Lazy Row Loading",
+    rightTag: "O(Visible)",
+    rightCode: "List(items) { item in\n    Text(item.title)\n}\n\n// Only 3 row views instantiated",
+    rightDesc: "List defers body calls until rows scroll into view. Memory remains small regardless of dataset size.",
+    mAlloc: "3 Rows",
+    mTotal: "1,000",
+    mMem: "Minimal"
+  },
+  {
+    visTitle: "2. Scroll Down: Top Row Exits",
+    visTag: "Recycle",
+    visDesc: "User scrolls down. Item 0 scrolls past the top boundary and is recycled.",
+    s1Text: "Item 1: Coding",
+    s2Text: "Item 2: Testing",
+    s3Text: "Item 3: Review",
+    s1Color: "var(--recycled-soft)",
+    s2Color: "var(--list-soft)",
+    s3Color: "var(--list-soft)",
+    showTopOff: true,
+    rightTitle: "Row Recycling",
+    rightTag: "Recycle",
+    rightCode: "// Item 0 scrolls offscreen\n// Memory for Item 0 cell is recycled\n// Viewport shifts down",
+    rightDesc: "Cells leaving the viewport are placed into reuse queues, preventing unbounded memory growth.",
+    mAlloc: "3 Rows",
+    mTotal: "1,000",
+    mMem: "Steady"
+  },
+  {
+    visTitle: "3. Bottom Row Enters Lazily",
+    visTag: "Just-In-Time",
+    visDesc: "Item 3 enters from the bottom and is created lazily just before becoming visible.",
+    s1Text: "Item 1: Coding",
+    s2Text: "Item 2: Testing",
+    s3Text: "Item 3: Review (New)",
+    s1Color: "var(--list-soft)",
+    s2Color: "var(--list-soft)",
+    s3Color: "var(--recycled-soft)",
+    showTopOff: true,
+    rightTitle: "On-Demand Creation",
+    rightTag: "Just-in-Time",
+    rightCode: "// Item 3 reaches bottom edge\n// List creates Item 3 row lazily\n// Scroll remains 120fps smooth",
+    rightDesc: "SwiftUI calls the row builder closure only when the item is about to intersect the viewport.",
+    mAlloc: "3 Rows",
+    mTotal: "1,000",
+    mMem: "Steady"
+  },
+  {
+    visTitle: "4. Contrast: Eager VStack Loading",
+    visTag: "Eager Load",
+    visDesc: "ScrollView + VStack loads all 1,000 rows simultaneously, causing high memory usage and lag.",
+    s1Text: "Item 0 (Loaded)",
+    s2Text: "Item 1 (Loaded)",
+    s3Text: "Item 999 (Loaded!)",
+    s1Color: "var(--eager-soft)",
+    s2Color: "var(--eager-soft)",
+    s3Color: "var(--eager-soft)",
+    showTopOff: false,
+    rightTitle: "Eager Stacks Danger",
+    rightTag: "Eager Load",
+    rightCode: "ScrollView {\n    VStack { // Loads all 1,000 rows!\n        ForEach(items) { ... }\n    }\n}",
+    rightDesc: "A standard VStack instantiates every row immediately. Large datasets cause severe frame drops.",
+    mAlloc: "1,000 Rows!",
+    mTotal: "1,000",
+    mMem: "Heavy"
+  }
+];
+
+let curStep = 0;
+
+function updateDiagram() {
+  const s = steps[curStep];
+  
+  document.getElementById("vis-title").textContent = s.visTitle;
+  document.getElementById("vis-tag").textContent = s.visTag;
+  document.getElementById("vis-desc").textContent = s.visDesc;
+
+  document.getElementById("grp-top-off").style.opacity = s.showTopOff ? "1" : "0";
+
+  document.getElementById("txt-slot1").textContent = s.s1Text;
+  document.getElementById("rect-slot1").setAttribute("fill", s.s1Color);
+
+  document.getElementById("txt-slot2").textContent = s.s2Text;
+  document.getElementById("rect-slot2").setAttribute("fill", s.s2Color);
+
+  document.getElementById("txt-slot3").textContent = s.s3Text;
+  document.getElementById("rect-slot3").setAttribute("fill", s.s3Color);
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+  document.getElementById("m-alloc").textContent = s.mAlloc;
+  document.getElementById("m-total").textContent = s.mTotal;
+  document.getElementById("m-mem").textContent = s.mMem;
+
+  const dots = document.querySelectorAll(".steps-dots .dot");
+  dots.forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = (curStep === 0);
+  document.getElementById("btn-next").disabled = (curStep === steps.length - 1);
+}
+
+function prevStep() { if (curStep > 0) { curStep--; updateDiagram(); } }
+function nextStep() { if (curStep < steps.length - 1) { curStep++; updateDiagram(); } }
+function goToStep(i) { curStep = i; updateDiagram(); }
+</script>
+
+</body>
+</html>

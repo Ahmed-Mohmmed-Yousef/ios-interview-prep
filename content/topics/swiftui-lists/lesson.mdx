@@ -1,0 +1,228 @@
+export const meta = {
+  id: "swiftui-lists",
+  summary: "Display scrollable data efficiently with List, loop over collections using ForEach, and maintain stable row identities with Identifiable.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Apple Developer Documentation: List", url: "https://developer.apple.com/documentation/swiftui/list", kind: "official" },
+    { title: "Apple Developer Documentation: ForEach", url: "https://developer.apple.com/documentation/swiftui/foreach", kind: "official" },
+    { title: "Apple Developer Documentation: Identifiable", url: "https://developer.apple.com/documentation/swift/identifiable", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why should you prefer a List over a ScrollView with a VStack when displaying thousands of rows?</Question>
+  <Guess>
+    <Option id="a">ScrollView does not support vertical scrolling on iPhone screens.</Option>
+    <Option id="b" correct>List loads and recycles rows lazily, while a standard VStack loads all rows eagerly.</Option>
+    <Option id="c">VStack limits the number of visible children to ten items maximum.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a rolling billboard with a small viewing window.
+
+Instead of pasting ten thousand posters along miles of highway, the billboard keeps only three posters ready near the window. As the paper rolls upward, posters leaving the top are removed, and new posters entering the bottom are inserted.
+
+This lazy recycling is how a **`List`** works. It creates only the rows visible on screen.
+</Analogy>
+
+In iOS development, displaying collections of data is one of the most common tasks.
+
+SwiftUI provides two core tools for building scrolling lists:
+1. **`List` (Lazy Recycling)**:
+   - `List` is built for performance.
+   - It only allocates memory and renders views for rows that are currently visible on screen.
+   - As you scroll, offscreen rows are recycled.
+   - It includes standard iOS styling like row separators and swipe actions.
+2. **`ForEach` (Collection Iteration)**:
+   - `ForEach` loops over a collection to generate views dynamically.
+   - It requires each element to have a unique and stable identity.
+3. **`Identifiable` (Row Identity)**:
+   - When a data struct conforms to `Identifiable`, it provides an `id` property.
+   - SwiftUI uses this `id` to track which rows are added, removed, or animated.
+   - If your model does not conform to `Identifiable`, you must pass an explicit key path like `id: \.self`.
+
+## See it
+
+<Diagram id="swiftui-lists-concept" caption="How List recycles visible rows lazily compared to eager loading">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Screen viewport boundary showing 3 visible row slots.
+    2. Data array of 1,000 items.
+    3. Row recycling mechanism showing rows appearing at bottom and discarding at top.
+    4. Code line indicator for List and ForEach.
+  - Steps:
+    Step 1: Viewport displays rows 0, 1, and 2. Only 3 row structs are allocated in memory.
+    Step 2: User scrolls downward. Row 0 leaves the top boundary.
+    Step 3: Row 3 enters the bottom viewport. SwiftUI instantiates Row 3 lazily.
+    Step 4: Comparison showing ScrollView + VStack allocating all 1,000 rows simultaneously.
+  - Static version (reduced motion):
+    A 4-box layout showing lazy viewport loading, scroll recycling, and eager comparison.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What property does the Identifiable protocol require on a struct?</Question>
+  <Option id="a">A computed title property of type String.</Option>
+  <Option id="b" correct>An id property conforming to Hashable.</Option>
+  <Option id="c">A tag property returning a numerical integer.</Option>
+  <Explanation>Identifiable requires an id property conforming to Hashable to track view identity.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Displaying identifiable data with List">
+
+```swift
+import SwiftUI
+
+struct TodoItem: Identifiable {
+    let id = UUID()
+    let title: String
+}
+
+struct TodoListView: View {
+    let items = [
+        TodoItem(title: "Prepare interview questions"),
+        TodoItem(title: "Review Swift 6 features"),
+        TodoItem(title: "Practice SwiftUI layouts")
+    ]
+    
+    var body: some View {
+        List(items) { item in
+            Text(item.title)
+        }
+    }
+}
+
+let list = TodoListView()
+print("TodoListView initialized: \(type(of: list))")
+```
+
+```output
+TodoListView initialized: TodoListView
+```
+
+</CodeExample>
+
+Because `TodoItem` conforms to `Identifiable`, you pass `items` directly to `List`. You do not need to provide an explicit `id` key path parameter.
+
+<CodeExample title="Deleting items from a list with ForEach">
+
+```swift
+import SwiftUI
+
+struct FruitListView: View {
+    @State private var fruits = ["Apple", "Banana", "Cherry"]
+    
+    var body: some View {
+        List {
+            ForEach(fruits, id: \.self) { fruit in
+                Text(fruit)
+            }
+            .onDelete { indices in
+                fruits.remove(atOffsets: indices)
+            }
+        }
+    }
+}
+
+let fruitList = FruitListView()
+print("FruitListView initialized: \(type(of: fruitList))")
+```
+
+```output
+FruitListView initialized: FruitListView
+```
+
+</CodeExample>
+
+In this example, the string elements use `id: \.self` for identity.
+
+The `.onDelete` modifier attaches to the `ForEach`, enabling standard iOS swipe-to-delete behavior.
+
+<QuickCheck>
+  <Question>Where must the .onDelete modifier be placed to enable swipe-to-delete?</Question>
+  <Option id="a">Directly on the outermost List container view.</Option>
+  <Option id="b" correct>On the ForEach view struct inside the List.</Option>
+  <Option id="c">On the individual Text view inside the row closure.</Option>
+  <Explanation>.onDelete is defined on DynamicViewContent, which is implemented by ForEach, not List.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Attaching .onDelete directly to List">
+A very frequent interview mistake is writing `List { ... }.onDelete { ... }`.
+
+This will fail to compile.
+
+The `.onDelete` modifier belongs to `DynamicViewContent`. In SwiftUI, `ForEach` conforms to this protocol, while `List` does not.
+
+Always attach `.onDelete` and `.onMove` to your `ForEach` block.
+</Trap>
+
+<Trap title="Using id: \.self with duplicate items">
+If an array contains duplicate strings like `["Apple", "Banana", "Apple"]`, using `id: \.self` creates identical IDs.
+
+SwiftUI relies on unique IDs to diff rows. Duplicate IDs cause row animations to glitch, selections to break, or wrong items to delete.
+
+Always make sure elements have unique identifiers or conform to `Identifiable` using a `UUID`.
+</Trap>
+
+<Trap title="Generating dynamic UUIDs inside computed id getters">
+Declaring `var id: UUID { UUID() }` as a computed property is dangerous.
+
+Every time SwiftUI inspects the view struct, it generates a brand new UUID.
+
+This causes SwiftUI to treat existing rows as newly inserted items on every redraw, breaking scroll position and animations.
+
+Always store the identifier in a constant stored property: `let id = UUID()`.
+</Trap>
+
+<Trap title="Using ScrollView and VStack for massive lists">
+A `ScrollView` wrapping a standard `VStack` creates every single row immediately upon loading.
+
+If your dataset contains hundreds of items, this eager loading causes memory spikes and stuttering frames.
+
+Use `List` (or `LazyVStack`) when scrolling through large collections.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"`List` is a scrolling container that creates and recycles rows lazily as they appear on screen. In contrast, `ScrollView` with a `VStack` loads all row views eagerly in memory. To loop over collections, we use `ForEach`, which requires elements to have unique identities using `Identifiable` or an explicit `id` key path. We add swipe-to-delete by attaching the `.onDelete` modifier to the `ForEach`."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"SwiftUI uses element identity to track row insertions, removals, and reordering animations. When models conform to `Identifiable`, SwiftUI tracks row lifecycles cleanly. It is critical that `id` values remain stable; generating `UUID()` inside a computed property breaks diffing and resets scroll states. For collection mutations, we attach `.onDelete` and `.onMove` to `ForEach` because it conforms to `DynamicViewContent`."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Behind the scenes on iOS, `List` is backed by `UICollectionView`, providing native cell reuse queues and high-performance virtualization. When rendering heterogeneous lists, `List` provides built-in swipe actions, headers, and separator insets. For custom scrolling layouts that require continuous coordinate tracking without list cell semantics, we choose `LazyVStack` inside a `ScrollView`. To maintain 120fps scrolling on ProMotion displays, row view bodies should remain pure and avoid synchronous image decodes."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- **`List`** loads and recycles rows lazily, making it efficient for large collections.
+- `ScrollView` with `VStack` loads all views eagerly, which can cause memory problems.
+- **`ForEach`** generates views from a collection and requires unique element identities.
+- Models conforming to **`Identifiable`** provide a stable `id` for diffing and animations.
+- Always store identifiers with **`let id = UUID()`**; never use a computed getter.
+- Attach **`.onDelete`** to `ForEach`, not to `List`, to enable swipe-to-delete.
+</Recap>
+
+## Go deeper
+
+- [Apple Developer Documentation: List](https://developer.apple.com/documentation/swiftui/list) — Official guide to list views and styles.
+- [Apple Developer Documentation: ForEach](https://developer.apple.com/documentation/swiftui/foreach) — Dynamic view generation from collections.
+- [Apple Developer Documentation: Identifiable](https://developer.apple.com/documentation/swift/identifiable) — Providing stable identity for collection elements.

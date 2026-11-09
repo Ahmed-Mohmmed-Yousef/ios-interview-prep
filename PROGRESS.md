@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 3 remaining topics (19 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`, `state-and-binding`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 2 remaining topics (20 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`, `state-and-binding`, `swiftui-lists`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -100,11 +100,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **swiftui-views-modifiers** (Views and Modifiers) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-views-modifiers/review.html](docs/topics/swiftui-views-modifiers/review.html)
     - ✅ **swiftui-layout** (Stacks and Layout) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-layout/review.html](docs/topics/swiftui-layout/review.html)
     - ✅ **state-and-binding** (@State and @Binding) — published (lesson, diagram, 31 questions) → [docs/topics/state-and-binding/review.html](docs/topics/state-and-binding/review.html)
-    - 🔄 **swiftui-lists** (Lists and ForEach) — starting research
-    - ⬜ **swiftui-layout** (Stacks and Layout)
-    - ⬜ **state-and-binding** (@State and @Binding)
-    - ⬜ **swiftui-lists** (Lists and ForEach)
-    - ⬜ **swiftui-navigation** (Navigation)
+    - ✅ **swiftui-lists** (Lists and ForEach) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-lists/review.html](docs/topics/swiftui-lists/review.html)
+    - 🔄 **swiftui-navigation** (Navigation) — starting research
   - ⬜ **Batch 1E: App and System (1 topic: `xcode-and-git-basics`)**
     - ⬜ **xcode-and-git-basics** (Xcode, Projects and Git)
 - ⬜ **4.2 Junior level topics (Wave 2)** — 44 main + 1 bonus
@@ -228,6 +225,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic swiftui-lists (Lists and ForEach): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swiftui-lists/review.html`). All checks passed. Starting swiftui-navigation.
 
 - **2026-11-09** — Step 5.5 done: Built Screen 5 (Lesson Reader & Animated Diagrams). Features: section-by-section reader splitting by headings, interactive guess-first hook with recap reveal, interactive QuickCheck with explanation toggles, animated 4-step diagram stepper with Back/Next/Replay and accessible descriptions, A/A+/A++ text size switcher tied to store, copyable Swift code figures, keyboard focus management on step headings, official sources drawer, and SSG static prerendering for all published topic lessons. Clean Next.js build and 26 passing tests. Starting Step 5.6: Exam Runner & Results.
 
