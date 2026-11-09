@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Result Builders in Swift</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --dsl-color: #0284c7; --dsl-soft: #e0f2fe;
+  --comp-color: #7c3aed; --comp-soft: #ede9fe;
+  --flow-color: #059669; --flow-soft: #d1fae5;
+  --block-color: #d97706; --block-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --dsl-color: #38bdf8; --dsl-soft: #082f49;
+  --comp-color: #a78bfa; --comp-soft: #2e1065;
+  --flow-color: #34d399; --flow-soft: #064e3b;
+  --block-color: #fbbf24; --block-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--dsl-soft); color: var(--dsl-color); }
+.p-right .kind { background: var(--comp-soft); color: var(--comp-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-dsl { stroke: var(--dsl-color); stroke-width: 2.5; fill: var(--dsl-soft); }
+.node-box.active-comp { stroke: var(--comp-color); stroke-width: 2.5; fill: var(--comp-soft); }
+.node-box.active-flow { stroke: var(--flow-color); stroke-width: 2.5; fill: var(--flow-soft); }
+.node-box.active-block { stroke: var(--block-color); stroke-width: 2.5; fill: var(--block-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--dsl-color); color: var(--dsl-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+  <div class="interactive-view">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span>Source DSL Closure</span> <span class="kind">Developer Code</span></h3>
+        <svg viewBox="0 0 320 220" aria-label="DSL closure source diagram">
+          <!-- Item 1 Box -->
+          <rect id="dslItem1" x="20" y="20" width="280" height="45" rx="8" class="node-box active-dsl" />
+          <text x="40" y="47" font-family="JetBrains Mono" font-size="12" font-weight="600" fill="currentColor">"Status: Active"</text>
+
+          <!-- Item 2 (Condition) Box -->
+          <rect id="dslItem2" x="20" y="75" width="280" height="70" rx="8" class="node-box" />
+          <text x="40" y="100" font-family="JetBrains Mono" font-size="11" font-weight="600" fill="currentColor">if isVip {</text>
+          <text x="60" y="118" font-family="JetBrains Mono" font-size="11" fill="var(--flow-color)">"Plan: Gold Tier"</text>
+          <text x="40" y="136" font-family="JetBrains Mono" font-size="11" font-weight="600" fill="currentColor">}</text>
+
+          <!-- Item 3 Box -->
+          <rect id="dslItem3" x="20" y="155" width="280" height="45" rx="8" class="node-box" />
+          <text x="40" y="182" font-family="JetBrains Mono" font-size="12" font-weight="600" fill="currentColor">"Support: Available"</text>
+        </svg>
+        <div class="code" id="leftCode">generateReport {
+    "Status: Active"
+    if isVip { "Plan: Gold Tier" }
+    "Support: Available"
+}</div>
+        <p class="caption" id="leftCaption">Developer writes sequential statements without commas or return keywords.</p>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span>Compiler Translation</span> <span class="kind">Synthesized Swift</span></h3>
+        <svg viewBox="0 0 320 220" aria-label="Compiler translation diagram">
+          <!-- Step 1 Translation -->
+          <rect id="transBox1" x="20" y="20" width="280" height="45" rx="8" class="node-box active-comp" />
+          <text id="transText1" x="35" y="47" font-family="JetBrains Mono" font-size="11" fill="currentColor">let _v0 = "Status: Active"</text>
+
+          <!-- Step 2 Translation -->
+          <rect id="transBox2" x="20" y="75" width="280" height="70" rx="8" class="node-box" />
+          <text id="transText2a" x="35" y="100" font-family="JetBrains Mono" font-size="10" fill="currentColor">let _v1: String?</text>
+          <text id="transText2b" x="35" y="118" font-family="JetBrains Mono" font-size="10" fill="var(--muted)">buildOptional(isVip ? "Gold" : nil)</text>
+          <text id="transText2c" x="35" y="134" font-family="JetBrains Mono" font-size="10" fill="var(--flow-color)">_v1 = "Plan: Gold Tier"</text>
+
+          <!-- Step 3 Translation (buildBlock) -->
+          <rect id="transBox3" x="20" y="155" width="280" height="45" rx="8" class="node-box" />
+          <text id="transText3" x="35" y="182" font-family="JetBrains Mono" font-size="11" fill="currentColor">buildBlock(_v0, _v1, _v2)</text>
+        </svg>
+        <div class="code" id="rightCode">// Compiler initiates desugaring
+let _v0 = "Status: Active"</div>
+        <p class="caption" id="rightCaption">The compiler transforms each individual statement into builder components.</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+      <div class="btn-group">
+        <button id="btnBack" disabled aria-label="Previous step">Back</button>
+        <button id="btnNext" aria-label="Next step">Next</button>
+        <button id="btnReplay" aria-label="Replay animation">Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="static-summary" role="region" aria-label="Summary of Result Builders">
+    <h3>Summary: Result Builders</h3>
+    <ul>
+      <li><strong>Step 1: Raw Closure Statements</strong> — The developer writes sequential expressions line by line without commas or explicit return statements.</li>
+      <li><strong>Step 2: Component Expression Translation</strong> — The compiler transforms each statement into an intermediate component using <code>buildExpression</code> or implicit conversion.</li>
+      <li><strong>Step 3: Control Flow Handling</strong> — Conditional branches are mapped into <code>buildOptional</code> (for <code>if</code> without <code>else</code>) or <code>buildEither</code> (for branching).</li>
+      <li><strong>Step 4: Block Assembly</strong> — The compiler gathers all components and invokes <code>Builder.buildBlock(...)</code> to produce the final composite return value.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    leftCode: "generateReport {\n    \"Status: Active\"\n    if isVip { \"Plan: Gold Tier\" }\n    \"Support: Available\"\n}",
+    leftCaption: "Developer writes sequential statements without commas or return keywords.",
+    rightCode: "// Compiler intercepts closure tagged with @resultBuilder\n// Analyzes 3 statement blocks inside closure",
+    rightCaption: "The compiler recognizes the @resultBuilder attribute on the closure parameter.",
+    activeLeft: ["dslItem1"],
+    activeRight: ["transBox1"]
+  },
+  {
+    step: 2,
+    leftCode: "\"Status: Active\"\n\"Support: Available\"",
+    leftCaption: "Direct literal expressions produce initial builder components.",
+    rightCode: "let _v0 = TextReportBuilder.buildExpression(\"Status: Active\")\nlet _v2 = TextReportBuilder.buildExpression(\"Support: Available\")",
+    rightCaption: "Standard statements evaluate into components _v0 and _v2.",
+    activeLeft: ["dslItem1", "dslItem3"],
+    activeRight: ["transBox1"]
+  },
+  {
+    step: 3,
+    leftCode: "if isVip {\n    \"Plan: Gold Tier\"\n}",
+    leftCaption: "Conditional statement requires buildOptional to handle the optional branch.",
+    rightCode: "let _partial: String? = isVip ? \"Plan: Gold Tier\" : nil\nlet _v1 = TextReportBuilder.buildOptional(_partial)",
+    rightCaption: "Branching is converted into a buildOptional call returning a component.",
+    activeLeft: ["dslItem2"],
+    activeRight: ["transBox2"]
+  },
+  {
+    step: 4,
+    leftCode: "return finalReport // \"Status: Active\\nPlan: Gold Tier\\nSupport: Available\"",
+    leftCaption: "Caller receives the unified composite value without manual array construction.",
+    rightCode: "return TextReportBuilder.buildBlock(_v0, _v1, _v2)",
+    rightCaption: "All components are passed into buildBlock to produce the final combined result.",
+    activeLeft: ["dslItem1", "dslItem2", "dslItem3"],
+    activeRight: ["transBox3"]
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.querySelectorAll(".node-box").forEach(el => {
+    el.classList.remove("active-dsl", "active-comp", "active-flow", "active-block");
+  });
+
+  if (idx === 0) {
+    document.getElementById("dslItem1").classList.add("active-dsl");
+    document.getElementById("transBox1").classList.add("active-comp");
+  } else if (idx === 1) {
+    document.getElementById("dslItem1").classList.add("active-dsl");
+    document.getElementById("dslItem3").classList.add("active-dsl");
+    document.getElementById("transBox1").classList.add("active-comp");
+  } else if (idx === 2) {
+    document.getElementById("dslItem2").classList.add("active-flow");
+    document.getElementById("transBox2").classList.add("active-flow");
+  } else if (idx === 3) {
+    document.getElementById("dslItem1").classList.add("active-block");
+    document.getElementById("dslItem2").classList.add("active-block");
+    document.getElementById("dslItem3").classList.add("active-block");
+    document.getElementById("transBox3").classList.add("active-block");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,219 @@
+export const meta = {
+  id: "result-builders",
+  summary: "Build domain-specific languages and declarative hierarchies using Swift result builders.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Attributes", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/attributes", kind: "official" },
+    { title: "ViewBuilder (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/viewbuilder", kind: "official" },
+    { title: "Swift Evolution SE-0289: Result Builders", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0289-result-builders.md", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How does SwiftUI allow you to list child views inside a closure without commas or return statements?</Question>
+  <Guess>
+    <Option id="a">SwiftUI parses your Swift source code at runtime with an interpreter.</Option>
+    <Option id="b" correct>The @ViewBuilder attribute transforms closure statements into static builder method calls at compile time.</Option>
+    <Option id="c">Every view struct conforms to ExpressibleByArrayLiteral automatically.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a result builder like an assembly line conveyor belt.
+Workers place parts on the belt one by one without boxing them up.
+At the end of the line, a robot picks up all parts and welds them into a single finished car.
+</Analogy>
+
+In standard Swift code, a function returning an array or combined object requires punctuation.
+You must insert commas or call an append method repeatedly.
+You also need an explicit return keyword at the end.
+
+Result builders remove this ceremony.
+You mark a type with the `@resultBuilder` attribute.
+The Swift compiler then rewrites each statement in a closure.
+It passes every expression into static methods on your builder type.
+The builder collects the pieces and combines them into one final value.
+
+SwiftUI uses this exact feature for `@ViewBuilder`.
+When you write view hierarchies, you list child views line by line.
+The compiler gathers them into a tuple view behind the scenes.
+
+```swift no-output
+struct MenuItem {
+    let title: String
+}
+
+@resultBuilder
+struct MenuBuilder {
+    static func buildBlock(_ items: MenuItem...) -> [MenuItem] {
+        return items
+    }
+}
+
+func makeMenu(@MenuBuilder content: () -> [MenuItem]) -> [MenuItem] {
+    return content()
+}
+
+let menu = makeMenu {
+    MenuItem(title: "Home")
+    MenuItem(title: "Settings")
+}
+```
+
+<QuickCheck>
+  <Question>Which static method is strictly required to implement a basic result builder?</Question>
+  <Option id="a">buildEither</Option>
+  <Option id="b" correct>buildBlock</Option>
+  <Option id="c">buildExpression</Option>
+  <Explanation>A result builder must implement at least buildBlock to combine statements into a final result.</Explanation>
+</QuickCheck>
+
+## See it
+
+<Diagram name="result-builders" alt="Four-step diagram showing how the Swift compiler rewrites independent closure statements into static buildBlock calls.">
+  A 4-step interactive walkthrough showing compiler transformation of closure statements into static result builder method calls.
+</Diagram>
+
+## In code
+
+Here is a minimal result builder that combines lines of text into a single string.
+
+<CodeExample title="Combining multiple strings using buildBlock">
+
+```swift
+@resultBuilder
+struct StringBuilder {
+    static func buildBlock(_ components: String...) -> String {
+        return components.joined(separator: " ")
+    }
+}
+
+func makeMessage(@StringBuilder content: () -> String) -> String {
+    return content()
+}
+
+let greeting = makeMessage {
+    "Hello"
+    "Swift"
+    "Developers"
+}
+
+print(greeting)
+```
+
+```output
+Hello Swift Developers
+```
+
+</CodeExample>
+
+A basic `buildBlock` handles straight lists of values.
+Real code often needs control flow like `if` conditions and `for` loops.
+To support `if` statements, you provide `buildOptional` and `buildEither`.
+To support `for` loops, you provide `buildArray`.
+
+<CodeExample title="Handling conditional statements using buildOptional and buildEither">
+
+```swift
+@resultBuilder
+struct TextReportBuilder {
+    static func buildBlock(_ components: String...) -> String {
+        return components.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+    
+    static func buildOptional(_ component: String?) -> String {
+        return component ?? ""
+    }
+    
+    static func buildEither(first component: String) -> String {
+        return component
+    }
+    
+    static func buildEither(second component: String) -> String {
+        return component
+    }
+}
+
+func generateReport(@TextReportBuilder content: () -> String) -> String {
+    return content()
+}
+
+let isVip = true
+let report = generateReport {
+    "Status: Active"
+    if isVip {
+        "Plan: Gold Tier"
+    } else {
+        "Plan: Basic Tier"
+    }
+    "Support: Available"
+}
+
+print(report)
+```
+
+```output
+Status: Active
+Plan: Gold Tier
+Support: Available
+```
+
+</CodeExample>
+
+<QuickCheck>
+  <Question>What error happens if you use an if-statement inside a result builder that lacks buildEither?</Question>
+  <Option id="a">The app crashes at runtime when the condition evaluates to false.</Option>
+  <Option id="b">The compiler ignores the if condition and includes both branches.</Option>
+  <Option id="c" correct>The compiler shows a build error stating control flow is not supported by the builder.</Option>
+  <Explanation>The compiler requires buildEither or buildOptional to translate conditional branching in a builder closure.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Experiment with custom result builders in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming control flow works automatically">
+Developers often assume standard Swift if conditions or for loops work in any result builder closure by default. A result builder cannot handle branching unless you explicitly implement buildOptional, buildEither, and buildArray. Without them, the compiler rejects the code.
+</Trap>
+
+<Trap title="Confusing result builders with Swift macros">
+Candidates sometimes state that result builders inspect the abstract syntax tree and generate arbitrary code like macros. Result builders are restricted to closure transformation. They only translate expressions into builder method chains. They cannot create new properties or inspect types like macros do.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+A result builder is a Swift feature marked with @resultBuilder. It lets you build complex values by writing items line by line inside a closure. SwiftUI uses it for @ViewBuilder so you can lay out views without commas.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+A result builder collects statements inside a closure and combines them into one value. The compiler rewrites the statements into static calls like buildBlock. To support if statements or loops, the builder must also implement buildOptional, buildEither, and buildArray.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Result builders were standardized in SE-0289 in Swift 5.4 to power embedded domain-specific languages. The compiler desugars closure expressions into typed builder method calls like buildExpression, buildBlock, and buildFinalResult. They enable expressive declarative APIs in SwiftUI and custom domain languages with full static type safety.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `@resultBuilder` marks a type as an embedded domain-specific language builder.
+- The Swift compiler transforms statements inside annotated closures into static builder calls.
+- `buildBlock` is the primary required method that merges sequential components.
+- `buildOptional` and `buildEither` enable conditional logic like `if` and `switch`.
+- `buildArray` enables iteration through `for...in` loops.
+- `buildExpression` and `buildFinalResult` convert inputs and outputs to customized types.
+- SwiftUI relies heavily on `@ViewBuilder` to construct declarative view hierarchies.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Attributes — @resultBuilder](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/attributes)
+- [Swift Evolution SE-0289: Result Builders](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0289-result-builders.md)
+- [Apple Developer Documentation: ViewBuilder](https://developer.apple.com/documentation/swiftui/viewbuilder)

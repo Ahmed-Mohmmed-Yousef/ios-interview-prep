@@ -1,0 +1,587 @@
+<title>Result Builders Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --dsl-color: #0284c7; --dsl-soft: #e0f2fe;
+  --comp-color: #7c3aed; --comp-soft: #ede9fe;
+  --flow-color: #059669; --flow-soft: #d1fae5;
+  --block-color: #d97706; --block-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --dsl-color: #38bdf8; --dsl-soft: #082f49;
+  --comp-color: #a78bfa; --comp-soft: #2e1065;
+  --flow-color: #34d399; --flow-soft: #064e3b;
+  --block-color: #fbbf24; --block-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--dsl-soft); color: var(--dsl-color); }
+.p-right .kind { background: var(--comp-soft); color: var(--comp-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-dsl { stroke: var(--dsl-color); stroke-width: 2.5; fill: var(--dsl-soft); }
+.node-box.active-comp { stroke: var(--comp-color); stroke-width: 2.5; fill: var(--comp-soft); }
+.node-box.active-flow { stroke: var(--flow-color); stroke-width: 2.5; fill: var(--flow-soft); }
+.node-box.active-block { stroke: var(--block-color); stroke-width: 2.5; fill: var(--block-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--dsl-color); color: var(--dsl-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Swift Language · Topic 6 of 7 · Prototype</p>
+    <h1>Result Builders</h1>
+    <p class="meta-line"><span>About 12 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain how result builders build values like SwiftUI views.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">How does SwiftUI allow you to list child views inside a closure without commas or return statements?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">SwiftUI parses your Swift source code at runtime with an interpreter.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The @ViewBuilder attribute transforms closure statements into static builder method calls at compile time.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Every view struct conforms to ExpressibleByArrayLiteral automatically.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a result builder like an assembly line conveyor belt.
+Workers place parts on the belt one by one without boxing them up.
+At the end of the line, a robot picks up all parts and welds them into a single finished car.</p></aside>
+<p>In standard Swift code, a function returning an array or combined object requires punctuation.
+You must insert commas or call an append method repeatedly.
+You also need an explicit return keyword at the end.</p>
+<p>Result builders remove this ceremony.
+You mark a type with the <code>@resultBuilder</code> attribute.
+The Swift compiler then rewrites each statement in a closure.
+It passes every expression into static methods on your builder type.
+The builder collects the pieces and combines them into one final value.</p>
+<p>SwiftUI uses this exact feature for <code>@ViewBuilder</code>.
+When you write view hierarchies, you list child views line by line.
+The compiler gathers them into a tuple view behind the scenes.</p>
+<pre class="block swift"><code class="language-swift">struct MenuItem {
+    let title: String
+}
+
+@resultBuilder
+struct MenuBuilder {
+    static func buildBlock(_ items: MenuItem...) -&gt; [MenuItem] {
+        return items
+    }
+}
+
+func makeMenu(@MenuBuilder content: () -&gt; [MenuItem]) -&gt; [MenuItem] {
+    return content()
+}
+
+let menu = makeMenu {
+    MenuItem(title: &quot;Home&quot;)
+    MenuItem(title: &quot;Settings&quot;)
+}
+</code></pre>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which static method is strictly required to implement a basic result builder?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">buildEither</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">buildBlock</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">buildExpression</span></button><p class="qc-explain" hidden="">A result builder must implement at least buildBlock to combine statements into a final result.</p></div>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<p>Here is a minimal result builder that combines lines of text into a single string.</p>
+<figure class="code-example"><figcaption>Combining multiple strings using buildBlock</figcaption><pre class="block swift"><code class="language-swift">@resultBuilder
+struct StringBuilder {
+    static func buildBlock(_ components: String...) -&gt; String {
+        return components.joined(separator: &quot; &quot;)
+    }
+}
+
+func makeMessage(@StringBuilder content: () -&gt; String) -&gt; String {
+    return content()
+}
+
+let greeting = makeMessage {
+    &quot;Hello&quot;
+    &quot;Swift&quot;
+    &quot;Developers&quot;
+}
+
+print(greeting)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Hello Swift Developers
+</code></pre></figure>
+<p>A basic <code>buildBlock</code> handles straight lists of values.
+Real code often needs control flow like <code>if</code> conditions and <code>for</code> loops.
+To support <code>if</code> statements, you provide <code>buildOptional</code> and <code>buildEither</code>.
+To support <code>for</code> loops, you provide <code>buildArray</code>.</p>
+<figure class="code-example"><figcaption>Handling conditional statements using buildOptional and buildEither</figcaption><pre class="block swift"><code class="language-swift">@resultBuilder
+struct TextReportBuilder {
+    static func buildBlock(_ components: String...) -&gt; String {
+        return components.filter { !$0.isEmpty }.joined(separator: &quot;\n&quot;)
+    }
+    
+    static func buildOptional(_ component: String?) -&gt; String {
+        return component ?? &quot;&quot;
+    }
+    
+    static func buildEither(first component: String) -&gt; String {
+        return component
+    }
+    
+    static func buildEither(second component: String) -&gt; String {
+        return component
+    }
+}
+
+func generateReport(@TextReportBuilder content: () -&gt; String) -&gt; String {
+    return content()
+}
+
+let isVip = true
+let report = generateReport {
+    &quot;Status: Active&quot;
+    if isVip {
+        &quot;Plan: Gold Tier&quot;
+    } else {
+        &quot;Plan: Basic Tier&quot;
+    }
+    &quot;Support: Available&quot;
+}
+
+print(report)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Status: Active
+Plan: Gold Tier
+Support: Available
+</code></pre></figure>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What error happens if you use an if-statement inside a result builder that lacks buildEither?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The app crashes at runtime when the condition evaluates to false.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">The compiler ignores the if condition and includes both branches.</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">The compiler shows a build error stating control flow is not supported by the builder.</span></button><p class="qc-explain" hidden="">The compiler requires buildEither or buildOptional to translate conditional branching in a builder closure.</p></div>
+<p class="try-it"><p>Experiment with custom result builders in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming control flow works automatically</p><p>Developers often assume standard Swift if conditions or for loops work in any result builder closure by default. A result builder cannot handle branching unless you explicitly implement buildOptional, buildEither, and buildArray. Without them, the compiler rejects the code.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing result builders with Swift macros</p><p>Candidates sometimes state that result builders inspect the abstract syntax tree and generate arbitrary code like macros. Result builders are restricted to closure transformation. They only translate expressions into builder method chains. They cannot create new properties or inspect types like macros do.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>A result builder is a Swift feature marked with @resultBuilder. It lets you build complex values by writing items line by line inside a closure. SwiftUI uses it for @ViewBuilder so you can lay out views without commas.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>A result builder collects statements inside a closure and combines them into one value. The compiler rewrites the statements into static calls like buildBlock. To support if statements or loops, the builder must also implement buildOptional, buildEither, and buildArray.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Result builders were standardized in SE-0289 in Swift 5.4 to power embedded domain-specific languages. The compiler desugars closure expressions into typed builder method calls like buildExpression, buildBlock, and buildFinalResult. They enable expressive declarative APIs in SwiftUI and custom domain languages with full static type safety.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>@resultBuilder</code> marks a type as an embedded domain-specific language builder.</li>
+<li>The Swift compiler transforms statements inside annotated closures into static builder calls.</li>
+<li><code>buildBlock</code> is the primary required method that merges sequential components.</li>
+<li><code>buildOptional</code> and <code>buildEither</code> enable conditional logic like <code>if</code> and <code>switch</code>.</li>
+<li><code>buildArray</code> enables iteration through <code>for...in</code> loops.</li>
+<li><code>buildExpression</code> and <code>buildFinalResult</code> convert inputs and outputs to customized types.</li>
+<li>SwiftUI relies heavily on <code>@ViewBuilder</code> to construct declarative view hierarchies.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/attributes">The Swift Programming Language: Attributes — @resultBuilder</a></li>
+<li><a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0289-result-builders.md">Swift Evolution SE-0289: Result Builders</a></li>
+<li><a href="https://developer.apple.com/documentation/swiftui/viewbuilder">Apple Developer Documentation: ViewBuilder</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    leftCode: "generateReport {\n    \"Status: Active\"\n    if isVip { \"Plan: Gold Tier\" }\n    \"Support: Available\"\n}",
+    leftCaption: "Developer writes sequential statements without commas or return keywords.",
+    rightCode: "// Compiler intercepts closure tagged with @resultBuilder\n// Analyzes 3 statement blocks inside closure",
+    rightCaption: "The compiler recognizes the @resultBuilder attribute on the closure parameter.",
+    activeLeft: ["dslItem1"],
+    activeRight: ["transBox1"]
+  },
+  {
+    step: 2,
+    leftCode: "\"Status: Active\"\n\"Support: Available\"",
+    leftCaption: "Direct literal expressions produce initial builder components.",
+    rightCode: "let _v0 = TextReportBuilder.buildExpression(\"Status: Active\")\nlet _v2 = TextReportBuilder.buildExpression(\"Support: Available\")",
+    rightCaption: "Standard statements evaluate into components _v0 and _v2.",
+    activeLeft: ["dslItem1", "dslItem3"],
+    activeRight: ["transBox1"]
+  },
+  {
+    step: 3,
+    leftCode: "if isVip {\n    \"Plan: Gold Tier\"\n}",
+    leftCaption: "Conditional statement requires buildOptional to handle the optional branch.",
+    rightCode: "let _partial: String? = isVip ? \"Plan: Gold Tier\" : nil\nlet _v1 = TextReportBuilder.buildOptional(_partial)",
+    rightCaption: "Branching is converted into a buildOptional call returning a component.",
+    activeLeft: ["dslItem2"],
+    activeRight: ["transBox2"]
+  },
+  {
+    step: 4,
+    leftCode: "return finalReport // \"Status: Active\\nPlan: Gold Tier\\nSupport: Available\"",
+    leftCaption: "Caller receives the unified composite value without manual array construction.",
+    rightCode: "return TextReportBuilder.buildBlock(_v0, _v1, _v2)",
+    rightCaption: "All components are passed into buildBlock to produce the final combined result.",
+    activeLeft: ["dslItem1", "dslItem2", "dslItem3"],
+    activeRight: ["transBox3"]
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.querySelectorAll(".node-box").forEach(el => {
+    el.classList.remove("active-dsl", "active-comp", "active-flow", "active-block");
+  });
+
+  if (idx === 0) {
+    document.getElementById("dslItem1").classList.add("active-dsl");
+    document.getElementById("transBox1").classList.add("active-comp");
+  } else if (idx === 1) {
+    document.getElementById("dslItem1").classList.add("active-dsl");
+    document.getElementById("dslItem3").classList.add("active-dsl");
+    document.getElementById("transBox1").classList.add("active-comp");
+  } else if (idx === 2) {
+    document.getElementById("dslItem2").classList.add("active-flow");
+    document.getElementById("transBox2").classList.add("active-flow");
+  } else if (idx === 3) {
+    document.getElementById("dslItem1").classList.add("active-block");
+    document.getElementById("dslItem2").classList.add("active-block");
+    document.getElementById("dslItem3").classList.add("active-block");
+    document.getElementById("transBox3").classList.add("active-block");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"result-builders","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"rb-q1","type":"mcq","difficulty":1,"prompt":"Which attribute marks a custom struct or enum as a result builder in Swift?","options":[{"id":"a","text":"@resultBuilder","explanation":"The @resultBuilder attribute instructs the Swift compiler to treat the type as a result builder."},{"id":"b","text":"@builder","explanation":"@builder is not a valid Swift attribute."},{"id":"c","text":"@viewBuilder","explanation":"@ViewBuilder is SwiftUI's specific result builder, not the general language attribute."},{"id":"d","text":"@syntaxBuilder","explanation":"@syntaxBuilder does not exist in the Swift language."}],"answer":"a"},{"id":"rb-q2","type":"mcq","difficulty":1,"prompt":"Which static method is strictly required to implement any minimal result builder?","options":[{"id":"a","text":"buildOptional(_:)","explanation":"buildOptional is only required when supporting single if conditions."},{"id":"b","text":"buildBlock(_:)","explanation":"buildBlock is the primary required method that gathers and combines sequential statements."},{"id":"c","text":"buildEither(first:)","explanation":"buildEither is only required for conditional branching."},{"id":"d","text":"buildExpression(_:)","explanation":"buildExpression is optional and used for transforming individual statement types."}],"answer":"b"},{"id":"rb-q3","type":"mcq","difficulty":2,"prompt":"Which static method must you implement to support an if statement without an else branch?","options":[{"id":"a","text":"buildEither(first:)","explanation":"buildEither handles selection between two active branches."},{"id":"b","text":"buildExpression(_:)","explanation":"buildExpression converts raw values into intermediate component types."},{"id":"c","text":"buildOptional(_:)","explanation":"buildOptional receives an optional component produced when an if condition may evaluate to false."},{"id":"d","text":"buildArray(_:)","explanation":"buildArray is used exclusively for for-in loop constructs."}],"answer":"c"},{"id":"rb-q4","type":"mcq","difficulty":2,"prompt":"Which pair of static methods is required to support if-else and switch statements?","options":[{"id":"a","text":"buildTrue and buildFalse static methods","explanation":"Swift result builders use buildEither, not true/false naming."},{"id":"b","text":"buildBranch and buildDefault static methods","explanation":"There are no buildBranch or buildDefault builder methods."},{"id":"c","text":"buildLeft and buildRight helper functions","explanation":"Swift standardized on first: and second: parameter labels."},{"id":"d","text":"buildEither(first:) and buildEither(second:)","explanation":"buildEither with first: and second: handles binary branching and switch balance trees."}],"answer":"d"},{"id":"rb-q5","type":"mcq","difficulty":2,"prompt":"Which static method enables for...in loops inside a result builder closure?","options":[{"id":"a","text":"buildArray(_:)","explanation":"buildArray takes an array of components produced across loop iterations and combines them into one."},{"id":"b","text":"buildLoop(_:)","explanation":"buildLoop does not exist in the Swift result builder specification."},{"id":"c","text":"buildIterator(_:)","explanation":"buildIterator is not a valid result builder method."},{"id":"d","text":"buildSequence(_:)","explanation":"buildSequence was an earlier draft idea that was replaced by buildArray."}],"answer":"a"},{"id":"rb-q6","type":"mcq","difficulty":2,"prompt":"What is the primary role of the buildExpression static method in a result builder?","options":[{"id":"a","text":"To compile arithmetic expressions into raw machine assembly instructions.","explanation":"Result builders operate in high-level Swift, not machine assembly."},{"id":"b","text":"To convert individual statement expressions into internal builder components.","explanation":"buildExpression intercepts raw expressions, allowing custom types to be translated before merging."},{"id":"c","text":"To evaluate regular expressions at compile time for string matching.","explanation":"buildExpression is for builder statements, not regex evaluation."},{"id":"d","text":"To validate whether closure expressions contain memory retain cycles.","explanation":"Memory checks are handled by ARC, not builder expressions."}],"answer":"b"},{"id":"rb-q7","type":"mcq","difficulty":2,"prompt":"What capability does the buildFinalResult static method provide in a result builder?","options":[{"id":"a","text":"It prevents subclasses from overriding any builder methods.","explanation":"The final keyword is unrelated to buildFinalResult."},{"id":"b","text":"It automatically prints debug logging for the completed closure value.","explanation":"buildFinalResult performs type transformation, not console logging."},{"id":"c","text":"It transforms accumulated internal components into the ultimate return type.","explanation":"buildFinalResult converts the combined internal component into the final type exposed to callers."},{"id":"d","text":"It terminates execution if any closure component evaluates to nil.","explanation":"It does not terminate program execution."}],"answer":"c"},{"id":"rb-q8","type":"mcq","difficulty":3,"prompt":"What happens when you place an if-statement in a builder closure that lacks buildEither?","options":[{"id":"a","text":"The app compiles successfully and ignores the second branch silently.","explanation":"The Swift compiler does not silently ignore code branches."},{"id":"b","text":"The app crashes at runtime with an unrecognized instruction trap.","explanation":"The failure happens at compile time, not runtime."},{"id":"c","text":"The compiler automatically substitutes an empty tuple for the missing branch.","explanation":"Swift does not guess branch values when builder methods are absent."},{"id":"d","text":"A compile error occurs stating the builder cannot handle control flow.","explanation":"Without buildEither or buildOptional, the compiler rejects conditional statements."}],"answer":"d"},{"id":"rb-q9","type":"mcq","difficulty":2,"prompt":"How does SwiftUI use result builders to construct view hierarchies?","options":[{"id":"a","text":"Through @ViewBuilder, combining child views into structured tuple views.","explanation":"SwiftUI annotates view bodies and container closures with @ViewBuilder to assemble views."},{"id":"b","text":"Through runtime reflection using Mirror to parse declared view properties.","explanation":"SwiftUI uses compile-time result builders, not runtime reflection."},{"id":"c","text":"By executing WebAssembly scripts to layout views across threads.","explanation":"SwiftUI runs natively in Swift on Apple platforms."},{"id":"d","text":"By dynamically appending UIResponder nodes into an internal UIKit window.","explanation":"SwiftUI views are declarative structs, not UIKit responder chains."}],"answer":"a"},{"id":"rb-q10","type":"mcq","difficulty":2,"prompt":"Which Swift Evolution proposal officially standardized result builders?","options":[{"id":"a","text":"SE-0258","explanation":"SE-0258 introduced Property Wrappers."},{"id":"b","text":"SE-0289","explanation":"SE-0289 officially standardized Result Builders in Swift 5.4."},{"id":"c","text":"SE-0304","explanation":"SE-0304 introduced Structured Concurrency."},{"id":"d","text":"SE-0389","explanation":"SE-0389 introduced Attached Macros in Swift 5.9."}],"answer":"b"},{"id":"rb-q11","type":"mcq","difficulty":2,"prompt":"Can you declare local constants with 'let' inside a result builder closure?","options":[{"id":"a","text":"No, result builder closures reject all variable and constant declarations.","explanation":"Local declarations are permitted."},{"id":"b","text":"Only if the builder defines a buildVariable static method.","explanation":"There is no buildVariable method in Swift."},{"id":"c","text":"Yes, local declarations are evaluated normally and not passed to buildBlock.","explanation":"Local variable declarations execute without being passed to builder transformation methods."},{"id":"d","text":"Yes, but only if the constant conforms to Identifiable.","explanation":"No protocol conformance is required for local constants."}],"answer":"c"},{"id":"rb-q12","type":"mcq","difficulty":3,"prompt":"How does a result builder handle availability checks like 'if #available(iOS 18, *)'?","options":[{"id":"a","text":"By throwing an unhandled platform exception on older operating systems.","explanation":"Swift compiler availability checks are resolved safely."},{"id":"b","text":"By dynamically linking the binary with weak symbol flags at launch.","explanation":"Result builders use dedicated static methods rather than weak symbols."},{"id":"c","text":"By ignoring availability blocks and executing the fallback path.","explanation":"Availability blocks are preserved and executed when conditions match."},{"id":"d","text":"By implementing the buildLimitedAvailability static method on the builder.","explanation":"buildLimitedAvailability allows builders to adapt component types for new OS features."}],"answer":"d"},{"id":"rb-q13","type":"mcq","difficulty":1,"prompt":"Where can custom result builder attributes be attached in Swift code?","options":[{"id":"a","text":"On function declarations, closure parameters, and computed properties.","explanation":"Result builder attributes can annotate functions, closure parameters, and computed properties."},{"id":"b","text":"Only on stored instance properties inside class declarations.","explanation":"Stored properties use property wrappers, not result builders."},{"id":"c","text":"Exclusively on protocol requirements and extension initializers.","explanation":"Result builders annotate executable closures and functions, not protocol requirements."},{"id":"d","text":"Only within Apple system frameworks via private compiler flags.","explanation":"Any developer can create custom result builders in Swift."}],"answer":"a"},{"id":"rb-q14","type":"mcq","difficulty":3,"prompt":"What is the primary difference between a result builder and a Swift macro?","options":[{"id":"a","text":"Result builders run in the preprocessor, while macros run in the debugger.","explanation":"Neither runs in a C preprocessor or debugger; both are Swift compiler features."},{"id":"b","text":"Result builders transform closures into method calls, while macros generate AST code.","explanation":"Result builders only desugar closure bodies into method calls, while macros synthesize arbitrary Swift syntax."},{"id":"c","text":"Result builders require Objective-C runtime support, whereas macros do not.","explanation":"Both features are pure Swift language mechanisms."},{"id":"d","text":"Result builders can create new structs, whereas macros only transform strings.","explanation":"Macros create types; result builders cannot create new type declarations."}],"answer":"b"},{"id":"rb-q15","type":"mcq","difficulty":2,"prompt":"What happens if a closure statement does not match any buildExpression or component type?","options":[{"id":"a","text":"The unmatched value is dropped silently during compilation.","explanation":"Swift enforces strict type safety and will not silently drop unmatched values."},{"id":"b","text":"The runtime converts the value into a nil optional dynamically.","explanation":"Type mismatches are detected at compile time."},{"id":"c","text":"The compiler fails with a type error stating the expression is invalid.","explanation":"Every statement producing a value must match an accepted component or expression type."},{"id":"d","text":"The value is serialized to JSON string format automatically.","explanation":"No automatic JSON serialization occurs."}],"answer":"c"},{"id":"rb-q16","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"@resultBuilder\nstruct StringBuilder {\n    static func buildBlock(_ components: String...) -> String {\n        return components.joined(separator: \" \")\n    }\n}\n\nfunc build(@StringBuilder content: () -> String) -> String {\n    return content()\n}\n\nlet result = build {\n    \"Alpha\"\n    \"Beta\"\n    \"Gamma\"\n}\nprint(result)","options":[{"id":"a","text":"Alpha","explanation":"The builder combines all components, not just the first one."},{"id":"b","text":"AlphaBetaGamma","explanation":"The components are joined with a space separator."},{"id":"c","text":"Gamma","explanation":"buildBlock joins all three words together."},{"id":"d","text":"Alpha Beta Gamma","explanation":"buildBlock receives all three strings and joins them with spaces."}],"answer":"d"},{"id":"rb-q17","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"@resultBuilder\nstruct SumBuilder {\n    static func buildBlock(_ numbers: Int...) -> Int {\n        return numbers.reduce(0, +)\n    }\n}\n\nfunc calculateSum(@SumBuilder values: () -> Int) -> Int {\n    return values()\n}\n\nlet total = calculateSum {\n    2\n    4\n    9\n}\nprint(total)","options":[{"id":"a","text":"15","explanation":"buildBlock sums 2, 4, and 9 via reduce(0, +) to yield 15."},{"id":"b","text":"14","explanation":"2 + 4 + 9 equals 15, not 14."},{"id":"c","text":"12","explanation":"2 + 4 + 9 equals 15, not 12."},{"id":"d","text":"10","explanation":"reduce(0, +) accumulates all numbers into 15, not 10."}],"answer":"a"},{"id":"rb-q18","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"@resultBuilder\nstruct HeaderBuilder {\n    static func buildBlock(_ lines: String...) -> String {\n        return lines.filter { !$0.isEmpty }.joined(separator: \": \")\n    }\n    \n    static func buildOptional(_ line: String?) -> String {\n        return line ?? \"\"\n    }\n}\n\nfunc makeHeader(@HeaderBuilder content: () -> String) -> String {\n    return content()\n}\n\nlet isVip = true\nlet title = makeHeader {\n    \"Header\"\n    if isVip {\n        \"VIP\"\n    }\n}\nprint(title)","options":[{"id":"a","text":"Header","explanation":"isVip is true, so the VIP branch is evaluated and included."},{"id":"b","text":"Header: VIP","explanation":"buildOptional unwraps 'VIP' and buildBlock joins 'Header' and 'VIP' with ': '."},{"id":"c","text":"VIP: Header","explanation":"Statements are processed in sequential order."},{"id":"d","text":"Header: Optional(VIP)","explanation":"buildOptional unwraps the value into a non-optional String."}],"answer":"b"},{"id":"rb-q19","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"@resultBuilder\nstruct BranchBuilder {\n    static func buildBlock(_ items: String...) -> String {\n        return items.joined(separator: \": \")\n    }\n    \n    static func buildEither(first item: String) -> String {\n        return item\n    }\n    \n    static func buildEither(second item: String) -> String {\n        return item\n    }\n}\n\nfunc makeSelection(choice: Int, @BranchBuilder content: () -> String) -> String {\n    return content()\n}\n\nlet choice = 2\nlet message = makeSelection(choice: choice) {\n    \"Option\"\n    if choice == 1 {\n        \"A\"\n    } else {\n        \"B\"\n    }\n}\nprint(message)","options":[{"id":"a","text":"Option: A","explanation":"choice equals 2, so the else branch evaluates to 'B'."},{"id":"b","text":"Option: A: B","explanation":"The if-else condition selects only one branch via buildEither."},{"id":"c","text":"Option: B","explanation":"choice is 2, triggering buildEither(second: 'B') and joining with 'Option'."},{"id":"d","text":"Option","explanation":"The else branch generates 'B', which is included in the output."}],"answer":"c"},{"id":"rb-q20","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"@resultBuilder\nstruct FormatterBuilder {\n    static func buildExpression(_ number: Int) -> String {\n        return \"Items: \\(number)\"\n    }\n    \n    static func buildBlock(_ components: String...) -> String {\n        return components.joined(separator: \" | \")\n    }\n}\n\nfunc formatCount(@FormatterBuilder content: () -> String) -> String {\n    return content()\n}\n\nlet summary = formatCount {\n    42\n}\nprint(summary)","options":[{"id":"a","text":"42","explanation":"buildExpression formats the integer with the 'Items: ' prefix."},{"id":"b","text":"Items: 0","explanation":"The closure supplies integer literal 42."},{"id":"c","text":"nil","explanation":"The builder returns a non-optional formatted String."},{"id":"d","text":"Items: 42","explanation":"buildExpression transforms integer 42 into 'Items: 42', which buildBlock returns."}],"answer":"d"},{"id":"rb-q21","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"@resultBuilder\nstruct ArrayCounterBuilder {\n    static func buildBlock(_ counts: Int...) -> Int {\n        return counts.reduce(0, +)\n    }\n    \n    static func buildArray(_ components: [Int]) -> Int {\n        return components.reduce(0, +)\n    }\n}\n\nfunc sumItems(@ArrayCounterBuilder content: () -> Int) -> Int {\n    return content()\n}\n\nlet items = [1, 1, 1]\nlet count = sumItems {\n    for _ in items {\n        1\n    }\n}\nprint(\"Count: \\(count)\")","options":[{"id":"a","text":"Count: 3","explanation":"The loop runs 3 times, buildArray sums [1, 1, 1] to 3, and buildBlock preserves 3."},{"id":"b","text":"Count: 1","explanation":"The loop iterates 3 times across the array elements."},{"id":"c","text":"Count: 0","explanation":"Each iteration yields 1, resulting in a total sum of 3."},{"id":"d","text":"Count: items","explanation":"The builder produces an integer sum, not array text."}],"answer":"a"},{"id":"rb-q22","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"@resultBuilder\nstruct UppercaseSummaryBuilder {\n    static func buildBlock(_ words: String...) -> [String] {\n        return words\n    }\n    \n    static func buildFinalResult(_ components: [String]) -> String {\n        return components.joined(separator: \" \").uppercased()\n    }\n}\n\nfunc makeWords(@UppercaseSummaryBuilder content: () -> String) -> String {\n    return content()\n}\n\nlet shouted = makeWords {\n    \"ready\"\n    \"set\"\n    \"go\"\n}\nprint(shouted)","options":[{"id":"a","text":"ready set go","explanation":"buildFinalResult applies uppercased() to the joined string."},{"id":"b","text":"READY SET GO","explanation":"buildBlock collects ['ready', 'set', 'go'] and buildFinalResult joins and uppercases them."},{"id":"c","text":"READY","explanation":"All three words are collected and formatted."},{"id":"d","text":"GO","explanation":"The entire sequence of words is processed."}],"answer":"b"},{"id":"rb-q23","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"@resultBuilder\nstruct PathBuilder {\n    static func buildBlock(_ segments: String...) -> String {\n        return segments.joined(separator: \"/\")\n    }\n}\n\nfunc path(@PathBuilder content: () -> String) -> String {\n    return content()\n}\n\nlet route = path {\n    \"Root\"\n    \"Child\"\n}\nprint(route)","options":[{"id":"a","text":"Root","explanation":"Both 'Root' and 'Child' are combined."},{"id":"b","text":"Child/Root","explanation":"Statements are processed in sequential written order."},{"id":"c","text":"Root/Child","explanation":"buildBlock joins 'Root' and 'Child' using the '/' forward-slash separator."},{"id":"d","text":"Root Child","explanation":"The separator defined in buildBlock is '/', not a space."}],"answer":"c"},{"id":"rb-q24","type":"written","difficulty":2,"prompt":"Explain what a result builder is in Swift, why SE-0289 standardized it in Swift 5.4, and what problems it solves for declarative APIs.","modelAnswer":"A result builder is a Swift type marked with @resultBuilder that translates sequential closure statements into static builder method calls. SE-0289 standardized result builders in Swift 5.4 after their initial introduction in SwiftUI. Before result builders, constructing hierarchies required comma-separated arrays or repetitive append calls. Result builders eliminate syntactic noise by turning lines of code into structured composite values. This enables clean declarative APIs like SwiftUI views and regex builders with full compile-time type safety.","rubric":[{"criterion":"Defines result builders as compiler-driven closure transformations via @resultBuilder","weight":25,"key":true},{"criterion":"Identifies SE-0289 standardization in Swift 5.4","weight":20,"key":false},{"criterion":"Contrasts with verbose arrays, commas, and manual append calls","weight":25,"key":true},{"criterion":"Highlights declarative syntax and static type safety in DSLs like SwiftUI","weight":30,"key":false}]},{"id":"rb-q25","type":"written","difficulty":2,"prompt":"Explain the roles of buildBlock, buildOptional, and buildEither in a result builder. Why are all three needed for complete control flow support?","modelAnswer":"buildBlock is the required core method that merges sequential statements into one combined component. buildOptional handles conditional statements lacking an else branch by taking an optional component. buildEither provides first: and second: variants to handle binary selection in if-else and multi-case switch statements. Without buildOptional and buildEither, attempting to write if or switch constructs inside a builder closure triggers compiler errors. Together, these three methods allow standard Swift control flow within declarative builder closures.","rubric":[{"criterion":"Explains buildBlock as the core sequential combiner","weight":30,"key":true},{"criterion":"Explains buildOptional for single if conditions with optional components","weight":25,"key":true},{"criterion":"Explains buildEither(first:) and buildEither(second:) for if-else and switch branching","weight":25,"key":true},{"criterion":"Explains compile-time errors that occur when control flow methods are missing","weight":20,"key":false}]},{"id":"rb-q26","type":"written","difficulty":3,"prompt":"Explain buildExpression and buildFinalResult in a result builder. How do they enable input transformation and customized return types?","modelAnswer":"buildExpression intercepts each individual expression before it reaches buildBlock. It can overload different parameter types to convert varied inputs into a single internal component type. buildFinalResult executes after all components have been gathered by buildBlock. It transforms the final accumulated component into the ultimate return type exposed to callers. Together, they decouple the input types and final output type from the internal component type used during block building.","rubric":[{"criterion":"Explains buildExpression intercepts individual statements to normalize input types","weight":35,"key":true},{"criterion":"Explains buildFinalResult converts accumulated components into the final return type","weight":35,"key":true},{"criterion":"Explains decoupling of input syntax, internal components, and final output type","weight":30,"key":false}]},{"id":"rb-q27","type":"written","difficulty":2,"prompt":"Explain how SwiftUI uses @ViewBuilder to construct view hierarchies. How does it handle multiple child views, and why does TupleView exist?","modelAnswer":"SwiftUI annotates the body property and container closures with @ViewBuilder. When you list views on separate lines, @ViewBuilder groups them into strongly typed TupleView structures. For instance, two views produce TupleView\u003c(ViewA, ViewB)>. In earlier Swift versions, buildBlock overloaded up to ten view parameters. Swift now uses parameter packs and variadic generics to support arbitrary view counts. TupleView preserves exact static type hierarchies without type erasure overhead.","rubric":[{"criterion":"Explains @ViewBuilder role in view body and container closures","weight":30,"key":true},{"criterion":"Identifies TupleView as the static composite representation of child views","weight":30,"key":true},{"criterion":"Discusses 10-view limit history and modern variadic generics / parameter packs","weight":25,"key":false},{"criterion":"Highlights static type preservation and avoiding type erasure","weight":15,"key":false}]},{"id":"rb-q28","type":"written","difficulty":3,"prompt":"Contrast result builders with Swift macros. When would you use a result builder, and when would you use a macro?","modelAnswer":"Result builders and Swift macros serve different metaprogramming roles. Result builders transform closure statements into method chains to build embedded domain-specific languages at compile time. They cannot create new properties or inspect types. Swift macros operate directly on abstract syntax trees to synthesize arbitrary code anywhere, such as adding member properties or conforming types. You use result builders for declarative content construction like SwiftUI views. You use macros for code generation and boilerplate elimination across types.","rubric":[{"criterion":"Distinguishes closure method call transformation from AST syntax generation","weight":35,"key":true},{"criterion":"Identifies result builder scope: closures and declarative DSL construction","weight":25,"key":true},{"criterion":"Identifies macro scope: arbitrary code synthesis, member additions, and conformances","weight":25,"key":false},{"criterion":"Provides clear selection criteria and practical use cases for each tool","weight":15,"key":false}]},{"id":"rb-q29","type":"code-write","difficulty":2,"prompt":"Write a custom @CSVBuilder result builder struct that accepts multiple String statements and combines them with commas into a single String.","modelAnswer":"@resultBuilder\nstruct CSVBuilder {\n    static func buildBlock(_ items: String...) -> String {\n        return items.joined(separator: \",\")\n    }\n}\n\nfunc makeCSV(@CSVBuilder content: () -> String) -> String {\n    return content()\n}\n\nlet csv = makeCSV {\n    \"apple\"\n    \"banana\"\n    \"cherry\"\n}\nprint(csv)","rubric":[{"criterion":"Marks type with @resultBuilder attribute","weight":25,"key":true},{"criterion":"Implements static func buildBlock taking variadic String parameters","weight":35,"key":true},{"criterion":"Joins items with comma separator and returns combined String","weight":25,"key":true},{"criterion":"Provides valid helper function and compiles cleanly in Swift 6","weight":15,"key":false}]},{"id":"rb-q30","type":"code-write","difficulty":3,"prompt":"Write an @HTMLBuilder result builder supporting buildBlock, buildOptional, and buildEither(first:) / buildEither(second:) to assemble HTML tags into a newline-separated String.","modelAnswer":"@resultBuilder\nstruct HTMLBuilder {\n    static func buildBlock(_ tags: String...) -> String {\n        return tags.filter { !$0.isEmpty }.joined(separator: \"\\n\")\n    }\n    \n    static func buildOptional(_ tag: String?) -> String {\n        return tag ?? \"\"\n    }\n    \n    static func buildEither(first tag: String) -> String {\n        return tag\n    }\n    \n    static func buildEither(second tag: String) -> String {\n        return tag\n    }\n}\n\nfunc renderPage(@HTMLBuilder content: () -> String) -> String {\n    return content()\n}\n\nlet isAdmin = false\nlet html = renderPage {\n    \"\u003ch1>Welcome\u003c/h1>\"\n    if isAdmin {\n        \"\u003cp>Admin Dashboard\u003c/p>\"\n    } else {\n        \"\u003cp>User Profile\u003c/p>\"\n    }\n}\nprint(html)","rubric":[{"criterion":"Annotates struct with @resultBuilder and implements buildBlock","weight":25,"key":true},{"criterion":"Implements buildOptional handling optional String branches","weight":25,"key":true},{"criterion":"Implements buildEither(first:) and buildEither(second:) for branching","weight":30,"key":true},{"criterion":"Filters empty elements, joins with newlines, and compiles cleanly in Swift 6","weight":20,"key":false}]},{"id":"rb-q31","type":"code-write","difficulty":3,"prompt":"Write a @QueryBuilder result builder that implements buildExpression to trim whitespace from strings, buildBlock to join components with ' AND ', and buildArray to handle loops.","modelAnswer":"import Foundation\n\n@resultBuilder\nstruct QueryBuilder {\n    static func buildExpression(_ word: String) -> String {\n        return word.trimmingCharacters(in: .whitespaces)\n    }\n    \n    static func buildBlock(_ components: String...) -> String {\n        return components.filter { !$0.isEmpty }.joined(separator: \" AND \")\n    }\n    \n    static func buildArray(_ components: [String]) -> String {\n        return components.joined(separator: \" AND \")\n    }\n}\n\nfunc buildQuery(@QueryBuilder content: () -> String) -> String {\n    return content()\n}\n\nlet filters = [\"active\", \"verified\"]\nlet query = buildQuery {\n    \"ios\"\n    for f in filters {\n        f\n    }\n}\nprint(query)","rubric":[{"criterion":"Annotates struct with @resultBuilder attribute","weight":20,"key":true},{"criterion":"Implements buildExpression trimming whitespace from input strings","weight":30,"key":true},{"criterion":"Implements buildBlock joining non-empty components with ' AND '","weight":25,"key":true},{"criterion":"Implements buildArray to flatten loop iterations into query string","weight":25,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
