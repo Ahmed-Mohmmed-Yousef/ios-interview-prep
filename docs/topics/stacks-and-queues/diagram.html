@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stacks vs Queues: LIFO and FIFO Semantics</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --stack-color: #0284c7; --stack-soft: #e0f2fe;
+  --queue-color: #0c765c; --queue-soft: #dcf2ea;
+  --pop-color: #dc2626; --pop-soft: #fee2e2;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --stack-color: #38bdf8; --stack-soft: #082f49;
+  --queue-color: #45cfa3; --queue-soft: #13362c;
+  --pop-color: #f87171; --pop-soft: #450a0a;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.slot-box { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 6px; }
+.slot-box.stack-item { fill: var(--stack-soft); stroke: var(--stack-color); stroke-width: 2.5; }
+.slot-box.queue-item { fill: var(--queue-soft); stroke: var(--queue-color); stroke-width: 2.5; }
+.slot-box.popping { fill: var(--pop-soft); stroke: var(--pop-color); stroke-dasharray: 4; }
+
+.slot-text { font-family: var(--font-code); font-size: 14px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.lbl-tag { font-family: var(--font-body); font-size: 11px; font-weight: 700; text-anchor: middle; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Reduced motion static fallback */
+.static-fallback { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-diagram { display: none; }
+  .static-fallback { display: grid; gap: 12px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+  .comp-card p { margin: 0; font-size: 14px; color: var(--muted); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Stacks and queues interactive comparison diagram">
+
+  <div class="interactive-diagram">
+    <div class="panels">
+      <!-- Left Panel: SVG Visualization -->
+      <div class="panel">
+        <h3>
+          <span id="vis-title">Stack: Push Items</span>
+          <span class="kind" id="vis-tag" style="background:var(--stack-soft);color:var(--stack-color);">Step 1</span>
+        </h3>
+        
+        <svg viewBox="0 0 340 200" role="img" aria-label="Stack and Queue Mechanics">
+          <!-- Stack Container (Left) -->
+          <g transform="translate(30, 20)">
+            <text x="50" y="0" font-family="var(--font-body)" font-size="12" font-weight="700" fill="var(--stack-color)" text-anchor="middle">Stack (LIFO)</text>
+            <!-- Vertical bin boundaries -->
+            <path d="M 10 15 L 10 140 L 90 140 L 90 15" stroke="var(--line)" stroke-width="2.5" fill="none"/>
+            
+            <!-- Item 1: Bottom ("A") -->
+            <rect id="st-0" x="18" y="98" width="64" height="34" class="slot-box stack-item"/>
+            <text id="st-txt-0" x="50" y="120" class="slot-text">"A"</text>
+
+            <!-- Item 2: Top ("B") -->
+            <rect id="st-1" x="18" y="56" width="64" height="34" class="slot-box stack-item"/>
+            <text id="st-txt-1" x="50" y="78" class="slot-text">"B"</text>
+
+            <!-- Pointer: Top -->
+            <text id="st-ptr" x="105" y="78" class="lbl-tag" fill="var(--stack-color)" text-anchor="start">◀ Top</text>
+          </g>
+
+          <!-- Queue Container (Right) -->
+          <g transform="translate(180, 20)">
+            <text x="65" y="0" font-family="var(--font-body)" font-size="12" font-weight="700" fill="var(--queue-color)" text-anchor="middle">Queue (FIFO)</text>
+            <!-- Horizontal tube boundaries -->
+            <path d="M 0 50 L 130 50 M 0 110 L 130 110" stroke="var(--line)" stroke-width="2.5" fill="none"/>
+            
+            <!-- Item 1: Front ("1") -->
+            <rect id="qu-0" x="15" y="58" width="44" height="44" class="slot-box queue-item"/>
+            <text id="qu-txt-0" x="37" y="85" class="slot-text">"1"</text>
+            <text id="qu-ptr-front" x="37" y="128" class="lbl-tag" fill="var(--queue-color)">▲ Front</text>
+
+            <!-- Item 2: Back ("2") -->
+            <rect id="qu-1" x="70" y="58" width="44" height="44" class="slot-box queue-item"/>
+            <text id="qu-txt-1" x="92" y="85" class="slot-text">"2"</text>
+            <text id="qu-ptr-back" x="92" y="128" class="lbl-tag" fill="var(--queue-color)">▲ Back</text>
+          </g>
+        </svg>
+
+        <p class="caption" id="vis-desc" aria-live="polite">Items "A" and "B" pushed to the stack. "B" sits at the top. Queue holds "1" at front and "2" at back.</p>
+      </div>
+
+      <!-- Right Panel: Code & Operation Details -->
+      <div class="panel">
+        <h3>
+          <span id="right-title">Stack Push Operation</span>
+          <span class="kind" id="right-tag" style="background:var(--code-bg);color:var(--muted);">Step 1 of 4</span>
+        </h3>
+        <div class="code" id="right-code">var stack = ["A"]
+stack.append("B") // push "B" onto top
+// Top element is now "B"</div>
+        <p class="caption" id="right-desc">Elements are added to the top of the stack. Last element inserted becomes the first element accessible.</p>
+        <div class="metrics">
+          <div class="metric-col"><span>Structure</span><strong id="m-struct">Stack</strong></div>
+          <div class="metric-col"><span>Action</span><strong id="m-action">Push</strong></div>
+          <div class="metric-col"><span>Time</span><strong id="m-time">O(1)</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1: Stack push" onclick="goToStep(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2: Stack pop (LIFO)" onclick="goToStep(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3: Queue enqueue" onclick="goToStep(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4: Queue dequeue (FIFO)" onclick="goToStep(3)"></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()" aria-label="Next step">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced-Motion Static Fallback -->
+  <div class="static-fallback" aria-label="Static explanation of stack and queue operations">
+    <div class="comp-card" style="border-left: 4px solid var(--stack-color);">
+      <h4>Step 1: Stack Push (LIFO)</h4>
+      <p>Pushing elements places each new item on top of the vertical stack. Most recently added item is immediately accessible.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--pop-color);">
+      <h4>Step 2: Stack Pop (Last-In, First-Out)</h4>
+      <p>Popping removes the top item in O(1) time. Item "B" leaves first, exposing "A" as the new top.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--queue-color);">
+      <h4>Step 3: Queue Enqueue (FIFO)</h4>
+      <p>Items enter the queue at the Back pointer. "1" is at the front, followed by "2" at the back.</p>
+    </div>
+    <div class="comp-card" style="border-left: 4px solid var(--pop-color);">
+      <h4>Step 4: Queue Dequeue (First-In, First-Out)</h4>
+      <p>Dequeuing removes the oldest element from the Front in O(1) time. "1" exits first, advancing Front to "2".</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Stack: Push Items",
+    tag: "Step 1",
+    tagColor: "var(--stack-soft)",
+    tagText: "var(--stack-color)",
+    desc: "Items \"A\" and \"B\" pushed to the stack. \"B\" sits at the top. Queue holds \"1\" at front and \"2\" at back.",
+    rightTitle: "Stack Push Operation",
+    rightTag: "Step 1 of 4",
+    code: "var stack = [\"A\"]\nstack.append(\"B\") // push \"B\" onto top\n// Top element is now \"B\"",
+    rightDesc: "Elements are added to the top of the stack. Last element inserted becomes the first element accessible.",
+    structure: "Stack", action: "Push", time: "O(1)",
+    stClasses: ["slot-box stack-item", "slot-box stack-item"],
+    stPtrY: 78,
+    quClasses: ["slot-box queue-item", "slot-box queue-item"],
+    quFrontText: "\"1\"", quBackText: "\"2\""
+  },
+  {
+    title: "Stack: Pop Top Item",
+    tag: "Step 2",
+    tagColor: "var(--pop-soft)",
+    tagText: "var(--pop-color)",
+    desc: "\"B\" is popped from the top of the stack in O(1) time. \"A\" becomes the new top element (LIFO order).",
+    rightTitle: "Stack Pop Operation",
+    rightTag: "Step 2 of 4",
+    code: "let top = stack.popLast() // returns \"B\"\n// Remaining top is \"A\"\n// LIFO: newest element popped first",
+    rightDesc: "Calling popLast() removes the most recent element in O(1) time without shifting underlying items.",
+    structure: "Stack", action: "Pop", time: "O(1)",
+    stClasses: ["slot-box stack-item", "slot-box popping"],
+    stPtrY: 120,
+    quClasses: ["slot-box queue-item", "slot-box queue-item"],
+    quFrontText: "\"1\"", quBackText: "\"2\""
+  },
+  {
+    title: "Queue: Enqueue at Back",
+    tag: "Step 3",
+    tagColor: "var(--queue-soft)",
+    tagText: "var(--queue-color)",
+    desc: "Queue receives items at the Back pointer. \"1\" entered first, \"2\" entered second.",
+    rightTitle: "Queue Enqueue Operation",
+    rightTag: "Step 3 of 4",
+    code: "var queue = Queue<String>()\nqueue.enqueue(\"1\") // front\nqueue.enqueue(\"2\") // back",
+    rightDesc: "Items join at the back of the queue. The front element retains priority for departure.",
+    structure: "Queue", action: "Enqueue", time: "O(1)",
+    stClasses: ["slot-box stack-item", "slot-box popping"],
+    stPtrY: 120,
+    quClasses: ["slot-box queue-item", "slot-box queue-item"],
+    quFrontText: "\"1\"", quBackText: "\"2\""
+  },
+  {
+    title: "Queue: Dequeue at Front",
+    tag: "Step 4",
+    tagColor: "var(--pop-soft)",
+    tagText: "var(--pop-color)",
+    desc: "\"1\" leaves the front of the queue in O(1) time. \"2\" advances to front. Elements exit in FIFO order.",
+    rightTitle: "Queue Dequeue Operation",
+    rightTag: "Step 4 of 4",
+    code: "let first = queue.dequeue() // returns \"1\"\n// \"2\" is now at front\n// FIFO: oldest element departs first",
+    rightDesc: "Dequeuing removes the oldest element first. Using two stacks or Deque avoids O(n) array shifts.",
+    structure: "Queue", action: "Dequeue", time: "O(1)",
+    stClasses: ["slot-box stack-item", "slot-box popping"],
+    stPtrY: 120,
+    quClasses: ["slot-box popping", "slot-box queue-item"],
+    quFrontText: "\"1\"", quBackText: "\"2\""
+  }
+];
+
+let curStep = 0;
+
+function updateView() {
+  const s = steps[curStep];
+  document.getElementById("vis-title").textContent = s.title;
+  const tag = document.getElementById("vis-tag");
+  tag.textContent = s.tag;
+  tag.style.background = s.tagColor;
+  tag.style.color = s.tagText;
+  document.getElementById("vis-desc").textContent = s.desc;
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.code;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("m-struct").textContent = s.structure;
+  document.getElementById("m-action").textContent = s.action;
+  document.getElementById("m-time").textContent = s.time;
+
+  document.getElementById("st-0").setAttribute("class", s.stClasses[0]);
+  document.getElementById("st-1").setAttribute("class", s.stClasses[1]);
+  document.getElementById("st-ptr").setAttribute("y", s.stPtrY);
+
+  document.getElementById("qu-0").setAttribute("class", s.quClasses[0]);
+  document.getElementById("qu-1").setAttribute("class", s.quClasses[1]);
+  document.getElementById("qu-txt-0").textContent = s.quFrontText;
+  document.getElementById("qu-txt-1").textContent = s.quBackText;
+
+  document.querySelectorAll(".dot").forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = curStep === 0;
+  document.getElementById("btn-next").disabled = curStep === steps.length - 1;
+}
+
+function goToStep(i) {
+  curStep = Math.max(0, Math.min(steps.length - 1, i));
+  updateView();
+}
+function nextStep() { goToStep(curStep + 1); }
+function prevStep() { goToStep(curStep - 1); }
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateView();
+</script>
+</body>
+</html>

@@ -1,0 +1,253 @@
+export const meta = {
+  id: "stacks-and-queues",
+  summary: "Master stack and queue data structures in Swift, including LIFO and FIFO semantics, amortized performance, and interview patterns.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Apple Developer Documentation: Array", url: "https://developer.apple.com/documentation/swift/array", kind: "official" },
+    { title: "GitHub: apple/swift-collections (Deque)", url: "https://github.com/apple/swift-collections", kind: "official" },
+    { title: "Tech Interview Handbook: Stack Cheatsheet", url: "https://www.techinterviewhandbook.org/algorithms/stack/", kind: "community" },
+    { title: "Tech Interview Handbook: Queue Cheatsheet", url: "https://www.techinterviewhandbook.org/algorithms/queue/", kind: "community" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why is using Array.removeFirst() to implement a queue in Swift considered a performance mistake in interviews?</Question>
+  <Guess>
+    <Option id="a">It triggers an automatic background sort on the array.</Option>
+    <Option id="b" correct>It takes O(n) linear time because all remaining elements must shift left in memory.</Option>
+    <Option id="c">It causes memory leaks by retaining previous array buffers.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a stack of cafeteria trays next to a cafeteria line.
+
+When a clean tray arrives, workers place it on the top of the pile. When a customer takes a tray, they pick the top one. This is a **stack** (Last In, First Out).
+
+Now imagine customers waiting in line at the cash register. The first customer to join the line is the first one served. This is a **queue** (First In, First Out).
+</Analogy>
+
+Both stacks and queues are linear collections with restricted access points:
+1. **Stack (LIFO)**:
+   - Elements are added and removed from the exact same end (the top).
+   - In Swift, standard `Array` acts as an efficient stack with `append(_:)` and `popLast()`.
+   - Used in bracket validation, browser history, navigation stacks, and depth-first searches.
+2. **Queue (FIFO)**:
+   - Elements are inserted at the back and removed from the front.
+   - Used in breadth-first search, background task dispatching, and printer queues.
+3. **Complexity Requirements**:
+   - Both data structures require $O(1)$ constant time for insertion, deletion, and peeking.
+   - Removing the first element of an `Array` shifts all elements left, taking $O(n)$ time.
+   - Production apps use ring buffers, two stacks, or Apple's official `Deque` package to achieve true $O(1)$ queues.
+
+## See it
+
+<Diagram id="stacks-and-queues-concept" caption="LIFO stack push/pop versus FIFO queue enqueue/dequeue operations">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Stack container showing vertical tray cards with Top pointer.
+    2. Queue container showing horizontal customer line with Front and Back pointers.
+    3. Operation details card with time complexity.
+  - Steps:
+    Step 1: Stack push "A" then "B". Top points to "B". Queue enqueue "1" then "2". Front points to "1", Back points to "2".
+    Step 2: Stack pop: "B" leaves top in O(1) time. Top reverts to "A".
+    Step 3: Queue dequeue: "1" leaves front in O(1) time. Front advances to "2".
+    Step 4: Contrast summary: Stack serves newest element first; Queue serves oldest element first.
+  - Static version (reduced motion):
+    A 4-card breakdown contrasting LIFO vertical access with FIFO horizontal throughput.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which array operation implements an O(1) stack pop in Swift?</Question>
+  <Option id="a">removeFirst() because it clears the front index.</Option>
+  <Option id="b" correct>popLast() because it removes the final element without shifting other items.</Option>
+  <Option id="c">removeAll(keepingCapacity:) because it resets array storage.</Option>
+  <Explanation>popLast() removes the last element in O(1) time and returns an optional value.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Implementing Valid Parentheses using a Swift Array stack">
+
+```swift
+func isValidParentheses(_ text: String) -> Bool {
+    let matching: [Character: Character] = [")": "(", "}": "{", "]": "["]
+    var stack: [Character] = []
+    
+    for char in text {
+        if let expectedOpen = matching[char] {
+            if stack.popLast() != expectedOpen {
+                return false
+            }
+        } else {
+            stack.append(char)
+        }
+    }
+    return stack.isEmpty
+}
+
+print(isValidParentheses("()[]{}"))
+print(isValidParentheses("(]"))
+print(isValidParentheses("([)]"))
+print(isValidParentheses("{[]}"))
+```
+
+```output
+true
+false
+false
+true
+```
+
+</CodeExample>
+
+In this classic interview problem, opening brackets are pushed onto the stack.
+
+When a closing bracket arrives, we pop the most recent opening bracket. If the bracket types do not match or the stack is empty, the string is invalid.
+
+At the end of the loop, `stack.isEmpty` ensures no unclosed opening brackets remain.
+
+<CodeExample title="Building an efficient Queue using two stacks in Swift">
+
+```swift
+struct Queue<Element> {
+    private var inbox: [Element] = []
+    private var outbox: [Element] = []
+    
+    var isEmpty: Bool {
+        inbox.isEmpty && outbox.isEmpty
+    }
+    
+    var count: Int {
+        inbox.count + outbox.count
+    }
+    
+    mutating func enqueue(_ element: Element) {
+        inbox.append(element)
+    }
+    
+    mutating func dequeue() -> Element? {
+        if outbox.isEmpty {
+            while let item = inbox.popLast() {
+                outbox.append(item)
+            }
+        }
+        return outbox.popLast()
+    }
+    
+    var peek: Element? {
+        outbox.last ?? inbox.first
+    }
+}
+
+var queue = Queue<String>()
+queue.enqueue("First")
+queue.enqueue("Second")
+queue.enqueue("Third")
+
+print("Dequeued: \(queue.dequeue() ?? "")")
+print("Dequeued: \(queue.dequeue() ?? "")")
+queue.enqueue("Fourth")
+print("Next peek: \(queue.peek ?? "")")
+print("Dequeued: \(queue.dequeue() ?? "")")
+print("Dequeued: \(queue.dequeue() ?? "")")
+```
+
+```output
+Dequeued: First
+Dequeued: Second
+Next peek: Third
+Dequeued: Third
+Dequeued: Fourth
+```
+
+</CodeExample>
+
+This two-stack queue achieves amortized $O(1)$ dequeuing.
+
+Elements enter `inbox` in $O(1)$ time. When `outbox` is empty, elements are popped from `inbox` and pushed into `outbox`.
+
+This reverses their order, aligning the oldest element with `outbox.last`. Each element moves between stacks at most once, guaranteeing amortized $O(1)$ operations.
+
+<QuickCheck>
+  <Question>Why does the two-stack queue have an amortized O(1) dequeue time despite the inner loop?</Question>
+  <Option id="a">Swift moves memory between arrays using hardware acceleration.</Option>
+  <Option id="b" correct>Each element is transferred from inbox to outbox at most once during its lifetime.</Option>
+  <Option id="c">The outbox is stored in a permanent register cache.</Option>
+  <Explanation>Each element is pushed twice and popped twice across its lifecycle, giving constant amortized time.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Using Array.removeFirst() as a queue in interview questions">
+Calling `removeFirst()` on an `Array` shifts all subsequent elements by one index to the left.
+
+This operation runs in $O(n)$ linear time. Dequeuing $n$ items creates an accidental $O(n^2)$ quadratic bottleneck.
+
+Always mention this performance issue in interviews and use a two-stack queue, ring buffer, or `Deque`.
+</Trap>
+
+<Trap title="Calling removeLast() on an empty stack">
+Calling `removeLast()` on an empty `Array` causes a runtime fatal error.
+
+Instead, use `popLast()`, which returns an optional `Element?`.
+
+This allows safe unwrapping without risking unexpected application crashes on empty collections.
+</Trap>
+
+<Trap title="Forgetting to check stack.isEmpty at the end of bracket validation">
+Input strings containing only opening brackets, like `"((("`, never trigger mismatches during iteration.
+
+If you return `true` immediately after the loop, invalid unclosed strings will pass as valid.
+
+Always verify that `stack.isEmpty` returns `true` before confirming full validation success.
+</Trap>
+
+<Trap title="Confusing monotonic increasing and decreasing stack conditions">
+Monotonic stacks store elements in strictly sorted order to find next greater or smaller elements.
+
+To find the next greater element, maintain a decreasing stack. Smaller items are popped when a greater item arrives.
+
+Reversing this comparison condition breaks the monotonic property and produces incorrect indices.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"A stack follows LIFO (Last In, First Out) semantics, while a queue follows FIFO (First In, First Out). In Swift, we use standard `Array` with `append` and `popLast` for an $O(1)$ stack. For queues, calling `removeFirst()` takes $O(n)$ time because elements shift in memory. To achieve $O(1)$ queues, we use two stacks or Apple's `Deque` collection."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"I choose a stack for problems requiring backtracking or matching, such as Valid Parentheses or DFS navigation. For breadth-first search and order-preserving pipelines, I use a queue. To avoid the $O(n)$ cost of `Array.removeFirst()`, I implement queues using two stacks or a ring buffer. The two-stack queue provides amortized $O(1)$ operations because each element transfers between arrays only once. In production, I import Apple's official `swift-collections` package for `Deque`."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Stacks and queues are fundamental to iOS system architecture, from the `UINavigationController` view controller stack to GCD serial dispatch queues. In performance-critical streaming pipelines, using `Array.removeFirst()` ruins throughput due to repeated memmove operations. I evaluate memory layout and cache locality: contiguous ring buffers prevent cache misses, while node-based linked queues introduce pointer indirection and ARC overhead. For high-volume production apps, Apple's `Deque` provides ring-buffered contiguous chunks with $O(1)$ mutations at both ends."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Stacks operate on LIFO order; `Array.append` and `Array.popLast` run in $O(1)$ time.
+- Queues operate on FIFO order; `Array.removeFirst` takes $O(n)$ time due to memory shifts.
+- Two-stack queues achieve amortized $O(1)$ dequeue performance by reversing inbox elements into outbox.
+- Bracket matching requires checking `stack.isEmpty` after scanning to catch unclosed brackets.
+- Apple's official `Deque` from `swift-collections` provides production-grade $O(1)$ queue operations.
+</Recap>
+
+## Go deeper
+
+- [Apple Developer Documentation: Array](https://developer.apple.com/documentation/swift/array) — Random-access collection memory model and mutation complexity.
+- [GitHub: apple/swift-collections (Deque)](https://github.com/apple/swift-collections) — Official double-ended queue backed by circular buffer storage.
+- [Tech Interview Handbook: Stack Cheatsheet](https://www.techinterviewhandbook.org/algorithms/stack/) — Essential stack patterns and monotonic stack techniques.
+- [Tech Interview Handbook: Queue Cheatsheet](https://www.techinterviewhandbook.org/algorithms/queue/) — Essential queue algorithms and BFS implementations.
