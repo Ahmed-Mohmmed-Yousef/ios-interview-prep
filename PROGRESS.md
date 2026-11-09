@@ -77,14 +77,14 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 17 remaining topics (5 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 16 remaining topics (6 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`)
   - 🔄 Batch 1A: Swift Language Core (7 topics: `swift-basics` → `functions`)
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
     - ✅ **operators** (Operators) — published (lesson, diagram, 31 questions) → [docs/topics/operators/review.html](docs/topics/operators/review.html)
     - ✅ **strings-and-characters** (Strings and Characters) — published (lesson, diagram, 31 questions) → [docs/topics/strings-and-characters/review.html](docs/topics/strings-and-characters/review.html)
-    - 🔄 **collections** — starting research
-    - ⬜ **control-flow**
+    - ✅ **collections** (Arrays, Sets and Dictionaries) — published (lesson, diagram, 31 questions) → [docs/topics/collections/review.html](docs/topics/collections/review.html)
+    - 🔄 **control-flow** — starting research
     - ⬜ **functions**
   - ⬜ Batch 1B: Intermediate Types & Logic (6 topics: `closures-basics` → `optional-chaining`)
   - ⬜ Batch 1C: Object-Oriented & Protocols (5 topics: `inheritance` → `access-control`)
@@ -189,6 +189,8 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-09** — collections approved and published by user. Started topic control-flow: researching official documentation and Swift 6 compiler behavior.
+- **2026-11-09** — Built topic collections (Arrays, Sets and Dictionaries): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/collections/review.html`). Status: review, waiting for your approval.
 - **2026-11-09** — strings-and-characters approved and published by user. Started topic collections: researching official documentation and Swift 6 compiler behavior.
 - **2026-11-09** — Built topic strings-and-characters (Strings and Characters): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/strings-and-characters/review.html`). Status: review, waiting for your approval.
 - **2026-11-09** — operators approved and published by user. Started topic strings-and-characters: researching official documentation and Swift 6 compiler behavior.

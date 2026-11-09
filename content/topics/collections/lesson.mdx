@@ -1,0 +1,173 @@
+export const meta = {
+  id: "collections",
+  summary: "Master Swift collection types: Arrays, Sets, and Dictionaries, including mutability, uniqueness, and safe lookups.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Collection Types", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/collectiontypes", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What happens if you read scores[scores.count] from an Array containing three items?</Question>
+  <Guess>
+    <Option id="a">The array returns nil because the index is beyond the last element.</Option>
+    <Option id="b" correct>The application crashes immediately with a fatal index out of range runtime error.</Option>
+    <Option id="c">The array expands automatically by inserting a zero at that index.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of the three collection types like organizing items in an office. An array is like a numbered checklist where every line has a fixed order. A set is like a badge reader at an entrance that only cares if a badge exists, with no duplicates and no order. A dictionary is like a labeled coat check where each ticket has a unique name tag pointing to a specific coat.
+</Analogy>
+
+Swift provides three primary collection types to store groups of values:
+- **`Array`**: An ordered list of elements. Arrays allow duplicate values and access elements using zero-based integer indices.
+- **`Set`**: An unordered group of unique elements. Sets reject duplicates and provide fast lookup to test whether an item exists.
+- **`Dictionary`**: An unordered collection of key-value pairs. Each value is found by searching for its unique key.
+
+All three collections are **value types** in Swift. When you declare a collection with `let`, it is completely immutable. You cannot add, remove, or modify items inside it. Declaring a collection with `var` makes it mutable.
+
+Behind the scenes, Swift uses **Copy-on-Write**. Assigning a collection to a new variable does not copy all items immediately. It shares memory until one copy modifies its contents.
+
+To store items in a `Set` or use them as keys in a `Dictionary`, the type must conform to the **`Hashable`** protocol. Standard types like `String`, `Int`, and `Double` already conform to `Hashable`.
+
+## See it
+
+<Diagram id="collections-main" caption="Comparing the structure and lookup models of Array, Set, and Dictionary">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Array: Ordered slots [0: 'Apple', 1: 'Banana', 2: 'Apple'] showing index-based access and duplicates.
+    2. Set: Unordered bubble containing {'Apple', 'Banana'} showing duplicate rejection and O(1) contains check.
+    3. Dictionary: Key-value association table ['user': 'Sam', 'role': 'Admin'] showing optional lookup.
+  - Steps:
+    Step 1: Display Array with indices 0, 1, 2 showing duplicate 'Apple' values.
+    Step 2: Display Set showing uniqueness: adding a duplicate 'Apple' is ignored.
+    Step 3: Display Dictionary showing key-value pairs and optional unwrapping on lookup.
+    Step 4: Attempt out-of-bounds Array access [3], triggering a red runtime crash badge.
+  - Static version (reduced motion):
+    A 3-column architectural comparison showing storage layout, ordering rules, uniqueness rules, and lookup complexity.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why does subscripting a Dictionary with a key always return an optional value?</Question>
+  <Option id="a">Dictionary values are stored in temporary cache memory.</Option>
+  <Option id="b" correct>The requested key might not exist in the dictionary.</Option>
+  <Option id="c">Dictionary keys can point to multiple values at the same time.</Option>
+  <Explanation>Because a requested key might be missing, dictionary lookups return nil or the wrapped value inside an optional.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Working with Arrays and Sets">
+
+```swift
+var scores = [88, 92, 75]
+scores.append(100)
+print("Second score: \(scores[1])")
+print("First score: \(scores.first ?? 0)")
+
+let guestList = ["Alex", "Sam", "Alex", "Jordan"]
+let uniqueGuests = Set(guestList)
+print("Unique guest count: \(uniqueGuests.count)")
+print("Contains Sam: \(uniqueGuests.contains("Sam"))")
+```
+
+```output
+Second score: 92
+First score: 88
+Unique guest count: 3
+Contains Sam: true
+```
+
+</CodeExample>
+
+This example highlights core differences between ordered lists and sets:
+- **Array indexing**: Arrays use zero-based indices. Accessing `scores[1]` retrieves the second score.
+- **Safe boundary access**: The `first` property returns an optional `Element?`, which safely returns `nil` if the array is empty.
+- **Set deduplication**: Initializing a `Set` from an array automatically removes duplicate elements like `"Alex"`.
+- **Fast membership**: Calling `contains(_:)` on a `Set` checks for existence in constant $O(1)$ time.
+
+<CodeExample title="Working with Dictionaries">
+
+```swift
+var inventory = ["Apples": 5, "Oranges": 12]
+let appleCount = inventory["Apples"] ?? 0
+print("Apples in stock: \(appleCount)")
+
+let bananaCount = inventory["Bananas"]
+print("Bananas in stock: \(bananaCount == nil ? "None" : "Found")")
+
+inventory["Bananas", default: 0] += 8
+print("Updated bananas: \(inventory["Bananas"] ?? 0)")
+
+inventory["Apples"] = nil
+print("Inventory item count: \(inventory.count)")
+```
+
+```output
+Apples in stock: 5
+Bananas in stock: None
+Updated bananas: 8
+Inventory item count: 2
+```
+
+</CodeExample>
+
+This example shows how to manage key-value pairs safely:
+- **Optional lookup**: Missing keys like `"Bananas"` return `nil` without crashing.
+- **Default value subscript**: Using `inventory[key, default: 0]` returns a non-optional value and initializes missing keys directly.
+- **Removing entries**: Setting a key to `nil` removes that key-value pair from the dictionary.
+
+<QuickCheck>
+  <Question>Which protocol must a type conform to before it can be stored inside a Set?</Question>
+  <Option id="a">Comparable</Option>
+  <Option id="b" correct>Hashable</Option>
+  <Option id="c">Codable</Option>
+  <Explanation>Sets use hash values to locate items quickly, requiring elements to conform to the Hashable protocol.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming array subscripting returns nil when out of bounds">
+Unlike dictionaries, accessing `array[index]` with an invalid index triggers a fatal runtime crash. If you are unsure whether an index exists, check `array.indices.contains(index)` or use `.first` and `.last`.
+</Trap>
+
+<Trap title="Relying on Set or Dictionary order">
+Sets and dictionaries are unordered collections. Iterating through a set or dictionary produces elements in arbitrary order. If order matters, use an array or sort the collection explicitly.
+</Trap>
+
+<Trap title="Searching large arrays with contains instead of sets">
+Checking `array.contains(item)` scans elements sequentially in $O(n)$ time. For large collections with frequent lookups, use a `Set` which checks membership in $O(1)$ time.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Swift offers three core collection types: Arrays, Sets, and Dictionaries. An Array is an ordered list accessed by integer index, allowing duplicates. A Set is an unordered collection of unique elements requiring Hashable conformance, optimized for fast membership tests. A Dictionary stores key-value pairs where keys must be Hashable. Subscripting a dictionary returns an optional because the key might be missing, whereas reading an invalid array index causes a fatal crash.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+All standard Swift collections are value types with Copy-on-Write optimization, ensuring thread safety and minimal memory copying overhead. When choosing between collections, we balance ordering, uniqueness, and lookup complexity. Arrays offer $O(1)$ indexed access but $O(n)$ search time. Sets and Dictionaries provide amortized $O(1)$ lookups through hash table bucketing. For dictionaries, Swift offers the default subscript syntax `dict[key, default: value]` which simplifies in-place mutation and avoids manual nil checks.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Arrays store ordered elements with zero-based indices and allow duplicate items.
+- Sets store unordered unique elements and require Hashable conformance.
+- Dictionaries store unordered key-value pairs, where keys must conform to Hashable.
+- Reading an invalid array index causes a fatal runtime crash.
+- Subscripting a dictionary returns an optional value that is nil if the key is missing.
+- Swift collections are value types that use Copy-on-Write for high performance.
+- Set membership lookup with `contains(_:)` runs in fast $O(1)$ constant time.
+</Recap>
