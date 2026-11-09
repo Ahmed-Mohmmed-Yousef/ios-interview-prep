@@ -120,8 +120,8 @@ Level picker, path, lessons, browser-graded exams, saved progress, results.
 - ✅ **5.0 Plan Phase 5** — [docs/phase-5-plan.md](docs/phase-5-plan.md) approved by user
 - ✅ **5.1 Setup & Scaffold** — Next.js 16 (App Router), TypeScript, Turbopack, Tailwind v4 tokens, agent tools
 - ✅ **5.2 Content & Store Layer** — Zod schemas, MDX + Shiki compiler, Zustand versioned store with migrations, Vitest product rule tests
-- 🔄 **5.3 Screen 1: Welcome & Level Picker (S1, S2)** — first visit intro, level cards, interactive self-check
-- ⬜ **5.4 Screen 2: Winding Path Map (S3, S4)** — responsive road, 6 stop states, progress bar, path score, locked sheet
+- ✅ **5.3 Screen 1: Welcome & Level Picker (S1, S2)** — first visit intro, level cards, interactive self-check
+- 🔄 **5.4 Screen 2: Winding Path Map (S3, S4)** — responsive road, 6 stop states, progress bar, path score, locked sheet
 - ⬜ **5.5 Screen 3: Lesson Reader & Diagrams (S5)** — section reader, embedded diagrams, text size switcher, QuickChecks
 - ⬜ **5.6 Screen 4: Exam Runner & Results (S6–S10)** — 10 questions, option shuffling, instant feedback, scoring, skip tests, path completion
 - ⬜ **5.7 Screen 5: Settings, Progress Export/Import & About (S11, S12)** — stage/unit breakdown, JSON export/import/reset, About page
@@ -227,6 +227,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Step 5.3 done: Built Screen 1 (Welcome) and Screen 2 (Level Picker) with interactive self-check checklist, unbroken run suggestion algorithm, radio level cards, cumulative topic counts, responsive 375px/desktop styling, and seamless store hydration. 26 Vitest unit tests passing, Next.js build clean. Starting Step 5.4: Winding Path Map.
 
 - **2026-11-09** — Built and published topic swiftui-layout (Stacks and Layout): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swiftui-layout/review.html`). All checks passed. Starting state-and-binding.
 

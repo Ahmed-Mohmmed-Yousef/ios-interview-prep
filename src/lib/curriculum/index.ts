@@ -173,6 +173,13 @@ export function getPathForLevel(targetLevelId: LevelId): PathRoad {
 }
 
 /**
+ * Returns the cumulative count of main topics from fresh up to the target level.
+ */
+export function getCumulativeTopicCount(targetLevelId: LevelId): number {
+  return getPathForLevel(targetLevelId).allMainStops.length;
+}
+
+/**
  * Product Rule: A topic passes at 70% (configured in rules.json).
  */
 export function checkTopicPass(score: number, rules: Rules): boolean {
