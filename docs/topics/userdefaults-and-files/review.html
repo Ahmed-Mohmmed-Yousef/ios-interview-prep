@@ -1,0 +1,576 @@
+<title>UserDefaults and Files Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #16a34a; --step2-soft: #dcfce7;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #7c3aed; --step4-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #4ade80; --step2-soft: #052e16;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #a78bfa; --step4-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Data and Networking · Topic 3 of 4 · Prototype</p>
+    <h1>UserDefaults and Files</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can save small data with UserDefaults and files.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Why should you never store user authentication tokens or passwords in <code>UserDefaults</code>?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because UserDefaults keys cannot store strings longer than twenty characters.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because UserDefaults stores data in an unencrypted plaintext file on disk.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because iOS deletes UserDefaults automatically whenever the app closes.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine a small nightstand next to your bed.</p><p>On the nightstand, you keep a notepad with quick notes, like your alarm time or favorite reading light setting.</p><p>You would never leave your house keys or gold jewelry in an open notepad on the nightstand.</p><p>Anyone walking past could read your personal secrets.</p><p>For expensive jewelry, you place items inside a locked metal safe.</p><p>For large binders of tax papers, you store boxes in the garage or attic filing cabinets.</p></aside>
+<p>In iOS, <code>UserDefaults</code> is your digital nightstand.</p>
+<p>It is a lightweight key-value store intended for small user settings:</p>
+<ul>
+<li>Whether the user finished the onboarding walkthrough.</li>
+<li>Their preferred theme (Light, Dark, or System).</li>
+<li>Sound effects toggles and audio volume levels.</li>
+</ul>
+<p><code>UserDefaults</code> is backed by a property list file on disk.</p>
+<p>When your app launches, iOS loads the entire property list file into memory.</p>
+<p>Storing large items like images or databases slows down app launch and wastes memory.</p>
+<p><code>UserDefaults</code> has no encryption. Never store passwords, tokens, or private secrets in <code>UserDefaults</code>.</p>
+<p>For larger assets like documents, pictures, or databases, use <code>FileManager</code> to store files inside the <strong>App Sandbox</strong>.</p>
+<p>The sandbox isolates your files from all other apps on the device:</p>
+<ol>
+<li><strong><code>Documents/</code></strong>: For user-created files. This folder is backed up to iCloud.</li>
+<li><strong><code>Library/Caches/</code></strong>: For downloaded pictures and temporary cache files. iOS can purge these files when storage is low. They are never backed up.</li>
+<li><strong><code>Library/Application Support/</code></strong>: For app databases and internal configuration files. This folder is backed up to iCloud.</li>
+<li><strong><code>tmp/</code></strong>: For short-lived scratch files needed during an active session.</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Where should you save downloaded thumbnail images so they do not waste iCloud backup quotas?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Inside the Documents folder.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Inside the Library/Caches folder.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Inside UserDefaults as raw Data bytes.</span></button><p class="qc-explain" hidden="">Caches are not backed up to iCloud and can be deleted by the operating system if disk space runs low.</p></div>
+<h2>In code</h2>
+<p>Store simple settings and boolean flags in <code>UserDefaults</code>.</p>
+<p>In SwiftUI, use <code>@AppStorage</code> to bind view state to user defaults directly.</p>
+<figure class="code-example"><figcaption>Managing user settings and preferences</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+struct UserPreferences {
+    var hasCompletedOnboarding: Bool
+    var soundEnabled: Bool
+    var fontSize: Double
+}
+
+func updatePreference(current: inout UserPreferences, key: String, boolValue: Bool) {
+    if key == &quot;hasCompletedOnboarding&quot; {
+        current.hasCompletedOnboarding = boolValue
+    } else if key == &quot;soundEnabled&quot; {
+        current.soundEnabled = boolValue
+    }
+}
+
+var prefs = UserPreferences(hasCompletedOnboarding: false, soundEnabled: true, fontSize: 16.0)
+updatePreference(current: &amp;prefs, key: &quot;hasCompletedOnboarding&quot;, boolValue: true)
+
+print(&quot;Onboarding completed: \(prefs.hasCompletedOnboarding)&quot;)
+print(&quot;Sound enabled: \(prefs.soundEnabled)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Onboarding completed: true
+Sound enabled: true
+</code></pre></figure>
+<p>Pick the correct sandbox directory using <code>FileManager</code>.</p>
+<p>Write files using atomic writing to prevent corrupted data if the app crashes during a write.</p>
+<figure class="code-example"><figcaption>Categorizing sandbox directory destinations</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+enum StorageDestination {
+    case userDocument
+    case temporaryCache
+    case internalDatabase
+}
+
+func directoryName(for destination: StorageDestination) -&gt; String {
+    switch destination {
+    case .userDocument:
+        return &quot;Documents (backed up to iCloud)&quot;
+    case .temporaryCache:
+        return &quot;Library/Caches (purged under storage pressure)&quot;
+    case .internalDatabase:
+        return &quot;Library/Application Support (hidden from user)&quot;
+    }
+}
+
+let choice = StorageDestination.temporaryCache
+print(&quot;Storage path: \(directoryName(for: choice))&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Storage path: Library/Caches (purged under storage pressure)
+</code></pre></figure>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why should you pass the <code>.atomic</code> option when writing data to disk with Foundation?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It forces the file to upload to iCloud immediately.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It writes to an auxiliary file first, preventing corrupted files if a crash occurs.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It encrypts the file with Face ID biometrics.</span></button><p class="qc-explain" hidden="">Atomic writing creates an auxiliary temporary file and renames it when finished, protecting existing files from partial write corruption.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Storing secrets in UserDefaults</p><p><code>UserDefaults</code> is not encrypted.</p><p>The underlying <code>.plist</code> file can be read directly by anyone inspecting device backups.</p><p>Store passwords, tokens, and personal credentials in the Keychain instead.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Storing megabytes of data in UserDefaults</p><p><code>UserDefaults</code> loads the entire file into RAM when your app starts up.</p><p>Storing high-resolution photos or large collections in <code>UserDefaults</code> makes your app launch sluggish.</p><p>Save large files to the filesystem using <code>FileManager</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Saving cache files in the Documents folder</p><p>Files saved in <code>Documents</code> are backed up to iCloud by default.</p><p>If you store megabytes of temporary images in <code>Documents</code>, Apple may reject your app during review.</p><p>Save re-downloadable content in <code>Library/Caches</code> instead.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Calling synchronize() manually</p><p>Many developers still call <code>UserDefaults.standard.synchronize()</code> after writing values.</p><p>This method was deprecated in iOS 12.</p><p>The operating system automatically batches and persists writes to disk asynchronously.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;<code>UserDefaults</code> is for small settings like dark mode flags or onboarding state. We should never store passwords in <code>UserDefaults</code> because it is not encrypted. For larger files like documents or photos, we use <code>FileManager</code> in the app sandbox. User files go in <code>Documents</code> and back up to iCloud, while cached images go in <code>Caches</code> so they do not waste backup space.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;<code>UserDefaults</code> is backed by a plist file that loads entirely into memory on launch, so it is strictly for lightweight primitives. Secrets belong in Keychain, and large assets belong on disk via <code>FileManager</code>. The sandbox provides distinct directories: <code>Documents</code> for user-created content that backs up to iCloud, <code>Application Support</code> for internal databases, and <code>Caches</code> for purgeable assets. When writing files, we use <code>.atomic</code> to avoid corrupted writes.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;We tier data storage based on security, memory footprint, and backup policies. We isolate secrets in Keychain with hardware-backed access control. We store UI preferences in UserDefaults via <code>@AppStorage</code>, keeping launch plists under a few kilobytes. For file storage, we enforce atomic writes via <code>Data.WritingOptions.atomic</code>, store databases in <code>Application Support/</code>, and place transient assets in <code>Library/Caches/</code> to respect Apple iCloud backup guidelines.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>UserDefaults</code> is for small user preferences and flags.</li>
+<li><code>UserDefaults</code> loads completely into memory on launch; avoid large data.</li>
+<li><code>UserDefaults</code> is unencrypted; never store passwords or auth tokens in it.</li>
+<li><code>UserDefaults.standard.synchronize()</code> is deprecated; writes persist automatically.</li>
+<li><code>Documents/</code> holds user files and backs up to iCloud.</li>
+<li><code>Library/Caches/</code> holds purgeable cache data and is not backed up.</li>
+<li><code>Library/Application Support/</code> holds internal app databases and backs up to iCloud.</li>
+<li>Use <code>.atomic</code> writes with <code>FileManager</code> to prevent corrupted files during crashes.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/foundation/userdefaults">UserDefaults (Foundation)</a> — Apple documentation for UserDefaults.</li>
+<li><a href="https://developer.apple.com/documentation/foundation/filemanager">FileManager (Foundation)</a> — Apple documentation for managing filesystem operations.</li>
+<li><a href="https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/FileSystemOverview/FileSystemOverview.html">File System Basics (Apple Developer Archive)</a> — Guide to sandbox layout and backup rules.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "UserDefaults (Preferences)",
+    desc: "UserDefaults stores small user preferences and flags in Library/Preferences/.plist. The entire file is loaded into RAM at app launch.",
+    code: `UserDefaults.standard.set(true, forKey: "hasSeenWalkthrough")\n// Small key-value pairs only (no secrets, no images)`,
+    svg: `
+      <rect x="70" y="55" width="180" height="100" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="160" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step1-color)">UserDefaults Plist</text>
+      <text x="160" y="105" text-anchor="middle" font-size="10" fill="var(--ink)">soundEnabled = true</text>
+      <text x="160" y="125" text-anchor="middle" font-size="10" fill="var(--ink)">theme = "dark"</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Loaded to RAM on launch</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "Documents Directory (iCloud Backed)",
+    desc: "User-created content belongs in Documents/. This directory is backed up to iCloud and iTunes, and visible to users via the Files app.",
+    code: `let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]\nlet fileURL = docs.appendingPathComponent("note.txt")`,
+    svg: `
+      <rect x="65" y="50" width="190" height="110" rx="8" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="2" />
+      <circle cx="95" cy="75" r="12" fill="var(--step2-soft)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="95" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step2-color)">📁</text>
+      <text x="115" y="79" font-size="12" font-weight="700" fill="var(--step2-color)">Documents/</text>
+      <line x1="80" y1="95" x2="240" y2="95" stroke="var(--line)" stroke-width="1" />
+      <text x="160" y="115" text-anchor="middle" font-size="10" fill="var(--ink)">User notes, exports, drawings</text>
+      <text x="160" y="135" text-anchor="middle" font-size="10" font-weight="600" fill="var(--step2-color)">✓ Backed up to iCloud</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">User-visible data files</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Library/Caches (Purgeable)",
+    desc: "Downloaded pictures and temporary caches belong in Library/Caches/. They are never backed up, protecting user iCloud storage space.",
+    code: `let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]\n// Not backed up to iCloud; OS can purge`,
+    svg: `
+      <rect x="65" y="50" width="190" height="110" rx="8" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="2" />
+      <circle cx="95" cy="75" r="12" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="95" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step3-color)">⚡</text>
+      <text x="115" y="79" font-size="12" font-weight="700" fill="var(--step3-color)">Library/Caches/</text>
+      <line x1="80" y1="95" x2="240" y2="95" stroke="var(--line)" stroke-width="1" />
+      <text x="160" y="115" text-anchor="middle" font-size="10" fill="var(--ink)">Re-creatable thumbnails & web cache</text>
+      <text x="160" y="135" text-anchor="middle" font-size="10" font-weight="600" fill="var(--step3-color)">✗ Excluded from iCloud backup</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">OS purgeable on low disk space</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Atomic Writing & Keychain Tier",
+    desc: "Use .atomic when writing files to prevent corruption during crashes. Route passwords and auth tokens to the encrypted Keychain.",
+    code: `try data.write(to: fileURL, options: .atomic)\n// Writes to aux file first, then renames\n// Secrets stored in Keychain, never disk`,
+    svg: `
+      <rect x="50" y="45" width="220" height="115" rx="8" fill="var(--surface)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="160" y="70" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step4-color)">Fault-Tolerant Tiering</text>
+      <rect x="65" y="85" width="90" height="35" rx="4" fill="var(--step4-soft)" />
+      <text x="110" y="106" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step4-color)">.atomic write</text>
+      <rect x="165" y="85" width="90" height="35" rx="4" fill="var(--step1-soft)" />
+      <text x="210" y="106" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step1-color)">Keychain Safe</text>
+      <text x="160" y="142" text-anchor="middle" font-size="10" fill="var(--muted)">Crash-safe files & secure credentials</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Complete storage architecture</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"userdefaults-and-files","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"userdefaults-and-files-q1","type":"mcq","difficulty":1,"prompt":"Why should sensitive data like passwords and authentication tokens never be stored in `UserDefaults`?","options":[{"id":"a","text":"UserDefaults stores data in an unencrypted plaintext file on disk.","explanation":"Right. The backing plist file has no encryption and can be inspected in backups."},{"id":"b","text":"UserDefaults deletes all keys whenever the user locks their device screen.","explanation":"UserDefaults persists data permanently until deleted by the app or user."},{"id":"c","text":"The Swift 6 compiler forbids storing strings inside UserDefaults dictionaries.","explanation":"UserDefaults stores strings, integers, booleans, and data freely."},{"id":"d","text":"UserDefaults uploads all stored keys to public analytics servers.","explanation":"UserDefaults does not transmit data over the network."}],"answer":"a"},{"id":"userdefaults-and-files-q2","type":"mcq","difficulty":1,"prompt":"Which directory in the iOS App Sandbox is specifically intended for user-created files backed up to iCloud?","options":[{"id":"a","text":"The Library/Caches directory.","explanation":"Library/Caches is for purgeable assets and is never backed up."},{"id":"b","text":"The Documents directory.","explanation":"Right. Documents holds user files and is backed up to iCloud by default."},{"id":"c","text":"The tmp temporary scratch directory.","explanation":"The tmp directory holds short-lived files purged by the operating system."},{"id":"d","text":"The Library/Preferences directory.","explanation":"Library/Preferences holds UserDefaults property lists, not user documents."}],"answer":"b"},{"id":"userdefaults-and-files-q3","type":"mcq","difficulty":1,"prompt":"What happens when an app stores large multi-megabyte files inside `UserDefaults`?","options":[{"id":"a","text":"The data is converted into SQLite tables on the main actor.","explanation":"UserDefaults is backed by property lists, not SQLite tables."},{"id":"b","text":"The system sandbox isolates the keys in the secure enclave.","explanation":"The secure enclave is for hardware biometric keys, not UserDefaults."},{"id":"c","text":"App launch slows down because the entire plist loads into RAM on startup.","explanation":"Right. Loading megabytes of plist data on launch causes sluggish startup and memory bloat."},{"id":"d","text":"iOS deletes the application binary from device flash storage.","explanation":"Large files do not cause automatic app binary deletion."}],"answer":"c"},{"id":"userdefaults-and-files-q4","type":"mcq","difficulty":2,"prompt":"Why is calling `UserDefaults.standard.synchronize()` discouraged in modern iOS applications?","options":[{"id":"a","text":"It requires the user to authenticate using Touch ID biometrics.","explanation":"Synchronize has no biometric authentication requirement."},{"id":"b","text":"It has been replaced by the URLSessionDownloadTask upload queue.","explanation":"URLSession is for networking, while UserDefaults is for local key-value storage."},{"id":"c","text":"The method triggers an immediate fatal runtime compiler crash in Swift 6.","explanation":"The method is deprecated, but does not crash the compiler."},{"id":"d","text":"It is deprecated because iOS automatically batches and persists writes asynchronously.","explanation":"Right. iOS handles disk persistence automatically; manual synchronization is unnecessary."}],"answer":"d"},{"id":"userdefaults-and-files-q5","type":"mcq","difficulty":1,"prompt":"What does the `.atomic` option do when writing data to disk with Foundation?","options":[{"id":"a","text":"It writes to an auxiliary file first, then renames it to prevent corruption.","explanation":"Right. Atomic writing prevents corrupted partial files if the app terminates mid-write."},{"id":"b","text":"It encrypts the destination file with AES-256 military encryption.","explanation":"Atomic writing is a safety mechanism for write integrity, not file encryption."},{"id":"c","text":"It forces an immediate upload to Apple iCloud CloudKit storage.","explanation":"Atomic writes affect local disk files, not CloudKit network sync."},{"id":"d","text":"It restricts file read permissions to background threads exclusively.","explanation":"Atomic writing does not restrict read permissions across threads."}],"answer":"a"},{"id":"userdefaults-and-files-q6","type":"mcq","difficulty":2,"prompt":"Where should downloaded image thumbnails be stored to avoid wasting user iCloud backup quotas?","options":[{"id":"a","text":"Inside the Documents folder under a custom subfolder.","explanation":"Documents is backed up to iCloud and will waste user backup space."},{"id":"b","text":"Inside the Library/Caches folder.","explanation":"Right. Caches is excluded from iCloud backups and can be purged if disk space is low."},{"id":"c","text":"Inside UserDefaults as encoded base64 strings.","explanation":"Storing image data in UserDefaults causes launch performance issues."},{"id":"d","text":"Inside the main application bundle next to Info.plist.","explanation":"The app bundle is read-only and signed; writes to it are forbidden."}],"answer":"b"},{"id":"userdefaults-and-files-q7","type":"mcq","difficulty":2,"prompt":"Which SwiftUI property wrapper provides direct, automatic two-way binding with `UserDefaults`?","options":[{"id":"a","text":"The @State property wrapper.","explanation":"@State provides local view storage in RAM, not UserDefaults persistence."},{"id":"b","text":"The @Binding property wrapper.","explanation":"@Binding references a mutable value owned by another view."},{"id":"c","text":"The @AppStorage property wrapper.","explanation":"Right. @AppStorage synchronizes view state with a specified UserDefaults key."},{"id":"d","text":"The @Environment property wrapper.","explanation":"@Environment reads system values like color scheme, not arbitrary defaults."}],"answer":"c"},{"id":"userdefaults-and-files-q8","type":"mcq","difficulty":2,"prompt":"What directory should you choose to store internal app database files like SQLite or Core Data stores?","options":[{"id":"a","text":"The tmp temporary scratch directory.","explanation":"The tmp directory is purged by the operating system, losing databases."},{"id":"b","text":"The Library/Caches purgeable directory.","explanation":"Databases stored in Caches can be deleted by the OS under low storage."},{"id":"c","text":"The root application bundle directory.","explanation":"App bundles are cryptographically signed and strictly read-only."},{"id":"d","text":"The Library/Application Support directory.","explanation":"Right. Application Support stores internal app databases backed up to iCloud."}],"answer":"d"},{"id":"userdefaults-and-files-q9","type":"mcq","difficulty":2,"prompt":"What happens to files stored in the `tmp/` directory of an iOS app?","options":[{"id":"a","text":"The operating system periodically removes them when the app is not running.","explanation":"Right. tmp is for transient scratch files purged by iOS between launches."},{"id":"b","text":"They are automatically synchronized to user iCloud Drive accounts.","explanation":"Files in tmp are never synchronized to iCloud."},{"id":"c","text":"They are encrypted with the hardware device passkey on termination.","explanation":"tmp files have standard sandbox protection, not special encryption."},{"id":"d","text":"They can be read directly by third-party applications on the device.","explanation":"Sandbox boundaries prevent other apps from reading the tmp directory."}],"answer":"a"},{"id":"userdefaults-and-files-q10","type":"mcq","difficulty":1,"prompt":"Which Foundation class is used to inspect, create, move, and delete files on the iOS filesystem?","options":[{"id":"a","text":"The URLSession class.","explanation":"URLSession is for networking, not local filesystem manipulation."},{"id":"b","text":"The FileManager class.","explanation":"Right. FileManager manages file and directory operations in the sandbox."},{"id":"c","text":"The JSONEncoder class.","explanation":"JSONEncoder converts models to Data, not managing files on disk."},{"id":"d","text":"The PropertyListSerialization class.","explanation":"PropertyListSerialization encodes property lists, not managing file paths."}],"answer":"b"},{"id":"userdefaults-and-files-q11","type":"mcq","difficulty":2,"prompt":"What types of values are natively supported by `UserDefaults`?","options":[{"id":"a","text":"Any Swift class that inherits from NSObject.","explanation":"Arbitrary NSObjects cannot be saved unless converted to Data."},{"id":"b","text":"SwiftUI View hierarchies and Metal graphics shaders.","explanation":"UI view hierarchies and shaders cannot be saved in property lists."},{"id":"c","text":"Property list types including String, Int, Double, Bool, Data, Date, Array, and Dictionary.","explanation":"Right. UserDefaults supports standard property list primitive types directly."},{"id":"d","text":"Only single boolean flags and 32-bit unsigned integers.","explanation":"UserDefaults supports strings, floats, arrays, dictionaries, and dates too."}],"answer":"c"},{"id":"userdefaults-and-files-q12","type":"mcq","difficulty":2,"prompt":"How can an app expose files in its `Documents/` directory to the user in the iOS Files app?","options":[{"id":"a","text":"Enable the Background Processing capability in Signing & Capabilities.","explanation":"Background Processing is for background tasks, not the Files app."},{"id":"b","text":"Store files in Library/Caches and register an APNs token.","explanation":"Files app never displays contents of the Library directory."},{"id":"c","text":"Set UserDefaults.standard.isFilesAppVisible to true on launch.","explanation":"There is no such property on UserDefaults."},{"id":"d","text":"Enable UIFileSharingEnabled and LSSupportsOpeningDocumentsInPlace in Info.plist.","explanation":"Right. These two Info.plist keys expose the Documents directory in the Files app."}],"answer":"d"},{"id":"userdefaults-and-files-q13","type":"mcq","difficulty":3,"prompt":"What security mechanism prevents one iOS app from reading another app's files?","options":[{"id":"a","text":"The iOS App Sandbox enforced at the kernel level.","explanation":"Right. The App Sandbox isolates filesystem containers between applications."},{"id":"b","text":"The Swift 6 compiler access control private modifier.","explanation":"Language access modifiers control visibility in code, not filesystem permissions."},{"id":"c","text":"The Wi-Fi router network firewall gateway.","explanation":"Network firewalls do not manage on-device filesystem isolation."},{"id":"d","text":"The Xcode Organizer archive validation tool.","explanation":"Organizer validates builds before upload, not runtime sandboxing."}],"answer":"a"},{"id":"userdefaults-and-files-q14","type":"mcq","difficulty":3,"prompt":"How can an app exclude a large file in `Application Support/` from iCloud backups if it can be re-created?","options":[{"id":"a","text":"Set file extension to .noBackup in the filename string.","explanation":"iOS does not use file extensions to determine backup status."},{"id":"b","text":"Set the URL resource value isExcludedFromBackup to true.","explanation":"Right. Setting isExcludedFromBackup = true instructs backup engines to skip the file."},{"id":"c","text":"Move the file into UserDefaults using PropertyListEncoder.","explanation":"UserDefaults is backed up to iCloud and cannot store large files efficiently."},{"id":"d","text":"Delete the file whenever the scene phase changes to background.","explanation":"Deleting files on background destroys data rather than configuring backup rules."}],"answer":"b"},{"id":"userdefaults-and-files-q15","type":"mcq","difficulty":2,"prompt":"Why is `UserDefaults` thread-safe in modern iOS applications?","options":[{"id":"a","text":"Because it runs exclusively on the GPU compute pipeline.","explanation":"UserDefaults does not interact with GPU hardware."},{"id":"b","text":"Because it can only be accessed from SwiftUI body closures.","explanation":"UserDefaults can be accessed from any thread or queue."},{"id":"c","text":"Because Foundation protects internal reads and writes with internal synchronization locks.","explanation":"Right. UserDefaults uses internal synchronization to make sure thread-safe concurrent reads and writes occur."},{"id":"d","text":"Because it requires all caller methods to be marked @MainActor.","explanation":"UserDefaults does not require MainActor isolation."}],"answer":"c"},{"id":"userdefaults-and-files-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking the file extension?","code":"import Foundation\n\nlet path = \"note.txt\"\nlet hasExtension = path.hasSuffix(\".txt\")\nprint(\"Is text file: \\(hasExtension)\")","options":[{"id":"a","text":"Is text file: false","explanation":"The path ends with .txt, so hasSuffix evaluates to true."},{"id":"b","text":"Is text file: nil","explanation":"The hasSuffix method returns a non-optional boolean."},{"id":"c","text":"Is text file: note","explanation":"Swift prints the boolean result, not the base filename."},{"id":"d","text":"Is text file: true","explanation":"Right. The string ends with .txt, so hasExtension evaluates to true."}],"answer":"d"},{"id":"userdefaults-and-files-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking if the Documents directory is backed up?","code":"import Foundation\n\nenum DirectoryType {\n    case documents\n    case caches\n    case temporary\n}\n\nfunc isBackedUpToiCloud(dir: DirectoryType) -> Bool {\n    switch dir {\n    case .documents:\n        return true\n    case .caches, .temporary:\n        return false\n    }\n}\nprint(\"Documents backed up: \\(isBackedUpToiCloud(dir: .documents))\")","options":[{"id":"a","text":"Documents backed up: true","explanation":"Right. The switch statement matches .documents and returns true."},{"id":"b","text":"Documents backed up: false","explanation":"Documents is backed up to iCloud, so the function returns true."},{"id":"c","text":"Documents backed up: nil","explanation":"The return type is a concrete non-optional boolean."},{"id":"d","text":"Documents backed up: documents","explanation":"The code outputs the boolean return value."}],"answer":"a"},{"id":"userdefaults-and-files-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print when choosing the font size?","code":"import Foundation\n\nlet rawValue = 16.0\nlet defaultFontSize = 14.0\nlet chosenSize = rawValue > 0 ? rawValue : defaultFontSize\nprint(\"Chosen font size: \\(Int(chosenSize))\")","options":[{"id":"a","text":"Chosen font size: 14","explanation":"16.0 is greater than 0, so rawValue is chosen over the default."},{"id":"b","text":"Chosen font size: 16","explanation":"Right. Because rawValue is positive, the ternary expression picks 16.0."},{"id":"c","text":"Chosen font size: 0","explanation":"The ternary picks either rawValue (16) or defaultFontSize (14)."},{"id":"d","text":"Chosen font size: nil","explanation":"The chosenSize variable is a non-optional Double converted to Int."}],"answer":"b"},{"id":"userdefaults-and-files-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when evaluating if the item is safe for UserDefaults?","code":"import Foundation\n\nstruct PreferenceItem {\n    let key: String\n    let isSecure: Bool\n}\nlet item = PreferenceItem(key: \"authToken\", isSecure: false)\nlet isSafeForUserDefaults = item.isSecure\nprint(\"Safe for UserDefaults: \\(isSafeForUserDefaults)\")","options":[{"id":"a","text":"Safe for UserDefaults: true","explanation":"The property isSecure is false, so isSafeForUserDefaults is false."},{"id":"b","text":"Safe for UserDefaults: nil","explanation":"The property holds a non-optional boolean."},{"id":"c","text":"Safe for UserDefaults: false","explanation":"Right. Because isSecure is false, isSafeForUserDefaults is false."},{"id":"d","text":"Safe for UserDefaults: authToken","explanation":"The code outputs the boolean value of isSafeForUserDefaults."}],"answer":"c"},{"id":"userdefaults-and-files-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when checking if the asset is a PNG cache image?","code":"import Foundation\n\nlet fileName = \"avatar.png\"\nlet isCacheAsset = fileName.hasSuffix(\".png\")\nprint(\"Is cache asset: \\(isCacheAsset)\")","options":[{"id":"a","text":"Is cache asset: false","explanation":"The filename ends with .png, so the suffix check evaluates to true."},{"id":"b","text":"Is cache asset: nil","explanation":"The hasSuffix method returns a standard boolean value."},{"id":"c","text":"Is cache asset: avatar","explanation":"Swift prints the boolean result, not the image filename."},{"id":"d","text":"Is cache asset: true","explanation":"Right. The string ends with .png, so isCacheAsset evaluates to true."}],"answer":"d"},{"id":"userdefaults-and-files-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when evaluating the atomic write mode description?","code":"import Foundation\n\nenum WriteOption {\n    case standard\n    case atomic\n}\nfunc writeMode(option: WriteOption) -> String {\n    switch option {\n    case .atomic:\n        return \"auxiliary file rename\"\n    case .standard:\n        return \"direct write\"\n    }\n}\nprint(\"Write mode: \\(writeMode(option: .atomic))\")","options":[{"id":"a","text":"Write mode: auxiliary file rename","explanation":"Right. The switch statement matches case .atomic and returns auxiliary file rename."},{"id":"b","text":"Write mode: direct write","explanation":"Direct write corresponds to case .standard."},{"id":"c","text":"Write mode: nil","explanation":"The function returns a concrete non-optional String."},{"id":"d","text":"Write mode: atomic","explanation":"The function returns auxiliary file rename, not the enum identifier."}],"answer":"a"},{"id":"userdefaults-and-files-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when checking if the Documents directory is user-visible?","code":"import Foundation\n\nlet folder1 = \"Documents\"\nlet folder2 = \"Library/Caches\"\nlet canUserViewFolder1 = folder1 == \"Documents\"\nprint(\"User visible: \\(canUserViewFolder1)\")","options":[{"id":"a","text":"User visible: false","explanation":"folder1 is assigned to Documents, so the equality check is true."},{"id":"b","text":"User visible: true","explanation":"Right. folder1 equals Documents, so canUserViewFolder1 evaluates to true."},{"id":"c","text":"User visible: Documents","explanation":"The print statement prints the boolean description, not the string."},{"id":"d","text":"User visible: nil","explanation":"The result is a concrete non-optional boolean value."}],"answer":"b"},{"id":"userdefaults-and-files-q23","type":"code-reading","difficulty":1,"prompt":"What does this code print when choosing the target for a 250 KB payload?","code":"import Foundation\n\nlet payloadSize = 250 // KB\nlet isTooLargeForUserDefaults = payloadSize > 100\nlet destination = isTooLargeForUserDefaults ? \"fileSystem\" : \"userDefaults\"\nprint(\"Recommended target: \\(destination)\")","options":[{"id":"a","text":"Recommended target: userDefaults","explanation":"250 is greater than 100, so the ternary expression selects fileSystem."},{"id":"b","text":"Recommended target: database","explanation":"The ternary selects either fileSystem or userDefaults."},{"id":"c","text":"Recommended target: fileSystem","explanation":"Right. Because 250 KB exceeds 100 KB, destination is fileSystem."},{"id":"d","text":"Recommended target: nil","explanation":"The destination variable holds a non-optional String."}],"answer":"c"},{"id":"userdefaults-and-files-q24","type":"written","difficulty":2,"prompt":"Explain why `UserDefaults` should only be used for small data and preferences rather than large files or databases.","modelAnswer":"`UserDefaults` is backed by a single property list file on disk. When an iOS app starts up, the operating system deserializes the entire property list file into memory. Storing large collections, images, or databases in `UserDefaults` bloats memory consumption and significantly slows down application launch times. Large data should be saved to the filesystem via `FileManager` or a structured database instead.","rubric":[{"id":"plist-startup-memory-overhead","criterion":"Explains that UserDefaults loads the entire property list into RAM at app launch.","weight":50,"key":true},{"id":"launch-performance-impact","criterion":"Notes that storing large datasets causes sluggish launch times and high memory bloat.","weight":50,"key":true}]},{"id":"userdefaults-and-files-q25","type":"written","difficulty":2,"prompt":"Compare the `Documents/` and `Library/Caches/` sandbox directories, focusing on intended use and iCloud backup behavior.","modelAnswer":"The `Documents/` directory is designed for user-generated or user-visible content such as exported documents, notes, and user projects. It is backed up to iCloud by default and can be made visible in the Files app. In contrast, `Library/Caches/` stores re-downloadable or re-creatable temporary files like image thumbnails. Files in `Caches/` are not backed up to iCloud, and iOS may purge them when disk space is low.","rubric":[{"id":"documents-folder-specs","criterion":"Explains Documents is for user-created content and is backed up to iCloud by default.","weight":50,"key":true},{"id":"caches-folder-specs","criterion":"Explains Library/Caches is for purgeable re-creatable data and is excluded from iCloud backups.","weight":50,"key":true}]},{"id":"userdefaults-and-files-q26","type":"written","difficulty":2,"prompt":"What is atomic writing with `Data.WritingOptions.atomic`, and how does it prevent file corruption?","modelAnswer":"Atomic writing is a filesystem safety mechanism where Foundation writes data to an auxiliary temporary file first. Once writing completes successfully, Foundation atomically renames the temporary file to the target destination filename. This prevents file corruption because if an app crashes, loses power, or is terminated mid-write, the existing target file remains completely intact and uncorrupted.","rubric":[{"id":"atomic-mechanism-explained","criterion":"Explains that atomic writes write to an auxiliary file first and rename it upon completion.","weight":50,"key":true},{"id":"corruption-prevention","criterion":"Explains that it prevents partial or corrupted files if the app terminates during writing.","weight":50,"key":true}]},{"id":"userdefaults-and-files-q27","type":"written","difficulty":2,"prompt":"Why is `UserDefaults` inappropriate for storing passwords or authentication tokens, and where should secrets be stored instead?","modelAnswer":"`UserDefaults` is unencrypted and stores its data in plaintext within a standard property list file. Anyone with physical access to device backups or jailbroken devices can easily extract and read the contents. Sensitive data like passwords, secret keys, and JWT authentication tokens must be stored in the Keychain, which provides hardware-level encryption managed by the operating system.","rubric":[{"id":"unencrypted-plaintext-vulnerability","criterion":"Explains that UserDefaults stores plaintext unencrypted files accessible in backups.","weight":50,"key":true},{"id":"keychain-solution","criterion":"Identifies the iOS Keychain as the proper encrypted store for passwords and tokens.","weight":50,"key":true}]},{"id":"userdefaults-and-files-q28","type":"written","difficulty":3,"prompt":"What is the purpose of the `Library/Application Support/` directory in the iOS App Sandbox, and how does it differ from `Documents/`?","modelAnswer":"`Library/Application Support/` stores operational data files that the application creates to run. Examples include Core Data/SwiftData stores, SQLite databases, and configuration files. It is backed up to iCloud by default. Unlike the `Documents/` directory, files in `Application Support/` are hidden from the user and can never be viewed or manipulated through the iOS Files app.","rubric":[{"id":"application-support-role","criterion":"Explains Application Support is for app-created operational files like databases and configuration stores.","weight":50,"key":true},{"id":"hidden-from-user-distinction","criterion":"Contrasts with Documents by explaining Application Support files are hidden from the user Files app.","weight":50,"key":true}]},{"id":"userdefaults-and-files-q29","type":"code-write","difficulty":1,"prompt":"Create a struct named `StorageAdvisor` with a static method `static func recommendStorage(isSecret: Bool, byteSize: Int) -> String`. If `isSecret` is `true`, return `\"keychain\"`. Otherwise, if `byteSize > 102400`, return `\"fileManager\"`. Otherwise, return `\"userDefaults\"`.","starterCode":"// Implement StorageAdvisor struct\n","modelAnswer":"struct StorageAdvisor {\n    static func recommendStorage(isSecret: Bool, byteSize: Int) -> String {\n        if isSecret {\n            return \"keychain\"\n        } else if byteSize > 102400 {\n            return \"fileManager\"\n        } else {\n            return \"userDefaults\"\n        }\n    }\n}\n\nlet secretRes = StorageAdvisor.recommendStorage(isSecret: true, byteSize: 50)\nlet fileRes = StorageAdvisor.recommendStorage(isSecret: false, byteSize: 500000)\nlet prefRes = StorageAdvisor.recommendStorage(isSecret: false, byteSize: 100)\nprint(\"Advice: \\(secretRes), \\(fileRes), \\(prefRes)\")","rubric":[{"id":"advisor-signature","criterion":"Declares struct StorageAdvisor with static func recommendStorage(isSecret: Bool, byteSize: Int) -> String.","weight":40,"key":true},{"id":"tiering-logic-evaluation","criterion":"Returns keychain for secrets, fileManager for size > 102400, and userDefaults otherwise.","weight":60,"key":true}]},{"id":"userdefaults-and-files-q30","type":"code-write","difficulty":2,"prompt":"Create a struct named `DirectoryRouter` with a method `func directoryURL(isUserCreated: Bool, isCache: Bool) -> String`. If `isUserCreated` is `true`, return `\"Documents\"`. If `isCache` is `true`, return `\"Library/Caches\"`. Otherwise, return `\"Library/Application Support\"`.","starterCode":"// Implement DirectoryRouter struct\n","modelAnswer":"struct DirectoryRouter {\n    func directoryURL(isUserCreated: Bool, isCache: Bool) -> String {\n        if isUserCreated {\n            return \"Documents\"\n        } else if isCache {\n            return \"Library/Caches\"\n        } else {\n            return \"Library/Application Support\"\n        }\n    }\n}\n\nlet router = DirectoryRouter()\nlet d1 = router.directoryURL(isUserCreated: true, isCache: false)\nlet d2 = router.directoryURL(isUserCreated: false, isCache: true)\nlet d3 = router.directoryURL(isUserCreated: false, isCache: false)\nprint(\"Dirs: \\(d1), \\(d2), \\(d3)\")","rubric":[{"id":"router-signature","criterion":"Declares struct DirectoryRouter with func directoryURL(isUserCreated: Bool, isCache: Bool) -> String.","weight":40,"key":true},{"id":"directory-branching-logic","criterion":"Maps user created to Documents, cache to Library/Caches, and default to Library/Application Support.","weight":60,"key":true}]},{"id":"userdefaults-and-files-q31","type":"code-write","difficulty":2,"prompt":"Create a class named `PreferencesValidator` with a method `func isValidKey(_ key: String) -> Bool`. Return `true` if `key` is non-empty and has fewer than 100 characters. Return `false` otherwise.","starterCode":"// Implement PreferencesValidator class\n","modelAnswer":"class PreferencesValidator {\n    func isValidKey(_ key: String) -> Bool {\n        return !key.isEmpty && key.count \u003c 100\n    }\n}\n\nlet val = PreferencesValidator()\nlet validCheck = val.isValidKey(\"hasSeenWalkthrough\")\nlet emptyCheck = val.isValidKey(\"\")\nprint(\"Keys valid: \\(validCheck && !emptyCheck)\")","rubric":[{"id":"validator-signature","criterion":"Declares class PreferencesValidator with func isValidKey(_ key: String) -> Bool.","weight":40,"key":true},{"id":"key-validation-logic","criterion":"Checks key is not empty and key.count \u003c 100 returning boolean result.","weight":60,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

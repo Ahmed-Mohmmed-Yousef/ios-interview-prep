@@ -1,0 +1,244 @@
+export const meta = {
+  id: "userdefaults-and-files",
+  summary: "Store user preferences with UserDefaults and manage persistent files within the iOS app sandbox.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "UserDefaults (Foundation)", url: "https://developer.apple.com/documentation/foundation/userdefaults", kind: "official" },
+    { title: "FileManager (Foundation)", url: "https://developer.apple.com/documentation/foundation/filemanager", kind: "official" },
+    { title: "File System Basics (Apple Developer Archive)", url: "https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/FileSystemOverview/FileSystemOverview.html", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why should you never store user authentication tokens or passwords in `UserDefaults`?</Question>
+  <Guess>
+    <Option id="a">Because UserDefaults keys cannot store strings longer than twenty characters.</Option>
+    <Option id="b" correct>Because UserDefaults stores data in an unencrypted plaintext file on disk.</Option>
+    <Option id="c">Because iOS deletes UserDefaults automatically whenever the app closes.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a small nightstand next to your bed.
+
+On the nightstand, you keep a notepad with quick notes, like your alarm time or favorite reading light setting.
+
+You would never leave your house keys or gold jewelry in an open notepad on the nightstand.
+
+Anyone walking past could read your personal secrets.
+
+For expensive jewelry, you place items inside a locked metal safe.
+
+For large binders of tax papers, you store boxes in the garage or attic filing cabinets.
+</Analogy>
+
+In iOS, `UserDefaults` is your digital nightstand.
+
+It is a lightweight key-value store intended for small user settings:
+
+- Whether the user finished the onboarding walkthrough.
+- Their preferred theme (Light, Dark, or System).
+- Sound effects toggles and audio volume levels.
+
+`UserDefaults` is backed by a property list file on disk.
+
+When your app launches, iOS loads the entire property list file into memory.
+
+Storing large items like images or databases slows down app launch and wastes memory.
+
+`UserDefaults` has no encryption. Never store passwords, tokens, or private secrets in `UserDefaults`.
+
+For larger assets like documents, pictures, or databases, use `FileManager` to store files inside the **App Sandbox**.
+
+The sandbox isolates your files from all other apps on the device:
+
+1. **`Documents/`**: For user-created files. This folder is backed up to iCloud.
+2. **`Library/Caches/`**: For downloaded pictures and temporary cache files. iOS can purge these files when storage is low. They are never backed up.
+3. **`Library/Application Support/`**: For app databases and internal configuration files. This folder is backed up to iCloud.
+4. **`tmp/`**: For short-lived scratch files needed during an active session.
+
+## See it
+
+<Diagram id="userdefaults-and-files-diagram" caption="Storage Tiering and Sandbox Directory Isolation">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. UserDefaults box (small settings, loaded at launch).
+    2. Sandbox Documents directory (user files, iCloud backed up).
+    3. Sandbox Caches directory (re-creatable images, purgeable, not backed up).
+    4. Keychain safe (sensitive passwords and auth tokens).
+  - Steps:
+    Step 1: Check data size and sensitivity to choose storage tier.
+    Step 2: Store small booleans and settings in UserDefaults.
+    Step 3: Save user documents to Documents/ with atomic writing.
+    Step 4: Save cache images to Caches/ to protect iCloud backup quotas.
+  - Static version (reduced motion):
+    A 4-tier diagram showing UserDefaults, Documents, Caches, and Keychain boundaries.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Where should you save downloaded thumbnail images so they do not waste iCloud backup quotas?</Question>
+  <Option id="a">Inside the Documents folder.</Option>
+  <Option id="b" correct>Inside the Library/Caches folder.</Option>
+  <Option id="c">Inside UserDefaults as raw Data bytes.</Option>
+  <Explanation>Caches are not backed up to iCloud and can be deleted by the operating system if disk space runs low.</Explanation>
+</QuickCheck>
+
+## In code
+
+Store simple settings and boolean flags in `UserDefaults`.
+
+In SwiftUI, use `@AppStorage` to bind view state to user defaults directly.
+
+<CodeExample title="Managing user settings and preferences">
+
+```swift
+import Foundation
+
+struct UserPreferences {
+    var hasCompletedOnboarding: Bool
+    var soundEnabled: Bool
+    var fontSize: Double
+}
+
+func updatePreference(current: inout UserPreferences, key: String, boolValue: Bool) {
+    if key == "hasCompletedOnboarding" {
+        current.hasCompletedOnboarding = boolValue
+    } else if key == "soundEnabled" {
+        current.soundEnabled = boolValue
+    }
+}
+
+var prefs = UserPreferences(hasCompletedOnboarding: false, soundEnabled: true, fontSize: 16.0)
+updatePreference(current: &prefs, key: "hasCompletedOnboarding", boolValue: true)
+
+print("Onboarding completed: \(prefs.hasCompletedOnboarding)")
+print("Sound enabled: \(prefs.soundEnabled)")
+```
+
+```output
+Onboarding completed: true
+Sound enabled: true
+```
+
+</CodeExample>
+
+Pick the correct sandbox directory using `FileManager`.
+
+Write files using atomic writing to prevent corrupted data if the app crashes during a write.
+
+<CodeExample title="Categorizing sandbox directory destinations">
+
+```swift
+import Foundation
+
+enum StorageDestination {
+    case userDocument
+    case temporaryCache
+    case internalDatabase
+}
+
+func directoryName(for destination: StorageDestination) -> String {
+    switch destination {
+    case .userDocument:
+        return "Documents (backed up to iCloud)"
+    case .temporaryCache:
+        return "Library/Caches (purged under storage pressure)"
+    case .internalDatabase:
+        return "Library/Application Support (hidden from user)"
+    }
+}
+
+let choice = StorageDestination.temporaryCache
+print("Storage path: \(directoryName(for: choice))")
+```
+
+```output
+Storage path: Library/Caches (purged under storage pressure)
+```
+
+</CodeExample>
+
+<QuickCheck>
+  <Question>Why should you pass the `.atomic` option when writing data to disk with Foundation?</Question>
+  <Option id="a">It forces the file to upload to iCloud immediately.</Option>
+  <Option id="b" correct>It writes to an auxiliary file first, preventing corrupted files if a crash occurs.</Option>
+  <Option id="c">It encrypts the file with Face ID biometrics.</Option>
+  <Explanation>Atomic writing creates an auxiliary temporary file and renames it when finished, protecting existing files from partial write corruption.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Storing secrets in UserDefaults">
+`UserDefaults` is not encrypted.
+
+The underlying `.plist` file can be read directly by anyone inspecting device backups.
+
+Store passwords, tokens, and personal credentials in the Keychain instead.
+</Trap>
+
+<Trap title="Storing megabytes of data in UserDefaults">
+`UserDefaults` loads the entire file into RAM when your app starts up.
+
+Storing high-resolution photos or large collections in `UserDefaults` makes your app launch sluggish.
+
+Save large files to the filesystem using `FileManager`.
+</Trap>
+
+<Trap title="Saving cache files in the Documents folder">
+Files saved in `Documents` are backed up to iCloud by default.
+
+If you store megabytes of temporary images in `Documents`, Apple may reject your app during review.
+
+Save re-downloadable content in `Library/Caches` instead.
+</Trap>
+
+<Trap title="Calling synchronize() manually">
+Many developers still call `UserDefaults.standard.synchronize()` after writing values.
+
+This method was deprecated in iOS 12.
+
+The operating system automatically batches and persists writes to disk asynchronously.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"`UserDefaults` is for small settings like dark mode flags or onboarding state. We should never store passwords in `UserDefaults` because it is not encrypted. For larger files like documents or photos, we use `FileManager` in the app sandbox. User files go in `Documents` and back up to iCloud, while cached images go in `Caches` so they do not waste backup space."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"`UserDefaults` is backed by a plist file that loads entirely into memory on launch, so it is strictly for lightweight primitives. Secrets belong in Keychain, and large assets belong on disk via `FileManager`. The sandbox provides distinct directories: `Documents` for user-created content that backs up to iCloud, `Application Support` for internal databases, and `Caches` for purgeable assets. When writing files, we use `.atomic` to avoid corrupted writes."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"We tier data storage based on security, memory footprint, and backup policies. We isolate secrets in Keychain with hardware-backed access control. We store UI preferences in UserDefaults via `@AppStorage`, keeping launch plists under a few kilobytes. For file storage, we enforce atomic writes via `Data.WritingOptions.atomic`, store databases in `Application Support/`, and place transient assets in `Library/Caches/` to respect Apple iCloud backup guidelines."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `UserDefaults` is for small user preferences and flags.
+- `UserDefaults` loads completely into memory on launch; avoid large data.
+- `UserDefaults` is unencrypted; never store passwords or auth tokens in it.
+- `UserDefaults.standard.synchronize()` is deprecated; writes persist automatically.
+- `Documents/` holds user files and backs up to iCloud.
+- `Library/Caches/` holds purgeable cache data and is not backed up.
+- `Library/Application Support/` holds internal app databases and backs up to iCloud.
+- Use `.atomic` writes with `FileManager` to prevent corrupted files during crashes.
+</Recap>
+
+## Go deeper
+
+- [UserDefaults (Foundation)](https://developer.apple.com/documentation/foundation/userdefaults) — Apple documentation for UserDefaults.
+- [FileManager (Foundation)](https://developer.apple.com/documentation/foundation/filemanager) — Apple documentation for managing filesystem operations.
+- [File System Basics (Apple Developer Archive)](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/FileSystemOverview/FileSystemOverview.html) — Guide to sandbox layout and backup rules.

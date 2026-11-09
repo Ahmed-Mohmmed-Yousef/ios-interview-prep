@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UserDefaults and Files: Storage Tiering & Sandbox Layout</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #16a34a; --step2-soft: #dcfce7;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #7c3aed; --step4-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #4ade80; --step2-soft: #052e16;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #a78bfa; --step4-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="UserDefaults and Files Storage Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span class="kind s1" id="badge">Step 1</span> <span id="title">UserDefaults (Preferences)</span></h3>
+      <p class="caption" id="desc">UserDefaults stores small user preferences and flags in Library/Preferences/.plist. The entire file is loaded into RAM at app launch.</p>
+      <div class="code" id="codeSnippet">UserDefaults.standard.set(true, forKey: "hasSeenWalkthrough")
+// Small key-value pairs only (no secrets, no images)</div>
+    </div>
+
+    <div class="panel" style="display:flex; align-items:center; justify-content:center;">
+      <svg viewBox="0 0 320 220" role="img" aria-label="Visual illustration of storage tiering">
+        <rect x="10" y="10" width="300" height="200" class="device-frame" />
+        <rect x="25" y="25" width="270" height="170" rx="10" class="base-screen" />
+
+        <!-- Dynamic elements -->
+        <g id="visualScene">
+          <!-- Step 1 visual -->
+          <rect x="70" y="55" width="180" height="100" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+          <text x="160" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step1-color)">UserDefaults Plist</text>
+          <text x="160" y="105" text-anchor="middle" font-size="10" fill="var(--ink)">soundEnabled = true</text>
+          <text x="160" y="125" text-anchor="middle" font-size="10" fill="var(--ink)">theme = "dark"</text>
+          <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Loaded to RAM on launch</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "UserDefaults (Preferences)",
+    desc: "UserDefaults stores small user preferences and flags in Library/Preferences/.plist. The entire file is loaded into RAM at app launch.",
+    code: `UserDefaults.standard.set(true, forKey: "hasSeenWalkthrough")\n// Small key-value pairs only (no secrets, no images)`,
+    svg: `
+      <rect x="70" y="55" width="180" height="100" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="160" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step1-color)">UserDefaults Plist</text>
+      <text x="160" y="105" text-anchor="middle" font-size="10" fill="var(--ink)">soundEnabled = true</text>
+      <text x="160" y="125" text-anchor="middle" font-size="10" fill="var(--ink)">theme = "dark"</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Loaded to RAM on launch</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "Documents Directory (iCloud Backed)",
+    desc: "User-created content belongs in Documents/. This directory is backed up to iCloud and iTunes, and visible to users via the Files app.",
+    code: `let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]\nlet fileURL = docs.appendingPathComponent("note.txt")`,
+    svg: `
+      <rect x="65" y="50" width="190" height="110" rx="8" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="2" />
+      <circle cx="95" cy="75" r="12" fill="var(--step2-soft)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="95" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step2-color)">📁</text>
+      <text x="115" y="79" font-size="12" font-weight="700" fill="var(--step2-color)">Documents/</text>
+      <line x1="80" y1="95" x2="240" y2="95" stroke="var(--line)" stroke-width="1" />
+      <text x="160" y="115" text-anchor="middle" font-size="10" fill="var(--ink)">User notes, exports, drawings</text>
+      <text x="160" y="135" text-anchor="middle" font-size="10" font-weight="600" fill="var(--step2-color)">✓ Backed up to iCloud</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">User-visible data files</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Library/Caches (Purgeable)",
+    desc: "Downloaded pictures and temporary caches belong in Library/Caches/. They are never backed up, protecting user iCloud storage space.",
+    code: `let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]\n// Not backed up to iCloud; OS can purge`,
+    svg: `
+      <rect x="65" y="50" width="190" height="110" rx="8" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="2" />
+      <circle cx="95" cy="75" r="12" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="95" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step3-color)">⚡</text>
+      <text x="115" y="79" font-size="12" font-weight="700" fill="var(--step3-color)">Library/Caches/</text>
+      <line x1="80" y1="95" x2="240" y2="95" stroke="var(--line)" stroke-width="1" />
+      <text x="160" y="115" text-anchor="middle" font-size="10" fill="var(--ink)">Re-creatable thumbnails & web cache</text>
+      <text x="160" y="135" text-anchor="middle" font-size="10" font-weight="600" fill="var(--step3-color)">✗ Excluded from iCloud backup</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">OS purgeable on low disk space</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Atomic Writing & Keychain Tier",
+    desc: "Use .atomic when writing files to prevent corruption during crashes. Route passwords and auth tokens to the encrypted Keychain.",
+    code: `try data.write(to: fileURL, options: .atomic)\n// Writes to aux file first, then renames\n// Secrets stored in Keychain, never disk`,
+    svg: `
+      <rect x="50" y="45" width="220" height="115" rx="8" fill="var(--surface)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="160" y="70" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step4-color)">Fault-Tolerant Tiering</text>
+      <rect x="65" y="85" width="90" height="35" rx="4" fill="var(--step4-soft)" />
+      <text x="110" y="106" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step4-color)">.atomic write</text>
+      <rect x="165" y="85" width="90" height="35" rx="4" fill="var(--step1-soft)" />
+      <text x="210" y="106" text-anchor="middle" font-size="9" font-weight="600" fill="var(--step1-color)">Keychain Safe</text>
+      <text x="160" y="142" text-anchor="middle" font-size="10" fill="var(--muted)">Crash-safe files & secure credentials</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Complete storage architecture</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+</script>
+</body>
+</html>
