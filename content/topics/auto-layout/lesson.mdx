@@ -1,0 +1,218 @@
+export const meta = {
+  id: "auto-layout",
+  summary: "Build flexible, adaptive UIKit screens using Auto Layout constraints and layout priorities.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "NSLayoutConstraint (UIKit)", url: "https://developer.apple.com/documentation/uikit/nslayoutconstraint", kind: "official" },
+    { title: "View layout (UIKit)", url: "https://developer.apple.com/documentation/uikit/view-layout", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>When two labels sit side-by-side in a horizontal row, which label stretches to fill extra width?</Question>
+  <Guess>
+    <Option id="a">The label with the higher content compression resistance priority.</Option>
+    <Option id="b" correct>The label with the lower content hugging priority.</Option>
+    <Option id="c">The label declared first in the view hierarchy.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine hanging posters on a flexible wall.
+
+Instead of nailing them at fixed positions, you connect them with rubber bands.
+
+You attach one band from the poster to the ceiling. You attach another band to the left wall.
+
+When the wall expands or tilts, the rubber bands adjust. The poster stays in the right spot.
+
+Those rubber bands are **constraints**.
+</Analogy>
+
+Auto Layout calculates the size and position of every view using mathematical relationships.
+
+Instead of hard-coding frames, you declare rules called constraints.
+
+The system adapts your layout across iPhones, iPads, rotations, and Dynamic Type sizes:
+
+1. **`NSLayoutAnchor`**:
+   - Provides type-safe layout rules like `leadingAnchor`, `trailingAnchor`, and `topAnchor`.
+   - Groups constraints together for batch activation with `NSLayoutConstraint.activate`.
+2. **`safeAreaLayoutGuide`**:
+   - Prevents your views from overlapping the notch, Dynamic Island, and home indicator.
+3. **Content Hugging & Compression Resistance**:
+   - Content hugging resists stretching larger than the view's natural content size.
+   - Compression resistance resists shrinking smaller than the content size, preventing text clipping.
+
+## See it
+
+<Diagram id="auto-layout-diagram" caption="How Auto Layout Constraints, Safe Area Guides, and Priorities Position UIKit Views">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Screen container with safeAreaLayoutGuide boundaries (top notch, bottom bar).
+    2. Header card pinned to safeAreaLayoutGuide.topAnchor and horizontal edges.
+    3. Two side-by-side labels showing Content Hugging Priority (low stretches, high stays tight).
+    4. Dimension constraints showing fixed width/height anchors.
+  - Steps:
+    Step 1: Unconstrained views floating with default sizes.
+    Step 2: Pinned to safeAreaLayoutGuide to prevent hardware notch collisions.
+    Step 3: Horizontal anchors attached between labels with Content Hugging priorities.
+    Step 4: Device rotation demonstrating adaptive recalculation without broken frames.
+  - Static version (reduced motion):
+    A 4-panel visual comparison illustrating anchor pinning, safe areas, and priority rules.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which property must you set to `false` when creating programmatic Auto Layout views?</Question>
+  <Option id="a">`isUserInteractionEnabled`</Option>
+  <Option id="b" correct>`translatesAutoresizingMaskIntoConstraints`</Option>
+  <Option id="c">`clipsToBounds`</Option>
+  <Explanation>Setting translatesAutoresizingMaskIntoConstraints to false tells UIKit to use your constraints instead of legacy masks.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is how you position a view in code using layout anchors.
+
+You must set `translatesAutoresizingMaskIntoConstraints = false` and add the view before activating constraints.
+
+<CodeExample title="Configuring programmatic constraints with layout anchors">
+
+```swift
+import UIKit
+
+let superview = UIView(frame: CGRect(x: 0, y: 0, width: 300, height: 400))
+let box = UIView()
+box.translatesAutoresizingMaskIntoConstraints = false
+superview.addSubview(box)
+
+NSLayoutConstraint.activate([
+    box.topAnchor.constraint(equalTo: superview.topAnchor, constant: 20),
+    box.leadingAnchor.constraint(equalTo: superview.leadingAnchor, constant: 10),
+    box.widthAnchor.constraint(equalToConstant: 100),
+    box.heightAnchor.constraint(equalToConstant: 50)
+])
+
+superview.layoutIfNeeded()
+
+print("Box frame: \(box.frame.origin.x), \(box.frame.origin.y), \(box.frame.width), \(box.frame.height)")
+```
+
+```output
+Box frame: 10.0, 20.0, 100.0, 50.0
+```
+
+</CodeExample>
+
+`NSLayoutConstraint.activate` applies all constraints in a single optimized pass.
+
+Next, observe how content hugging priorities resolve layout conflicts.
+
+<CodeExample title="Configuring content hugging priorities">
+
+```swift
+import UIKit
+
+let nameLabel = UILabel()
+let priceLabel = UILabel()
+
+nameLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+priceLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+
+let lowPriority = nameLabel.contentHuggingPriority(for: .horizontal).rawValue
+let highPriority = priceLabel.contentHuggingPriority(for: .horizontal).rawValue
+
+print("Priorities: low=\(lowPriority), high=\(highPriority)")
+```
+
+```output
+Priorities: low=250.0, high=750.0
+```
+
+</CodeExample>
+
+Because `nameLabel` has the lower hugging priority, it stretches when extra horizontal space exists.
+
+`priceLabel` stays tightly wrapped around its text.
+
+<QuickCheck>
+  <Question>Why should you prefer `leadingAnchor` and `trailingAnchor` over `leftAnchor` and `rightAnchor`?</Question>
+  <Option id="a">Leading and trailing anchors calculate faster in the solver.</Option>
+  <Option id="b" correct>Leading and trailing anchors flip automatically for right-to-left languages.</Option>
+  <Option id="c">Left and right anchors are deprecated in iOS 17.</Option>
+  <Explanation>Leading and trailing support right-to-left languages like Arabic and Hebrew automatically.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Activating constraints before addSubview">
+Never activate constraints on a view before calling `addSubview`.
+
+UIKit requires both views to share a common ancestor in the view hierarchy.
+
+Activating constraints before adding the view throws a fatal runtime crash.
+</Trap>
+
+<Trap title="Forgetting translatesAutoresizingMaskIntoConstraints">
+Views created in code set `translatesAutoresizingMaskIntoConstraints = true` by default.
+
+UIKit converts old resizing masks into constraints that collide with your anchors.
+
+Always set `translatesAutoresizingMaskIntoConstraints = false` on every programmatic view.
+</Trap>
+
+<Trap title="Confusing hugging with compression resistance">
+Content hugging resists stretching larger than the content size.
+
+Compression resistance resists shrinking smaller than the content size.
+
+To prevent label text from clipping with dots, raise its compression resistance priority.
+</Trap>
+
+<Trap title="Ignoring the safe area layout guide">
+Pinning directly to `view.topAnchor` causes content to overlap the status bar or notch.
+
+Always constrain content to `view.safeAreaLayoutGuide.topAnchor`.
+
+Use the root view edges only for full-bleed background colors.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"Auto Layout lets views adapt to different device sizes and orientations. We connect views with anchors like `topAnchor` and `leadingAnchor`. In code, we must set `translatesAutoresizingMaskIntoConstraints = false` and add the view before activating constraints."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"We create constraints using `NSLayoutAnchor` and batch activate them with `NSLayoutConstraint.activate`. We use leading and trailing anchors for right-to-left localization, and pin to `safeAreaLayoutGuide` to avoid notches. For views with intrinsic size like labels, lower content hugging stretches, while higher compression resistance prevents text truncation."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"Auto Layout uses the Cassowary linear programming solver. We minimize layout thrashing by avoiding constraint churn in scrollable cells and setting priorities below 1000 to resolve ambiguous states. For scalable architectures, we combine `UIStackView` with layout guides and debug conflicts using symbolic breakpoints like `UIViewAlertForUnsatisfiableConstraints`."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Auto Layout creates dynamic relationships between views using linear constraints.
+- Always set `translatesAutoresizingMaskIntoConstraints = false` on programmatic views.
+- Views must be added to a superview before activating constraints.
+- Use `leadingAnchor` and `trailingAnchor` to support right-to-left languages.
+- Pin interactive views to `safeAreaLayoutGuide` to respect notches and home bars.
+- Lower content hugging stretches; higher compression resistance prevents clipping.
+</Recap>
+
+## Go deeper
+
+- [NSLayoutConstraint (UIKit)](https://developer.apple.com/documentation/uikit/nslayoutconstraint) — Official Apple guide for constraint formulas and priorities.
+- [View layout (UIKit)](https://developer.apple.com/documentation/uikit/view-layout) — Apple documentation on layout guides and anchors.

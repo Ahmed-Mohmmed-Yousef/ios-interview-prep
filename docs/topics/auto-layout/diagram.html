@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Auto Layout: Constraints, Safe Area & Priorities</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --anchor-color: #0284c7; --anchor-soft: #e0f2fe;
+  --safe-color: #16a34a; --safe-soft: #dcfce7;
+  --hug-color: #ea580c; --hug-soft: #ffedd5;
+  --adapt-color: #7c3aed; --adapt-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --anchor-color: #38bdf8; --anchor-soft: #082f49;
+  --safe-color: #4ade80; --safe-soft: #052e16;
+  --hug-color: #fb923c; --hug-soft: #431407;
+  --adapt-color: #a78bfa; --adapt-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.anchor { background: var(--anchor-soft); color: var(--anchor-color); }
+.kind.safe { background: var(--safe-soft); color: var(--safe-color); }
+.kind.hug { background: var(--hug-soft); color: var(--hug-color); }
+.kind.adapt { background: var(--adapt-soft); color: var(--adapt-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--anchor-color); color: #ffffff; border-color: var(--anchor-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--anchor-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Auto Layout Mechanics Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span>Layout Visualizer</span> <span class="kind anchor" id="stageBadge">Step 1</span></h3>
+      <div class="code" id="layoutCode">// Unconstrained fixed frame
+let box = UIView(frame: CGRect(x: 20, y: 30, w: 100, h: 40))</div>
+      <svg viewBox="0 0 280 220" aria-hidden="true">
+        <!-- Device Outer Frame -->
+        <rect class="device-frame" x="40" y="10" width="200" height="200"/>
+        <!-- Screen Content Area -->
+        <rect class="base-screen" x="50" y="20" width="180" height="180" rx="10"/>
+
+        <!-- Dynamic Visual Layers -->
+        <g id="layoutSvgG"></g>
+      </svg>
+      <p class="caption" id="layoutCaption" aria-live="polite">Step 1: Hardcoded frames fail to adapt to different device screen sizes.</p>
+    </div>
+
+    <div class="panel">
+      <h3><span>Auto Layout Rules</span> <span class="kind anchor" id="ruleBadge">Rules</span></h3>
+      <div class="code" id="ruleCode">box.translatesAutoresizingMaskIntoConstraints = false
+superview.addSubview(box)</div>
+      <div style="font-size: 13px; display: grid; gap: 8px; padding-top: 6px;">
+        <div><strong>Translates Mask:</strong> <span id="maskText">false (Required)</span></div>
+        <div><strong>Common Ancestor:</strong> <span id="ancestorText">Verified (addSubview called first)</span></div>
+        <div><strong>Language Adaptability:</strong> <span id="langText">Leading / Trailing (RTL Safe)</span></div>
+      </div>
+      <p class="caption" id="ruleCaption" aria-live="polite">Constraints declare mathematical relationships solved dynamically by UIKit.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    badge: '1. Hardcoded Frames',
+    badgeClass: 'kind anchor',
+    layoutCode: '// Hardcoded frame: rigid & fragile\nlet header = UIView(frame: CGRect(x: 10, y: 10, w: 200, h: 40))',
+    ruleCode: '// Problem:\n// Rigid frames clip on small screens\n// and float awkwardly on larger iPads',
+    layoutCap: 'Step 1: Fixed frames do not adjust for different screen sizes or orientations.',
+    ruleCap: 'Auto Layout replaces rigid frames with dynamic mathematical constraints.',
+    maskText: 'true (legacy autoresizing active)',
+    ancestorText: 'Not checked yet',
+    langText: 'None (hardcoded x / y coordinates)',
+    overlaySvg: `
+      <!-- Fixed Box -->
+      <rect x="60" y="30" width="160" height="40" rx="6" fill="var(--surface)" stroke="#dc2626" stroke-width="2"/>
+      <text x="140" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#dc2626">Hardcoded Frame</text>
+      <text x="140" y="120" text-anchor="middle" font-size="10" fill="var(--muted)">Rotations and iPads break layout</text>
+    `
+  },
+  {
+    step: 2,
+    badge: '2. Safe Area Guides',
+    badgeClass: 'kind safe',
+    layoutCode: 'NSLayoutConstraint.activate([\n  box.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),\n  box.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16)\n])',
+    ruleCode: '// Safe Area Guide:\n// Protects content against notch,\n// Dynamic Island, and home bar',
+    layoutCap: 'Step 2: Pinning to safeAreaLayoutGuide prevents notch and home bar collisions.',
+    ruleCap: 'Use leadingAnchor and trailingAnchor to adapt to right-to-left languages.',
+    maskText: 'false (set before activating)',
+    ancestorText: 'Yes (subview added first)',
+    langText: 'Leading / Trailing (RTL ready)',
+    overlaySvg: `
+      <!-- Safe Area Guide Dashed Border -->
+      <rect x="54" y="35" width="172" height="150" rx="6" fill="var(--safe-soft)" stroke="var(--safe-color)" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="140" y="48" text-anchor="middle" font-size="9" font-weight="700" fill="var(--safe-color)">safeAreaLayoutGuide</text>
+      <!-- Hardware Notch -->
+      <path d="M120 20 h40 a4 4 0 0 1 4 4 v4 a4 4 0 0 1 -4 4 h-40 a4 4 0 0 1 -4 -4 v-4 a4 4 0 0 1 4 -4" fill="var(--line)"/>
+      <!-- Pinned View -->
+      <rect x="65" y="60" width="150" height="36" rx="6" fill="var(--surface)" stroke="var(--anchor-color)" stroke-width="2"/>
+      <text x="140" y="82" text-anchor="middle" font-size="10" font-weight="600" fill="var(--anchor-color)">Pinned to Safe Top</text>
+    `
+  },
+  {
+    step: 3,
+    badge: '3. Content Hugging',
+    badgeClass: 'kind hug',
+    layoutCode: 'nameLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)\npriceLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)',
+    ruleCode: '// Hugging Priority Rule:\n// LOWER hugging = stretches to fill space\n// HIGHER hugging = stays tightly wrapped',
+    layoutCap: 'Step 3: Name label has lower hugging priority, so it stretches across extra width.',
+    ruleCap: 'Price label has higher hugging priority, remaining snug around its content.',
+    maskText: 'false',
+    ancestorText: 'Both labels inside row',
+    langText: 'Horizontal priority resolved',
+    overlaySvg: `
+      <rect x="54" y="35" width="172" height="150" rx="6" fill="var(--code-bg)" stroke="var(--line)"/>
+      <!-- Row Container -->
+      <rect x="60" y="80" width="160" height="42" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <!-- Name Label (Stretched) -->
+      <rect x="65" y="85" width="95" height="32" rx="4" fill="var(--hug-soft)" stroke="var(--hug-color)" stroke-width="1.5"/>
+      <text x="112" y="105" text-anchor="middle" font-size="10" font-weight="600" fill="var(--hug-color)">Name (Stretches)</text>
+      <!-- Price Label (Snug) -->
+      <rect x="165" y="85" width="50" height="32" rx="4" fill="var(--safe-soft)" stroke="var(--safe-color)" stroke-width="1.5"/>
+      <text x="190" y="105" text-anchor="middle" font-size="10" font-weight="700" fill="var(--safe-color)">$99.00</text>
+      <text x="140" y="150" text-anchor="middle" font-size="9" fill="var(--muted)">CHP: Name=250 vs Price=750</text>
+    `
+  },
+  {
+    step: 4,
+    badge: '4. Dynamic Adaptation',
+    badgeClass: 'kind adapt',
+    layoutCode: '// Device rotates or window expands:\n// Constraints solve continuously\n// without breaking frames or clipping',
+    ruleCode: '// Cassowary Solver:\n// item1.attr = multiplier * item2.attr + c\n// Runs in layoutSubviews pass',
+    layoutCap: 'Step 4: Layout recalculates adaptively across iPad split views and Dynamic Type.',
+    ruleCap: 'Constraints preserve relationships without hardcoding pixel values.',
+    maskText: 'false',
+    ancestorText: 'Hierarchy intact',
+    langText: 'Seamless across sizes & RTL',
+    overlaySvg: `
+      <rect x="54" y="30" width="172" height="160" rx="6" fill="var(--adapt-soft)" stroke="var(--adapt-color)" stroke-width="2"/>
+      <text x="140" y="52" text-anchor="middle" font-size="10" font-weight="700" fill="var(--adapt-color)">Adaptive Layout Solved</text>
+      <!-- Expanded Row -->
+      <rect x="62" y="70" width="156" height="36" rx="6" fill="var(--surface)" stroke="var(--adapt-color)" stroke-width="1.5"/>
+      <text x="105" y="92" text-anchor="middle" font-size="10" font-weight="600" fill="currentColor">Adaptive Title Text</text>
+      <text x="195" y="92" text-anchor="middle" font-size="10" font-weight="700" fill="var(--safe-color)">$99</text>
+      <rect x="62" y="115" width="156" height="30" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="134" text-anchor="middle" font-size="9" fill="var(--muted)">Auto Layout Pass Complete</text>
+      <text x="140" y="172" text-anchor="middle" font-size="9" font-weight="600" fill="var(--adapt-color)">Cassowary Solver: OK</text>
+    `
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('layoutCode').textContent = s.layoutCode;
+  document.getElementById('ruleCode').textContent = s.ruleCode;
+  document.getElementById('layoutCaption').textContent = s.layoutCap;
+  document.getElementById('ruleCaption').textContent = s.ruleCap;
+  document.getElementById('stageBadge').textContent = s.badge;
+  document.getElementById('stageBadge').setAttribute('class', s.badgeClass);
+
+  document.getElementById('maskText').textContent = s.maskText;
+  document.getElementById('ancestorText').textContent = s.ancestorText;
+  document.getElementById('langText').textContent = s.langText;
+
+  document.getElementById('layoutSvgG').innerHTML = s.overlaySvg;
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>

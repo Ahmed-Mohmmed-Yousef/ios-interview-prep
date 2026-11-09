@@ -136,8 +136,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **sheets-alerts-dialogs** (Sheets, Alerts and Dialogs) — published (lesson, diagram, 31 questions) → [docs/topics/sheets-alerts-dialogs/review.html](docs/topics/sheets-alerts-dialogs/review.html)
     - ✅ **uiviews-and-view-controllers** (Views and View Controllers) — published (lesson, diagram, 31 questions) → [docs/topics/uiviews-and-view-controllers/review.html](docs/topics/uiviews-and-view-controllers/review.html)
     - ✅ **view-controller-lifecycle** (View Controller Lifecycle) — published (lesson, diagram, 31 questions) → [docs/topics/view-controller-lifecycle/review.html](docs/topics/view-controller-lifecycle/review.html)
-    - 🔄 **auto-layout** (Auto Layout) — starting research
-    - ⬜ **uikit-navigation** (Navigation in UIKit)
+    - ✅ **auto-layout** (Auto Layout) — published (lesson, diagram, 31 questions) → [docs/topics/auto-layout/review.html](docs/topics/auto-layout/review.html)
+    - 🔄 **uikit-navigation** (Navigation in UIKit) — starting research
     - ⬜ **table-collection-views** (Table and Collection Views)
   - ⬜ **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)**
     - ⬜ **dark-mode-dynamic-type** (Dark Mode and Dynamic Type)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic auto-layout (Auto Layout): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/auto-layout/review.html`). All checks passed. Starting uikit-navigation.
 
 - **2026-11-09** — Built and published topic view-controller-lifecycle (View Controller Lifecycle): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/view-controller-lifecycle/review.html`). All checks passed. Starting auto-layout.
 

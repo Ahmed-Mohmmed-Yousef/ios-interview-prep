@@ -1,0 +1,588 @@
+<title>Auto Layout Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --anchor-color: #0284c7; --anchor-soft: #e0f2fe;
+  --safe-color: #16a34a; --safe-soft: #dcfce7;
+  --hug-color: #ea580c; --hug-soft: #ffedd5;
+  --adapt-color: #7c3aed; --adapt-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --anchor-color: #38bdf8; --anchor-soft: #082f49;
+  --safe-color: #4ade80; --safe-soft: #052e16;
+  --hug-color: #fb923c; --hug-soft: #431407;
+  --adapt-color: #a78bfa; --adapt-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.anchor { background: var(--anchor-soft); color: var(--anchor-color); }
+.kind.safe { background: var(--safe-soft); color: var(--safe-color); }
+.kind.hug { background: var(--hug-soft); color: var(--hug-color); }
+.kind.adapt { background: var(--adapt-soft); color: var(--adapt-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--anchor-color); color: #ffffff; border-color: var(--anchor-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--anchor-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · UIKit · Topic 3 of 5 · Prototype</p>
+    <h1>Auto Layout</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can build layouts with constraints.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">When two labels sit side-by-side in a horizontal row, which label stretches to fill extra width?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The label with the higher content compression resistance priority.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The label with the lower content hugging priority.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The label declared first in the view hierarchy.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine hanging posters on a flexible wall.</p><p>Instead of nailing them at fixed positions, you connect them with rubber bands.</p><p>You attach one band from the poster to the ceiling. You attach another band to the left wall.</p><p>When the wall expands or tilts, the rubber bands adjust. The poster stays in the right spot.</p><p>Those rubber bands are <strong>constraints</strong>.</p></aside>
+<p>Auto Layout calculates the size and position of every view using mathematical relationships.</p>
+<p>Instead of hard-coding frames, you declare rules called constraints.</p>
+<p>The system adapts your layout across iPhones, iPads, rotations, and Dynamic Type sizes:</p>
+<ol>
+<li><strong><code>NSLayoutAnchor</code></strong>:
+<ul>
+<li>Provides type-safe layout rules like <code>leadingAnchor</code>, <code>trailingAnchor</code>, and <code>topAnchor</code>.</li>
+<li>Groups constraints together for batch activation with <code>NSLayoutConstraint.activate</code>.</li>
+</ul>
+</li>
+<li><strong><code>safeAreaLayoutGuide</code></strong>:
+<ul>
+<li>Prevents your views from overlapping the notch, Dynamic Island, and home indicator.</li>
+</ul>
+</li>
+<li><strong>Content Hugging &amp; Compression Resistance</strong>:
+<ul>
+<li>Content hugging resists stretching larger than the view&#x27;s natural content size.</li>
+<li>Compression resistance resists shrinking smaller than the content size, preventing text clipping.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which property must you set to <code>false</code> when creating programmatic Auto Layout views?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>isUserInteractionEnabled</code></span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>translatesAutoresizingMaskIntoConstraints</code></span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text"><code>clipsToBounds</code></span></button><p class="qc-explain" hidden="">Setting translatesAutoresizingMaskIntoConstraints to false tells UIKit to use your constraints instead of legacy masks.</p></div>
+<h2>In code</h2>
+<p>Here is how you position a view in code using layout anchors.</p>
+<p>You must set <code>translatesAutoresizingMaskIntoConstraints = false</code> and add the view before activating constraints.</p>
+<figure class="code-example"><figcaption>Configuring programmatic constraints with layout anchors</figcaption><pre class="block swift"><code class="language-swift">import UIKit
+
+let superview = UIView(frame: CGRect(x: 0, y: 0, width: 300, height: 400))
+let box = UIView()
+box.translatesAutoresizingMaskIntoConstraints = false
+superview.addSubview(box)
+
+NSLayoutConstraint.activate([
+    box.topAnchor.constraint(equalTo: superview.topAnchor, constant: 20),
+    box.leadingAnchor.constraint(equalTo: superview.leadingAnchor, constant: 10),
+    box.widthAnchor.constraint(equalToConstant: 100),
+    box.heightAnchor.constraint(equalToConstant: 50)
+])
+
+superview.layoutIfNeeded()
+
+print(&quot;Box frame: \(box.frame.origin.x), \(box.frame.origin.y), \(box.frame.width), \(box.frame.height)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Box frame: 10.0, 20.0, 100.0, 50.0
+</code></pre></figure>
+<p><code>NSLayoutConstraint.activate</code> applies all constraints in a single optimized pass.</p>
+<p>Next, observe how content hugging priorities resolve layout conflicts.</p>
+<figure class="code-example"><figcaption>Configuring content hugging priorities</figcaption><pre class="block swift"><code class="language-swift">import UIKit
+
+let nameLabel = UILabel()
+let priceLabel = UILabel()
+
+nameLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+priceLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+
+let lowPriority = nameLabel.contentHuggingPriority(for: .horizontal).rawValue
+let highPriority = priceLabel.contentHuggingPriority(for: .horizontal).rawValue
+
+print(&quot;Priorities: low=\(lowPriority), high=\(highPriority)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Priorities: low=250.0, high=750.0
+</code></pre></figure>
+<p>Because <code>nameLabel</code> has the lower hugging priority, it stretches when extra horizontal space exists.</p>
+<p><code>priceLabel</code> stays tightly wrapped around its text.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why should you prefer <code>leadingAnchor</code> and <code>trailingAnchor</code> over <code>leftAnchor</code> and <code>rightAnchor</code>?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Leading and trailing anchors calculate faster in the solver.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Leading and trailing anchors flip automatically for right-to-left languages.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Left and right anchors are deprecated in iOS 17.</span></button><p class="qc-explain" hidden="">Leading and trailing support right-to-left languages like Arabic and Hebrew automatically.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Activating constraints before addSubview</p><p>Never activate constraints on a view before calling <code>addSubview</code>.</p><p>UIKit requires both views to share a common ancestor in the view hierarchy.</p><p>Activating constraints before adding the view throws a fatal runtime crash.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Forgetting translatesAutoresizingMaskIntoConstraints</p><p>Views created in code set <code>translatesAutoresizingMaskIntoConstraints = true</code> by default.</p><p>UIKit converts old resizing masks into constraints that collide with your anchors.</p><p>Always set <code>translatesAutoresizingMaskIntoConstraints = false</code> on every programmatic view.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing hugging with compression resistance</p><p>Content hugging resists stretching larger than the content size.</p><p>Compression resistance resists shrinking smaller than the content size.</p><p>To prevent label text from clipping with dots, raise its compression resistance priority.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Ignoring the safe area layout guide</p><p>Pinning directly to <code>view.topAnchor</code> causes content to overlap the status bar or notch.</p><p>Always constrain content to <code>view.safeAreaLayoutGuide.topAnchor</code>.</p><p>Use the root view edges only for full-bleed background colors.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;Auto Layout lets views adapt to different device sizes and orientations. We connect views with anchors like <code>topAnchor</code> and <code>leadingAnchor</code>. In code, we must set <code>translatesAutoresizingMaskIntoConstraints = false</code> and add the view before activating constraints.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;We create constraints using <code>NSLayoutAnchor</code> and batch activate them with <code>NSLayoutConstraint.activate</code>. We use leading and trailing anchors for right-to-left localization, and pin to <code>safeAreaLayoutGuide</code> to avoid notches. For views with intrinsic size like labels, lower content hugging stretches, while higher compression resistance prevents text truncation.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;Auto Layout uses the Cassowary linear programming solver. We minimize layout thrashing by avoiding constraint churn in scrollable cells and setting priorities below 1000 to resolve ambiguous states. For scalable architectures, we combine <code>UIStackView</code> with layout guides and debug conflicts using symbolic breakpoints like <code>UIViewAlertForUnsatisfiableConstraints</code>.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Auto Layout creates dynamic relationships between views using linear constraints.</li>
+<li>Always set <code>translatesAutoresizingMaskIntoConstraints = false</code> on programmatic views.</li>
+<li>Views must be added to a superview before activating constraints.</li>
+<li>Use <code>leadingAnchor</code> and <code>trailingAnchor</code> to support right-to-left languages.</li>
+<li>Pin interactive views to <code>safeAreaLayoutGuide</code> to respect notches and home bars.</li>
+<li>Lower content hugging stretches; higher compression resistance prevents clipping.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/uikit/nslayoutconstraint">NSLayoutConstraint (UIKit)</a> — Official Apple guide for constraint formulas and priorities.</li>
+<li><a href="https://developer.apple.com/documentation/uikit/view-layout">View layout (UIKit)</a> — Apple documentation on layout guides and anchors.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+let currentStep = 1;
+
+const steps = [
+  {
+    step: 1,
+    badge: '1. Hardcoded Frames',
+    badgeClass: 'kind anchor',
+    layoutCode: '// Hardcoded frame: rigid & fragile\nlet header = UIView(frame: CGRect(x: 10, y: 10, w: 200, h: 40))',
+    ruleCode: '// Problem:\n// Rigid frames clip on small screens\n// and float awkwardly on larger iPads',
+    layoutCap: 'Step 1: Fixed frames do not adjust for different screen sizes or orientations.',
+    ruleCap: 'Auto Layout replaces rigid frames with dynamic mathematical constraints.',
+    maskText: 'true (legacy autoresizing active)',
+    ancestorText: 'Not checked yet',
+    langText: 'None (hardcoded x / y coordinates)',
+    overlaySvg: `
+      <!-- Fixed Box -->
+      <rect x="60" y="30" width="160" height="40" rx="6" fill="var(--surface)" stroke="#dc2626" stroke-width="2"/>
+      <text x="140" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#dc2626">Hardcoded Frame</text>
+      <text x="140" y="120" text-anchor="middle" font-size="10" fill="var(--muted)">Rotations and iPads break layout</text>
+    `
+  },
+  {
+    step: 2,
+    badge: '2. Safe Area Guides',
+    badgeClass: 'kind safe',
+    layoutCode: 'NSLayoutConstraint.activate([\n  box.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),\n  box.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16)\n])',
+    ruleCode: '// Safe Area Guide:\n// Protects content against notch,\n// Dynamic Island, and home bar',
+    layoutCap: 'Step 2: Pinning to safeAreaLayoutGuide prevents notch and home bar collisions.',
+    ruleCap: 'Use leadingAnchor and trailingAnchor to adapt to right-to-left languages.',
+    maskText: 'false (set before activating)',
+    ancestorText: 'Yes (subview added first)',
+    langText: 'Leading / Trailing (RTL ready)',
+    overlaySvg: `
+      <!-- Safe Area Guide Dashed Border -->
+      <rect x="54" y="35" width="172" height="150" rx="6" fill="var(--safe-soft)" stroke="var(--safe-color)" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="140" y="48" text-anchor="middle" font-size="9" font-weight="700" fill="var(--safe-color)">safeAreaLayoutGuide</text>
+      <!-- Hardware Notch -->
+      <path d="M120 20 h40 a4 4 0 0 1 4 4 v4 a4 4 0 0 1 -4 4 h-40 a4 4 0 0 1 -4 -4 v-4 a4 4 0 0 1 4 -4" fill="var(--line)"/>
+      <!-- Pinned View -->
+      <rect x="65" y="60" width="150" height="36" rx="6" fill="var(--surface)" stroke="var(--anchor-color)" stroke-width="2"/>
+      <text x="140" y="82" text-anchor="middle" font-size="10" font-weight="600" fill="var(--anchor-color)">Pinned to Safe Top</text>
+    `
+  },
+  {
+    step: 3,
+    badge: '3. Content Hugging',
+    badgeClass: 'kind hug',
+    layoutCode: 'nameLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)\npriceLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)',
+    ruleCode: '// Hugging Priority Rule:\n// LOWER hugging = stretches to fill space\n// HIGHER hugging = stays tightly wrapped',
+    layoutCap: 'Step 3: Name label has lower hugging priority, so it stretches across extra width.',
+    ruleCap: 'Price label has higher hugging priority, remaining snug around its content.',
+    maskText: 'false',
+    ancestorText: 'Both labels inside row',
+    langText: 'Horizontal priority resolved',
+    overlaySvg: `
+      <rect x="54" y="35" width="172" height="150" rx="6" fill="var(--code-bg)" stroke="var(--line)"/>
+      <!-- Row Container -->
+      <rect x="60" y="80" width="160" height="42" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <!-- Name Label (Stretched) -->
+      <rect x="65" y="85" width="95" height="32" rx="4" fill="var(--hug-soft)" stroke="var(--hug-color)" stroke-width="1.5"/>
+      <text x="112" y="105" text-anchor="middle" font-size="10" font-weight="600" fill="var(--hug-color)">Name (Stretches)</text>
+      <!-- Price Label (Snug) -->
+      <rect x="165" y="85" width="50" height="32" rx="4" fill="var(--safe-soft)" stroke="var(--safe-color)" stroke-width="1.5"/>
+      <text x="190" y="105" text-anchor="middle" font-size="10" font-weight="700" fill="var(--safe-color)">$99.00</text>
+      <text x="140" y="150" text-anchor="middle" font-size="9" fill="var(--muted)">CHP: Name=250 vs Price=750</text>
+    `
+  },
+  {
+    step: 4,
+    badge: '4. Dynamic Adaptation',
+    badgeClass: 'kind adapt',
+    layoutCode: '// Device rotates or window expands:\n// Constraints solve continuously\n// without breaking frames or clipping',
+    ruleCode: '// Cassowary Solver:\n// item1.attr = multiplier * item2.attr + c\n// Runs in layoutSubviews pass',
+    layoutCap: 'Step 4: Layout recalculates adaptively across iPad split views and Dynamic Type.',
+    ruleCap: 'Constraints preserve relationships without hardcoding pixel values.',
+    maskText: 'false',
+    ancestorText: 'Hierarchy intact',
+    langText: 'Seamless across sizes & RTL',
+    overlaySvg: `
+      <rect x="54" y="30" width="172" height="160" rx="6" fill="var(--adapt-soft)" stroke="var(--adapt-color)" stroke-width="2"/>
+      <text x="140" y="52" text-anchor="middle" font-size="10" font-weight="700" fill="var(--adapt-color)">Adaptive Layout Solved</text>
+      <!-- Expanded Row -->
+      <rect x="62" y="70" width="156" height="36" rx="6" fill="var(--surface)" stroke="var(--adapt-color)" stroke-width="1.5"/>
+      <text x="105" y="92" text-anchor="middle" font-size="10" font-weight="600" fill="currentColor">Adaptive Title Text</text>
+      <text x="195" y="92" text-anchor="middle" font-size="10" font-weight="700" fill="var(--safe-color)">$99</text>
+      <rect x="62" y="115" width="156" height="30" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="140" y="134" text-anchor="middle" font-size="9" fill="var(--muted)">Auto Layout Pass Complete</text>
+      <text x="140" y="172" text-anchor="middle" font-size="9" font-weight="600" fill="var(--adapt-color)">Cassowary Solver: OK</text>
+    `
+  }
+];
+
+function render() {
+  const s = steps[currentStep - 1];
+  document.getElementById('layoutCode').textContent = s.layoutCode;
+  document.getElementById('ruleCode').textContent = s.ruleCode;
+  document.getElementById('layoutCaption').textContent = s.layoutCap;
+  document.getElementById('ruleCaption').textContent = s.ruleCap;
+  document.getElementById('stageBadge').textContent = s.badge;
+  document.getElementById('stageBadge').setAttribute('class', s.badgeClass);
+
+  document.getElementById('maskText').textContent = s.maskText;
+  document.getElementById('ancestorText').textContent = s.ancestorText;
+  document.getElementById('langText').textContent = s.langText;
+
+  document.getElementById('layoutSvgG').innerHTML = s.overlaySvg;
+
+  document.querySelectorAll('.step-dot').forEach((d, idx) => {
+    const active = idx + 1 === currentStep;
+    d.classList.toggle('active', active);
+    d.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  document.getElementById('prevBtn').disabled = currentStep === 1;
+  document.getElementById('nextBtn').disabled = currentStep === steps.length;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentStep > 1) { currentStep--; render(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentStep < steps.length) { currentStep++; render(); }
+});
+document.querySelectorAll('.step-dot').forEach(d => {
+  d.addEventListener('click', () => {
+    currentStep = parseInt(d.dataset.step, 10);
+    render();
+  });
+});
+
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"auto-layout","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"auto-layout-q1","type":"mcq","difficulty":1,"prompt":"Which property must you set to `false` when creating programmatic Auto Layout views?","options":[{"id":"a","text":"The `translatesAutoresizingMaskIntoConstraints` view property.","explanation":"Right. Setting this flag to false enables custom Auto Layout constraints."},{"id":"b","text":"The `isUserInteractionEnabled` gesture response property.","explanation":"UserInteractionEnabled controls touch handling, not layout."},{"id":"c","text":"The `clipsToBounds` visual boundary mask property.","explanation":"ClipsToBounds controls whether subviews render past boundaries."},{"id":"d","text":"The `autoresizesSubviews` legacy resizing container property.","explanation":"AutoresizesSubviews is for legacy autoresizing mask rules."}],"answer":"a"},{"id":"auto-layout-q2","type":"mcq","difficulty":1,"prompt":"Why should you prefer `leadingAnchor` and `trailingAnchor` over `leftAnchor` and `rightAnchor`?","options":[{"id":"a","text":"Leading and trailing anchors use hardware GPU acceleration.","explanation":"Anchors are evaluated on the CPU by the linear solver."},{"id":"b","text":"They adapt automatically for right-to-left languages like Arabic.","explanation":"Right. Leading and trailing flip for right-to-left language locales."},{"id":"c","text":"Left and right anchors were deprecated and removed in iOS 15.","explanation":"Left and right anchors still exist for explicit non-flipping layouts."},{"id":"d","text":"They enforce strict zero-margin boundaries across all devices.","explanation":"Anchors support any constant offset specified in code."}],"answer":"b"},{"id":"auto-layout-q3","type":"mcq","difficulty":1,"prompt":"What does the `safeAreaLayoutGuide` protect your user interface against?","options":[{"id":"a","text":"Unauthorized screen recordings and background data scraping.","explanation":"Screen recording protections are managed by secure text fields."},{"id":"b","text":"Excessive GPU memory consumption and high battery drainage.","explanation":"Battery drainage is governed by render passes and timers."},{"id":"c","text":"Obstruction by the screen notch, Dynamic Island, and home bar.","explanation":"Right. Safe area guides keep content clear of system hardware trims."},{"id":"d","text":"Accidental deletion of core data records by the operating system.","explanation":"Data persistence is handled by Core Data or SQLite stores."}],"answer":"c"},{"id":"auto-layout-q4","type":"mcq","difficulty":2,"prompt":"When two horizontal labels compete for extra width, which one stretches to fill space?","options":[{"id":"a","text":"The label configured with the higher compression resistance priority.","explanation":"Compression resistance prevents shrinking, not stretching."},{"id":"b","text":"The label that was initialized first inside the view controller.","explanation":"Creation order does not dictate layout priority in Auto Layout."},{"id":"c","text":"The label with the longer string count in its text property.","explanation":"Character length sets intrinsic size, not stretching priority."},{"id":"d","text":"The label configured with the lower content hugging priority.","explanation":"Right. A lower hugging priority means less resistance to stretching."}],"answer":"d"},{"id":"auto-layout-q5","type":"mcq","difficulty":2,"prompt":"What runtime crash happens if you activate constraints before calling `addSubview`?","options":[{"id":"a","text":"A crash stating the views do not share a common ancestor.","explanation":"Right. Both views must be in the view hierarchy before linking."},{"id":"b","text":"A fatal stack overflow crash inside the Core Graphics engine.","explanation":"Core Graphics does not manage layout constraint trees."},{"id":"c","text":"A compiler assertion failure rejecting unowned class references.","explanation":"This is a runtime exception thrown by UIKit, not a compiler error."},{"id":"d","text":"A deadlock freeze on the background grand central dispatch queue.","explanation":"Layout operations run synchronously on the main thread."}],"answer":"a"},{"id":"auto-layout-q6","type":"mcq","difficulty":1,"prompt":"What is the numeric value of `UILayoutPriority.required` in UIKit?","options":[{"id":"a","text":"750","explanation":"750 is defaultHigh priority."},{"id":"b","text":"1000","explanation":"Right. Required constraints have a priority of exactly 1000."},{"id":"c","text":"250","explanation":"250 is defaultLow priority."},{"id":"d","text":"500","explanation":"500 is a standard custom medium priority."}],"answer":"b"},{"id":"auto-layout-q7","type":"mcq","difficulty":2,"prompt":"What does Content Compression Resistance Priority control for a view in Auto Layout?","options":[{"id":"a","text":"How fast the view compresses image textures when saving to disk.","explanation":"Image disk compression is handled by UIImage data conversion."},{"id":"b","text":"How much the view resists expanding larger than its intrinsic size.","explanation":"Resisting expansion is controlled by Content Hugging Priority."},{"id":"c","text":"How much the view resists being squeezed smaller than its intrinsic size.","explanation":"Right. Compression resistance prevents text or content from being clipped."},{"id":"d","text":"How many subviews can be compressed into a single stack container.","explanation":"UIStackView does not use compression resistance to limit view counts."}],"answer":"c"},{"id":"auto-layout-q8","type":"mcq","difficulty":1,"prompt":"What is the recommended way to activate multiple constraints simultaneously?","options":[{"id":"a","text":"Set `isActive = true` in a sequence of sequential background tasks.","explanation":"Activating constraints individually triggers redundant layout passes."},{"id":"b","text":"Call `setNeedsUpdateConstraints()` inside an explicit animation block.","explanation":"This marks constraints for update but does not activate them."},{"id":"c","text":"Add constraints directly to the application window layout guide.","explanation":"Constraints should connect immediate views in the hierarchy."},{"id":"d","text":"Pass an array of constraints into `NSLayoutConstraint.activate([...])`.","explanation":"Right. Batch activation calculates constraint updates in a single pass."}],"answer":"d"},{"id":"auto-layout-q9","type":"mcq","difficulty":1,"prompt":"What property provides controls like `UILabel` their natural size without explicit dimensions?","options":[{"id":"a","text":"The `intrinsicContentSize` property computed from the content.","explanation":"Right. Intrinsic size calculates dimensions from text or images."},{"id":"b","text":"The `autoresizingMask` property inherited from UIView.","explanation":"Autoresizing masks provide legacy springs and struts, not content size."},{"id":"c","text":"The `frame` rectangle supplied by the default superview.","explanation":"Frames are derived results of Auto Layout calculation passes."},{"id":"d","text":"The `systemLayoutSizeFitting` size measurement cache.","explanation":"This method queries layout size, but intrinsic size defines it."}],"answer":"a"},{"id":"auto-layout-q10","type":"mcq","difficulty":1,"prompt":"What is the standard default numeric value of Content Hugging Priority in UIKit?","options":[{"id":"a","text":"1000","explanation":"1000 is the priority for required constraints."},{"id":"b","text":"250","explanation":"Right. The default content hugging priority is .defaultLow (250)."},{"id":"c","text":"750","explanation":"750 is default compression resistance priority."},{"id":"d","text":"0","explanation":"Priorities must be positive values between 1 and 1000."}],"answer":"b"},{"id":"auto-layout-q11","type":"mcq","difficulty":1,"prompt":"What is the standard default numeric value of Content Compression Resistance Priority?","options":[{"id":"a","text":"250","explanation":"250 is the default content hugging priority."},{"id":"b","text":"500","explanation":"500 is a custom intermediate priority value."},{"id":"c","text":"750","explanation":"Right. The default compression resistance is .defaultHigh (750)."},{"id":"d","text":"1000","explanation":"1000 is strictly reserved for required constraints."}],"answer":"c"},{"id":"auto-layout-q12","type":"mcq","difficulty":2,"prompt":"What happens when two contradictory constraints both have priority 1000 (`.required`)?","options":[{"id":"a","text":"The layout solver averages the two values and divides by two.","explanation":"Auto Layout does not average conflicting constraint requirements."},{"id":"b","text":"UIKit quietly ignores both constraints and centers the view.","explanation":"Conflicts produce visible console error logs and broken layouts."},{"id":"c","text":"The application immediately terminates with an uncaught exception.","explanation":"UIKit logs the error and breaks one constraint instead of crashing."},{"id":"d","text":"The solver logs an unsatisfiable constraint error and breaks one constraint.","explanation":"Right. UIKit breaks one required constraint to resolve the conflict."}],"answer":"d"},{"id":"auto-layout-q13","type":"mcq","difficulty":2,"prompt":"What mathematical algorithm powers the Auto Layout constraint solver in iOS?","options":[{"id":"a","text":"The Cassowary linear programming inequality solver.","explanation":"Right. Apple uses the Cassowary constraint solver algorithm."},{"id":"b","text":"The Dijkstra shortest path graph traversal algorithm.","explanation":"Dijkstra is used for shortest paths in graphs, not layout equations."},{"id":"c","text":"The QuickSort recursive partition sorting algorithm.","explanation":"QuickSort sorts collections and does not solve linear constraints."},{"id":"d","text":"The Fast Fourier Transform signal processing routine.","explanation":"Fourier transform processes audio signals, not screen layouts."}],"answer":"a"},{"id":"auto-layout-q14","type":"mcq","difficulty":1,"prompt":"Which UIKit container view manages rows or columns of views without manual constraints?","options":[{"id":"a","text":"The `UICollectionViewFlowLayout` layout coordinator.","explanation":"FlowLayout organizes grid cells, not simple linear view stacks."},{"id":"b","text":"The `UIStackView` layout container component.","explanation":"Right. UIStackView automatically generates constraints for child views."},{"id":"c","text":"The `UIScrollView` content scrolling viewport.","explanation":"UIScrollView allows panning across large contents."},{"id":"d","text":"The `UIToolbar` navigation accessory bar.","explanation":"UIToolbar holds bar button items, not arbitrary view hierarchies."}],"answer":"b"},{"id":"auto-layout-q15","type":"mcq","difficulty":2,"prompt":"How do you constrain a view to be exactly twice the width of another view?","options":[{"id":"a","text":"Attach `widthAnchor.constraint(equalToConstant: 2.0)` to the child.","explanation":"This sets width to a constant 2 points, not twice the other view."},{"id":"b","text":"Multiply both view bounds by 2 inside `viewWillAppear`.","explanation":"Bounds should be calculated dynamically by Auto Layout."},{"id":"c","text":"Use `widthAnchor.constraint(equalTo: other.widthAnchor, multiplier: 2.0)`.","explanation":"Right. The multiplier parameter creates proportional size relationships."},{"id":"d","text":"Set `.contentHuggingPriority(200)` on the parent superview.","explanation":"Content hugging does not set explicit proportional width ratios."}],"answer":"c"},{"id":"auto-layout-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print after setting the autoresizing mask flag?","code":"import UIKit\n\nlet box1 = UIView()\nbox1.translatesAutoresizingMaskIntoConstraints = false\nprint(\"Translates: \\(box1.translatesAutoresizingMaskIntoConstraints)\")","options":[{"id":"a","text":"Translates: true","explanation":"The property was explicitly assigned false."},{"id":"b","text":"Translates: nil","explanation":"TranslatesAutoresizingMaskIntoConstraints is a non-optional Bool."},{"id":"c","text":"Translates: 0","explanation":"Swift prints boolean values as true or false."},{"id":"d","text":"Translates: false","explanation":"Right. The property reflects the assigned false value."}],"answer":"d"},{"id":"auto-layout-q17","type":"code-reading","difficulty":1,"prompt":"What is the default horizontal Content Hugging Priority printed by this code?","code":"import UIKit\n\nlet label1 = UILabel()\nlet defaultCHP = label1.contentHuggingPriority(for: .horizontal).rawValue\nprint(\"Default CHP: \\(defaultCHP)\")","options":[{"id":"a","text":"Default CHP: 250.0","explanation":"Right. Default content hugging priority is .defaultLow (250.0)."},{"id":"b","text":"Default CHP: 750.0","explanation":"750.0 is the default compression resistance priority."},{"id":"c","text":"Default CHP: 1000.0","explanation":"1000.0 is the priority for required constraints."},{"id":"d","text":"Default CHP: 0.0","explanation":"Priorities in UIKit start from 1 to 1000."}],"answer":"a"},{"id":"auto-layout-q18","type":"code-reading","difficulty":1,"prompt":"What is the default horizontal Content Compression Resistance Priority printed by this code?","code":"import UIKit\n\nlet label2 = UILabel()\nlet defaultCCRP = label2.contentCompressionResistancePriority(for: .horizontal).rawValue\nprint(\"Default CCRP: \\(defaultCCRP)\")","options":[{"id":"a","text":"Default CCRP: 250.0","explanation":"250.0 is default content hugging, not compression resistance."},{"id":"b","text":"Default CCRP: 750.0","explanation":"Right. Default compression resistance priority is .defaultHigh (750.0)."},{"id":"c","text":"Default CCRP: 1000.0","explanation":"1000.0 is the required priority level."},{"id":"d","text":"Default CCRP: 500.0","explanation":"500.0 is a custom priority level."}],"answer":"b"},{"id":"auto-layout-q19","type":"code-reading","difficulty":1,"prompt":"What is the resulting frame width of the subview after layout executes?","code":"import UIKit\n\nlet p = UIView(frame: CGRect(x: 0, y: 0, width: 200, height: 100))\nlet c = UIView()\nc.translatesAutoresizingMaskIntoConstraints = false\np.addSubview(c)\nlet constraint = c.widthAnchor.constraint(equalToConstant: 80)\nconstraint.isActive = true\np.layoutIfNeeded()\nprint(\"Width: \\(c.frame.width)\")","options":[{"id":"a","text":"Width: 200.0","explanation":"200.0 is the parent width, but the child width was constrained to 80."},{"id":"b","text":"Width: 100.0","explanation":"100.0 is the parent height."},{"id":"c","text":"Width: 80.0","explanation":"Right. The width constraint sets the width dimension to 80.0."},{"id":"d","text":"Width: 0.0","explanation":"LayoutIfNeeded solves the active width constraint, giving 80.0."}],"answer":"c"},{"id":"auto-layout-q20","type":"code-reading","difficulty":1,"prompt":"What is the top origin offset printed after solving the constraint?","code":"import UIKit\n\nlet vA = UIView(frame: CGRect(x: 0, y: 0, width: 300, height: 300))\nlet vB = UIView()\nvB.translatesAutoresizingMaskIntoConstraints = false\nvA.addSubview(vB)\nlet cTop = vB.topAnchor.constraint(equalTo: vA.topAnchor, constant: 15)\ncTop.isActive = true\nvA.layoutIfNeeded()\nprint(\"Top origin: \\(vB.frame.origin.y)\")","options":[{"id":"a","text":"Top origin: 0.0","explanation":"The constraint added an offset constant of 15 points."},{"id":"b","text":"Top origin: 300.0","explanation":"300.0 is the height of the parent view."},{"id":"c","text":"Top origin: 30.0","explanation":"The offset constant was 15, not 30."},{"id":"d","text":"Top origin: 15.0","explanation":"Right. The top constraint positions origin y at 15.0."}],"answer":"d"},{"id":"auto-layout-q21","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking the custom layout priority value?","code":"import UIKit\n\nlet prio = UILayoutPriority(500)\nprint(\"Priority: \\(prio.rawValue)\")","options":[{"id":"a","text":"Priority: 500.0","explanation":"Right. The rawValue of UILayoutPriority(500) is 500.0."},{"id":"b","text":"Priority: 750.0","explanation":"The initializer was passed 500, not 750."},{"id":"c","text":"Priority: 1000.0","explanation":"1000.0 is the required priority level."},{"id":"d","text":"Priority: 250.0","explanation":"250.0 is defaultLow priority."}],"answer":"a"},{"id":"auto-layout-q22","type":"code-reading","difficulty":1,"prompt":"Which label has lower hugging priority and will stretch when extra space exists?","code":"import UIKit\n\nlet lA = UILabel()\nlet lB = UILabel()\nlA.setContentHuggingPriority(UILayoutPriority(200), for: .horizontal)\nlB.setContentHuggingPriority(UILayoutPriority(700), for: .horizontal)\nlet stretches = lA.contentHuggingPriority(for: .horizontal) \u003c lB.contentHuggingPriority(for: .horizontal)\nprint(\"A stretches: \\(stretches)\")","options":[{"id":"a","text":"A stretches: false","explanation":"Priority 200 is less than 700, making the condition true."},{"id":"b","text":"A stretches: true","explanation":"Right. Label A has the lower hugging priority (200 \u003c 700), so it stretches."},{"id":"c","text":"A stretches: nil","explanation":"The comparison operator returns a Boolean true or false."},{"id":"d","text":"A stretches: 200","explanation":"Stretches is a Boolean result, not a priority number."}],"answer":"b"},{"id":"auto-layout-q23","type":"code-reading","difficulty":1,"prompt":"What is the count of layout guides attached to the view?","code":"import UIKit\n\nlet guide = UILayoutGuide()\nlet h = UIView()\nh.addLayoutGuide(guide)\nprint(\"Guides count: \\(h.layoutGuides.count)\")","options":[{"id":"a","text":"Guides count: 0","explanation":"AddLayoutGuide registered the guide into the view."},{"id":"b","text":"Guides count: 2","explanation":"Only one custom layout guide was added."},{"id":"c","text":"Guides count: 1","explanation":"Right. Adding the guide results in layoutGuides containing 1 item."},{"id":"d","text":"Guides count: nil","explanation":"LayoutGuides is a non-optional array property."}],"answer":"c"},{"id":"auto-layout-q24","type":"written","difficulty":2,"prompt":"Explain the purpose of `translatesAutoresizingMaskIntoConstraints` and why it must be set to `false` for programmatic Auto Layout.","modelAnswer":"By default, views created in code have `translatesAutoresizingMaskIntoConstraints` set to `true`. This instructs UIKit to convert legacy autoresizing masks into implicit constraints. When you add custom Auto Layout constraints, these generated constraints conflict with your rules, causing layout collisions. Setting this property to `false` disables legacy masks so your custom constraints can govern the layout.","rubric":[{"id":"legacy-mask-conversion","criterion":"Explains default true converts legacy autoresizing masks into implicit constraints.","weight":50,"key":true},{"id":"prevent-conflicts","criterion":"Explains setting false prevents conflicting constraint errors with custom anchors.","weight":50,"key":true}]},{"id":"auto-layout-q25","type":"written","difficulty":2,"prompt":"Compare Content Hugging Priority and Content Compression Resistance Priority. How do they resolve size conflicts?","modelAnswer":"Content Hugging Priority determines how much a view resists stretching larger than its intrinsic content size. When extra space is available, the view with the lower hugging priority stretches to fill the space. Content Compression Resistance Priority determines how much a view resists shrinking smaller than its intrinsic size. When space is constrained, the view with the higher compression resistance avoids text truncation.","rubric":[{"id":"content-hugging-stretching","criterion":"Explains Content Hugging resists stretching; lower priority stretches to fill extra space.","weight":50,"key":true},{"id":"compression-resistance-clipping","criterion":"Explains Compression Resistance resists shrinking; higher priority avoids text truncation.","weight":50,"key":true}]},{"id":"auto-layout-q26","type":"written","difficulty":2,"prompt":"Why should iOS developers use `leadingAnchor` and `trailingAnchor` instead of `leftAnchor` and `rightAnchor`?","modelAnswer":"In UIKit, `leadingAnchor` and `trailingAnchor` automatically adapt to user language direction. In left-to-right languages like English, leading is left and trailing is right. In right-to-left languages like Arabic and Hebrew, UIKit flips them so leading is right and trailing is left. Using `leftAnchor` and `rightAnchor` locks positions to physical sides and breaks right-to-left localization.","rubric":[{"id":"rtl-localization","criterion":"Explains leading and trailing flip automatically for right-to-left languages.","weight":50,"key":true},{"id":"left-right-rigidity","criterion":"Explains left and right remain fixed to physical sides and break internationalization.","weight":50,"key":true}]},{"id":"auto-layout-q27","type":"written","difficulty":2,"prompt":"What is `safeAreaLayoutGuide` and why is it important in modern iOS applications?","modelAnswer":"`safeAreaLayoutGuide` is a layout guide that defines the portion of a view not obscured by system hardware and bars. It accounts for the top screen notch, the Dynamic Island, the status bar, navigation bars, and the bottom home indicator. Pinning interactive controls to the safe area guide keeps buttons and text accessible and unobstructed across all device models.","rubric":[{"id":"safe-area-definition","criterion":"Defines safe area as the visible screen area unobstructed by hardware notches and bars.","weight":50,"key":true},{"id":"practical-importance","criterion":"Explains pinning interactive controls prevents obstruction by the Dynamic Island or home bar.","weight":50,"key":true}]},{"id":"auto-layout-q28","type":"written","difficulty":2,"prompt":"What causes an `Unable to simultaneously satisfy constraints` error in UIKit and how do you resolve it?","modelAnswer":"This error occurs when two or more required constraints with priority 1000 contradict each other, making it mathematically impossible for the solver to satisfy both. For example, constraining a view width to 100 while also pinning both edges to a 200-point parent causes a conflict. To resolve it, lower the priority of one constraint below 1000 (such as 750 or 250), allowing the solver to satisfy the higher priority rule.","rubric":[{"id":"conflict-cause","criterion":"Explains contradictory required constraints with priority 1000 make solver satisfaction impossible.","weight":50,"key":true},{"id":"priority-resolution","criterion":"Explains lowering one constraint priority below 1000 resolves the conflict gracefully.","weight":50,"key":true}]},{"id":"auto-layout-q29","type":"code-write","difficulty":2,"prompt":"Create a class `EdgePinner` with method `@MainActor static func pinEdges(child: UIView, to parent: UIView)`. Disable mask translation, add child to parent, and pin all four edges.","starterCode":"import UIKit\n\n// Implement EdgePinner with pinEdges method\n","modelAnswer":"import UIKit\n\nclass EdgePinner {\n    @MainActor\n    static func pinEdges(child: UIView, to parent: UIView) {\n        child.translatesAutoresizingMaskIntoConstraints = false\n        parent.addSubview(child)\n        NSLayoutConstraint.activate([\n            child.topAnchor.constraint(equalTo: parent.topAnchor),\n            child.leadingAnchor.constraint(equalTo: parent.leadingAnchor),\n            child.trailingAnchor.constraint(equalTo: parent.trailingAnchor),\n            child.bottomAnchor.constraint(equalTo: parent.bottomAnchor)\n        ])\n    }\n}\n\nlet root = UIView(frame: CGRect(x: 0, y: 0, width: 200, height: 100))\nlet childView = UIView()\nEdgePinner.pinEdges(child: childView, to: root)\nroot.layoutIfNeeded()\nprint(\"Child size: \\(childView.frame.width), \\(childView.frame.height)\")","rubric":[{"id":"method-signature-setup","criterion":"Declares @MainActor static func pinEdges setting translatesAutoresizingMaskIntoConstraints to false and adding subview.","weight":50,"key":true},{"id":"four-edge-constraints","criterion":"Activates top, leading, trailing, and bottom constraints equal to parent anchors.","weight":50,"key":true}]},{"id":"auto-layout-q30","type":"code-write","difficulty":2,"prompt":"Create a class `CenterPinner` with method `@MainActor static func centerInParent(child: UIView, parent: UIView, size: CGSize)`. Add child, center it, and set width and height constraints.","starterCode":"import UIKit\n\n// Implement CenterPinner with centerInParent method\n","modelAnswer":"import UIKit\n\nclass CenterPinner {\n    @MainActor\n    static func centerInParent(child: UIView, parent: UIView, size: CGSize) {\n        child.translatesAutoresizingMaskIntoConstraints = false\n        parent.addSubview(child)\n        NSLayoutConstraint.activate([\n            child.centerXAnchor.constraint(equalTo: parent.centerXAnchor),\n            child.centerYAnchor.constraint(equalTo: parent.centerYAnchor),\n            child.widthAnchor.constraint(equalToConstant: size.width),\n            child.heightAnchor.constraint(equalToConstant: size.height)\n        ])\n    }\n}\n\nlet container = UIView(frame: CGRect(x: 0, y: 0, width: 300, height: 300))\nlet centeredView = UIView()\nCenterPinner.centerInParent(child: centeredView, parent: container, size: CGSize(width: 100, height: 80))\ncontainer.layoutIfNeeded()\nprint(\"Center origin: \\(centeredView.frame.origin.x), \\(centeredView.frame.origin.y)\")","rubric":[{"id":"center-anchors","criterion":"Centers child in parent using centerXAnchor and centerYAnchor constraints.","weight":50,"key":true},{"id":"dimension-constraints","criterion":"Constrains width and height to size.width and size.height constants.","weight":50,"key":true}]},{"id":"auto-layout-q31","type":"code-write","difficulty":2,"prompt":"Create a struct `PriorityConfigurator` with a method `@MainActor static func configurePriorities(titleLabel: UILabel, badgeLabel: UILabel)` that sets horizontal content hugging on `titleLabel` to `.defaultLow` and on `badgeLabel` to `.defaultHigh`.","starterCode":"import UIKit\n\n// Implement PriorityConfigurator struct\n","modelAnswer":"import UIKit\n\nstruct PriorityConfigurator {\n    @MainActor\n    static func configurePriorities(titleLabel: UILabel, badgeLabel: UILabel) {\n        titleLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)\n        badgeLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)\n    }\n}\n\nlet tLabel = UILabel()\nlet bLabel = UILabel()\nPriorityConfigurator.configurePriorities(titleLabel: tLabel, badgeLabel: bLabel)\nprint(\"Badge priority: \\(bLabel.contentHuggingPriority(for: .horizontal).rawValue)\")","rubric":[{"id":"title-priority","criterion":"Sets titleLabel horizontal content hugging priority to .defaultLow.","weight":50,"key":true},{"id":"badge-priority","criterion":"Sets badgeLabel horizontal content hugging priority to .defaultHigh.","weight":50,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
