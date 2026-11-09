@@ -115,8 +115,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **access-control** (Access Control) — published (lesson, diagram, 31 questions) → [docs/topics/access-control/review.html](docs/topics/access-control/review.html)
     - ✅ **closures-escaping-capture** (Closures: Escaping and Capture Lists) — published (lesson, diagram, 31 questions) → [docs/topics/closures-escaping-capture/review.html](docs/topics/closures-escaping-capture/review.html)
     - ✅ **codable** (Codable and JSON) — published (lesson, diagram, 31 questions) → [docs/topics/codable/review.html](docs/topics/codable/review.html)
-  - ⬜ **Batch 2B: Coding Interview Algorithms (6 topics)**
-    - ⬜ **sorting-binary-search** (Sorting and Binary Search)
+  - 🔄 **Batch 2B: Coding Interview Algorithms (6 topics)**
+    - 🔄 **sorting-binary-search** (Sorting and Binary Search) — starting research
     - ⬜ **two-pointers-sliding-window** (Two Pointers and Sliding Window)
     - ⬜ **stacks-and-queues** (Stacks and Queues)
     - ⬜ **linked-lists** (Linked Lists)
@@ -285,6 +285,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Completed Batch 2A (Swift Language Advanced: 9 topics published and committed). Launching dedicated autonomous subagent for Batch 2B (Coding Interview Algorithms: 6 topics, `sorting-binary-search` through `matrix-problems`).
 
 - **2026-11-09** — Changed the certificate plan: only logged-in learners get a certificate, so it moved from Phase 5 to Phase 8 (login). Every certificate is now verified, with a check link, and the name comes from the account.
 - **2026-11-09** — Your new idea: a downloadable PDF certificate. Added to Phase 5 as the last step (level done + path score at the pass mark, calm branded design, made in the browser, name never stored). Added verified check links to Phase 8, because they need login.
