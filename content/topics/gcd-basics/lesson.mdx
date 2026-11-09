@@ -1,0 +1,238 @@
+export const meta = {
+  id: "gcd-basics",
+  summary: "Learn Grand Central Dispatch (GCD) fundamentals, serial versus concurrent queues, async versus sync, and what replaced them.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Apple Developer Documentation: Dispatch", url: "https://developer.apple.com/documentation/dispatch", kind: "official" },
+    { title: "Apple Developer Documentation: DispatchQueue", url: "https://developer.apple.com/documentation/dispatch/dispatchqueue", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is the difference between a serial queue and a concurrent queue in Grand Central Dispatch?</Question>
+  <Guess>
+    <Option id="a">Serial queues run on the GPU while concurrent queues run on the CPU.</Option>
+    <Option id="b" correct>Serial queues execute tasks one at a time in order, while concurrent queues run multiple tasks at once.</Option>
+    <Option id="c">Concurrent queues guarantee that tasks finish in the exact order they started.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a single toll booth lane on a bridge.
+
+Cars line up in single file. Each car must pay and pass before the next car moves. This is a **serial queue**.
+
+Now imagine a toll plaza with four open lanes side by side.
+
+Cars enter the plaza in order, but they pay and drive through at the same time. This is a **concurrent queue**.
+</Analogy>
+
+**Grand Central Dispatch (GCD)** is Apple's low-level framework for managing concurrent tasks.
+
+It uses queues (`DispatchQueue`) to organize work closures across worker threads.
+
+1. **Serial queues**:
+   - Executes one task at a time.
+   - Tasks execute strictly in First-In-First-Out (FIFO) order.
+   - A new task waits until the previous task finishes.
+   - Ideal for protecting shared data from data races.
+2. **Concurrent queues**:
+   - Starts tasks in FIFO order, but runs multiple tasks simultaneously.
+   - The completion order depends on how long each task takes.
+3. **Async versus Sync**:
+   - `async` schedules a task and returns immediately without waiting.
+   - `sync` schedules a task and pauses the calling thread until the task finishes.
+4. **Modern replacement**:
+   - In modern Swift, Swift Concurrency (`async/await` and actors) replaces GCD for new code.
+
+## See it
+
+<Diagram id="gcd-basics-diagram" caption="Comparing task flow through a serial queue versus a concurrent queue">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Serial Queue pipeline showing Task 1, Task 2, Task 3 waiting sequentially.
+    2. Concurrent Queue pipeline distributing Task A, Task B, Task C across 3 worker threads.
+  - Steps:
+    Step 1: Serial queue receives Task 1. Task 1 begins running on Thread 1. Task 2 waits.
+    Step 2: Task 1 finishes. Task 2 starts on Thread 1. Tasks never overlap.
+    Step 3: Concurrent queue receives Task A and Task B. Both start at the same time on Threads 2 and 3.
+    Step 4: Task B finishes before Task A. Concurrent tasks complete independently based on duration.
+  - Static version (reduced motion):
+    A side-by-side comparison of serial single-task execution versus concurrent multi-threaded execution.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Does calling async on a queue wait for the submitted work to finish?</Question>
+  <Option id="a">Yes, async pauses the calling thread until the work completes.</Option>
+  <Option id="b" correct>No, async returns immediately while the task runs independently.</Option>
+  <Option id="c">Yes, but only if the queue is a serial queue.</Option>
+  <Explanation>async schedules the work and returns right away so the caller can continue running.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Sequential execution on a custom serial queue">
+
+```swift
+import Foundation
+
+let serialQueue = DispatchQueue(label: "com.example.serial")
+var log: [String] = []
+
+serialQueue.sync {
+    log.append("Task 1 finished")
+}
+
+serialQueue.sync {
+    log.append("Task 2 finished")
+}
+
+for item in log {
+    print(item)
+}
+```
+
+```output
+Task 1 finished
+Task 2 finished
+```
+
+</CodeExample>
+
+In this example, `serialQueue` runs tasks one at a time.
+
+Each task finishes completely before the next task begins.
+
+The output order is guaranteed to match the order tasks were submitted.
+
+<CodeExample title="Thread-safe synchronization using a private serial queue">
+
+```swift
+import Foundation
+
+final class SafeStore: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "com.example.store")
+    private var data: [String] = []
+    
+    func append(_ value: String) {
+        queue.sync {
+            data.append(value)
+        }
+    }
+    
+    func readAll() -> [String] {
+        queue.sync {
+            data
+        }
+    }
+}
+
+let store = SafeStore()
+store.append("Download complete")
+store.append("Cache updated")
+
+for entry in store.readAll() {
+    print(entry)
+}
+print("Store finished")
+```
+
+```output
+Download complete
+Cache updated
+Store finished
+```
+
+</CodeExample>
+
+In this second example, `SafeStore` protects its internal array using a serial queue.
+
+Synchronous access through `queue.sync` guarantees that only one thread can read or write at a time.
+
+This prevents data races when multiple threads access the store.
+
+<QuickCheck>
+  <Question>What happens if a serial queue calls sync on itself?</Question>
+  <Option id="a">The second task executes ahead of the first task.</Option>
+  <Option id="b" correct>The queue deadlocks because it waits for itself to finish.</Option>
+  <Option id="c">Swift moves the inner task to a global background queue.</Option>
+  <Explanation>Calling sync on the current serial queue halts the thread, creating an unrecoverable deadlock.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Confusing sync with serial">
+Many candidates think calling `sync` makes a queue serial.
+
+`sync` and `async` control whether the **caller waits**.
+
+`serial` and `concurrent` control whether the **queue runs multiple tasks together**.
+
+You can call `async` on a serial queue or `sync` on a concurrent queue.
+</Trap>
+
+<Trap title="Calling sync on the same serial queue">
+Calling `queue.sync` from inside a block already running on `queue` causes an instant deadlock.
+
+The running block cannot finish until the inner block finishes.
+
+The inner block cannot start until the running block finishes. The thread freezes forever.
+</Trap>
+
+<Trap title="Thread explosion with too many queues">
+Creating dozens of concurrent queues can lead to thread explosion.
+
+When many threads block on disk or network locks, GCD spawns new threads to compensate.
+
+Each thread consumes memory and causes CPU context-switching overhead.
+</Trap>
+
+<Trap title="Assuming GCD is preferred in new code">
+Modern iOS codebases prefer Swift Concurrency (`async/await` and actors) over GCD.
+
+Swift Concurrency uses a cooperative thread pool that avoids thread explosion.
+
+It also provides compile-time data race safety under Swift 6.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"Grand Central Dispatch uses queues to manage multithreaded work. Serial queues run tasks one after another, while concurrent queues run multiple tasks at the same time. Async schedules work and returns immediately, while sync waits for work to complete. We use background queues for heavy work and dispatch to the main queue to update the UI."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"GCD abstracts thread management using dispatch queues with Quality of Service classes like userInitiated and background. Serial queues are useful for synchronizing access to shared state without manual locks. Calling sync on the current serial queue causes a deadlock. In modern Swift, async/await and actors have largely replaced GCD because they eliminate callback nesting."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"GCD was Apple's foundational concurrency tool, but it suffers from thread explosion when tasks block threads on I/O. In contrast, Swift Concurrency uses a fixed-size cooperative thread pool limited to CPU cores, where tasks suspend rather than block. While GCD requires manual weak self captures to avoid leaks, Swift 6 actors provide compile-time data-race safety. I maintain legacy GCD code when necessary, but migrate new features to structured concurrency."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- GCD manages work through serial and concurrent dispatch queues.
+- Serial queues run tasks one at a time in FIFO order.
+- Concurrent queues run multiple tasks simultaneously across worker threads.
+- `async` returns immediately; `sync` waits for the task to finish.
+- Calling `sync` on the current serial queue creates a fatal deadlock.
+- Quality of Service (QoS) priorities guide CPU scheduling and energy use.
+- Swift Concurrency (`async/await` and actors) replaces GCD for modern development.
+</Recap>
+
+## Go deeper
+
+- [Apple Developer Documentation: Dispatch](https://developer.apple.com/documentation/dispatch) — Comprehensive guide to Grand Central Dispatch queues and groups.
+- [Apple Developer Documentation: DispatchQueue](https://developer.apple.com/documentation/dispatch/dispatchqueue) — Initializers, quality of service, and sync/async dispatch methods.
+- [WWDC21: Swift concurrency: Behind the scenes](https://developer.apple.com/videos/play/wwdc2021/10254/) — Comparing GCD thread explosion with the Swift cooperative thread pool.

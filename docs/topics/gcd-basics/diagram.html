@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Grand Central Dispatch: Serial vs Concurrent Queues</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --serial-color: #0284c7; --serial-soft: #e0f2fe;
+  --concurrent-color: #8b5cf6; --concurrent-soft: #ede9fe;
+  --active-color: #16a34a; --active-soft: #dcfce7;
+  --waiting-color: #f59e0b; --waiting-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --serial-color: #38bdf8; --serial-soft: #082f49;
+  --concurrent-color: #a78bfa; --concurrent-soft: #2e1065;
+  --active-color: #4ade80; --active-soft: #14532d;
+  --waiting-color: #fbbf24; --waiting-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.serial { background: var(--serial-soft); color: var(--serial-color); }
+.kind.concurrent { background: var(--concurrent-soft); color: var(--concurrent-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 8px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.running { fill: var(--active-soft); stroke: var(--active-color); stroke-width: 2.5; }
+.box-rect.waiting { fill: var(--waiting-soft); stroke: var(--waiting-color); stroke-dasharray: 4 4; }
+.box-rect.done { fill: var(--code-bg); stroke: var(--line); opacity: 0.6; }
+
+.text-title { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); }
+.text-val { font-family: var(--font-code); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.text-muted { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+
+.controls {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 16px;
+}
+.btn {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  font: 600 13px var(--font-body); padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 999px; background: var(--line);
+  cursor: pointer; border: none; padding: 0;
+}
+.dot.active { background: var(--serial-color); transform: scale(1.2); }
+
+.reduced-static { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-stepper { display: none; }
+  .reduced-static { display: grid; gap: 12px; }
+  .static-step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .static-step h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--serial-color); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Interactive GCD Serial vs Concurrent Queue Diagram">
+
+  <div class="interactive-stepper">
+    <div class="panels">
+      <div class="panel">
+        <h3><span class="kind serial">Serial Queue</span> One Task at a Time</h3>
+        <svg viewBox="0 0 340 180" id="svg-serial" aria-hidden="true">
+          <rect x="15" y="15" width="310" height="150" rx="10" fill="var(--surface)" stroke="var(--line)"></rect>
+          <text x="30" y="40" class="text-title">Thread 1 (Single Worker)</text>
+          
+          <!-- Task 1 -->
+          <g id="g-task1">
+            <rect x="30" y="55" width="125" height="90" class="box-rect running" id="rect-task1"></rect>
+            <text x="45" y="80" class="text-title">Task 1</text>
+            <text x="45" y="105" class="text-val" id="status-task1">Running...</text>
+            <text x="45" y="125" class="text-muted">Takes 200ms</text>
+          </g>
+
+          <!-- Task 2 -->
+          <g id="g-task2">
+            <rect x="175" y="55" width="125" height="90" class="box-rect waiting" id="rect-task2"></rect>
+            <text x="190" y="80" class="text-title">Task 2</text>
+            <text x="190" y="105" class="text-val" id="status-task2">Waiting in queue</text>
+            <text x="190" y="125" class="text-muted">Takes 150ms</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="panel">
+        <h3><span class="kind concurrent">Concurrent Queue</span> Multiple Threads</h3>
+        <svg viewBox="0 0 340 180" id="svg-concurrent" aria-hidden="true">
+          <rect x="15" y="15" width="310" height="150" rx="10" fill="var(--surface)" stroke="var(--line)"></rect>
+          <text x="30" y="40" class="text-title">Thread Pool (Threads 2 & 3)</text>
+          
+          <!-- Task A -->
+          <g id="g-taskA">
+            <rect x="30" y="55" width="125" height="90" class="box-rect waiting" id="rect-taskA"></rect>
+            <text x="45" y="80" class="text-title">Task A (Long)</text>
+            <text x="45" y="105" class="text-val" id="status-taskA">Pending</text>
+            <text x="45" y="125" class="text-muted">Thread 2</text>
+          </g>
+
+          <!-- Task B -->
+          <g id="g-taskB">
+            <rect x="175" y="55" width="125" height="90" class="box-rect waiting" id="rect-taskB"></rect>
+            <text x="190" y="80" class="text-title">Task B (Short)</text>
+            <text x="190" y="105" class="text-val" id="status-taskB">Pending</text>
+            <text x="190" y="125" class="text-muted">Thread 3</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 16px;">
+      <div class="code" id="step-code">serialQueue.async { task1() }</div>
+      <p class="caption" id="step-caption" aria-live="polite">Step 1: Serial queue runs Task 1. Task 2 waits in line. No two tasks ever run together on a serial queue.</p>
+      
+      <div class="controls">
+        <button class="btn" id="btn-prev" onclick="prevStep()" disabled>← Previous</button>
+        <div class="dots" role="tablist">
+          <button class="dot active" onclick="setStep(0)" aria-label="Step 1" role="tab" aria-selected="true"></button>
+          <button class="dot" onclick="setStep(1)" aria-label="Step 2" role="tab" aria-selected="false"></button>
+          <button class="dot" onclick="setStep(2)" aria-label="Step 3" role="tab" aria-selected="false"></button>
+          <button class="dot" onclick="setStep(3)" aria-label="Step 4" role="tab" aria-selected="false"></button>
+        </div>
+        <button class="btn" id="btn-next" onclick="nextStep()">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced motion static fallback -->
+  <div class="reduced-static">
+    <div class="static-step">
+      <h4>Step 1: Serial Task Execution</h4>
+      <code>serialQueue.async { task1() }</code>
+      <p>Task 1 executes on Thread 1. Task 2 waits in the FIFO queue.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 2: Sequential Progression</h4>
+      <code>Task 1 finishes -> Task 2 begins</code>
+      <p>Task 1 finishes completely before Task 2 begins. Tasks never execute simultaneously.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 3: Concurrent Dispatch</h4>
+      <code>concurrentQueue.async { taskA() }; concurrentQueue.async { taskB() }</code>
+      <p>Both tasks start at the same time on different worker threads (Thread 2 and Thread 3).</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 4: Independent Completion</h4>
+      <code>Task B (Short) completes before Task A (Long)</code>
+      <p>Tasks finish according to duration rather than initial submission order.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    code: 'serialQueue.async { task1() } // Task 1 starts',
+    caption: 'Step 1: Serial queue runs Task 1 on Thread 1. Task 2 waits in line. Only one task executes at any moment.',
+    task1Class: 'box-rect running', task1Status: 'Running...',
+    task2Class: 'box-rect waiting', task2Status: 'Waiting in queue',
+    taskAClass: 'box-rect waiting', taskAStatus: 'Pending',
+    taskBClass: 'box-rect waiting', taskBStatus: 'Pending'
+  },
+  {
+    code: 'task1() finishes -> serialQueue starts task2()',
+    caption: 'Step 2: Task 1 completes. Task 2 begins running on Thread 1. Tasks execute in strict FIFO sequence.',
+    task1Class: 'box-rect done', task1Status: 'Done',
+    task2Class: 'box-rect running', task2Status: 'Running...',
+    taskAClass: 'box-rect waiting', taskAStatus: 'Pending',
+    taskBClass: 'box-rect waiting', taskBStatus: 'Pending'
+  },
+  {
+    code: 'concurrentQueue.async { taskA() }\nconcurrentQueue.async { taskB() }',
+    caption: 'Step 3: Concurrent queue starts Task A (Thread 2) and Task B (Thread 3) at the same time.',
+    task1Class: 'box-rect done', task1Status: 'Done',
+    task2Class: 'box-rect done', task2Status: 'Done',
+    taskAClass: 'box-rect running', taskAStatus: 'Running (T2)...',
+    taskBClass: 'box-rect running', taskBStatus: 'Running (T3)...'
+  },
+  {
+    code: 'taskB() finishes before taskA() // Out of order finish',
+    caption: 'Step 4: Shorter Task B finishes before Task A. On concurrent queues, completion order is independent.',
+    task1Class: 'box-rect done', task1Status: 'Done',
+    task2Class: 'box-rect done', task2Status: 'Done',
+    taskAClass: 'box-rect running', taskAStatus: 'Still running...',
+    taskBClass: 'box-rect done', taskBStatus: 'Done (Finished 1st)'
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+
+  document.getElementById("rect-task1").className.baseVal = s.task1Class;
+  document.getElementById("status-task1").textContent = s.task1Status;
+
+  document.getElementById("rect-task2").className.baseVal = s.task2Class;
+  document.getElementById("status-task2").textContent = s.task2Status;
+
+  document.getElementById("rect-taskA").className.baseVal = s.taskAClass;
+  document.getElementById("status-taskA").textContent = s.taskAStatus;
+
+  document.getElementById("rect-taskB").className.baseVal = s.taskBClass;
+  document.getElementById("status-taskB").textContent = s.taskBStatus;
+
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+</script>
+
+</body>
+</html>

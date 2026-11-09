@@ -127,8 +127,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **strong-weak-unowned** (Strong, Weak and Unowned) — published (lesson, diagram, 31 questions) → [docs/topics/strong-weak-unowned/review.html](docs/topics/strong-weak-unowned/review.html)
     - ✅ **retain-cycles** (Retain Cycles) — published (lesson, diagram, 31 questions) → [docs/topics/retain-cycles/review.html](docs/topics/retain-cycles/review.html)
     - ✅ **main-thread** (The Main Thread) — published (lesson, diagram, 31 questions) → [docs/topics/main-thread/review.html](docs/topics/main-thread/review.html)
-    - 🔄 **gcd-basics** (GCD Basics) — starting research
-    - ⬜ **async-await** (async/await)
+    - ✅ **gcd-basics** (GCD Basics) — published (lesson, diagram, 31 questions) → [docs/topics/gcd-basics/review.html](docs/topics/gcd-basics/review.html)
+    - 🔄 **async-await** (async/await) — starting research
   - ⬜ **Batch 2D: SwiftUI & UIKit (9 topics)**
     - ⬜ **swiftui-observation** (Data Flow with @Observable)
     - ⬜ **observable-object** (ObservableObject and @StateObject)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic gcd-basics (GCD Basics): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/gcd-basics/review.html`). All checks passed. Starting async-await.
 
 - **2026-11-09** — Built and published topic main-thread (The Main Thread): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/main-thread/review.html`). All checks passed. Starting gcd-basics.
 

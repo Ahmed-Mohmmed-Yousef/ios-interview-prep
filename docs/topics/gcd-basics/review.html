@@ -1,0 +1,574 @@
+<title>GCD Basics Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --serial-color: #0284c7; --serial-soft: #e0f2fe;
+  --concurrent-color: #8b5cf6; --concurrent-soft: #ede9fe;
+  --active-color: #16a34a; --active-soft: #dcfce7;
+  --waiting-color: #f59e0b; --waiting-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --serial-color: #38bdf8; --serial-soft: #082f49;
+  --concurrent-color: #a78bfa; --concurrent-soft: #2e1065;
+  --active-color: #4ade80; --active-soft: #14532d;
+  --waiting-color: #fbbf24; --waiting-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.serial { background: var(--serial-soft); color: var(--serial-color); }
+.kind.concurrent { background: var(--concurrent-soft); color: var(--concurrent-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 8px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.running { fill: var(--active-soft); stroke: var(--active-color); stroke-width: 2.5; }
+.box-rect.waiting { fill: var(--waiting-soft); stroke: var(--waiting-color); stroke-dasharray: 4 4; }
+.box-rect.done { fill: var(--code-bg); stroke: var(--line); opacity: 0.6; }
+
+.text-title { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); }
+.text-val { font-family: var(--font-code); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.text-muted { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+
+.controls {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 16px;
+}
+.btn {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  font: 600 13px var(--font-body); padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 999px; background: var(--line);
+  cursor: pointer; border: none; padding: 0;
+}
+.dot.active { background: var(--serial-color); transform: scale(1.2); }
+
+.reduced-static { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-stepper { display: none; }
+  .reduced-static { display: grid; gap: 12px; }
+  .static-step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .static-step h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--serial-color); }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Concurrency · Topic 2 of 3 · Prototype</p>
+    <h1>GCD Basics</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can use dispatch queues and explain what replaced them.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">What is the difference between a serial queue and a concurrent queue in Grand Central Dispatch?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Serial queues run on the GPU while concurrent queues run on the CPU.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Serial queues execute tasks one at a time in order, while concurrent queues run multiple tasks at once.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Concurrent queues guarantee that tasks finish in the exact order they started.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine a single toll booth lane on a bridge.</p><p>Cars line up in single file. Each car must pay and pass before the next car moves. This is a <strong>serial queue</strong>.</p><p>Now imagine a toll plaza with four open lanes side by side.</p><p>Cars enter the plaza in order, but they pay and drive through at the same time. This is a <strong>concurrent queue</strong>.</p></aside>
+<p><strong>Grand Central Dispatch (GCD)</strong> is Apple&#x27;s low-level framework for managing concurrent tasks.</p>
+<p>It uses queues (<code>DispatchQueue</code>) to organize work closures across worker threads.</p>
+<ol>
+<li><strong>Serial queues</strong>:
+<ul>
+<li>Executes one task at a time.</li>
+<li>Tasks execute strictly in First-In-First-Out (FIFO) order.</li>
+<li>A new task waits until the previous task finishes.</li>
+<li>Ideal for protecting shared data from data races.</li>
+</ul>
+</li>
+<li><strong>Concurrent queues</strong>:
+<ul>
+<li>Starts tasks in FIFO order, but runs multiple tasks simultaneously.</li>
+<li>The completion order depends on how long each task takes.</li>
+</ul>
+</li>
+<li><strong>Async versus Sync</strong>:
+<ul>
+<li><code>async</code> schedules a task and returns immediately without waiting.</li>
+<li><code>sync</code> schedules a task and pauses the calling thread until the task finishes.</li>
+</ul>
+</li>
+<li><strong>Modern replacement</strong>:
+<ul>
+<li>In modern Swift, Swift Concurrency (<code>async/await</code> and actors) replaces GCD for new code.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Does calling async on a queue wait for the submitted work to finish?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, async pauses the calling thread until the work completes.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, async returns immediately while the task runs independently.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Yes, but only if the queue is a serial queue.</span></button><p class="qc-explain" hidden="">async schedules the work and returns right away so the caller can continue running.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Sequential execution on a custom serial queue</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+let serialQueue = DispatchQueue(label: &quot;com.example.serial&quot;)
+var log: [String] = []
+
+serialQueue.sync {
+    log.append(&quot;Task 1 finished&quot;)
+}
+
+serialQueue.sync {
+    log.append(&quot;Task 2 finished&quot;)
+}
+
+for item in log {
+    print(item)
+}
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Task 1 finished
+Task 2 finished
+</code></pre></figure>
+<p>In this example, <code>serialQueue</code> runs tasks one at a time.</p>
+<p>Each task finishes completely before the next task begins.</p>
+<p>The output order is guaranteed to match the order tasks were submitted.</p>
+<figure class="code-example"><figcaption>Thread-safe synchronization using a private serial queue</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+final class SafeStore: @unchecked Sendable {
+    private let queue = DispatchQueue(label: &quot;com.example.store&quot;)
+    private var data: [String] = []
+    
+    func append(_ value: String) {
+        queue.sync {
+            data.append(value)
+        }
+    }
+    
+    func readAll() -&gt; [String] {
+        queue.sync {
+            data
+        }
+    }
+}
+
+let store = SafeStore()
+store.append(&quot;Download complete&quot;)
+store.append(&quot;Cache updated&quot;)
+
+for entry in store.readAll() {
+    print(entry)
+}
+print(&quot;Store finished&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Download complete
+Cache updated
+Store finished
+</code></pre></figure>
+<p>In this second example, <code>SafeStore</code> protects its internal array using a serial queue.</p>
+<p>Synchronous access through <code>queue.sync</code> guarantees that only one thread can read or write at a time.</p>
+<p>This prevents data races when multiple threads access the store.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens if a serial queue calls sync on itself?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The second task executes ahead of the first task.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The queue deadlocks because it waits for itself to finish.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Swift moves the inner task to a global background queue.</span></button><p class="qc-explain" hidden="">Calling sync on the current serial queue halts the thread, creating an unrecoverable deadlock.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing sync with serial</p><p>Many candidates think calling <code>sync</code> makes a queue serial.</p><p><code>sync</code> and <code>async</code> control whether the <strong>caller waits</strong>.</p><p><code>serial</code> and <code>concurrent</code> control whether the <strong>queue runs multiple tasks together</strong>.</p><p>You can call <code>async</code> on a serial queue or <code>sync</code> on a concurrent queue.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Calling sync on the same serial queue</p><p>Calling <code>queue.sync</code> from inside a block already running on <code>queue</code> causes an instant deadlock.</p><p>The running block cannot finish until the inner block finishes.</p><p>The inner block cannot start until the running block finishes. The thread freezes forever.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Thread explosion with too many queues</p><p>Creating dozens of concurrent queues can lead to thread explosion.</p><p>When many threads block on disk or network locks, GCD spawns new threads to compensate.</p><p>Each thread consumes memory and causes CPU context-switching overhead.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming GCD is preferred in new code</p><p>Modern iOS codebases prefer Swift Concurrency (<code>async/await</code> and actors) over GCD.</p><p>Swift Concurrency uses a cooperative thread pool that avoids thread explosion.</p><p>It also provides compile-time data race safety under Swift 6.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;Grand Central Dispatch uses queues to manage multithreaded work. Serial queues run tasks one after another, while concurrent queues run multiple tasks at the same time. Async schedules work and returns immediately, while sync waits for work to complete. We use background queues for heavy work and dispatch to the main queue to update the UI.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;GCD abstracts thread management using dispatch queues with Quality of Service classes like userInitiated and background. Serial queues are useful for synchronizing access to shared state without manual locks. Calling sync on the current serial queue causes a deadlock. In modern Swift, async/await and actors have largely replaced GCD because they eliminate callback nesting.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;GCD was Apple&#x27;s foundational concurrency tool, but it suffers from thread explosion when tasks block threads on I/O. In contrast, Swift Concurrency uses a fixed-size cooperative thread pool limited to CPU cores, where tasks suspend rather than block. While GCD requires manual weak self captures to avoid leaks, Swift 6 actors provide compile-time data-race safety. I maintain legacy GCD code when necessary, but migrate new features to structured concurrency.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>GCD manages work through serial and concurrent dispatch queues.</li>
+<li>Serial queues run tasks one at a time in FIFO order.</li>
+<li>Concurrent queues run multiple tasks simultaneously across worker threads.</li>
+<li><code>async</code> returns immediately; <code>sync</code> waits for the task to finish.</li>
+<li>Calling <code>sync</code> on the current serial queue creates a fatal deadlock.</li>
+<li>Quality of Service (QoS) priorities guide CPU scheduling and energy use.</li>
+<li>Swift Concurrency (<code>async/await</code> and actors) replaces GCD for modern development.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/dispatch">Apple Developer Documentation: Dispatch</a> — Comprehensive guide to Grand Central Dispatch queues and groups.</li>
+<li><a href="https://developer.apple.com/documentation/dispatch/dispatchqueue">Apple Developer Documentation: DispatchQueue</a> — Initializers, quality of service, and sync/async dispatch methods.</li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2021/10254/">WWDC21: Swift concurrency: Behind the scenes</a> — Comparing GCD thread explosion with the Swift cooperative thread pool.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    code: 'serialQueue.async { task1() } // Task 1 starts',
+    caption: 'Step 1: Serial queue runs Task 1 on Thread 1. Task 2 waits in line. Only one task executes at any moment.',
+    task1Class: 'box-rect running', task1Status: 'Running...',
+    task2Class: 'box-rect waiting', task2Status: 'Waiting in queue',
+    taskAClass: 'box-rect waiting', taskAStatus: 'Pending',
+    taskBClass: 'box-rect waiting', taskBStatus: 'Pending'
+  },
+  {
+    code: 'task1() finishes -> serialQueue starts task2()',
+    caption: 'Step 2: Task 1 completes. Task 2 begins running on Thread 1. Tasks execute in strict FIFO sequence.',
+    task1Class: 'box-rect done', task1Status: 'Done',
+    task2Class: 'box-rect running', task2Status: 'Running...',
+    taskAClass: 'box-rect waiting', taskAStatus: 'Pending',
+    taskBClass: 'box-rect waiting', taskBStatus: 'Pending'
+  },
+  {
+    code: 'concurrentQueue.async { taskA() }\nconcurrentQueue.async { taskB() }',
+    caption: 'Step 3: Concurrent queue starts Task A (Thread 2) and Task B (Thread 3) at the same time.',
+    task1Class: 'box-rect done', task1Status: 'Done',
+    task2Class: 'box-rect done', task2Status: 'Done',
+    taskAClass: 'box-rect running', taskAStatus: 'Running (T2)...',
+    taskBClass: 'box-rect running', taskBStatus: 'Running (T3)...'
+  },
+  {
+    code: 'taskB() finishes before taskA() // Out of order finish',
+    caption: 'Step 4: Shorter Task B finishes before Task A. On concurrent queues, completion order is independent.',
+    task1Class: 'box-rect done', task1Status: 'Done',
+    task2Class: 'box-rect done', task2Status: 'Done',
+    taskAClass: 'box-rect running', taskAStatus: 'Still running...',
+    taskBClass: 'box-rect done', taskBStatus: 'Done (Finished 1st)'
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+
+  document.getElementById("rect-task1").className.baseVal = s.task1Class;
+  document.getElementById("status-task1").textContent = s.task1Status;
+
+  document.getElementById("rect-task2").className.baseVal = s.task2Class;
+  document.getElementById("status-task2").textContent = s.task2Status;
+
+  document.getElementById("rect-taskA").className.baseVal = s.taskAClass;
+  document.getElementById("status-taskA").textContent = s.taskAStatus;
+
+  document.getElementById("rect-taskB").className.baseVal = s.taskBClass;
+  document.getElementById("status-taskB").textContent = s.taskBStatus;
+
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"gcd-basics","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"gcd-basics-q1","type":"mcq","difficulty":1,"prompt":"What does the acronym GCD stand for in iOS development?","options":[{"id":"a","text":"Grand Central Dispatch.","explanation":"Right. GCD stands for Grand Central Dispatch, Apple low-level concurrency engine."},{"id":"b","text":"General Computation Driver.","explanation":"GCD is an acronym for Grand Central Dispatch."},{"id":"c","text":"Global Control Daemon.","explanation":"GCD refers to Grand Central Dispatch."},{"id":"d","text":"Graphic Composition Display.","explanation":"GCD manages task queues, not graphic composition."}],"answer":"a"},{"id":"gcd-basics-q2","type":"mcq","difficulty":1,"prompt":"How does a serial dispatch queue execute submitted tasks?","options":[{"id":"a","text":"It executes tasks concurrently across all available physical CPU cores.","explanation":"Concurrent queues execute tasks across multiple cores simultaneously."},{"id":"b","text":"It executes tasks one at a time in strict first-in, first-out order.","explanation":"Right. A serial queue waits for each task to complete before starting the next."},{"id":"c","text":"It randomizes task order based on memory payload size.","explanation":"Dispatch queues always preserve FIFO arrival order."},{"id":"d","text":"It delays every task until the main run loop becomes completely idle.","explanation":"Custom serial queues execute tasks immediately when threads are available."}],"answer":"b"},{"id":"gcd-basics-q3","type":"mcq","difficulty":2,"prompt":"What is the key difference between calling `async` and `sync` on a dispatch queue?","options":[{"id":"a","text":"async executes on the GPU while sync executes on the CPU.","explanation":"Both async and sync execute on the system CPU thread pool."},{"id":"b","text":"async only works on concurrent queues while sync only works on serial queues.","explanation":"Both methods can be called on either serial or concurrent queues."},{"id":"c","text":"async returns immediately, while sync blocks the calling thread until the task finishes.","explanation":"Right. async does not wait; sync halts the caller until completion."},{"id":"d","text":"async allocates extra stack memory while sync executes in read-only memory.","explanation":"Both dispatch methods allocate standard stack frames."}],"answer":"c"},{"id":"gcd-basics-q4","type":"mcq","difficulty":2,"prompt":"What occurs if you call `queue.sync` from inside a task running on that same serial queue?","options":[{"id":"a","text":"The inner task runs with elevated priority immediately.","explanation":"The inner task cannot start because the queue is waiting."},{"id":"b","text":"The outer task is cancelled and replaced by the inner task.","explanation":"GCD does not cancel outer tasks automatically."},{"id":"c","text":"Swift routes the inner closure to a background utility queue.","explanation":"GCD does not re-route closures to different queues."},{"id":"d","text":"An immediate deadlock occurs because the queue waits on itself.","explanation":"Right. The outer task cannot finish and the inner task cannot start."}],"answer":"d"},{"id":"gcd-basics-q5","type":"mcq","difficulty":2,"prompt":"Which Quality of Service (QoS) class has the highest execution priority in GCD?","options":[{"id":"a","text":"userInteractive","explanation":"Right. userInteractive is intended for direct UI input and animations."},{"id":"b","text":"background","explanation":"background is the lowest priority QoS class."},{"id":"c","text":"utility","explanation":"utility is for long-running calculations, below userInteractive."},{"id":"d","text":"default","explanation":"default has standard priority, below userInteractive and userInitiated."}],"answer":"a"},{"id":"gcd-basics-q6","type":"mcq","difficulty":2,"prompt":"What major problem can occur when creating dozens of concurrent GCD queues?","options":[{"id":"a","text":"The Swift compiler reports a circular dependency error at build time.","explanation":"Queue creation happens dynamically at runtime, not build time."},{"id":"b","text":"Thread explosion, where excessive threads exhaust memory and CPU resources.","explanation":"Right. Spawning dozens of threads causes context switching thrashing."},{"id":"c","text":"All serial queues in the application are permanently disabled.","explanation":"Concurrent queue overload does not disable other serial queues."},{"id":"d","text":"The device Wi-Fi connection drops packets immediately.","explanation":"Thread counts do not directly disconnect device network hardware."}],"answer":"b"},{"id":"gcd-basics-q7","type":"mcq","difficulty":2,"prompt":"Why has Swift Concurrency (async/await and actors) replaced GCD for new Swift code?","options":[{"id":"a","text":"Because GCD was completely removed from the iOS SDK.","explanation":"GCD remains fully supported for backward compatibility."},{"id":"b","text":"Because GCD requires Objective-C bridging on all function calls.","explanation":"GCD has first-class Swift APIs in the Dispatch module."},{"id":"c","text":"Swift Concurrency uses cooperative threads and provides compile-time data race safety.","explanation":"Right. Fixed thread pools and actor isolation solve GCD shortcomings."},{"id":"d","text":"Because Apple chips can only execute async functions.","explanation":"CPUs execute standard machine code instructions."}],"answer":"c"},{"id":"gcd-basics-q8","type":"mcq","difficulty":2,"prompt":"How do you create a custom concurrent dispatch queue in Swift?","options":[{"id":"a","text":"DispatchQueue(label: \"custom\", isConcurrent: true)","explanation":"DispatchQueue initializer does not take an isConcurrent parameter."},{"id":"b","text":"DispatchQueue.makeConcurrent(label: \"custom\")","explanation":"makeConcurrent is not a valid DispatchQueue static method."},{"id":"c","text":"DispatchQueue(label: \"custom\", mode: .parallel)","explanation":"mode is not an initializer parameter on DispatchQueue."},{"id":"d","text":"DispatchQueue(label: \"custom\", attributes: .concurrent)","explanation":"Right. Setting attributes to .concurrent creates a concurrent queue."}],"answer":"d"},{"id":"gcd-basics-q9","type":"mcq","difficulty":1,"prompt":"What is the default queue type created by `DispatchQueue(label: \"my.queue\")`?","options":[{"id":"a","text":"A serial dispatch queue.","explanation":"Right. Without attributes: .concurrent, queues default to serial."},{"id":"b","text":"A concurrent dispatch queue.","explanation":"Concurrent queues require the explicit attributes: .concurrent flag."},{"id":"c","text":"The global main thread queue.","explanation":"DispatchQueue.main represents the main thread queue."},{"id":"d","text":"An unmanaged background thread pool.","explanation":"Dispatch queues manage tasks rather than raw unmanaged threads."}],"answer":"a"},{"id":"gcd-basics-q10","type":"mcq","difficulty":2,"prompt":"Does calling `sync` on a concurrent queue make the queue serial?","options":[{"id":"a","text":"Yes, sync permanently converts the queue to serial execution.","explanation":"sync does not change the internal configuration of the queue."},{"id":"b","text":"No, sync only blocks the calling thread until that specific task finishes.","explanation":"Right. Other threads can still run tasks concurrently on that queue."},{"id":"c","text":"Yes, but only if the queue has userInteractive quality of service.","explanation":"QoS priority has no impact on serial versus concurrent nature."},{"id":"d","text":"No, calling sync on a concurrent queue throws a compile-time error.","explanation":"Calling sync on a concurrent queue is valid Swift code."}],"answer":"b"},{"id":"gcd-basics-q11","type":"mcq","difficulty":2,"prompt":"Which Quality of Service class should be used for background database maintenance?","options":[{"id":"a","text":"userInteractive","explanation":"userInteractive is reserved for touch events and frame drawing."},{"id":"b","text":"userInitiated","explanation":"userInitiated is for tasks where the user is waiting for immediate output."},{"id":"c","text":"background","explanation":"Right. background QoS minimizes battery and thermal impact for maintenance."},{"id":"d","text":"highPriority","explanation":"highPriority is not a valid DispatchQoS class."}],"answer":"c"},{"id":"gcd-basics-q12","type":"mcq","difficulty":3,"prompt":"How does GCD handle threads differently from the Swift cooperative thread pool?","options":[{"id":"a","text":"GCD never creates more than two threads under any circumstance.","explanation":"GCD can spawn dozens of threads if earlier tasks block."},{"id":"b","text":"Swift Concurrency creates a new thread for every async function call.","explanation":"Swift Concurrency uses a fixed-size pool matching core count."},{"id":"c","text":"GCD runs all background work inside the iOS kernel space directly.","explanation":"GCD worker threads run in application user space."},{"id":"d","text":"GCD spawns new threads when tasks block, while Swift tasks suspend and yield.","explanation":"Right. Swift tasks yield threads to avoid spawning excess threads."}],"answer":"d"},{"id":"gcd-basics-q13","type":"mcq","difficulty":2,"prompt":"How can a serial queue be used to protect a mutable dictionary from data races?","options":[{"id":"a","text":"Route all reads and writes through queue.sync to guarantee mutual exclusion.","explanation":"Right. Serial queue sync operations enforce single-thread access."},{"id":"b","text":"Mark the dictionary with the private static attributes keyword.","explanation":"Visibility modifiers do not provide runtime synchronization."},{"id":"c","text":"Call DispatchQueue.main.sync from every background worker thread.","explanation":"Overloading the main thread with data model locks causes UI hitches."},{"id":"d","text":"Convert the dictionary into a tuple before reading it.","explanation":"Converting to tuples does not eliminate race conditions."}],"answer":"a"},{"id":"gcd-basics-q14","type":"mcq","difficulty":2,"prompt":"What happens to tasks waiting in a serial queue when a running task crashes?","options":[{"id":"a","text":"The queue skips the failed task and executes the remaining tasks.","explanation":"A crash terminates the host process immediately."},{"id":"b","text":"The entire process terminates because unhandled crashes abort the app.","explanation":"Right. Fatal errors on background queues terminate the application."},{"id":"c","text":"The queue rolls back all state mutations made during the task.","explanation":"GCD does not provide transactional state rollback."},{"id":"d","text":"Swift converts the crash into an optional error value.","explanation":"Runtime crashes cannot be caught or recovered as optional errors."}],"answer":"b"},{"id":"gcd-basics-q15","type":"mcq","difficulty":2,"prompt":"What is `DispatchQueue.global(qos:)` in GCD?","options":[{"id":"a","text":"A serial queue dedicated strictly to disk file operations.","explanation":"Global queues are concurrent, not serial."},{"id":"b","text":"A temporary queue that automatically deletes itself after ten seconds.","explanation":"Global system queues persist for the lifetime of the process."},{"id":"c","text":"A system-provided concurrent queue configured with a specific priority.","explanation":"Right. Global queues are system-managed concurrent queues with QoS."},{"id":"d","text":"A queue running on remote iCloud server infrastructure.","explanation":"Global queues execute locally on device processor cores."}],"answer":"c"},{"id":"gcd-basics-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"import Foundation\n\nlet q = DispatchQueue(label: \"test.serial\")\nvar result = \"\"\nq.sync { result += \"A\" }\nq.sync { result += \"B\" }\nprint(\"Result: \\(result)\")","options":[{"id":"a","text":"Result: BA","explanation":"A serial queue executes tasks in FIFO order, so A runs before B."},{"id":"b","text":"Result: A","explanation":"Both sync blocks execute before printing."},{"id":"c","text":"Result: B","explanation":"Both closures append to result sequentially."},{"id":"d","text":"Result: AB","explanation":"Right. Tasks execute in submission order, appending A then B."}],"answer":"d"},{"id":"gcd-basics-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"import Foundation\n\nlet q = DispatchQueue(label: \"test.queue\")\nvar num = 10\nq.sync {\n    num += 5\n}\nprint(\"Num: \\(num)\")","options":[{"id":"a","text":"Num: 15","explanation":"Right. sync waits for num += 5 to finish before printing 15."},{"id":"b","text":"Num: 10","explanation":"sync halts the caller until the block finishes, modifying num to 15."},{"id":"c","text":"Num: 5","explanation":"The initial value was 10 and 5 was added to it."},{"id":"d","text":"Fatal error: Mutating variable in queue","explanation":"sync safely modifies values in the outer scope synchronously."}],"answer":"a"},{"id":"gcd-basics-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"import Foundation\n\nlet serial = DispatchQueue(label: \"order.test\")\nvar steps: [Int] = []\nserial.sync { steps.append(1) }\nserial.sync { steps.append(2) }\nserial.sync { steps.append(3) }\nprint(\"Steps: \\(steps)\")","options":[{"id":"a","text":"Steps: [3, 2, 1]","explanation":"Serial queues execute FIFO, not LIFO."},{"id":"b","text":"Steps: [1, 2, 3]","explanation":"Right. The serial queue executes blocks sequentially in order."},{"id":"c","text":"Steps: []","explanation":"All three sync calls complete before the print line executes."},{"id":"d","text":"Steps: [1]","explanation":"All three numbers are appended sequentially."}],"answer":"b"},{"id":"gcd-basics-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"import Foundation\n\nfinal class CounterBox: @unchecked Sendable {\n    private let q = DispatchQueue(label: \"box.counter\")\n    private var val = 0\n    func add() { q.sync { val += 1 } }\n    func get() -> Int { q.sync { val } }\n}\n\nlet box = CounterBox()\nbox.add()\nbox.add()\nprint(\"Total: \\(box.get())\")","options":[{"id":"a","text":"Total: 0","explanation":"add was called twice, incrementing val each time."},{"id":"b","text":"Total: 1","explanation":"Both calls to add execute synchronously and increment val."},{"id":"c","text":"Total: 2","explanation":"Right. Both add calls increment val, resulting in 2."},{"id":"d","text":"Total: 3","explanation":"add was invoked twice, not three times."}],"answer":"c"},{"id":"gcd-basics-q20","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"import Foundation\n\nlet q = DispatchQueue(label: \"tag.test\")\nvar tag = \"original\"\nq.sync {\n    tag = \"updated\"\n}\nprint(\"Tag: \\(tag)\")","options":[{"id":"a","text":"Tag: original","explanation":"The sync block completes before printing, mutating tag."},{"id":"b","text":"Tag: nil","explanation":"tag is a non-optional string."},{"id":"c","text":"Tag: \"\"","explanation":"tag is set to updated inside the closure."},{"id":"d","text":"Tag: updated","explanation":"Right. q.sync modifies tag synchronously before printing."}],"answer":"d"},{"id":"gcd-basics-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"import Foundation\n\nfinal class FlagStore: @unchecked Sendable {\n    private let queue = DispatchQueue(label: \"flag.store\")\n    private var flag = false\n    func setTrue() { queue.sync { flag = true } }\n    func read() -> Bool { queue.sync { flag } }\n}\n\nlet store = FlagStore()\nstore.setTrue()\nprint(\"Flag is: \\(store.read())\")","options":[{"id":"a","text":"Flag is: true","explanation":"Right. setTrue mutates flag to true via synchronous queue dispatch."},{"id":"b","text":"Flag is: false","explanation":"setTrue completes before read is called."},{"id":"c","text":"Flag is: nil","explanation":"flag is a non-optional boolean property."},{"id":"d","text":"Fatal error: Deadlock detected","explanation":"setTrue and read are called sequentially, so no deadlock occurs."}],"answer":"a"},{"id":"gcd-basics-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"import Foundation\n\nlet q = DispatchQueue(label: \"priority.test\", qos: .userInitiated)\nvar ready = false\nq.sync {\n    ready = true\n}\nprint(\"Ready status: \\(ready)\")","options":[{"id":"a","text":"Ready status: false","explanation":"ready was updated to true synchronously inside the queue block."},{"id":"b","text":"Ready status: true","explanation":"Right. The sync call completes and updates ready to true."},{"id":"c","text":"Ready status: nil","explanation":"ready is a non-optional boolean."},{"id":"d","text":"Ready status: pending","explanation":"ready is a boolean holding either true or false."}],"answer":"b"},{"id":"gcd-basics-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"import Foundation\n\nfinal class MessageQueue: @unchecked Sendable {\n    private let q = DispatchQueue(label: \"msg.queue\")\n    private var msgs: [String] = []\n    func send(_ msg: String) { q.sync { msgs.append(msg) } }\n    func count() -> Int { q.sync { msgs.count } }\n}\n\nlet mq = MessageQueue()\nmq.send(\"Hello\")\nmq.send(\"World\")\nprint(\"Messages: \\(mq.count())\")","options":[{"id":"a","text":"Messages: 0","explanation":"Two messages were sent before checking count."},{"id":"b","text":"Messages: 1","explanation":"Both send calls completed, appending two strings."},{"id":"c","text":"Messages: 2","explanation":"Right. Two strings were appended, resulting in count of 2."},{"id":"d","text":"Messages: [Hello, World]","explanation":"count returns an integer, not array contents."}],"answer":"c"},{"id":"gcd-basics-q24","type":"written","difficulty":1,"prompt":"Compare serial queues and concurrent queues in Grand Central Dispatch. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that serial queues execute tasks one at a time in FIFO order.","weight":50,"key":true},{"criterion":"Explains that concurrent queues start tasks in FIFO order but execute multiple tasks simultaneously.","weight":30,"key":true},{"criterion":"Notes that completion order on concurrent queues depends on task duration.","weight":20}],"modelAnswer":"A serial queue executes tasks one by one in strict First-In-First-Out order, waiting for each task to complete before starting the next. A concurrent queue starts tasks in FIFO order but runs them simultaneously across multiple worker threads. On concurrent queues, completion order is non-deterministic and depends on the duration of each task."},{"id":"gcd-basics-q25","type":"written","difficulty":2,"prompt":"Explain the difference between `async` and `sync` dispatch methods in Grand Central Dispatch. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that async schedules the task and returns immediately to the caller without waiting.","weight":50,"key":true},{"criterion":"Explains that sync blocks the calling thread until the submitted closure finishes execution.","weight":30,"key":true},{"criterion":"Clarifies that async/sync controls caller waiting, not queue serialization.","weight":20}],"modelAnswer":"The `async` method schedules a closure on a dispatch queue and returns immediately, allowing the calling code to continue running. In contrast, `sync` pauses the calling thread until the submitted closure completes its execution. These methods determine whether the calling thread waits, regardless of whether the queue is serial or concurrent."},{"id":"gcd-basics-q26","type":"written","difficulty":2,"prompt":"What are Quality of Service (QoS) classes in GCD, and what do they determine? Provide two examples. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that QoS classes specify the priority and urgency of work submitted to dispatch queues.","weight":50,"key":true},{"criterion":"Identifies at least two specific QoS classes (e.g., userInteractive, userInitiated, utility, or background).","weight":30,"key":true},{"criterion":"Notes that the system uses QoS to balance CPU scheduling and energy consumption.","weight":20}],"modelAnswer":"Quality of Service (QoS) classes indicate the priority of tasks submitted to dispatch queues. They help the system balance CPU resources and battery power efficiently. For example, `userInteractive` provides highest priority, while `background` runs low-priority maintenance."},{"id":"gcd-basics-q27","type":"written","difficulty":2,"prompt":"What causes a deadlock when calling `queue.sync` from within the same serial queue? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that calling sync pauses the currently executing task until the inner task completes.","weight":50,"key":true},{"criterion":"Explains that the inner task cannot start because the serial queue is blocked by the waiting task.","weight":30,"key":true},{"criterion":"Concludes that both tasks wait for each other indefinitely, causing a freeze.","weight":20}],"modelAnswer":"A deadlock occurs because calling `queue.sync` pauses the active task until the new inner block finishes running. However, because the serial queue executes only one task at a time, the inner block cannot start until the active task finishes. Both tasks end up waiting for each other indefinitely, freezing the thread permanently."},{"id":"gcd-basics-q28","type":"written","difficulty":2,"prompt":"Why has Swift Concurrency (async/await and actors) replaced Grand Central Dispatch for modern Swift development? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that Swift Concurrency eliminates thread explosion using a cooperative thread pool matching CPU core count.","weight":50,"key":true},{"criterion":"Mentions compile-time data race safety enforced through actors and Sendable checks.","weight":30,"key":true},{"criterion":"Notes cleaner asynchronous syntax without deeply nested closure callbacks.","weight":20}],"modelAnswer":"Swift Concurrency replaces GCD because it eliminates thread explosion by using a cooperative thread pool that matches the physical CPU core count. When an async task suspends, it yields its thread rather than blocking it. Furthermore, Swift 6 actors and strict concurrency checks provide compile-time protection against data races, whereas GCD lacks compile-time safety."},{"id":"gcd-basics-q29","type":"code-write","difficulty":2,"prompt":"Write a thread-safe class `SafeCounter` marked `@unchecked Sendable`. It has a private `DispatchQueue(label: \"counter.serial\")` and a private `var value = 0`. Implement `func increment()` that adds 1 using `queue.sync`, and `func get() -> Int` that reads `value` using `queue.sync`. Create an instance, increment it three times, and print `\"Counter: \\(counter.get())\"`.","starterCode":null,"modelAnswer":"import Foundation\n\nfinal class SafeCounter: @unchecked Sendable {\n    private let queue = DispatchQueue(label: \"counter.serial\")\n    private var value = 0\n    func increment() {\n        queue.sync {\n            value += 1\n        }\n    }\n    func get() -> Int {\n        queue.sync {\n            value\n        }\n    }\n}\n\nlet counter = SafeCounter()\ncounter.increment()\ncounter.increment()\ncounter.increment()\nprint(\"Counter: \\(counter.get())\")","rubric":[{"criterion":"Declares SafeCounter class with private serial DispatchQueue and value property.","weight":40,"key":true},{"criterion":"Synchronizes increment and get methods using queue.sync for thread safety.","weight":40,"key":true},{"criterion":"Instantiates counter, calls increment three times, and prints the result.","weight":20}]},{"id":"gcd-basics-q30","type":"code-write","difficulty":2,"prompt":"Write a class `NameRegistry` marked `@unchecked Sendable`. It has a private `DispatchQueue(label: \"registry.queue\")` and a private `var names: [String] = []`. Implement `func register(_ name: String)` that appends to `names` using `queue.sync`, and `func allNames() -> [String]` that returns `names` using `queue.sync`. Register `\"Alice\"` and `\"Bob\"`, and print `\"Names: \\(registry.allNames().joined(separator: \", \"))\"`.","starterCode":null,"modelAnswer":"import Foundation\n\nfinal class NameRegistry: @unchecked Sendable {\n    private let queue = DispatchQueue(label: \"registry.queue\")\n    private var names: [String] = []\n    func register(_ name: String) {\n        queue.sync {\n            names.append(name)\n        }\n    }\n    func allNames() -> [String] {\n        queue.sync {\n            names\n        }\n    }\n}\n\nlet registry = NameRegistry()\nregistry.register(\"Alice\")\nregistry.register(\"Bob\")\nprint(\"Names: \\(registry.allNames().joined(separator: \", \"))\")","rubric":[{"criterion":"Declares NameRegistry class with private serial queue and names array.","weight":40,"key":true},{"criterion":"Synchronizes register and allNames access using queue.sync.","weight":40,"key":true},{"criterion":"Registers Alice and Bob and prints joined names.","weight":20}]},{"id":"gcd-basics-q31","type":"code-write","difficulty":2,"prompt":"Write a class `JobQueue` marked `@unchecked Sendable`. It has a private `DispatchQueue(label: \"jobs.serial\")` and `var completedJobs: Int = 0`. Implement `func completeJob()` that adds 1 using `queue.sync`, and `func count() -> Int` that returns `completedJobs` using `queue.sync`. Call `completeJob()` twice and print `\"Jobs done: \\(jobQueue.count())\"`.","starterCode":null,"modelAnswer":"import Foundation\n\nfinal class JobQueue: @unchecked Sendable {\n    private let queue = DispatchQueue(label: \"jobs.serial\")\n    private var completedJobs: Int = 0\n    func completeJob() {\n        queue.sync {\n            completedJobs += 1\n        }\n    }\n    func count() -> Int {\n        queue.sync {\n            completedJobs\n        }\n    }\n}\n\nlet jobQueue = JobQueue()\njobQueue.completeJob()\njobQueue.completeJob()\nprint(\"Jobs done: \\(jobQueue.count())\")","rubric":[{"criterion":"Declares JobQueue with private serial queue and completedJobs counter.","weight":40,"key":true},{"criterion":"Synchronizes completeJob mutation and count retrieval using queue.sync.","weight":40,"key":true},{"criterion":"Instantiates jobQueue, calls completeJob twice, and prints result.","weight":20}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
