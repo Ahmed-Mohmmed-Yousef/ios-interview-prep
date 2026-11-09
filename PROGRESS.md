@@ -141,8 +141,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **table-collection-views** (Table and Collection Views) — published (lesson, diagram, 31 questions) → [docs/topics/table-collection-views/review.html](docs/topics/table-collection-views/review.html)
   - 🔄 **Batch 2E: Design, System & Data (9 topics: 8 main + 1 bonus)**
     - ✅ **dark-mode-dynamic-type** (Dark Mode and Dynamic Type) — published (lesson, diagram, 31 questions) → [docs/topics/dark-mode-dynamic-type/review.html](docs/topics/dark-mode-dynamic-type/review.html)
-    - 🔄 **hig-liquid-glass** (Apple Design and Liquid Glass) [bonus] — starting research
-    - ⬜ **app-lifecycle** (App and Scene Lifecycle)
+    - ✅ **hig-liquid-glass** (Apple Design and Liquid Glass) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/hig-liquid-glass/review.html](docs/topics/hig-liquid-glass/review.html)
+    - 🔄 **app-lifecycle** (App and Scene Lifecycle) — starting research
     - ⬜ **permissions-privacy** (Permissions and Privacy)
     - ⬜ **signing-app-store** (App Signing and the App Store)
     - ⬜ **http-rest-basics** (HTTP and REST Basics)
@@ -299,6 +299,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic hig-liquid-glass (Apple Design and Liquid Glass) [bonus]: researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/hig-liquid-glass/review.html`). All checks passed. Starting app-lifecycle.
 
 - **2026-11-09** — Built and published topic dark-mode-dynamic-type (Dark Mode and Dynamic Type): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/dark-mode-dynamic-type/review.html`). All checks passed. Starting hig-liquid-glass.
 
