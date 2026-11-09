@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>URLSession: Network Pipeline & Concurrency</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #7c3aed; --step2-soft: #f5f3ff;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #16a34a; --step4-soft: #dcfce7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #a78bfa; --step2-soft: #2e1065;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #4ade80; --step4-soft: #052e16;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="URLSession Pipeline Diagram">
+  <div class="stepper">
+    <div class="step-indicators" role="tablist" aria-label="Steps">
+      <div class="step-dot active" role="tab" aria-selected="true" data-step="1">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="2">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="3">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" data-step="4">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled aria-label="Previous step">Back</button>
+      <button id="nextBtn" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3><span class="kind s1" id="badge">Step 1</span> <span id="title">Build Request & Dispatch</span></h3>
+      <p class="caption" id="desc">Create a URLRequest with target endpoint, headers, and async/await data call on URLSession.shared.</p>
+      <div class="code" id="codeSnippet">let url = URL(string: "https://api.example.com/users")!
+let (data, response) = try await URLSession.shared.data(from: url)</div>
+    </div>
+
+    <div class="panel" style="display:flex; align-items:center; justify-content:center;">
+      <svg viewBox="0 0 320 220" role="img" aria-label="Visual illustration of URLSession execution">
+        <rect x="10" y="10" width="300" height="200" class="device-frame" />
+        <rect x="25" y="25" width="270" height="170" rx="10" class="base-screen" />
+
+        <!-- Dynamic elements -->
+        <g id="visualScene">
+          <!-- Step 1 visual -->
+          <rect x="45" y="55" width="100" height="110" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+          <text x="95" y="80" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">URLRequest</text>
+          <text x="95" y="105" text-anchor="middle" font-size="10" fill="var(--muted)">GET /users</text>
+          <text x="95" y="125" text-anchor="middle" font-size="9" fill="var(--muted)">Accept: json</text>
+
+          <path d="M 155 110 L 200 110" stroke="var(--step1-color)" stroke-width="2" stroke-dasharray="4" />
+          <polygon points="200,105 210,110 200,115" fill="var(--step1-color)" />
+
+          <rect x="210" y="65" width="70" height="90" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+          <text x="245" y="95" text-anchor="middle" font-size="10" font-weight="600" fill="var(--ink)">Session</text>
+          <text x="245" y="115" text-anchor="middle" font-size="9" fill="var(--muted)">Queue</text>
+          <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Dispatching async task</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "Build Request & Dispatch",
+    desc: "Create a URLRequest with target endpoint, headers, and async/await data call on URLSession.shared.",
+    code: `let url = URL(string: "https://api.example.com/users")!\nlet (data, response) = try await URLSession.shared.data(from: url)`,
+    svg: `
+      <rect x="45" y="55" width="100" height="110" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="95" y="80" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">URLRequest</text>
+      <text x="95" y="105" text-anchor="middle" font-size="10" fill="var(--muted)">GET /users</text>
+      <text x="95" y="125" text-anchor="middle" font-size="9" fill="var(--muted)">Accept: json</text>
+      <path d="M 155 110 L 200 110" stroke="var(--step1-color)" stroke-width="2" stroke-dasharray="4" />
+      <polygon points="200,105 210,110 200,115" fill="var(--step1-color)" />
+      <rect x="210" y="65" width="70" height="90" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="245" y="95" text-anchor="middle" font-size="10" font-weight="600" fill="var(--ink)">Session</text>
+      <text x="245" y="115" text-anchor="middle" font-size="9" fill="var(--muted)">Queue</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Dispatching async task</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "Background Network Worker",
+    desc: "URLSession executes the TLS handshake, connection pooling, and transfer on a background thread pool off the main actor.",
+    code: `// Background execution queue:\n// TLS handshake -> TCP send -> HTTP stream\n// Zero main-thread blocking`,
+    svg: `
+      <rect x="60" y="55" width="200" height="100" rx="10" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="160" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step2-color)">Background Thread Pool</text>
+      <text x="160" y="105" text-anchor="middle" font-size="11" fill="var(--ink)">Streaming TLS packets</text>
+      <text x="160" y="125" text-anchor="middle" font-size="10" fill="var(--muted)">Main thread free for user touches</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Asynchronous non-blocking transfer</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Verify HTTP Status Code",
+    desc: "Cast response to HTTPURLResponse. Verify statusCode is within 200...299 before assuming data payload is valid.",
+    code: `guard let httpResponse = response as? HTTPURLResponse,\n      (200...299).contains(httpResponse.statusCode) else {\n    throw NetworkError.invalidStatusCode\n}`,
+    svg: `
+      <rect x="50" y="50" width="220" height="110" rx="10" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="2" />
+      <circle cx="80" cy="80" r="14" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="80" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">200</text>
+      <text x="105" y="84" font-size="12" font-weight="700" fill="var(--step3-color)">HTTPURLResponse</text>
+      <line x1="65" y1="105" x2="255" y2="105" stroke="var(--line)" stroke-width="1" />
+      <text x="160" y="125" text-anchor="middle" font-size="10" fill="var(--ink)">(200...299).contains(statusCode) -> true</text>
+      <text x="160" y="145" text-anchor="middle" font-size="10" fill="var(--muted)">Status validated successfully</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Decode JSON & MainActor UI Update",
+    desc: "Decode bytes into a Codable struct. Dispatch the populated model to the @MainActor or main thread to update UI views.",
+    code: `let user = try JSONDecoder().decode(User.self, from: data)\nawait MainActor.run {\n    self.currentUser = user // UI updated safely\n}`,
+    svg: `
+      <rect x="55" y="50" width="210" height="110" rx="10" fill="var(--surface)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="160" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step4-color)">@MainActor Dispatch</text>
+      <rect x="75" y="90" width="170" height="25" rx="4" fill="var(--step4-soft)" />
+      <text x="160" y="106" text-anchor="middle" font-size="10" font-weight="600" fill="var(--step4-color)">User: Jane (ID: 42)</text>
+      <text x="160" y="138" text-anchor="middle" font-size="10" fill="var(--ink)">SwiftUI View Re-rendered</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Thread safety enforced</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+</script>
+</body>
+</html>

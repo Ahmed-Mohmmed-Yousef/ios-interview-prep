@@ -1,0 +1,571 @@
+<title>URLSession Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #7c3aed; --step2-soft: #f5f3ff;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #16a34a; --step4-soft: #dcfce7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #a78bfa; --step2-soft: #2e1065;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #4ade80; --step4-soft: #052e16;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 3; rx: 18px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Data and Networking · Topic 2 of 4 · Prototype</p>
+    <h1>URLSession</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can load data from a web API with URLSession.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Does <code>try await URLSession.shared.data(from: url)</code> throw an error if the server returns a 404 Not Found response?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, any HTTP status code above 399 throws an error automatically.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, it returns data and response successfully; you must inspect <code>statusCode</code> yourself.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Yes, but only if the request uses the POST method.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine a delivery courier picking up packages for you.</p><p>You hand the courier an address slip. The courier drives to the warehouse, collects your parcel, and returns.</p><p>If the road is washed out by a storm, the courier cannot reach the warehouse. That is a <strong>transport error</strong>.</p><p>If the courier reaches the warehouse and the clerk says the item is missing, the trip succeeded.</p><p>The courier hands you a formal notice stating &quot;Item 404 Not Found&quot;.</p><p>You received a valid response from the clerk, even though you did not get your item.</p></aside>
+<p>In iOS, <code>URLSession</code> is the core engine for all network communication.</p>
+<p>It handles connection pooling, TLS security, caching, and background transfers.</p>
+<p>You configure sessions using one of three primary configurations:</p>
+<ol>
+<li><strong>Default (<code>.default</code>)</strong>: Uses persistent disk caching, shared cookies, and Keychain credentials.</li>
+<li><strong>Ephemeral (<code>.ephemeral</code>)</strong>: Stores caches and credentials in RAM only. Data disappears when the session closes.</li>
+<li><strong>Background (<code>.background</code>)</strong>: Delegates transfers to a system daemon. Downloads continue even if iOS suspends your app.</li>
+</ol>
+<p>For simple requests, you can use the pre-configured <code>URLSession.shared</code> singleton.</p>
+<p>When fetching data with modern Swift, call <code>try await URLSession.shared.data(from: url)</code>.</p>
+<p>This call returns two items: raw <code>Data</code> bytes and a <code>URLResponse</code>.</p>
+<p>You cast the response to <code>HTTPURLResponse</code> to verify the three-digit status code.</p>
+<p>Because network requests run on background threads, always dispatch user interface updates to the main thread.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why must you call <code>task.resume()</code> when creating a classic <code>dataTask</code>?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">To request camera permissions from the user.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because newly created data tasks initialize in a suspended state.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">To convert the response data into SwiftUI views.</span></button><p class="qc-explain" hidden="">Classic URLSession tasks are created in the suspended state. Calling resume starts the network connection.</p></div>
+<h2>In code</h2>
+<p>Check the HTTP status code before decoding JSON data.</p>
+<p>Inspect whether the status falls in the successful <code>200...299</code> range.</p>
+<figure class="code-example"><figcaption>Validating HTTP response and decoding data</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+struct User: Codable {
+    let id: Int
+    let name: String
+}
+
+func parse(statusCode: Int, payload: String) -&gt; String {
+    guard (200...299).contains(statusCode) else {
+        return &quot;Server error: \(statusCode)&quot;
+    }
+    guard let data = payload.data(using: .utf8),
+          let user = try? JSONDecoder().decode(User.self, from: data) else {
+        return &quot;Decoding failure&quot;
+    }
+    return &quot;Fetched user \(user.name) with ID \(user.id)&quot;
+}
+
+let json = &quot;&quot;&quot;
+{&quot;id&quot;: 42, &quot;name&quot;: &quot;Jane&quot;}
+&quot;&quot;&quot;
+let message = parse(statusCode: 200, payload: json)
+print(message)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Fetched user Jane with ID 42
+</code></pre></figure>
+<p>Pick the session configuration that matches your privacy and caching needs.</p>
+<p>Use ephemeral sessions when handling sensitive user records in memory only.</p>
+<figure class="code-example"><figcaption>Selecting a session configuration</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+enum NetworkEnvironment {
+    case standard
+    case privateBrowsing
+    case backgroundDownload
+}
+
+func sessionType(for env: NetworkEnvironment) -&gt; String {
+    switch env {
+    case .standard:
+        return &quot;default (disk cache enabled)&quot;
+    case .privateBrowsing:
+        return &quot;ephemeral (RAM only, no cookies on disk)&quot;
+    case .backgroundDownload:
+        return &quot;background (handled by nsurlsessiond)&quot;
+    }
+}
+
+let env = NetworkEnvironment.privateBrowsing
+print(&quot;Environment: \(env)&quot;)
+print(&quot;Session config: \(sessionType(for: env))&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Environment: privateBrowsing
+Session config: ephemeral (RAM only, no cookies on disk)
+</code></pre></figure>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which session configuration should you use for private browsing with no cookies saved to disk?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">URLSessionConfiguration.default</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">URLSessionConfiguration.ephemeral</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">URLSessionConfiguration.background</span></button><p class="qc-explain" hidden="">Ephemeral sessions store all caches, cookies, and credentials in RAM only, discarding them when the session closes.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming 404 or 500 throws an error</p><p><code>URLSession.shared.data(from: url)</code> does not throw an error for 404 or 500 HTTP responses.</p><p>It only throws for transport failures like loss of internet or DNS errors.</p><p>Always cast the returned response to <code>HTTPURLResponse</code> and check <code>statusCode</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Forgetting task.resume() in classic code</p><p>In completion handler code, <code>session.dataTask(...)</code> returns a suspended task.</p><p>If you forget to call <code>task.resume()</code>, the network call never starts.</p><p>The application sits waiting forever with no error or output.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Updating UI from background completion queues</p><p>URLSession executes callbacks and tasks on background threads.</p><p>Modifying UIKit controls or SwiftUI state from background queues causes UI glitches or crashes.</p><p>Always dispatch UI mutations to the main actor or main thread.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using URLSession.shared for background file downloads</p><p><code>URLSession.shared</code> cannot perform out-of-process background downloads.</p><p>If the user locks the phone or switches apps, transfers pause or fail.</p><p>Use <code>URLSessionConfiguration.background(withIdentifier:)</code> for background file downloads.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;<code>URLSession</code> is the Foundation class we use to fetch data from web APIs. With modern Swift, we use <code>try await URLSession.shared.data(from: url)</code>. We check that the response status code is in the 200 range, and decode the JSON into our Codable model. Because network calls run in the background, we update our UI on the main thread.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;<code>URLSession</code> supports three configurations: default, ephemeral for private in-memory storage, and background for transfers managed by the system daemon. In modern code, we use async/await <code>data(for:)</code>, which supports structured cancellation. We differentiate transport errors from HTTP status errors by checking <code>HTTPURLResponse.statusCode</code>. In older code, we remember that tasks start suspended and need <code>task.resume()</code>.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;We wrap <code>URLSession</code> behind an injectable service protocol to help mock unit testing. We tune <code>URLSessionConfiguration</code> for request timeouts and custom cache limits. We manage cancellation using Swift structured concurrency Task trees. We also map HTTP status codes and <code>URLError</code> transport domains into strongly-typed domain errors before dispatching state updates to <code>@MainActor</code> view models.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>URLSession</code> coordinates data transfers over HTTP/HTTPS in iOS.</li>
+<li>Three main configurations: <code>.default</code> (disk cache), <code>.ephemeral</code> (RAM only), and <code>.background</code> (system daemon).</li>
+<li><code>URLSession.shared</code> is a convenient singleton with the default configuration.</li>
+<li>Modern Swift uses <code>try await URLSession.shared.data(from: url)</code> for clean concurrency.</li>
+<li>4xx and 5xx responses do not throw errors; you must check <code>HTTPURLResponse.statusCode</code>.</li>
+<li>Classic <code>dataTask</code> instances start suspended and require <code>task.resume()</code>.</li>
+<li>Network tasks run on background threads; always update user interfaces on the main thread.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/foundation/urlsession">URLSession (Foundation)</a> — Apple documentation for URLSession.</li>
+<li><a href="https://developer.apple.com/documentation/foundation/urlsession/fetching_website_data_into_memory">Fetching website data into memory (Foundation)</a> — Apple guide to async/await network calls.</li>
+<li><a href="https://developer.apple.com/documentation/foundation/urlsessionconfiguration">URLSessionConfiguration (Foundation)</a> — Apple documentation on session configuration options.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "Build Request & Dispatch",
+    desc: "Create a URLRequest with target endpoint, headers, and async/await data call on URLSession.shared.",
+    code: `let url = URL(string: "https://api.example.com/users")!\nlet (data, response) = try await URLSession.shared.data(from: url)`,
+    svg: `
+      <rect x="45" y="55" width="100" height="110" rx="8" fill="var(--surface)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="95" y="80" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">URLRequest</text>
+      <text x="95" y="105" text-anchor="middle" font-size="10" fill="var(--muted)">GET /users</text>
+      <text x="95" y="125" text-anchor="middle" font-size="9" fill="var(--muted)">Accept: json</text>
+      <path d="M 155 110 L 200 110" stroke="var(--step1-color)" stroke-width="2" stroke-dasharray="4" />
+      <polygon points="200,105 210,110 200,115" fill="var(--step1-color)" />
+      <rect x="210" y="65" width="70" height="90" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="245" y="95" text-anchor="middle" font-size="10" font-weight="600" fill="var(--ink)">Session</text>
+      <text x="245" y="115" text-anchor="middle" font-size="9" fill="var(--muted)">Queue</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Dispatching async task</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "Background Network Worker",
+    desc: "URLSession executes the TLS handshake, connection pooling, and transfer on a background thread pool off the main actor.",
+    code: `// Background execution queue:\n// TLS handshake -> TCP send -> HTTP stream\n// Zero main-thread blocking`,
+    svg: `
+      <rect x="60" y="55" width="200" height="100" rx="10" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="160" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step2-color)">Background Thread Pool</text>
+      <text x="160" y="105" text-anchor="middle" font-size="11" fill="var(--ink)">Streaming TLS packets</text>
+      <text x="160" y="125" text-anchor="middle" font-size="10" fill="var(--muted)">Main thread free for user touches</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Asynchronous non-blocking transfer</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Verify HTTP Status Code",
+    desc: "Cast response to HTTPURLResponse. Verify statusCode is within 200...299 before assuming data payload is valid.",
+    code: `guard let httpResponse = response as? HTTPURLResponse,\n      (200...299).contains(httpResponse.statusCode) else {\n    throw NetworkError.invalidStatusCode\n}`,
+    svg: `
+      <rect x="50" y="50" width="220" height="110" rx="10" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="2" />
+      <circle cx="80" cy="80" r="14" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="80" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">200</text>
+      <text x="105" y="84" font-size="12" font-weight="700" fill="var(--step3-color)">HTTPURLResponse</text>
+      <line x1="65" y1="105" x2="255" y2="105" stroke="var(--line)" stroke-width="1" />
+      <text x="160" y="125" text-anchor="middle" font-size="10" fill="var(--ink)">(200...299).contains(statusCode) -> true</text>
+      <text x="160" y="145" text-anchor="middle" font-size="10" fill="var(--muted)">Status validated successfully</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Decode JSON & MainActor UI Update",
+    desc: "Decode bytes into a Codable struct. Dispatch the populated model to the @MainActor or main thread to update UI views.",
+    code: `let user = try JSONDecoder().decode(User.self, from: data)\nawait MainActor.run {\n    self.currentUser = user // UI updated safely\n}`,
+    svg: `
+      <rect x="55" y="50" width="210" height="110" rx="10" fill="var(--surface)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="160" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="var(--step4-color)">@MainActor Dispatch</text>
+      <rect x="75" y="90" width="170" height="25" rx="4" fill="var(--step4-soft)" />
+      <text x="160" y="106" text-anchor="middle" font-size="10" font-weight="600" fill="var(--step4-color)">User: Jane (ID: 42)</text>
+      <text x="160" y="138" text-anchor="middle" font-size="10" fill="var(--ink)">SwiftUI View Re-rendered</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Thread safety enforced</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"urlsession","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"urlsession-q1","type":"mcq","difficulty":1,"prompt":"What does `try await URLSession.shared.data(from: url)` return when the server replies with status code 404?","options":[{"id":"a","text":"It returns raw data bytes and a valid HTTPURLResponse with statusCode 404.","explanation":"Right. Transport succeeded, so it returns data and response without throwing an error."},{"id":"b","text":"It throws a URLError.badServerResponse exception immediately.","explanation":"URLError is only thrown for transport errors, not HTTP status code failures."},{"id":"c","text":"It returns nil for data and crashes on unwrapping response.","explanation":"The async method returns a non-optional tuple (Data, URLResponse)."},{"id":"d","text":"It retries the network request five times before returning nil.","explanation":"URLSession does not perform automated retries on 404 responses."}],"answer":"a"},{"id":"urlsession-q2","type":"mcq","difficulty":1,"prompt":"Why must you call `task.resume()` when creating a classic `dataTask`?","options":[{"id":"a","text":"Because Swift 6 requires an explicit resume call for actors.","explanation":"Task resumption is a Foundation URLSession API design, not a Swift 6 feature."},{"id":"b","text":"Because newly created tasks initialize in a suspended state.","explanation":"Right. Tasks are created suspended to allow configuration before starting."},{"id":"c","text":"Because resume decodes JSON data on the main thread queue.","explanation":"Resume initiates the network connection on background queues."},{"id":"d","text":"Because resume grants network permissions in the iOS sandbox.","explanation":"Sandbox permissions are granted by OS entitlements, not method calls."}],"answer":"b"},{"id":"urlsession-q3","type":"mcq","difficulty":1,"prompt":"Which URLSessionConfiguration stores zero caches, cookies, or credentials on disk?","options":[{"id":"a","text":"The URLSessionConfiguration.default configuration.","explanation":"Default configuration stores caches and cookies on disk."},{"id":"b","text":"The URLSessionConfiguration.background configuration.","explanation":"Background sessions write temporary download files to disk."},{"id":"c","text":"The URLSessionConfiguration.ephemeral configuration.","explanation":"Right. Ephemeral sessions store everything in RAM and leave zero trace on disk."},{"id":"d","text":"The URLSession.shared singleton session instance.","explanation":"URLSession.shared uses the default disk-caching configuration."}],"answer":"c"},{"id":"urlsession-q4","type":"mcq","difficulty":1,"prompt":"Why must user interface updates be dispatched to the main thread after an API call?","options":[{"id":"a","text":"Because background threads lack access to flash memory storage.","explanation":"Background threads can read and write disk storage freely."},{"id":"b","text":"Because the Swift 6 compiler disables networking on the main actor.","explanation":"Networking can be initiated from the main actor without issue."},{"id":"c","text":"Because URLSession tasks terminate if UI views re-render in background.","explanation":"URLSession tasks run independently of UI rendering cycles."},{"id":"d","text":"Because UIKit and SwiftUI rendering engines require main thread execution.","explanation":"Right. UI frameworks are not thread-safe and must be mutated on the main thread."}],"answer":"d"},{"id":"urlsession-q5","type":"mcq","difficulty":2,"prompt":"Which URLSession task type is best suited for downloading a 500 MB video file?","options":[{"id":"a","text":"URLSessionDownloadTask writes streamed data directly to a temporary file.","explanation":"Right. Download tasks save memory by streaming large files directly to disk."},{"id":"b","text":"URLSessionDataTask loads the entire video file into device RAM.","explanation":"Loading 500 MB into RAM can trigger out-of-memory app termination."},{"id":"c","text":"URLSessionUploadTask buffers raw bytes in the shared URLCache.","explanation":"Upload tasks are designed for transmitting data to a server."},{"id":"d","text":"URLSessionWebSocketTask streams bytes over full-duplex TCP.","explanation":"WebSockets are meant for real-time messaging, not bulk file downloads."}],"answer":"a"},{"id":"urlsession-q6","type":"mcq","difficulty":2,"prompt":"What enables `URLSessionConfiguration.background(withIdentifier:)` to continue transfers when an app is suspended?","options":[{"id":"a","text":"It keeps the app process active using continuous audio playback.","explanation":"Background sessions do not use audio playback hacks."},{"id":"b","text":"It delegates network transfers to the separate system nsurlsessiond daemon.","explanation":"Right. The system daemon manages transfers independently of the app process."},{"id":"c","text":"It increases main thread execution priority during backgrounding.","explanation":"Suspended apps have zero main thread or CPU execution time."},{"id":"d","text":"It bypasses all cellular carrier data caps using APNs tokens.","explanation":"Carrier data caps apply regardless of background transfer daemon."}],"answer":"b"},{"id":"urlsession-q7","type":"mcq","difficulty":2,"prompt":"How does modern Swift concurrency handle network cancellation with `URLSession`?","options":[{"id":"a","text":"Network requests cannot be cancelled once transmitted over sockets.","explanation":"URLSession supports active cancellation of running network transfers."},{"id":"b","text":"Developers must call task.cancel() inside an escaping completion block.","explanation":"Async/await integrates with structured Task cancellation automatically."},{"id":"c","text":"Cancelling the parent Task automatically cancels the in-flight network request.","explanation":"Right. URLSession async methods integrate with cooperative Task cancellation."},{"id":"d","text":"The operating system restarts the device if an async task cancels.","explanation":"Task cancellation is a standard, lightweight cooperative error flow."}],"answer":"c"},{"id":"urlsession-q8","type":"mcq","difficulty":2,"prompt":"What is a major limitation of using `URLSession.shared` instead of a custom session?","options":[{"id":"a","text":"It cannot execute HTTP GET requests across Wi-Fi networks.","explanation":"URLSession.shared executes standard GET requests across all networks."},{"id":"b","text":"It can only be called from SwiftUI View body properties.","explanation":"URLSession.shared can be called from any model, actor, or function."},{"id":"c","text":"It requires manual installation via Swift Package Manager.","explanation":"URLSession is built into the Foundation framework on all Apple platforms."},{"id":"d","text":"It cannot be configured for background downloads or custom cache delegates.","explanation":"Right. URLSession.shared uses fixed default configuration and has no delegate."}],"answer":"d"},{"id":"urlsession-q9","type":"mcq","difficulty":2,"prompt":"What happens if a network request fails because the user turned on Airplane Mode?","options":[{"id":"a","text":"The async data method throws a URLError indicating network failure.","explanation":"Right. Transport failures throw URLError.notConnectedToInternet."},{"id":"b","text":"The method returns HTTPURLResponse with statusCode 404.","explanation":"404 is a server response; when offline, no server response is received."},{"id":"c","text":"The app crashes immediately with a SIGABRT exception.","explanation":"Offline network errors are catchable Swift errors, not fatal crashes."},{"id":"d","text":"URLSession retries silently until the device connects to Wi-Fi.","explanation":"Standard data requests fail immediately without waiting for connectivity."}],"answer":"a"},{"id":"urlsession-q10","type":"mcq","difficulty":2,"prompt":"How do you verify that an API response returned a successful HTTP status code in modern Swift?","options":[{"id":"a","text":"Check if the returned Data bytes count is greater than zero.","explanation":"Error responses also return non-empty JSON error bodies."},{"id":"b","text":"Cast response to HTTPURLResponse and check (200...299).contains(statusCode).","explanation":"Right. Inspecting the HTTPURLResponse status code ensures real HTTP success."},{"id":"c","text":"Rely on the try keyword to throw if status code is not 200.","explanation":"The try keyword does not catch HTTP 4xx or 5xx status codes."},{"id":"d","text":"Inspect the URL scheme property to confirm it equals https.","explanation":"The URL scheme only indicates protocol, not response outcome."}],"answer":"b"},{"id":"urlsession-q11","type":"mcq","difficulty":2,"prompt":"What is the role of `URLCache` in URLSession networking?","options":[{"id":"a","text":"It stores user biometric keys for Keychain authentication.","explanation":"Keychain manages security credentials, not URLCache."},{"id":"b","text":"It converts Swift Codable structs into binary property lists.","explanation":"PropertyListEncoder serializes property lists, not URLCache."},{"id":"c","text":"It provides in-memory and on-disk caching of HTTP responses.","explanation":"Right. URLCache caches responses according to HTTP cache headers and policies."},{"id":"d","text":"It terminates slow network connections after twenty seconds.","explanation":"Request timeouts are controlled by timeoutIntervalForRequest."}],"answer":"c"},{"id":"urlsession-q12","type":"mcq","difficulty":3,"prompt":"How can an iOS app perform certificate pinning when using URLSession?","options":[{"id":"a","text":"Add a CertificatePinning boolean key inside Info.plist.","explanation":"Info.plist does not provide a simple boolean key for certificate pinning."},{"id":"b","text":"Call URLSession.shared.enablePinning() on application launch.","explanation":"There is no enablePinning method on URLSession.shared."},{"id":"c","text":"Encrypt all JSON request payloads with AES-256 before upload.","explanation":"Payload encryption does not pin the TLS certificate."},{"id":"d","text":"Implement the URLSessionDelegate authentication challenge delegate method.","explanation":"Right. The urlSession(_:didReceive:completionHandler:) delegate validates server certificates."}],"answer":"d"},{"id":"urlsession-q13","type":"mcq","difficulty":3,"prompt":"What happens to in-progress `URLSessionDataTask` requests when an app moves into the background?","options":[{"id":"a","text":"They are suspended or cancelled when the app execution window expires.","explanation":"Right. Data tasks cannot run out-of-process and pause when the app is suspended."},{"id":"b","text":"They automatically convert into background download tasks.","explanation":"Data tasks never convert into background tasks automatically."},{"id":"c","text":"They continue running indefinitely with zero CPU consumption.","explanation":"Zero CPU execution halts all active socket communication."},{"id":"d","text":"They trigger a watchdog termination error immediately.","explanation":"Backgrounding does not trigger watchdog errors for networking."}],"answer":"a"},{"id":"urlsession-q14","type":"mcq","difficulty":3,"prompt":"Why should network services in iOS apps be designed around protocols?","options":[{"id":"a","text":"Protocols compress binary data before transmission over Wi-Fi.","explanation":"Protocols are Swift language abstraction constructs, not compression codecs."},{"id":"b","text":"Protocols allow injecting mock network clients during unit tests.","explanation":"Right. Protocol-oriented network layers allow fast, offline unit testing with mocks."},{"id":"c","text":"Protocols prevent memory leaks by enforcing unowned self captures.","explanation":"Protocols do not dictate closure capture semantics."},{"id":"d","text":"Protocols bypass TLS security handshake verifications.","explanation":"TLS security is enforced by the operating system, regardless of protocols."}],"answer":"b"},{"id":"urlsession-q15","type":"mcq","difficulty":2,"prompt":"Which component in Foundation decodes raw JSON `Data` into Swift structs?","options":[{"id":"a","text":"The URLResponse parser class.","explanation":"URLResponse provides response headers and status codes, not JSON decoding."},{"id":"b","text":"The PropertyListDecoder serialization engine.","explanation":"PropertyListDecoder decodes XML/binary property lists, not JSON."},{"id":"c","text":"The JSONDecoder class.","explanation":"Right. JSONDecoder parses JSON data into types conforming to the Decodable protocol."},{"id":"d","text":"The NSKeyedUnarchiver archiving tool.","explanation":"NSKeyedUnarchiver is for NSCoding archives, not REST JSON."}],"answer":"c"},{"id":"urlsession-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking if status code 200 is successful?","code":"import Foundation\n\nlet statusCode = 200\nlet isValid = (200...299).contains(statusCode)\nprint(\"Is success code: \\(isValid)\")","options":[{"id":"a","text":"Is success code: false","explanation":"200 is within the range 200...299, so isValid evaluates to true."},{"id":"b","text":"Is success code: nil","explanation":"The contains check returns a non-optional boolean."},{"id":"c","text":"Is success code: 200","explanation":"The code outputs the boolean value of isValid."},{"id":"d","text":"Is success code: true","explanation":"Right. 200 is inside the 200...299 range, returning true."}],"answer":"d"},{"id":"urlsession-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking if 404 is a client error?","code":"import Foundation\n\nstruct MockHTTPResponse {\n    let statusCode: Int\n    var isClientError: Bool {\n        (400...499).contains(statusCode)\n    }\n}\nlet res = MockHTTPResponse(statusCode: 404)\nprint(\"Client error: \\(res.isClientError)\")","options":[{"id":"a","text":"Client error: true","explanation":"Right. 404 is inside 400...499, so isClientError is true."},{"id":"b","text":"Client error: false","explanation":"404 is a client error, so the computed property returns true."},{"id":"c","text":"Client error: 404","explanation":"The property returns a boolean value, not an integer."},{"id":"d","text":"Client error: nil","explanation":"The property returns a non-optional boolean."}],"answer":"a"},{"id":"urlsession-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print when checking if ephemeral sessions store caches on disk?","code":"import Foundation\n\nenum SessionConfigKind {\n    case defaultKind\n    case ephemeral\n    case background\n}\n\nfunc storesOnDisk(kind: SessionConfigKind) -> Bool {\n    switch kind {\n    case .defaultKind:\n        return true\n    case .ephemeral, .background:\n        return false\n    }\n}\nprint(\"Ephemeral stores on disk: \\(storesOnDisk(kind: .ephemeral))\")","options":[{"id":"a","text":"Ephemeral stores on disk: true","explanation":"Case .ephemeral returns false in the switch statement."},{"id":"b","text":"Ephemeral stores on disk: false","explanation":"Right. The switch statement returns false for .ephemeral."},{"id":"c","text":"Ephemeral stores on disk: nil","explanation":"The function returns a concrete non-optional boolean."},{"id":"d","text":"Ephemeral stores on disk: ephemeral","explanation":"The code outputs the boolean return value."}],"answer":"b"},{"id":"urlsession-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when decoding the JSON user payload?","code":"import Foundation\n\nstruct User: Codable {\n    let id: Int\n    let name: String\n}\nlet json = \"{\\\"id\\\": 10, \\\"name\\\": \\\"Alex\\\"}\"\nlet data = json.data(using: .utf8)!\nlet user = try! JSONDecoder().decode(User.self, from: data)\nprint(\"User name: \\(user.name)\")","options":[{"id":"a","text":"User name: User","explanation":"The code prints the string value inside the name field."},{"id":"b","text":"User name: 10","explanation":"10 is the id property, not the name property."},{"id":"c","text":"User name: Alex","explanation":"Right. The JSONDecoder decodes name as Alex and prints it."},{"id":"d","text":"User name: nil","explanation":"The name property is a non-optional String."}],"answer":"c"},{"id":"urlsession-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when transitioning the task state?","code":"import Foundation\n\nenum TaskState {\n    case suspended\n    case running\n    case completed\n}\nvar state = TaskState.suspended\nstate = .running\nprint(\"Is running: \\(state == .running)\")","options":[{"id":"a","text":"Is running: false","explanation":"The state variable was updated to .running, so the check is true."},{"id":"b","text":"Is running: nil","explanation":"The equality comparison evaluates to a standard boolean."},{"id":"c","text":"Is running: running","explanation":"The code outputs the boolean value true, not the enum case."},{"id":"d","text":"Is running: true","explanation":"Right. State was set to .running, so state == .running is true."}],"answer":"d"},{"id":"urlsession-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when handling the error thrown on status 401?","code":"import Foundation\n\nfunc validate(responseCode: Int) throws -> String {\n    if responseCode == 401 {\n        throw NSError(domain: \"Auth\", code: 401)\n    }\n    return \"Valid\"\n}\ndo {\n    _ = try validate(responseCode: 401)\n    print(\"Result: success\")\n} catch {\n    print(\"Result: auth error\")\n}","options":[{"id":"a","text":"Result: auth error","explanation":"Right. Code 401 causes an error to be thrown, entering the catch block."},{"id":"b","text":"Result: success","explanation":"The function threw an error, so the success print statement is bypassed."},{"id":"c","text":"Result: Valid","explanation":"The return value is not printed because execution jumped to catch."},{"id":"d","text":"Result: nil","explanation":"The catch block prints Result: auth error."}],"answer":"a"},{"id":"urlsession-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when checking if the URL scheme is HTTPS?","code":"import Foundation\n\nlet urlString = \"https://api.example.com/items\"\nlet url = URL(string: urlString)\nprint(\"Has scheme: \\(url?.scheme == \"https\")\")","options":[{"id":"a","text":"Has scheme: false","explanation":"The URL scheme is https, so the comparison evaluates to true."},{"id":"b","text":"Has scheme: true","explanation":"Right. The URL has scheme https, so the equality check is true."},{"id":"c","text":"Has scheme: https","explanation":"The code outputs the boolean result of the comparison."},{"id":"d","text":"Has scheme: nil","explanation":"The optional equality comparison evaluates to a concrete boolean."}],"answer":"b"},{"id":"urlsession-q23","type":"code-reading","difficulty":1,"prompt":"What does this code print when determining the recommended task for a 2 KB download?","code":"import Foundation\n\nlet bytesDownloaded = 2048\nlet isLargeDownload = bytesDownloaded > 1000000\nlet recommendedTask = isLargeDownload ? \"downloadTask\" : \"dataTask\"\nprint(\"Task type: \\(recommendedTask)\")","options":[{"id":"a","text":"Task type: downloadTask","explanation":"2048 bytes is less than 1,000,000 bytes, so the ternary picks dataTask."},{"id":"b","text":"Task type: uploadTask","explanation":"The ternary expression returns either downloadTask or dataTask."},{"id":"c","text":"Task type: dataTask","explanation":"Right. 2048 is not a large download, so it resolves to dataTask."},{"id":"d","text":"Task type: nil","explanation":"The recommendedTask variable holds a non-optional String."}],"answer":"c"},{"id":"urlsession-q24","type":"written","difficulty":2,"prompt":"Explain the difference between a transport error and an HTTP error in `URLSession`, and how each should be handled.","modelAnswer":"A transport error occurs when the device cannot reach the server, such as during a lost internet connection, DNS failure, or timeout. In async/await, `data(from:)` throws a `URLError` for transport failures. An HTTP error occurs when the server receives the request but returns an error status code like 404 or 500. `data(from:)` does not throw for HTTP errors; your code must cast `response` to `HTTPURLResponse` and inspect `statusCode`.","rubric":[{"id":"transport-error-explanation","criterion":"Explains transport errors as connectivity/network failures that throw URLError in async/await.","weight":50,"key":true},{"id":"http-error-inspection","criterion":"Explains HTTP status errors do not throw and must be verified by checking HTTPURLResponse.statusCode.","weight":50,"key":true}]},{"id":"urlsession-q25","type":"written","difficulty":2,"prompt":"Compare the three primary `URLSessionConfiguration` types (default, ephemeral, background) and their typical use cases.","modelAnswer":"The default configuration uses disk caching, shared cookie storage, and Keychain credentials for standard networking. The ephemeral configuration stores all caches, cookies, and credentials in RAM only, making it ideal for private browsing sessions. The background configuration delegates network transfers to the system daemon `nsurlsessiond`, allowing large downloads to continue even if the app process is suspended or terminated.","rubric":[{"id":"default-and-ephemeral-configs","criterion":"Describes default (persistent disk cache) and ephemeral (in-memory RAM only) configurations.","weight":50,"key":true},{"id":"background-daemon-config","criterion":"Explains background configuration delegates transfers to the system daemon (nsurlsessiond) across process suspension.","weight":50,"key":true}]},{"id":"urlsession-q26","type":"written","difficulty":2,"prompt":"Why are `URLSessionDataTask` and `URLSessionDownloadTask` used for different networking scenarios?","modelAnswer":"`URLSessionDataTask` stores received response bytes directly in memory as a `Data` object, which is fast and convenient for small JSON REST responses. `URLSessionDownloadTask` streams downloaded bytes directly to a temporary file on the device filesystem. This prevents memory bloat and out-of-memory crashes when downloading large files like videos or archive packages.","rubric":[{"id":"data-task-in-memory","criterion":"Explains dataTask stores response bytes in RAM and is ideal for small JSON API responses.","weight":50,"key":true},{"id":"download-task-filesystem","criterion":"Explains downloadTask streams large files directly to a disk file to prevent high memory usage.","weight":50,"key":true}]},{"id":"urlsession-q27","type":"written","difficulty":2,"prompt":"How does modern Swift async/await improve networking code compared to classic completion handlers in `URLSession`?","modelAnswer":"Modern async/await eliminates deeply nested completion closures and removes the need for `[weak self]` capture lists. It integrates directly with Swift structured concurrency, allowing automatic cancellation propagation when a parent `Task` is cancelled. In contrast, classic completion handler code requires manual error handling across three optional parameters and requires calling `task.resume()` explicitly to avoid stuck tasks.","rubric":[{"id":"syntax-and-structure-benefits","criterion":"Explains async/await eliminates nested completion closures and weak self capture lists.","weight":50,"key":true},{"id":"cancellation-and-flow-benefits","criterion":"Mentions structured Task cancellation integration compared to manual task management.","weight":50,"key":true}]},{"id":"urlsession-q28","type":"written","difficulty":3,"prompt":"What is SSL/TLS certificate pinning in iOS, why is it used, and how is it implemented with `URLSession`?","modelAnswer":"Certificate pinning is a security technique where an app validates the server's certificate or public key against a hardcoded copy bundled inside the app. It is used to prevent Man-in-the-Middle (MitM) attacks caused by compromised Certificate Authorities or rogue proxy certificates. In `URLSession`, it is implemented by conforming to `URLSessionDelegate` and handling the `urlSession(_:didReceive:completionHandler:)` authentication challenge method.","rubric":[{"id":"pinning-definition-and-purpose","criterion":"Defines certificate pinning as validating server certificates against bundled keys to block MitM attacks.","weight":50,"key":true},{"id":"implementation-mechanism","criterion":"Identifies URLSessionDelegate and the authentication challenge callback as the implementation mechanism.","weight":50,"key":true}]},{"id":"urlsession-q29","type":"code-write","difficulty":1,"prompt":"Create a struct named `NetworkResponseValidator` with a static method `static func validateStatusCode(_ code: Int) -> Bool`. Return `true` if `code` is in the range 200 through 299, and `false` otherwise.","starterCode":"// Implement NetworkResponseValidator struct\n","modelAnswer":"struct NetworkResponseValidator {\n    static func validateStatusCode(_ code: Int) -> Bool {\n        return (200...299).contains(code)\n    }\n}\n\nlet check1 = NetworkResponseValidator.validateStatusCode(204)\nlet check2 = NetworkResponseValidator.validateStatusCode(500)\nprint(\"Validation result: \\(check1 && !check2)\")","rubric":[{"id":"validator-signature","criterion":"Declares struct NetworkResponseValidator with static func validateStatusCode(_ code: Int) -> Bool.","weight":50,"key":true},{"id":"status-range-logic","criterion":"Checks if code is inside 200...299 and returns boolean.","weight":50,"key":true}]},{"id":"urlsession-q30","type":"code-write","difficulty":2,"prompt":"Create a struct named `EndpointRequestBuilder` with a method `func makeRequest(urlString: String, token: String?) -> [String: String]`. Return a dictionary containing `\"Accept\": \"application/json\"`. If `token` is non-nil, also include `\"Authorization\": \"Bearer \\(token!)\"`.","starterCode":"// Implement EndpointRequestBuilder struct\n","modelAnswer":"struct EndpointRequestBuilder {\n    func makeRequest(urlString: String, token: String?) -> [String: String] {\n        var headers = [\"Accept\": \"application/json\"]\n        if let token = token {\n            headers[\"Authorization\"] = \"Bearer \\(token)\"\n        }\n        return headers\n    }\n}\n\nlet builder = EndpointRequestBuilder()\nlet headersWithAuth = builder.makeRequest(urlString: \"https://api.com\", token: \"secret123\")\nlet headersWithoutAuth = builder.makeRequest(urlString: \"https://api.com\", token: nil)\nprint(\"Auth present: \\(headersWithAuth[\"Authorization\"] != nil), Auth absent: \\(headersWithoutAuth[\"Authorization\"] == nil)\")","rubric":[{"id":"builder-signature","criterion":"Declares struct EndpointRequestBuilder with func makeRequest(urlString: String, token: String?) -> [String: String].","weight":40,"key":true},{"id":"header-dictionary-assembly","criterion":"Sets Accept header and conditionally adds Bearer authorization header when token is present.","weight":60,"key":true}]},{"id":"urlsession-q31","type":"code-write","difficulty":2,"prompt":"Create a class named `SessionTypeSelector` with a method `func requiresBackgroundDaemon(configurationName: String) -> Bool`. Return `true` if `configurationName` equals `\"background\"`, and `false` otherwise.","starterCode":"// Implement SessionTypeSelector class\n","modelAnswer":"class SessionTypeSelector {\n    func requiresBackgroundDaemon(configurationName: String) -> Bool {\n        return configurationName == \"background\"\n    }\n}\n\nlet selector = SessionTypeSelector()\nlet checkBg = selector.requiresBackgroundDaemon(configurationName: \"background\")\nlet checkDef = selector.requiresBackgroundDaemon(configurationName: \"default\")\nprint(\"Daemon check: \\(checkBg && !checkDef)\")","rubric":[{"id":"selector-signature","criterion":"Declares class SessionTypeSelector with func requiresBackgroundDaemon(configurationName: String) -> Bool.","weight":40,"key":true},{"id":"background-daemon-equality","criterion":"Returns true when configurationName equals background, and false otherwise.","weight":60,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

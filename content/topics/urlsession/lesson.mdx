@@ -1,0 +1,241 @@
+export const meta = {
+  id: "urlsession",
+  summary: "Load data from web APIs using URLSession, handle HTTP responses, and parse JSON models safely in iOS.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "URLSession (Foundation)", url: "https://developer.apple.com/documentation/foundation/urlsession", kind: "official" },
+    { title: "Fetching website data into memory (Foundation)", url: "https://developer.apple.com/documentation/foundation/urlsession/fetching_website_data_into_memory", kind: "official" },
+    { title: "URLSessionConfiguration (Foundation)", url: "https://developer.apple.com/documentation/foundation/urlsessionconfiguration", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Does `try await URLSession.shared.data(from: url)` throw an error if the server returns a 404 Not Found response?</Question>
+  <Guess>
+    <Option id="a">Yes, any HTTP status code above 399 throws an error automatically.</Option>
+    <Option id="b" correct>No, it returns data and response successfully; you must inspect `statusCode` yourself.</Option>
+    <Option id="c">Yes, but only if the request uses the POST method.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a delivery courier picking up packages for you.
+
+You hand the courier an address slip. The courier drives to the warehouse, collects your parcel, and returns.
+
+If the road is washed out by a storm, the courier cannot reach the warehouse. That is a **transport error**.
+
+If the courier reaches the warehouse and the clerk says the item is missing, the trip succeeded.
+
+The courier hands you a formal notice stating "Item 404 Not Found".
+
+You received a valid response from the clerk, even though you did not get your item.
+</Analogy>
+
+In iOS, `URLSession` is the core engine for all network communication.
+
+It handles connection pooling, TLS security, caching, and background transfers.
+
+You configure sessions using one of three primary configurations:
+
+1. **Default (`.default`)**: Uses persistent disk caching, shared cookies, and Keychain credentials.
+2. **Ephemeral (`.ephemeral`)**: Stores caches and credentials in RAM only. Data disappears when the session closes.
+3. **Background (`.background`)**: Delegates transfers to a system daemon. Downloads continue even if iOS suspends your app.
+
+For simple requests, you can use the pre-configured `URLSession.shared` singleton.
+
+When fetching data with modern Swift, call `try await URLSession.shared.data(from: url)`.
+
+This call returns two items: raw `Data` bytes and a `URLResponse`.
+
+You cast the response to `HTTPURLResponse` to verify the three-digit status code.
+
+Because network requests run on background threads, always dispatch user interface updates to the main thread.
+
+## See it
+
+<Diagram id="urlsession-diagram" caption="URLSession Pipeline and Response Processing">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. URLSession request dispatcher.
+    2. Background network worker queue.
+    3. Server response returning (Data, URLResponse).
+    4. HTTP status verification and MainActor UI update.
+  - Steps:
+    Step 1: App creates URLRequest and dispatches task via URLSession.
+    Step 2: Network worker performs TLS handshake and HTTP transfer in background.
+    Step 3: Response arrives: cast to HTTPURLResponse and check statusCode in 200...299.
+    Step 4: Decode JSON with JSONDecoder and update UI on the Main Thread.
+  - Static version (reduced motion):
+    A 4-step diagram showing Request, Network Worker, Response Verification, and MainActor Dispatch.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why must you call `task.resume()` when creating a classic `dataTask`?</Question>
+  <Option id="a">To request camera permissions from the user.</Option>
+  <Option id="b" correct>Because newly created data tasks initialize in a suspended state.</Option>
+  <Option id="c">To convert the response data into SwiftUI views.</Option>
+  <Explanation>Classic URLSession tasks are created in the suspended state. Calling resume starts the network connection.</Explanation>
+</QuickCheck>
+
+## In code
+
+Check the HTTP status code before decoding JSON data.
+
+Inspect whether the status falls in the successful `200...299` range.
+
+<CodeExample title="Validating HTTP response and decoding data">
+
+```swift
+import Foundation
+
+struct User: Codable {
+    let id: Int
+    let name: String
+}
+
+func parse(statusCode: Int, payload: String) -> String {
+    guard (200...299).contains(statusCode) else {
+        return "Server error: \(statusCode)"
+    }
+    guard let data = payload.data(using: .utf8),
+          let user = try? JSONDecoder().decode(User.self, from: data) else {
+        return "Decoding failure"
+    }
+    return "Fetched user \(user.name) with ID \(user.id)"
+}
+
+let json = """
+{"id": 42, "name": "Jane"}
+"""
+let message = parse(statusCode: 200, payload: json)
+print(message)
+```
+
+```output
+Fetched user Jane with ID 42
+```
+
+</CodeExample>
+
+Pick the session configuration that matches your privacy and caching needs.
+
+Use ephemeral sessions when handling sensitive user records in memory only.
+
+<CodeExample title="Selecting a session configuration">
+
+```swift
+import Foundation
+
+enum NetworkEnvironment {
+    case standard
+    case privateBrowsing
+    case backgroundDownload
+}
+
+func sessionType(for env: NetworkEnvironment) -> String {
+    switch env {
+    case .standard:
+        return "default (disk cache enabled)"
+    case .privateBrowsing:
+        return "ephemeral (RAM only, no cookies on disk)"
+    case .backgroundDownload:
+        return "background (handled by nsurlsessiond)"
+    }
+}
+
+let env = NetworkEnvironment.privateBrowsing
+print("Environment: \(env)")
+print("Session config: \(sessionType(for: env))")
+```
+
+```output
+Environment: privateBrowsing
+Session config: ephemeral (RAM only, no cookies on disk)
+```
+
+</CodeExample>
+
+<QuickCheck>
+  <Question>Which session configuration should you use for private browsing with no cookies saved to disk?</Question>
+  <Option id="a">URLSessionConfiguration.default</Option>
+  <Option id="b" correct>URLSessionConfiguration.ephemeral</Option>
+  <Option id="c">URLSessionConfiguration.background</Option>
+  <Explanation>Ephemeral sessions store all caches, cookies, and credentials in RAM only, discarding them when the session closes.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming 404 or 500 throws an error">
+`URLSession.shared.data(from: url)` does not throw an error for 404 or 500 HTTP responses.
+
+It only throws for transport failures like loss of internet or DNS errors.
+
+Always cast the returned response to `HTTPURLResponse` and check `statusCode`.
+</Trap>
+
+<Trap title="Forgetting task.resume() in classic code">
+In completion handler code, `session.dataTask(...)` returns a suspended task.
+
+If you forget to call `task.resume()`, the network call never starts.
+
+The application sits waiting forever with no error or output.
+</Trap>
+
+<Trap title="Updating UI from background completion queues">
+URLSession executes callbacks and tasks on background threads.
+
+Modifying UIKit controls or SwiftUI state from background queues causes UI glitches or crashes.
+
+Always dispatch UI mutations to the main actor or main thread.
+</Trap>
+
+<Trap title="Using URLSession.shared for background file downloads">
+`URLSession.shared` cannot perform out-of-process background downloads.
+
+If the user locks the phone or switches apps, transfers pause or fail.
+
+Use `URLSessionConfiguration.background(withIdentifier:)` for background file downloads.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"`URLSession` is the Foundation class we use to fetch data from web APIs. With modern Swift, we use `try await URLSession.shared.data(from: url)`. We check that the response status code is in the 200 range, and decode the JSON into our Codable model. Because network calls run in the background, we update our UI on the main thread."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"`URLSession` supports three configurations: default, ephemeral for private in-memory storage, and background for transfers managed by the system daemon. In modern code, we use async/await `data(for:)`, which supports structured cancellation. We differentiate transport errors from HTTP status errors by checking `HTTPURLResponse.statusCode`. In older code, we remember that tasks start suspended and need `task.resume()`."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"We wrap `URLSession` behind an injectable service protocol to help mock unit testing. We tune `URLSessionConfiguration` for request timeouts and custom cache limits. We manage cancellation using Swift structured concurrency Task trees. We also map HTTP status codes and `URLError` transport domains into strongly-typed domain errors before dispatching state updates to `@MainActor` view models."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `URLSession` coordinates data transfers over HTTP/HTTPS in iOS.
+- Three main configurations: `.default` (disk cache), `.ephemeral` (RAM only), and `.background` (system daemon).
+- `URLSession.shared` is a convenient singleton with the default configuration.
+- Modern Swift uses `try await URLSession.shared.data(from: url)` for clean concurrency.
+- 4xx and 5xx responses do not throw errors; you must check `HTTPURLResponse.statusCode`.
+- Classic `dataTask` instances start suspended and require `task.resume()`.
+- Network tasks run on background threads; always update user interfaces on the main thread.
+</Recap>
+
+## Go deeper
+
+- [URLSession (Foundation)](https://developer.apple.com/documentation/foundation/urlsession) — Apple documentation for URLSession.
+- [Fetching website data into memory (Foundation)](https://developer.apple.com/documentation/foundation/urlsession/fetching_website_data_into_memory) — Apple guide to async/await network calls.
+- [URLSessionConfiguration (Foundation)](https://developer.apple.com/documentation/foundation/urlsessionconfiguration) — Apple documentation on session configuration options.
