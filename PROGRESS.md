@@ -77,7 +77,7 @@ Write all lessons and question banks, level by level, with fact checks.
 - ✅ A repeatable "improve a topic" workflow → [docs/topic-workflow.md](docs/topic-workflow.md)
 - ✅ Decide where per-topic notes live → `docs/topics/<topic-id>/` (decided 2026-11-08)
 - ✅ **4.0 Tooling & review setup** — generalize prototype review builder for any topic, write to `docs/topics/<topic-id>/review.html`
-- 🔄 **4.1 Fresh level topics (Wave 1)** — 2 remaining topics (20 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`, `state-and-binding`, `swiftui-lists`)
+- 🔄 **4.1 Fresh level topics (Wave 1)** — 1 remaining topic (21 published: `structs-vs-classes`, `swift-basics`, `optionals`, `operators`, `strings-and-characters`, `collections`, `control-flow`, `functions`, `closures-basics`, `enumerations`, `properties`, `methods-and-initialization`, `error-handling`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`, `state-and-binding`, `swiftui-lists`, `swiftui-navigation`)
   - ✅ **Batch 1A: Swift Language Core (7 topics)** — Complete
     - ✅ **swift-basics** (Constants, Variables and Types) — published (lesson, diagram, 31 questions) → [docs/topics/swift-basics/review.html](docs/topics/swift-basics/review.html)
     - ✅ **optionals** (Optionals) — published (lesson, diagram, 31 questions) → [docs/topics/optionals/review.html](docs/topics/optionals/review.html)
@@ -96,14 +96,14 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **big-o** (Big-O: Time and Space) — published (lesson, diagram, 31 questions) → [docs/topics/big-o/review.html](docs/topics/big-o/review.html)
     - ✅ **arrays-and-strings** (Arrays and Strings) — published (lesson, diagram, 31 questions) → [docs/topics/arrays-and-strings/review.html](docs/topics/arrays-and-strings/review.html)
     - ✅ **hash-tables** (Hash Tables) — published (lesson, diagram, 31 questions) → [docs/topics/hash-tables/review.html](docs/topics/hash-tables/review.html)
-  - 🔄 **Batch 1D: SwiftUI Basics (5 topics: `swiftui-views-modifiers` → `swiftui-navigation`)**
+  - ✅ **Batch 1D: SwiftUI Basics (5 topics: `swiftui-views-modifiers` → `swiftui-navigation`)** — Complete
     - ✅ **swiftui-views-modifiers** (Views and Modifiers) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-views-modifiers/review.html](docs/topics/swiftui-views-modifiers/review.html)
     - ✅ **swiftui-layout** (Stacks and Layout) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-layout/review.html](docs/topics/swiftui-layout/review.html)
     - ✅ **state-and-binding** (@State and @Binding) — published (lesson, diagram, 31 questions) → [docs/topics/state-and-binding/review.html](docs/topics/state-and-binding/review.html)
     - ✅ **swiftui-lists** (Lists and ForEach) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-lists/review.html](docs/topics/swiftui-lists/review.html)
-    - 🔄 **swiftui-navigation** (Navigation) — starting research
-  - ⬜ **Batch 1E: App and System (1 topic: `xcode-and-git-basics`)**
-    - ⬜ **xcode-and-git-basics** (Xcode, Projects and Git)
+    - ✅ **swiftui-navigation** (Navigation) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-navigation/review.html](docs/topics/swiftui-navigation/review.html)
+  - 🔄 **Batch 1E: App and System (1 topic: `xcode-and-git-basics`)**
+    - 🔄 **xcode-and-git-basics** (Xcode, Projects and Git) — starting research
 - ⬜ **4.2 Junior level topics (Wave 2)** — 44 main + 1 bonus
 - ⬜ **4.3 Mid level topics (Wave 3)** — 44 main + 9 bonus
 - ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
@@ -225,6 +225,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic swiftui-navigation (Navigation): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swiftui-navigation/review.html`). Batch 1D complete. Starting final Fresh topic: xcode-and-git-basics.
 
 - **2026-11-09** — Step 5.7 done: Built Screen 11 (Progress & Settings) and Screen 12 (About). Features: stage and unit performance breakdown bars, Device/Light/Dark appearance switcher applied to document, JSON progress file export with clipboard fallback, JSON file import with schema preview comparison, typed `RESET` progress confirmation modal, mission and source policy declarations, and Apple trademark notice. 49 pages prerendered cleanly. Starting Step 5.8: Accessibility, Testing & Final Verification.
 

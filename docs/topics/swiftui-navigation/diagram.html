@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI NavigationStack Data-Driven Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --nav-color: #0284c7; --nav-soft: #e0f2fe;
+  --detail-color: #0c765c; --detail-soft: #dcf2ea;
+  --pop-color: #d97706; --pop-soft: #fef3c7;
+  --active-color: #0284c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --nav-color: #38bdf8; --nav-soft: #082f49;
+  --detail-color: #45cfa3; --detail-soft: #13362c;
+  --pop-color: #fbbf24; --pop-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+
+/* Metrics counter card */
+.metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  background: var(--code-bg); padding: 8px 12px; border-radius: 8px; text-align: center;
+}
+.metric-col span { display: block; font-size: 11px; color: var(--muted); }
+.metric-col strong { font-family: var(--font-code); font-size: 13px; color: var(--ink); }
+
+/* Controls toolbar */
+.toolbar {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px;
+}
+.controls-grp { display: flex; gap: 8px; align-items: center; }
+button {
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--active-color); color: var(--active-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.steps-dots { display: flex; gap: 6px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--line); border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--active-color); transform: scale(1.15); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host">
+
+  <div class="panels">
+
+    <!-- Screen Stack Panel -->
+    <div class="panel" id="panel-screen">
+      <h3>
+        <span id="vis-title">1. Root View in NavigationStack</span>
+        <span class="kind" id="vis-tag" style="background: var(--nav-soft); color: var(--nav-color);">Depth: 1</span>
+      </h3>
+      <p class="caption" id="vis-desc">The NavigationStack starts with the root view at stack depth one.</p>
+
+      <svg viewBox="0 0 320 220" role="img" aria-label="Phone screen with NavigationStack view">
+        <!-- Phone Outline -->
+        <rect x="20" y="10" width="280" height="200" rx="14" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+        
+        <!-- Navigation Bar Area -->
+        <rect x="20" y="10" width="280" height="42" rx="14" fill="var(--code-bg)"/>
+        <!-- Bottom square off corners of nav bar -->
+        <rect x="20" y="32" width="280" height="20" fill="var(--code-bg)"/>
+        <line x1="20" y1="52" x2="300" y2="52" stroke="var(--line)" stroke-width="1"/>
+
+        <!-- Back Button text/icon -->
+        <g id="grp-back-btn" opacity="0">
+          <path d="M 34 31 L 42 25 L 42 37 Z" fill="var(--nav-color)"/>
+          <text x="48" y="34" font-size="12" font-weight="600" fill="var(--nav-color)" font-family="var(--font-body)">Topics</text>
+        </g>
+
+        <!-- Navigation Title -->
+        <text id="nav-title-text" x="160" y="35" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)" font-family="var(--font-body)">Topics</text>
+
+        <!-- Screen Content Area -->
+        <!-- Root View Content (List Rows) -->
+        <g id="grp-root-rows" opacity="1">
+          <!-- Row 1: Swift -->
+          <rect id="rect-row1" x="32" y="62" width="256" height="34" rx="6" fill="var(--nav-soft)" stroke="var(--line)"/>
+          <text x="44" y="83" font-size="12" font-weight="600" fill="var(--ink)" font-family="var(--font-body)">Swift Basics</text>
+          <text x="270" y="83" font-size="12" fill="var(--muted)" font-family="var(--font-body)">›</text>
+
+          <!-- Row 2: SwiftUI -->
+          <rect id="rect-row2" x="32" y="102" width="256" height="34" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="44" y="123" font-size="12" font-weight="600" fill="var(--ink)" font-family="var(--font-body)">SwiftUI Navigation</text>
+          <text x="270" y="123" font-size="12" fill="var(--muted)" font-family="var(--font-body)">›</text>
+
+          <!-- Row 3: Combine -->
+          <rect id="rect-row3" x="32" y="142" width="256" height="34" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="44" y="163" font-size="12" font-weight="600" fill="var(--ink)" font-family="var(--font-body)">Combine Basics</text>
+          <text x="270" y="163" font-size="12" fill="var(--muted)" font-family="var(--font-body)">›</text>
+        </g>
+
+        <!-- Detail View Content (Pushed screen) -->
+        <g id="grp-detail-screen" opacity="0">
+          <rect x="32" y="62" width="256" height="136" rx="8" fill="var(--detail-soft)" stroke="var(--detail-color)" stroke-width="1.5"/>
+          <circle cx="160" cy="100" r="20" fill="var(--detail-color)"/>
+          <text x="160" y="105" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff" font-family="var(--font-body)">✓</text>
+          <text x="160" y="135" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)" font-family="var(--font-body)">Detail Screen</text>
+          <text x="160" y="153" text-anchor="middle" font-size="11" font-weight="500" fill="var(--muted)" font-family="var(--font-code)">value: "SwiftUI Navigation"</text>
+          <rect x="75" y="165" width="170" height="22" rx="4" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="160" y="180" text-anchor="middle" font-size="10" font-weight="600" fill="var(--detail-color)" font-family="var(--font-body)">Lazy Created Just-In-Time</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Navigation Code & State Panel -->
+    <div class="panel" id="panel-state">
+      <h3>
+        <span id="right-title">Data-Driven Stack</span>
+        <span class="kind" id="right-tag" style="background: var(--nav-soft); color: var(--nav-color);">Value Link</span>
+      </h3>
+      <p class="caption" id="right-desc">NavigationLink passes a Hashable value into the stack lazily.</p>
+      
+      <div class="code" id="right-code">NavigationStack {
+    List(topics, id: \.self) { topic in
+        NavigationLink(topic, value: topic)
+    }
+    .navigationDestination(for: String.self) { ... }
+}</div>
+
+      <div class="metrics">
+        <div class="metric-col">
+          <span>Stack Depth</span>
+          <strong id="m-depth">1</strong>
+        </div>
+        <div class="metric-col">
+          <span>Destination Views</span>
+          <strong id="m-dest">0 (None)</strong>
+        </div>
+        <div class="metric-col">
+          <span>Path Count</span>
+          <strong id="m-path">0</strong>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Stepper Controls Toolbar -->
+  <div class="toolbar">
+    <div class="controls-grp">
+      <button id="btn-prev" onclick="prevStep()" disabled aria-label="Previous step">‹ Back</button>
+      <button id="btn-next" onclick="nextStep()" aria-label="Next step">Next ›</button>
+    </div>
+
+    <div class="steps-dots" role="tablist" aria-label="Diagram steps">
+      <button class="dot active" onclick="goToStep(0)" role="tab" aria-selected="true" aria-label="Step 1"></button>
+      <button class="dot" onclick="goToStep(1)" role="tab" aria-selected="false" aria-label="Step 2"></button>
+      <button class="dot" onclick="goToStep(2)" role="tab" aria-selected="false" aria-label="Step 3"></button>
+      <button class="dot" onclick="goToStep(3)" role="tab" aria-selected="false" aria-label="Step 4"></button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    visTitle: "1. Root View in NavigationStack",
+    visTag: "Depth: 1",
+    visDesc: "The NavigationStack initializes with the root view at stack depth one. No detail screens exist in memory.",
+    navTitle: "Topics",
+    showBack: false,
+    showRoot: true,
+    showDetail: false,
+    row2Fill: "var(--surface)",
+    rightTitle: "Data-Driven Stack",
+    rightTag: "Lazy",
+    rightCode: "NavigationStack {\n    List(topics, id: \\.self) { topic in\n        NavigationLink(topic, value: topic)\n    }\n    .navigationDestination(for: String.self) { ... }\n}",
+    rightDesc: "NavigationStack decouples links from destinations. Zero detail views are allocated upfront.",
+    mDepth: "1",
+    mDest: "0 (None)",
+    mPath: "0"
+  },
+  {
+    visTitle: "2. User Taps NavigationLink",
+    visTag: "Value Emitted",
+    visDesc: "User taps 'SwiftUI Navigation'. NavigationLink sends the string value into the navigation stack.",
+    navTitle: "Topics",
+    showBack: false,
+    showRoot: true,
+    showDetail: false,
+    row2Fill: "var(--nav-soft)",
+    rightTitle: "Emitting Value",
+    rightTag: "Hashable",
+    rightCode: "// User taps row\nNavigationLink(\"SwiftUI Navigation\",\n    value: \"SwiftUI Navigation\")\n// NavigationStack receives Hashable value",
+    rightDesc: "Instead of instantiating a View struct directly, NavigationLink pushes only the data value.",
+    mDepth: "1 → 2",
+    mDest: "Allocating...",
+    mPath: "1"
+  },
+  {
+    visTitle: "3. navigationDestination Resolves Screen",
+    visTag: "Depth: 2",
+    visDesc: "SwiftUI matches String.self to navigationDestination and builds the DetailView just-in-time.",
+    navTitle: "Detail",
+    showBack: true,
+    showRoot: false,
+    showDetail: true,
+    row2Fill: "var(--surface)",
+    rightTitle: "Lazy Destination View",
+    rightTag: "Just-In-Time",
+    rightCode: ".navigationDestination(for: String.self) { item in\n    DetailView(title: item)\n}\n// Pushed onto stack at depth 2",
+    rightDesc: "The destination view is only created when requested. Navigation bar updates automatically.",
+    mDepth: "2",
+    mDest: "1 (Active)",
+    mPath: "1"
+  },
+  {
+    visTitle: "4. Pop Back to Root Screen",
+    visTag: "Pop to 1",
+    visDesc: "Tapping Back removes the top screen from the stack. DetailView memory is released immediately.",
+    navTitle: "Topics",
+    showBack: false,
+    showRoot: true,
+    showDetail: false,
+    row2Fill: "var(--surface)",
+    rightTitle: "View Deallocation",
+    rightTag: "Popped",
+    rightCode: "// User taps '< Topics' or calls path.removeLast()\n// DetailView popped off stack\n// Root screen restored with state intact",
+    rightDesc: "Popping a view tears down its local state and restores the underlying screen smoothly.",
+    mDepth: "1",
+    mDest: "0 (Released)",
+    mPath: "0"
+  }
+];
+
+let curStep = 0;
+
+function updateDiagram() {
+  const s = steps[curStep];
+  
+  document.getElementById("vis-title").textContent = s.visTitle;
+  document.getElementById("vis-tag").textContent = s.visTag;
+  document.getElementById("vis-desc").textContent = s.visDesc;
+  document.getElementById("nav-title-text").textContent = s.navTitle;
+
+  document.getElementById("grp-back-btn").setAttribute("opacity", s.showBack ? "1" : "0");
+  document.getElementById("grp-root-rows").setAttribute("opacity", s.showRoot ? "1" : "0");
+  document.getElementById("grp-detail-screen").setAttribute("opacity", s.showDetail ? "1" : "0");
+  document.getElementById("rect-row2").setAttribute("fill", s.row2Fill);
+
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+  document.getElementById("m-depth").textContent = s.mDepth;
+  document.getElementById("m-dest").textContent = s.mDest;
+  document.getElementById("m-path").textContent = s.mPath;
+
+  const dots = document.querySelectorAll(".steps-dots .dot");
+  dots.forEach((d, idx) => {
+    d.classList.toggle("active", idx === curStep);
+    d.setAttribute("aria-selected", idx === curStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = (curStep === 0);
+  document.getElementById("btn-next").disabled = (curStep === steps.length - 1);
+}
+
+function prevStep() { if (curStep > 0) { curStep--; updateDiagram(); } }
+function nextStep() { if (curStep < steps.length - 1) { curStep++; updateDiagram(); } }
+function goToStep(i) { curStep = i; updateDiagram(); }
+</script>
+
+</body>
+</html>
