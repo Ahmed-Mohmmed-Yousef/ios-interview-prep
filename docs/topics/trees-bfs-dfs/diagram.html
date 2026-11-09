@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Trees: BFS vs DFS Traversal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --bfs-color: #0284c7; --bfs-soft: #e0f2fe;
+  --dfs-color: #7c3aed; --dfs-soft: #ede9fe;
+  --accent-color: #059669; --accent-soft: #d1fae5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --bfs-color: #38bdf8; --bfs-soft: #082f49;
+  --dfs-color: #a78bfa; --dfs-soft: #2e1065;
+  --accent-color: #34d399; --accent-soft: #064e3b;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.controls {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  padding: 6px 14px; border-radius: 8px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: all 0.2s ease;
+}
+button:hover:not(:disabled) { border-color: var(--bfs-color); color: var(--bfs-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-weight: 600; font-size: 14px; color: var(--muted); }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-bfs .kind { background: var(--bfs-soft); color: var(--bfs-color); }
+.p-dfs .kind { background: var(--dfs-soft); color: var(--dfs-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-circle { stroke-width: 2.5; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-circle.active-bfs { stroke: var(--bfs-color); fill: var(--bfs-soft); stroke-width: 3.5; }
+.node-circle.active-dfs { stroke: var(--dfs-color); fill: var(--dfs-soft); stroke-width: 3.5; }
+.node-text { font-family: var(--font-code); font-weight: 700; font-size: 16px; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; }
+.edge { stroke: var(--line); stroke-width: 2; stroke-linecap: round; }
+
+.status-badge {
+  display: inline-block; font-family: var(--font-code); font-size: 12px;
+  padding: 4px 8px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-circle { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Animated BFS vs DFS Tree Traversal Diagram">
+  <div class="controls">
+    <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+    <div class="btn-group">
+      <button id="btnBack" type="button" aria-label="Previous step">Back</button>
+      <button id="btnNext" type="button" aria-label="Next step">Next</button>
+      <button id="btnReplay" type="button" aria-label="Replay from start">Replay</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <!-- BFS Panel -->
+    <div class="panel p-bfs">
+      <h3><span>Breadth-First Search</span><span class="kind">Queue (FIFO)</span></h3>
+      <p class="caption" id="bfsCaption">Start at the root node. Push node 1 to the queue.</p>
+      <div class="code" id="bfsCode">queue = [1]<br>visited = []</div>
+      <div>
+        <span class="status-badge" id="bfsQueueBadge">Queue: [1]</span>
+        <span class="status-badge" id="bfsVisitedBadge">Visited: []</span>
+      </div>
+      <svg viewBox="0 0 300 200" aria-label="Tree BFS View">
+        <line x1="150" y1="35" x2="80" y2="95" class="edge" />
+        <line x1="150" y1="35" x2="220" y2="95" class="edge" />
+        <line x1="80" y1="95" x2="45" y2="155" class="edge" />
+        <line x1="80" y1="95" x2="115" y2="155" class="edge" />
+
+        <circle id="bfsNode1" cx="150" cy="35" r="18" class="node-circle active-bfs" />
+        <text x="150" y="35" class="node-text">1</text>
+
+        <circle id="bfsNode2" cx="80" cy="95" r="18" class="node-circle" />
+        <text x="80" y="95" class="node-text">2</text>
+
+        <circle id="bfsNode3" cx="220" cy="95" r="18" class="node-circle" />
+        <text x="220" y="95" class="node-text">3</text>
+
+        <circle id="bfsNode4" cx="45" cy="155" r="18" class="node-circle" />
+        <text x="45" y="155" class="node-text">4</text>
+
+        <circle id="bfsNode5" cx="115" cy="155" r="18" class="node-circle" />
+        <text x="115" y="155" class="node-text">5</text>
+      </svg>
+    </div>
+
+    <!-- DFS Panel -->
+    <div class="panel p-dfs">
+      <h3><span>Depth-First Search</span><span class="kind">Call Stack (LIFO)</span></h3>
+      <p class="caption" id="dfsCaption">Start at the root node. Push node 1 to the call stack.</p>
+      <div class="code" id="dfsCode">dfs(node: 1)<br>stack = [1]</div>
+      <div>
+        <span class="status-badge" id="dfsStackBadge">Stack: [1]</span>
+        <span class="status-badge" id="dfsVisitedBadge">Visited: [1]</span>
+      </div>
+      <svg viewBox="0 0 300 200" aria-label="Tree DFS View">
+        <line x1="150" y1="35" x2="80" y2="95" class="edge" />
+        <line x1="150" y1="35" x2="220" y2="95" class="edge" />
+        <line x1="80" y1="95" x2="45" y2="155" class="edge" />
+        <line x1="80" y1="95" x2="115" y2="155" class="edge" />
+
+        <circle id="dfsNode1" cx="150" cy="35" r="18" class="node-circle active-dfs" />
+        <text x="150" y="35" class="node-text">1</text>
+
+        <circle id="dfsNode2" cx="80" cy="95" r="18" class="node-circle" />
+        <text x="80" y="95" class="node-text">2</text>
+
+        <circle id="dfsNode3" cx="220" cy="95" r="18" class="node-circle" />
+        <text x="220" y="95" class="node-text">3</text>
+
+        <circle id="dfsNode4" cx="45" cy="155" r="18" class="node-circle" />
+        <text x="45" y="155" class="node-text">4</text>
+
+        <circle id="dfsNode5" cx="115" cy="155" r="18" class="node-circle" />
+        <text x="115" y="155" class="node-text">5</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    bfsCaption: "Step 1: Start at the root node. Enqueue node 1.",
+    bfsCode: "queue = [1]\nvisited = []",
+    bfsQueue: "Queue: [1]",
+    bfsVisited: "Visited: []",
+    bfsActive: [1],
+    dfsCaption: "Step 1: Call dfs(1). Push node 1 to the call stack.",
+    dfsCode: "dfs(node: 1)\nstack = [1]",
+    dfsStack: "Stack: [1]",
+    dfsVisited: "Visited: [1]",
+    dfsActive: [1]
+  },
+  {
+    step: 2,
+    bfsCaption: "Step 2: Dequeue 1. Enqueue both level-1 children (2 and 3).",
+    bfsCode: "pop 1 -> add children 2, 3\nqueue = [2, 3]",
+    bfsQueue: "Queue: [2, 3]",
+    bfsVisited: "Visited: [1]",
+    bfsActive: [2, 3],
+    dfsCaption: "Step 2: Dive deep into the left child: dfs(2). Stack grows.",
+    dfsCode: "dfs(node: 2)\nstack = [1, 2]",
+    dfsStack: "Stack: [1, 2]",
+    dfsVisited: "Visited: [1, 2]",
+    dfsActive: [2]
+  },
+  {
+    step: 3,
+    bfsCaption: "Step 3: Dequeue 2. Enqueue level-2 children (4 and 5).",
+    bfsCode: "pop 2 -> add 4, 5\nqueue = [3, 4, 5]",
+    bfsQueue: "Queue: [3, 4, 5]",
+    bfsVisited: "Visited: [1, 2]",
+    bfsActive: [3, 4, 5],
+    dfsCaption: "Step 3: Dive deep to leaf 4: dfs(4). Stack reaches bottom.",
+    dfsCode: "dfs(node: 4)\nstack = [1, 2, 4]",
+    dfsStack: "Stack: [1, 2, 4]",
+    dfsVisited: "Visited: [1, 2, 4]",
+    dfsActive: [4]
+  },
+  {
+    step: 4,
+    bfsCaption: "Step 4: Dequeue 3, 4, 5. Traversal done level by level.",
+    bfsCode: "Levels: [1], [2, 3], [4, 5]\nOrder: 1 -> 2 -> 3 -> 4 -> 5",
+    bfsQueue: "Queue: []",
+    bfsVisited: "Visited: [1, 2, 3, 4, 5]",
+    bfsActive: [1, 2, 3, 4, 5],
+    dfsCaption: "Step 4: Backtrack from 4, visit 5, then 3. Deep branch first.",
+    dfsCode: "Pre-order: 1 -> 2 -> 4 -> 5 -> 3\nStack empty when all return",
+    dfsStack: "Stack: []",
+    dfsVisited: "Visited: [1, 2, 4, 5, 3]",
+    dfsActive: [1, 2, 3, 4, 5]
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+
+  document.getElementById("bfsCaption").textContent = s.bfsCaption;
+  document.getElementById("bfsCode").innerHTML = s.bfsCode.replace(/\n/g, "<br>");
+  document.getElementById("bfsQueueBadge").textContent = s.bfsQueue;
+  document.getElementById("bfsVisitedBadge").textContent = s.bfsVisited;
+
+  document.getElementById("dfsCaption").textContent = s.dfsCaption;
+  document.getElementById("dfsCode").innerHTML = s.dfsCode.replace(/\n/g, "<br>");
+  document.getElementById("dfsStackBadge").textContent = s.dfsStack;
+  document.getElementById("dfsVisitedBadge").textContent = s.dfsVisited;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  for (let i = 1; i <= 5; i++) {
+    const bfsEl = document.getElementById(`bfsNode${i}`);
+    const dfsEl = document.getElementById(`dfsNode${i}`);
+    if (s.bfsActive.includes(i)) bfsEl.classList.add("active-bfs");
+    else bfsEl.classList.remove("active-bfs");
+
+    if (s.dfsActive.includes(i)) dfsEl.classList.add("active-dfs");
+    else dfsEl.classList.remove("active-dfs");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>

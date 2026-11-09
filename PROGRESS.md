@@ -165,9 +165,9 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **key-paths** (Key Paths) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/key-paths/review.html](docs/topics/key-paths/review.html)
     - ✅ **property-wrappers** (Property Wrappers) — published (lesson, diagram, 31 questions) → [docs/topics/property-wrappers/review.html](docs/topics/property-wrappers/review.html)
     - ✅ **result-builders** (Result Builders) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/result-builders/review.html](docs/topics/result-builders/review.html)
-  - 🔄 **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)**
-    - 🔄 **trees-bfs-dfs** (Trees: BFS and DFS) — starting research
-    - ⬜ **graphs** (Graphs)
+  - 🔄 **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)** — in progress (1 of 7 published)
+    - ✅ **trees-bfs-dfs** (Trees: BFS and DFS) — published (lesson, diagram, 31 questions) → [docs/topics/trees-bfs-dfs/review.html](docs/topics/trees-bfs-dfs/review.html)
+    - 🔄 **graphs** (Graphs) — starting research
     - ⬜ **heaps** (Heaps)
     - ⬜ **tries** (Tries) [bonus]
     - ⬜ **intervals** (Intervals)
@@ -328,6 +328,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-09** — Built and published topic trees-bfs-dfs (Trees: BFS and DFS): researched official docs, authored lesson in simple English, animated diagram, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/trees-bfs-dfs/review.html`). All checks passed. Batch 3B progress: 1 of 7 published. Starting graphs.
 
 - **2026-11-09** — Completed Batch 3A (Swift Language Deep Dive: 7 topics published). Starting Batch 3B (Advanced Algorithms & Data Structures: 7 topics: `trees-bfs-dfs` through `bits-math-geometry`). Launching dedicated autonomous subagent.
 
