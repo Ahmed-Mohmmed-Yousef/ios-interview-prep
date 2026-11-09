@@ -1,0 +1,610 @@
+<title>Logging with OSLog Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #16a34a; --step2-soft: #dcfce7;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #7c3aed; --step4-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #4ade80; --step2-soft: #052e16;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #a78bfa; --step4-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 12px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Testing and Release · Topic 2 of 3 · Prototype</p>
+    <h1>Logging with OSLog</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can add useful logs with OSLog.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Why should production iOS apps use OSLog instead of standard <code>print()</code> statements?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because print statements cause compile errors in release builds.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because OSLog provides structured filtering, privacy redaction, and near-zero performance overhead.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because OSLog sends all console messages to Apple headquarters automatically.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine a captain steering a cargo ship across the ocean.</p><p>If the captain writes down notes on loose paper napkins and throws them on the floor, the bridge becomes a mess.
+The napkins have no dates, no categories, and anyone can read confidential customer names.
+Cleaning up the paper napkins takes time and distracts the crew.
+Using <code>print()</code> statements in code is like throwing loose napkins on the floor.</p><p>Instead, the captain maintains an official ship logbook.
+Every entry has a timestamp, an exact department tag, and a severity level.
+Routine notes stay in daily records, while emergency alerts trigger sirens.
+Confidential passenger details are hidden from view.
+Apple&#x27;s <strong>OSLog</strong> is your official ship logbook.</p></aside>
+<p>In iOS development, <strong>OSLog</strong> replaces <code>print()</code> and legacy <code>NSLog</code>:</p>
+<ol>
+<li><strong>Subsystems and Categories</strong>: Group logs by app feature (such as <code>com.prepstops.app</code> and <code>network</code>) for easy filtering.</li>
+<li><strong>Log Levels</strong>: Categorize messages as <code>debug</code>, <code>info</code>, <code>notice</code>, <code>error</code>, or <code>fault</code>.</li>
+<li><strong>Privacy by Default</strong>: OSLog automatically hides sensitive strings as <code>&lt;private&gt;</code> in production release builds.</li>
+<li><strong>High Performance</strong>: String interpolation is deferred. If a log level is disabled, the code never formats the string.</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What happens to dynamic string variables logged with OSLog in release builds by default?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">They are converted into uppercase text.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">They are redacted as &lt;private&gt; to protect sensitive user information.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">They are deleted along with the entire log message.</span></button><p class="qc-explain" hidden="">OSLog masks dynamic strings as private by default in release builds to prevent exposing personal user data.</p></div>
+<h2>In code</h2>
+<p>Create a <code>Logger</code> instance by specifying a reverse-DNS subsystem and a category.
+Then log messages using structured severity levels.</p>
+<figure class="code-example"><figcaption>Configuring a Logger with subsystem and category</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+import os
+
+let logger = Logger(subsystem: &quot;com.prepstops.app&quot;, category: &quot;auth&quot;)
+
+func logUserLogin(userId: Int, username: String) {
+    logger.info(&quot;User logged in with id \(userId, privacy: .public)&quot;)
+    print(&quot;Logged login for user \(userId)&quot;)
+}
+
+logUserLogin(userId: 42, username: &quot;Jordan&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Logged login for user 42
+</code></pre></figure>
+<p>Now look at handling errors with different log levels.
+Use <code>info</code> for expected milestones, and <code>error</code> or <code>fault</code> when something fails.</p>
+<figure class="code-example"><figcaption>Logging success and failure with appropriate severity levels</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+import os
+
+struct NetworkLogger {
+    static let logger = Logger(subsystem: &quot;com.prepstops.network&quot;, category: &quot;api&quot;)
+
+    static func handleResponse(statusCode: Int, endpoint: String) {
+        if statusCode == 200 {
+            logger.info(&quot;Success from \(endpoint, privacy: .public)&quot;)
+            print(&quot;Status 200: success&quot;)
+        } else {
+            logger.error(&quot;Failed endpoint \(endpoint, privacy: .public) with code \(statusCode)&quot;)
+            print(&quot;Status \(statusCode): error logged&quot;)
+        }
+    }
+}
+
+NetworkLogger.handleResponse(statusCode: 200, endpoint: &quot;/profile&quot;)
+NetworkLogger.handleResponse(statusCode: 404, endpoint: &quot;/items&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Status 200: success
+Status 404: error logged
+</code></pre></figure>
+<p class="try-it"><p>Open an Xcode playground. Import <code>os</code> and instantiate a <code>Logger</code>. Experiment with <code>debug</code>, <code>info</code>, and <code>error</code> methods using privacy annotations.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which OSLog level is intended for system-level bugs and automatically captures thread call stacks?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>debug</code></span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>fault</code></span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text"><code>notice</code></span></button><p class="qc-explain" hidden="">The fault level marks critical system errors and automatically captures stack traces to aid diagnosis.</p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Leaving print statements in production</p><p>Calling <code>print()</code> does synchronous disk and console writing on the caller thread.
+In tight loops or scroll handlers, this causes frame drops and stutters.
+Furthermore, <code>print()</code> outputs personal user data in plaintext.
+Always use <code>Logger</code> for production telemetry.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using NSLog in modern Swift</p><p><code>NSLog</code> is a legacy Objective-C function.
+It writes synchronously to standard error and adds timestamp overhead.
+In modern iOS apps, always prefer <code>os.Logger</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Marking sensitive user data as public</p><p>Writing <code>\(userPassword, privacy: .public)</code> exposes secrets in device logs.
+Anyone with device access can view plaintext logs in Console.app.
+Keep sensitive data private or use hash masking with <code>privacy: .private(mask: .hash)</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Choosing the wrong log level</p><p>Logging everything at the <code>error</code> level clutters diagnostic reports.
+Reserving <code>fault</code> for true critical bugs keeps telemetry actionable.
+Use <code>debug</code> for high-volume logs, <code>info</code> for milestones, and <code>error</code> for handled failures.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>OSLog is Apple&#x27;s modern logging system for iOS.
+Unlike <code>print()</code>, which writes plaintext and slows down the app, OSLog is fast and organized.
+It organizes messages by subsystem and category.
+It also protects user privacy by hiding sensitive strings as <code>&lt;private&gt;</code> in release builds.
+We use levels like <code>debug</code>, <code>info</code>, <code>error</code>, and <code>fault</code>.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>I use <code>os.Logger</code> for all production logging instead of <code>print()</code>.
+I organize logs with reverse-DNS subsystems and categories, like <code>com.app.network</code>, so we can filter messages in Xcode and Console.app.
+OSLog is fast because string formatting is deferred until needed.
+I choose levels carefully: <code>debug</code> for local diagnostics, <code>info</code> for app milestones, and <code>error</code> or <code>fault</code> for failures.
+I also use privacy annotations to prevent sensitive customer data from leaking into device logs.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p><code>os.Logger</code> provides zero-overhead telemetry because string interpolation is skipped if a log level is disabled.
+In Swift 6, <code>Logger</code> is <code>Sendable</code>, making it safe across concurrent actor boundaries.
+By annotating values with <code>privacy: .private(mask: .hash)</code>, we maintain auditability without exposing personal identifiable information.
+For production diagnostics, we also use <code>OSLogStore</code> to extract recent logs in memory and attach them to crash reports and user feedback tickets.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><strong>OSLog</strong> replaces <code>print()</code> with high-performance, structured telemetry.</li>
+<li>Organize logs by <strong>subsystem</strong> (e.g. <code>com.company.app</code>) and <strong>category</strong> (e.g. <code>auth</code>).</li>
+<li>The 5 log levels are <strong>debug</strong>, <strong>info</strong>, <strong>notice</strong>, <strong>error</strong>, and <strong>fault</strong>.</li>
+<li>Dynamic strings are <strong>private by default</strong> in release builds to protect personal information.</li>
+<li>Annotate values with <code>privacy: .public</code> only when data is safe to view.</li>
+<li>Filter and stream live logs easily in Xcode Console and macOS Console.app.</li>
+</ul></div></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "Subsystems & Categories",
+    desc: "Reverse-DNS subsystems and specific feature categories structure logs for instant filtering in Console.app and Xcode.",
+    code: `import os\nlet logger = Logger(\n  subsystem: "com.prepstops.app",\n  category: "networking"\n)`,
+    svg: `
+      <rect x="25" y="30" width="270" height="40" rx="6" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="2" />
+      <text x="160" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step1-color)">Subsystem: com.prepstops.app</text>
+
+      <line x1="80" y1="70" x2="80" y2="95" stroke="var(--step1-color)" stroke-width="1.5" />
+      <line x1="160" y1="70" x2="160" y2="95" stroke="var(--step1-color)" stroke-width="1.5" />
+      <line x1="240" y1="70" x2="240" y2="95" stroke="var(--step1-color)" stroke-width="1.5" />
+
+      <rect x="35" y="95" width="90" height="50" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="80" y="117" text-anchor="middle" font-size="9" font-weight="700" fill="var(--ink)">auth</text>
+      <text x="80" y="132" text-anchor="middle" font-size="8" fill="var(--muted)">Login & Tokens</text>
+
+      <rect x="115" y="95" width="90" height="50" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="160" y="117" text-anchor="middle" font-size="9" font-weight="700" fill="var(--ink)">networking</text>
+      <text x="160" y="132" text-anchor="middle" font-size="8" fill="var(--muted)">HTTP & APIs</text>
+
+      <rect x="195" y="95" width="90" height="50" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="240" y="117" text-anchor="middle" font-size="9" font-weight="700" fill="var(--ink)">database</text>
+      <text x="240" y="132" text-anchor="middle" font-size="8" fill="var(--muted)">Local Storage</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Structured logging taxonomy</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "The 5 Log Levels",
+    desc: "Messages progress in severity from high-volume debug logs to info milestones, default notice, error, and critical faults.",
+    code: `logger.debug("Parsing item")\nlogger.info("Fetched 10 items")\nlogger.notice("Sync finished")\nlogger.error("404 Not Found")\nlogger.fault("Database corrupt")`,
+    svg: `
+      <rect x="25" y="40" width="50" height="85" rx="4" fill="var(--code-bg)" stroke="var(--line)" stroke-width="1" />
+      <text x="50" y="75" text-anchor="middle" font-size="9" font-weight="600" fill="var(--muted)">debug</text>
+      <text x="50" y="105" text-anchor="middle" font-size="7" fill="var(--muted)">Dev only</text>
+
+      <rect x="80" y="40" width="50" height="85" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1" />
+      <text x="105" y="75" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">info</text>
+      <text x="105" y="105" text-anchor="middle" font-size="7" fill="var(--muted)">Helpful</text>
+
+      <rect x="135" y="40" width="50" height="85" rx="4" fill="var(--step1-soft)" stroke="var(--step1-color)" stroke-width="1.5" />
+      <text x="160" y="75" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step1-color)">notice</text>
+      <text x="160" y="105" text-anchor="middle" font-size="7" fill="var(--step1-color)">Default</text>
+
+      <rect x="190" y="40" width="50" height="85" rx="4" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="1.5" />
+      <text x="215" y="75" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step3-color)">error</text>
+      <text x="215" y="105" text-anchor="middle" font-size="7" fill="var(--step3-color)">Failure</text>
+
+      <rect x="245" y="40" width="50" height="85" rx="4" fill="var(--step2-soft)" stroke="var(--step2-color)" stroke-width="2" />
+      <text x="270" y="75" text-anchor="middle" font-size="9" font-weight="700" fill="var(--step2-color)">fault</text>
+      <text x="270" y="105" text-anchor="middle" font-size="7" fill="var(--step2-color)">Critical</text>
+
+      <text x="160" y="155" text-anchor="middle" font-size="9" fill="var(--muted)">Increasing severity &rarr;</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Severity-based persistence</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Privacy by Default",
+    desc: "Dynamic strings and personal data are masked as <private> in release builds. Numbers are public by default.",
+    code: `logger.info("Order \\(orderId, privacy: .public)\\n  for \\(email, privacy: .private)")\n// Output in release: Order 42 for <private>`,
+    svg: `
+      <rect x="25" y="35" width="270" height="115" rx="8" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="160" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">Automated PII Redaction</text>
+
+      <rect x="40" y="70" width="115" height="40" rx="4" fill="var(--surface)" />
+      <text x="97" y="87" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">Scalar Number</text>
+      <text x="97" y="102" text-anchor="middle" font-size="8" fill="var(--step1-color)">Public by default: 42</text>
+
+      <rect x="165" y="70" width="115" height="40" rx="4" fill="var(--surface)" />
+      <text x="222" y="87" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">Dynamic String</text>
+      <text x="222" y="102" text-anchor="middle" font-size="8" fill="var(--step3-color)">Private: &lt;private&gt;</text>
+
+      <text x="160" y="134" text-anchor="middle" font-size="9" fill="var(--muted)">Compliance with GDPR & privacy standards</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Zero-leak personal information protection</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Console & Diagnostics",
+    desc: "Filter live log streams in Console.app and Xcode 15+. Extract recent logs programmatically with OSLogStore.",
+    code: `// Live streaming with predicate:\n// subsystem:com.prepstops.app AND level:error\nlet store = try OSLogStore(scope: .currentProcessIdentifier)`,
+    svg: `
+      <rect x="25" y="35" width="270" height="115" rx="8" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="160" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step4-color)">Unified Tooling Integration</text>
+
+      <rect x="40" y="70" width="115" height="35" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1" />
+      <text x="97" y="88" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">macOS Console.app</text>
+      <text x="97" y="100" text-anchor="middle" font-size="7" fill="var(--muted)">Live device stream</text>
+
+      <rect x="165" y="70" width="115" height="35" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1" />
+      <text x="222" y="88" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">OSLogStore API</text>
+      <text x="222" y="100" text-anchor="middle" font-size="7" fill="var(--muted)">Programmatic logs</text>
+
+      <text x="160" y="130" text-anchor="middle" font-size="9" fill="var(--step4-color)">Structured search across all system threads</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--step4-color)">Complete telemetry lifecycle</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"logging-oslog","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"logging-oslog-q1","type":"mcq","difficulty":1,"prompt":"What framework provides the modern Logger API in Swift on iOS?","options":[{"id":"a","text":"The os framework.","explanation":"Logger is imported from the standard Apple os framework."},{"id":"b","text":"The UIKit framework.","explanation":"UIKit handles user interfaces, not unified system logging."},{"id":"c","text":"The CoreData framework.","explanation":"CoreData manages object graphs and persistence, not logging."},{"id":"d","text":"The Combine framework.","explanation":"Combine provides reactive streams, not system logging."}],"answer":"a"},{"id":"logging-oslog-q2","type":"mcq","difficulty":2,"prompt":"Why is print() considered an antipattern for production logging in iOS apps?","options":[{"id":"a","text":"Because print calls prevent app store review submission completely.","explanation":"App Store review does not reject binaries containing print calls."},{"id":"b","text":"Because it runs synchronous disk I/O and leaks private user data in plaintext.","explanation":"print performs synchronous I/O and lacks automated privacy redaction."},{"id":"c","text":"Because print statements can only output numbers and cannot print strings.","explanation":"print supports any Swift type, including strings and objects."},{"id":"d","text":"Because the Swift compiler removes all print statements during release.","explanation":"print statements remain active in release builds unless removed."}],"answer":"b"},{"id":"logging-oslog-q3","type":"mcq","difficulty":2,"prompt":"What two identifiers are used to organize and filter logs in os.Logger?","options":[{"id":"a","text":"Username and password.","explanation":"User credentials must never be used as log identifiers."},{"id":"b","text":"Device model and screen brightness.","explanation":"Hardware settings are not logging organization parameters."},{"id":"c","text":"Subsystem and category.","explanation":"Logger uses reverse-DNS subsystems and specific category tags."},{"id":"d","text":"Thread count and memory limit.","explanation":"Runtime thread metrics are not logger configuration keys."}],"answer":"c"},{"id":"logging-oslog-q4","type":"mcq","difficulty":2,"prompt":"What happens to dynamic string variables in OSLog release builds by default?","options":[{"id":"a","text":"They are encoded into base64 binary strings.","explanation":"OSLog does not encode strings to base64; it redacts them."},{"id":"b","text":"They are printed in full bold red text in Console.app.","explanation":"Console.app masks private values rather than highlighting them."},{"id":"c","text":"They cause a runtime crash to alert developers to data leaks.","explanation":"OSLog safely redacts data without crashing the application."},{"id":"d","text":"They are redacted as private to protect personal user data.","explanation":"Dynamic strings are private by default in release builds."}],"answer":"d"},{"id":"logging-oslog-q5","type":"mcq","difficulty":2,"prompt":"How can a developer make a safe scalar value visible in release device logs?","options":[{"id":"a","text":"By adding the privacy: .public annotation inside the string interpolation.","explanation":"Adding privacy: .public explicitly reveals safe data in release logs."},{"id":"b","text":"By prefixing the log message string with the word PUBLIC in all capitals.","explanation":"Capitalizing words does not change OSLog privacy redaction rules."},{"id":"c","text":"By converting the logger instance into an Objective-C class at runtime.","explanation":"Objective-C conversions do not alter privacy settings."},{"id":"d","text":"By saving the log string directly into an open SQLite database file.","explanation":"SQLite storage is separate from OSLog privacy annotations."}],"answer":"a"},{"id":"logging-oslog-q6","type":"mcq","difficulty":2,"prompt":"Which OSLog level is intended for high-volume messages useful only during active debugging?","options":[{"id":"a","text":"The fault level.","explanation":"Fault is for critical system bugs, not high-volume debug logs."},{"id":"b","text":"The debug level.","explanation":"The debug level is for high-volume logs during active development."},{"id":"c","text":"The notice level.","explanation":"Notice is the default level persisted to disk for normal milestones."},{"id":"d","text":"The error level.","explanation":"Error is for handled failures, not routine debug tracing."}],"answer":"b"},{"id":"logging-oslog-q7","type":"mcq","difficulty":2,"prompt":"Which log level should be reserved for critical system bugs that capture stack traces?","options":[{"id":"a","text":"The info level.","explanation":"Info is for routine informational messages."},{"id":"b","text":"The debug level.","explanation":"Debug is for active development without stack capture."},{"id":"c","text":"The fault level.","explanation":"Fault signifies critical system bugs and captures stack traces."},{"id":"d","text":"The notice level.","explanation":"Notice is the default level for normal app milestones."}],"answer":"c"},{"id":"logging-oslog-q8","type":"mcq","difficulty":2,"prompt":"Why does OSLog have near-zero performance cost when a log level is disabled?","options":[{"id":"a","text":"Because logs are sent to a remote cloud server on a private thread.","explanation":"OSLog does not upload logs to remote cloud servers."},{"id":"b","text":"Because the device GPU executes all logging statements in parallel.","explanation":"Logging executes on CPU cores, not GPU shaders."},{"id":"c","text":"Because the compiler deletes disabled log methods from the app binary.","explanation":"The methods remain compiled; evaluation is bypassed at runtime."},{"id":"d","text":"Because string interpolation is deferred and skipped if inactive.","explanation":"Deferred string interpolation avoids formatting costs when disabled."}],"answer":"d"},{"id":"logging-oslog-q9","type":"mcq","difficulty":2,"prompt":"What macOS application allows developers to stream and filter live OSLog entries?","options":[{"id":"a","text":"Console.app.","explanation":"Console.app provides live streaming and subsystem filtering."},{"id":"b","text":"Finder.app.","explanation":"Finder is a file management utility, not a log viewer."},{"id":"c","text":"Terminal Settings.","explanation":"Terminal Settings configures fonts and shell profiles."},{"id":"d","text":"Keynote.app.","explanation":"Keynote is presentation software, not a developer telemetry viewer."}],"answer":"a"},{"id":"logging-oslog-q10","type":"mcq","difficulty":2,"prompt":"What Swift API allows reading recent unified logs programmatically on device?","options":[{"id":"a","text":"FileManager.default.readLogs()","explanation":"FileManager manages filesystem items, not unified log databases."},{"id":"b","text":"OSLogStore","explanation":"OSLogStore allows programmatic access to past unified log entries."},{"id":"c","text":"UserDefaults.standard.logs","explanation":"UserDefaults is for preferences, not system log storage."},{"id":"d","text":"URLSessionLogReader","explanation":"This is a fabricated API name."}],"answer":"b"},{"id":"logging-oslog-q11","type":"mcq","difficulty":2,"prompt":"Why is legacy NSLog discouraged in modern Swift iOS applications?","options":[{"id":"a","text":"Because NSLog was removed completely from iOS 17 and later.","explanation":"NSLog still exists for backward compatibility, but is obsolete."},{"id":"b","text":"Because NSLog requires paying an enterprise Apple Developer fee.","explanation":"NSLog is a standard C/Objective-C function with no fees."},{"id":"c","text":"Because it blocks threads with synchronous I/O and lacks privacy controls.","explanation":"NSLog is slow, blocks threads, and lacks subsystem or privacy controls."},{"id":"d","text":"Because NSLog cannot accept format specifiers like percent-at.","explanation":"NSLog uses Objective-C format specifiers by default."}],"answer":"c"},{"id":"logging-oslog-q12","type":"mcq","difficulty":2,"prompt":"What privacy modifier can hash an identifier to allow debugging without revealing user data?","options":[{"id":"a","text":"privacy: .obfuscateKey","explanation":"This is invalid OSLog syntax."},{"id":"b","text":"privacy: .deleteInRelease","explanation":"This is invalid OSLog syntax."},{"id":"c","text":"privacy: .maskWithZeros","explanation":"This is invalid OSLog syntax."},{"id":"d","text":"privacy: .private(mask: .hash)","explanation":"mask: .hash creates a consistent hash for correlation without leaking PII."}],"answer":"d"},{"id":"logging-oslog-q13","type":"mcq","difficulty":2,"prompt":"Are scalar numbers like integers and floats public or private by default in OSLog?","options":[{"id":"a","text":"Scalar numbers are public by default.","explanation":"Numeric primitives like Int and Double are public by default in OSLog."},{"id":"b","text":"Scalar numbers are always redacted as private.","explanation":"Only dynamic strings and objects are private by default."},{"id":"c","text":"Scalar numbers trigger compile errors unless annotated.","explanation":"Scalar numbers compile without requiring explicit privacy annotations."},{"id":"d","text":"Scalar numbers are converted to boolean flags.","explanation":"Numbers retain their numeric representation in logs."}],"answer":"a"},{"id":"logging-oslog-q14","type":"mcq","difficulty":2,"prompt":"Why should developers avoid marking passwords or tokens with privacy: .public?","options":[{"id":"a","text":"Because the compiler refuses to compile the word password.","explanation":"The compiler does not inspect variable names for keywords."},{"id":"b","text":"Because secrets will appear in plaintext in system logs on device.","explanation":"Public annotations make sensitive credentials readable in console tools."},{"id":"c","text":"Because public variables automatically trigger a factory reset.","explanation":"Logging has no effect on device factory settings."},{"id":"d","text":"Because OSLog disables network calls when passwords are logged.","explanation":"OSLog does not monitor or alter networking behavior."}],"answer":"b"},{"id":"logging-oslog-q15","type":"mcq","difficulty":3,"prompt":"Is Logger safe to pass across concurrent Swift actors in Swift 6 mode?","options":[{"id":"a","text":"No, Logger can only be accessed from the main actor.","explanation":"Logger is not restricted to the main actor."},{"id":"b","text":"No, Logger requires manual mutex locks before every call.","explanation":"Logger is internally synchronized and thread-safe."},{"id":"c","text":"Yes, Logger conforms to Sendable and is safe across actors.","explanation":"Logger conforms to Sendable in Swift 6, ensuring thread safety."},{"id":"d","text":"Yes, but only when running inside an autoreleasepool block.","explanation":"Logger does not require autoreleasepool wrappers."}],"answer":"c"},{"id":"logging-oslog-q16","type":"code-reading","difficulty":2,"prompt":"What does this code print when executing the logger statement?","code":"import Foundation\nimport os\n\nlet log = Logger(subsystem: \"com.prepstops.app\", category: \"network\")\nlog.info(\"Request started\")\nprint(\"Logged network request\")","options":[{"id":"a","text":"Request started","explanation":"log.info writes to the unified logging system, not stdout."},{"id":"b","text":"com.prepstops.app.network","explanation":"The subsystem and category are metadata, not stdout text."},{"id":"c","text":"Nothing is printed.","explanation":"print(\"Logged network request\") outputs text to stdout."},{"id":"d","text":"Logged network request","explanation":"The print statement writes Logged network request to stdout."}],"answer":"d"},{"id":"logging-oslog-q17","type":"code-reading","difficulty":2,"prompt":"What does this code print after logging the cart notice?","code":"import Foundation\nimport os\n\nlet logger = Logger(subsystem: \"com.prepstops.app\", category: \"cart\")\nlet cartId = 99\nlogger.notice(\"Cart \\(cartId, privacy: .public) checked out\")\nprint(\"Cart \\(cartId) processed\")","options":[{"id":"a","text":"Cart 99 processed","explanation":"The print statement outputs Cart 99 processed."},{"id":"b","text":"Cart \u003cprivate> processed","explanation":"cartId is interpolated directly into the print statement."},{"id":"c","text":"Cart checked out","explanation":"The print statement specifies Cart 99 processed."},{"id":"d","text":"Compiler error: privacy parameter invalid inside print.","explanation":"The privacy parameter is inside logger.notice, not print."}],"answer":"a"},{"id":"logging-oslog-q18","type":"code-reading","difficulty":2,"prompt":"What output is produced by checking file status for a missing file?","code":"import Foundation\nimport os\n\nfunc handleFile(exists: Bool) -> String {\n    let logger = Logger(subsystem: \"com.prepstops.app\", category: \"files\")\n    if exists {\n        logger.info(\"File opened\")\n        return \"opened\"\n    } else {\n        logger.error(\"File missing\")\n        return \"missing\"\n    }\n}\n\nprint(\"File status: \\(handleFile(exists: false))\")","options":[{"id":"a","text":"File status: opened","explanation":"exists is false, so the else branch executes."},{"id":"b","text":"File status: missing","explanation":"The else branch returns missing when exists is false."},{"id":"c","text":"File missing","explanation":"The function returns missing, formatted into File status: missing."},{"id":"d","text":"File status: error","explanation":"The return value is missing, not error."}],"answer":"b"},{"id":"logging-oslog-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when evaluating the expensive calculation tracker?","code":"import Foundation\n\nfinal class CalculationTracker {\n    var evaluated = false\n    func compute() -> Int {\n        evaluated = true\n        return 42\n    }\n}\n\nlet tracker = CalculationTracker()\nlet value = tracker.compute()\nprint(\"Value: \\(value), Evaluated: \\(tracker.evaluated)\")","options":[{"id":"a","text":"Value: 0, Evaluated: false","explanation":"The compute method returns 42 and updates evaluated to true."},{"id":"b","text":"Value: 42, Evaluated: false","explanation":"compute sets evaluated to true before returning."},{"id":"c","text":"Value: 42, Evaluated: true","explanation":"The tracker returns 42 and marks evaluated as true."},{"id":"d","text":"Compiler error: variable mutation requires mutating keyword.","explanation":"Classes are reference types and allow mutating properties without mutating."}],"answer":"c"},{"id":"logging-oslog-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when simulating email privacy masking?","code":"import Foundation\n\nstruct UserMasker {\n    static func maskEmail(_ email: String) -> String {\n        return \"\u003cprivate>\"\n    }\n}\n\nlet masked = UserMasker.maskEmail(\"user@example.com\")\nprint(\"Email in release: \\(masked)\")","options":[{"id":"a","text":"Email in release: user@example.com","explanation":"maskEmail returns the string \u003cprivate>."},{"id":"b","text":"Email in release: nil","explanation":"The method returns the non-optional string \u003cprivate>."},{"id":"c","text":"Email in release: redacted","explanation":"The returned string literal is \u003cprivate>."},{"id":"d","text":"Email in release: \u003cprivate>","explanation":"The helper returns the standard OSLog privacy token \u003cprivate>."}],"answer":"d"},{"id":"logging-oslog-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when formatting the logger target string?","code":"import Foundation\n\nstruct LogConfig {\n    static let subsystem = \"com.prepstops.ios\"\n    static let category = \"auth\"\n}\n\nprint(\"Logger target: \\(LogConfig.subsystem).\\(LogConfig.category)\")","options":[{"id":"a","text":"Logger target: com.prepstops.ios.auth","explanation":"The string joins subsystem and category with a period."},{"id":"b","text":"Logger target: com.prepstops.ios","explanation":"The print statement includes .auth as well."},{"id":"c","text":"Logger target: auth","explanation":"The print statement includes the subsystem prefix."},{"id":"d","text":"Compiler error: static constants cannot be interpolated.","explanation":"Static properties can be interpolated into strings in Swift."}],"answer":"a"},{"id":"logging-oslog-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when validating a nil token?","code":"import Foundation\nimport os\n\nfunc validateToken(token: String?) -> Bool {\n    let logger = Logger(subsystem: \"com.prepstops.auth\", category: \"security\")\n    guard let token, !token.isEmpty else {\n        logger.fault(\"Security token corrupted or nil\")\n        return false\n    }\n    return true\n}\n\nprint(\"Valid token: \\(validateToken(token: nil))\")","options":[{"id":"a","text":"Valid token: true","explanation":"The token is nil, so the guard statement fails and returns false."},{"id":"b","text":"Valid token: false","explanation":"Because token is nil, the guard else block executes and returns false."},{"id":"c","text":"Fatal error: unexpected nil found in guard.","explanation":"Guard handles nil safely by executing its else block."},{"id":"d","text":"Valid token: nil","explanation":"The return type is a non-optional Boolean value."}],"answer":"b"},{"id":"logging-oslog-q23","type":"code-reading","difficulty":2,"prompt":"What output is produced by converting 0.125 seconds into milliseconds?","code":"import Foundation\n\nstruct DurationFormatter {\n    static func formatMS(seconds: Double) -> String {\n        let ms = Int(seconds * 1000)\n        return \"\\(ms) ms\"\n    }\n}\n\nprint(\"Elapsed: \\(DurationFormatter.formatMS(seconds: 0.125))\")","options":[{"id":"a","text":"Elapsed: 12 ms","explanation":"0.125 * 1000 = 125, not 12."},{"id":"b","text":"Elapsed: 1250 ms","explanation":"0.125 * 1000 = 125, not 1250."},{"id":"c","text":"Elapsed: 125 ms","explanation":"0.125 multiplied by 1000 equals 125."},{"id":"d","text":"Elapsed: 0.125 s","explanation":"The formatter formats the value in milliseconds."}],"answer":"c"},{"id":"logging-oslog-q24","type":"written","difficulty":2,"prompt":"Compare OSLog with standard print() and legacy NSLog(). Why should modern iOS apps use OSLog?","rubric":[{"weight":40,"criterion":"Explains that print() does synchronous I/O, slows the calling thread, and exposes private user data in plaintext.","key":true},{"weight":30,"criterion":"Explains that NSLog() is legacy Objective-C, synchronous, and lacks structured filtering.","key":true},{"weight":30,"criterion":"Explains that OSLog provides deferred interpolation, kernel memory buffering, structured subsystems/categories, and privacy redaction."}],"modelAnswer":"Modern iOS apps should use OSLog instead of print() or NSLog() for three main reasons:\n\n1. Performance: print() and NSLog() perform synchronous I/O on the calling thread. In animation or scroll code, this causes dropped frames. OSLog buffers messages in a compressed kernel memory buffer. It defers string interpolation so inactive log levels cost zero CPU time.\n2. Privacy: print() and NSLog() write personal user data in plaintext to device logs. OSLog automatically redacts dynamic strings as \u003cprivate> in release builds, protecting customer privacy.\n3. Organization: print() has no filtering. OSLog organizes logs by subsystem and category, making it easy to filter messages in Xcode and Console.app."},{"id":"logging-oslog-q25","type":"written","difficulty":2,"prompt":"List the five OSLog log levels in order of increasing severity and explain when to use each.","rubric":[{"weight":50,"criterion":"Lists the 5 levels in correct order: debug, info, notice (or log), error, and fault.","key":true},{"weight":50,"criterion":"Accurately describes the purpose of each level (e.g. debug for local tracing, notice for milestones, error for handled failures, fault for system bugs).","key":true}],"modelAnswer":"The five OSLog levels in order of increasing severity are:\n\n1. debug: High-volume diagnostic messages during active development. It is captured only during live streaming in Xcode or Console.app and is not saved to disk by default.\n2. info: Helpful informational messages for troubleshooting non-critical flows. Kept in memory and persisted to disk if an error occurs.\n3. notice: The default log level. Used for normal application lifecycle milestones and stored on disk.\n4. error: Application-level failures, like a failed network request or corrupted JSON file. Stored in diagnostic archives.\n5. fault: Critical system bugs indicating impossible states or programming errors. Automatically captures call stacks."},{"id":"logging-oslog-q26","type":"written","difficulty":2,"prompt":"How does OSLog protect user privacy, and how can developers reveal safe debug information?","rubric":[{"weight":50,"criterion":"Explains that dynamic strings and objects are automatically redacted as \u003cprivate> in release builds, while numeric scalars are public.","key":true},{"weight":50,"criterion":"Explains that developers can use privacy: .public for safe non-sensitive data, or privacy: .private(mask: .hash) for correlation without leaking PII.","key":true}],"modelAnswer":"OSLog enforces privacy by default to protect Personally Identifiable Information (PII) and comply with privacy regulations.\n\nIn release builds, dynamic strings and objects interpolated into log messages are automatically masked as \u003cprivate>. Numeric scalars (like integers and doubles) remain public by default.\n\nTo reveal safe non-sensitive information, developers can annotate values with privacy: .public, such as logger.info(\"Status: \\(code, privacy: .public)\"). For sensitive identifiers that need correlation across log lines without revealing plaintext values, developers can use hash masking with privacy: .private(mask: .hash)."},{"id":"logging-oslog-q27","type":"written","difficulty":2,"prompt":"What are subsystems and categories in OSLog, and how do they benefit team debugging in Xcode and Console.app?","rubric":[{"weight":50,"criterion":"Defines subsystem as a reverse-DNS identifier (e.g. com.company.app) and category as a feature domain (e.g. auth, networking).","key":true},{"weight":50,"criterion":"Explains how this structured hierarchy allows developers to filter log streams in Xcode 15+ and Console.app instead of searching noisy output.","key":true}],"modelAnswer":"In OSLog, subsystems and categories organize telemetry into a structured hierarchy:\n\n1. Subsystem: A reverse-DNS identifier representing the application or modular framework, such as com.prepstops.app or com.prepstops.auth.\n2. Category: A specific feature domain within that subsystem, such as networking, ui, payments, or database.\n\nThis benefits teams by enabling instant search in Xcode and macOS Console.app. Instead of searching noisy system messages, developers filter by subsystem and category. This isolates relevant logs in seconds."},{"id":"logging-oslog-q28","type":"written","difficulty":3,"prompt":"How does OSLogStore allow iOS developers to capture diagnostic telemetry for user bug reports?","rubric":[{"weight":50,"criterion":"Explains that OSLogStore provides a programmatic Swift API to query past unified log entries from device storage or in-memory buffers.","key":true},{"weight":50,"criterion":"Explains that recent logs can be extracted and attached to customer feedback tickets or non-fatal crash reports without third-party SDKs.","key":true}],"modelAnswer":"OSLogStore is a Foundation and os framework API that provides programmatic access to the unified logging system.\n\nDevelopers can instantiate an OSLogStore scoped to the current process identifier and query recent log entries from disk or memory buffers. By specifying a time range and filtering for the app subsystem, the code retrieves recent entries as OSLogEntryLog objects.\n\nThis telemetry can be exported as structured text and attached to user bug reports, feedback forms, or non-fatal error trackers. It gives developers full system diagnostic context without installing third-party logging SDKs."},{"id":"logging-oslog-q29","type":"code-write","difficulty":2,"prompt":"Create an AppLogger struct with a static logger property initialized with subsystem com.prepstops.app and category general, and a static logInfo(message:) method.","starterCode":"import Foundation\nimport os\n\n// Create AppLogger struct here\n","rubric":[{"weight":40,"criterion":"Defines AppLogger struct with static let logger: Logger.","key":true},{"weight":30,"criterion":"Initializes Logger with subsystem com.prepstops.app and category general.","key":true},{"weight":30,"criterion":"Implements static logInfo(message: String) method logging with logger.info."}],"modelAnswer":"import Foundation\nimport os\n\nstruct AppLogger {\n    static let logger = Logger(subsystem: \"com.prepstops.app\", category: \"general\")\n\n    static func logInfo(message: String) {\n        logger.info(\"\\(message, privacy: .public)\")\n        print(\"Logged: \\(message)\")\n    }\n}\n\nAppLogger.logInfo(message: \"App launched\")"},{"id":"logging-oslog-q30","type":"code-write","difficulty":2,"prompt":"Create a NetworkTelemetry struct with a logStatus(code: Int) -> String method returning Success for status codes 200 through 299, and Error otherwise.","starterCode":"import Foundation\n\n// Create NetworkTelemetry struct here\n","rubric":[{"weight":40,"criterion":"Defines NetworkTelemetry struct.","key":true},{"weight":30,"criterion":"Implements logStatus(code: Int) -> String method.","key":true},{"weight":30,"criterion":"Returns Success for codes 200...299 and Error otherwise."}],"modelAnswer":"import Foundation\n\nstruct NetworkTelemetry {\n    func logStatus(code: Int) -> String {\n        if code >= 200 && code \u003c= 299 {\n            return \"Success\"\n        } else {\n            return \"Error\"\n        }\n    }\n}\n\nlet tel = NetworkTelemetry()\nprint(\"Response: \\(tel.logStatus(code: 404))\")"},{"id":"logging-oslog-q31","type":"code-write","difficulty":2,"prompt":"Create a PrivacyFilter struct with a static redactSensitive(key: String, value: String) -> String method returning [REDACTED] when key equals password or token, and value otherwise.","starterCode":"import Foundation\n\n// Create PrivacyFilter struct here\n","rubric":[{"weight":40,"criterion":"Defines PrivacyFilter struct.","key":true},{"weight":30,"criterion":"Implements static redactSensitive(key:value:) -> String method.","key":true},{"weight":30,"criterion":"Returns [REDACTED] for password or token keys, and value otherwise."}],"modelAnswer":"import Foundation\n\nstruct PrivacyFilter {\n    static func redactSensitive(key: String, value: String) -> String {\n        if key == \"password\" || key == \"token\" {\n            return \"[REDACTED]\"\n        }\n        return value\n    }\n}\n\nprint(\"Token: \\(PrivacyFilter.redactSensitive(key: \"token\", value: \"secret123\"))\")"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

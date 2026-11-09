@@ -1,0 +1,200 @@
+export const meta = {
+  id: "logging-oslog",
+  summary: "Write efficient, privacy-safe telemetry and structured diagnostic logs using Apple's OSLog framework.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Logging (os)", url: "https://developer.apple.com/documentation/os/logging", kind: "official" },
+    { title: "Logger (os)", url: "https://developer.apple.com/documentation/os/logger", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why should production iOS apps use OSLog instead of standard `print()` statements?</Question>
+  <Guess>
+    <Option id="a">Because print statements cause compile errors in release builds.</Option>
+    <Option id="b" correct>Because OSLog provides structured filtering, privacy redaction, and near-zero performance overhead.</Option>
+    <Option id="c">Because OSLog sends all console messages to Apple headquarters automatically.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a captain steering a cargo ship across the ocean.
+
+If the captain writes down notes on loose paper napkins and throws them on the floor, the bridge becomes a mess.
+The napkins have no dates, no categories, and anyone can read confidential customer names.
+Cleaning up the paper napkins takes time and distracts the crew.
+Using `print()` statements in code is like throwing loose napkins on the floor.
+
+Instead, the captain maintains an official ship logbook.
+Every entry has a timestamp, an exact department tag, and a severity level.
+Routine notes stay in daily records, while emergency alerts trigger sirens.
+Confidential passenger details are hidden from view.
+Apple's **OSLog** is your official ship logbook.
+</Analogy>
+
+In iOS development, **OSLog** replaces `print()` and legacy `NSLog`:
+
+1. **Subsystems and Categories**: Group logs by app feature (such as `com.prepstops.app` and `network`) for easy filtering.
+2. **Log Levels**: Categorize messages as `debug`, `info`, `notice`, `error`, or `fault`.
+3. **Privacy by Default**: OSLog automatically hides sensitive strings as `<private>` in production release builds.
+4. **High Performance**: String interpolation is deferred. If a log level is disabled, the code never formats the string.
+
+## See it
+
+<Diagram id="logging-oslog-diagram">
+{/*
+  Interactive 4-step diagram of OSLog architecture:
+  1. Subsystems & Categories: Reverse-DNS hierarchy for structured filtering.
+  2. The 5 Log Levels: debug, info, notice, error, and fault severity flow.
+  3. Privacy Protection: Automatic redaction of private strings vs public scalars.
+  4. Inspection Tools: Filtering in Xcode 15+ Console and macOS Console.app.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens to dynamic string variables logged with OSLog in release builds by default?</Question>
+  <Option id="a">They are converted into uppercase text.</Option>
+  <Option id="b" correct>They are redacted as &lt;private&gt; to protect sensitive user information.</Option>
+  <Option id="c">They are deleted along with the entire log message.</Option>
+  <Explanation>OSLog masks dynamic strings as private by default in release builds to prevent exposing personal user data.</Explanation>
+</QuickCheck>
+
+## In code
+
+Create a `Logger` instance by specifying a reverse-DNS subsystem and a category.
+Then log messages using structured severity levels.
+
+<CodeExample title="Configuring a Logger with subsystem and category">
+
+```swift
+import Foundation
+import os
+
+let logger = Logger(subsystem: "com.prepstops.app", category: "auth")
+
+func logUserLogin(userId: Int, username: String) {
+    logger.info("User logged in with id \(userId, privacy: .public)")
+    print("Logged login for user \(userId)")
+}
+
+logUserLogin(userId: 42, username: "Jordan")
+```
+
+```output
+Logged login for user 42
+```
+
+</CodeExample>
+
+Now look at handling errors with different log levels.
+Use `info` for expected milestones, and `error` or `fault` when something fails.
+
+<CodeExample title="Logging success and failure with appropriate severity levels">
+
+```swift
+import Foundation
+import os
+
+struct NetworkLogger {
+    static let logger = Logger(subsystem: "com.prepstops.network", category: "api")
+
+    static func handleResponse(statusCode: Int, endpoint: String) {
+        if statusCode == 200 {
+            logger.info("Success from \(endpoint, privacy: .public)")
+            print("Status 200: success")
+        } else {
+            logger.error("Failed endpoint \(endpoint, privacy: .public) with code \(statusCode)")
+            print("Status \(statusCode): error logged")
+        }
+    }
+}
+
+NetworkLogger.handleResponse(statusCode: 200, endpoint: "/profile")
+NetworkLogger.handleResponse(statusCode: 404, endpoint: "/items")
+```
+
+```output
+Status 200: success
+Status 404: error logged
+```
+
+</CodeExample>
+
+<TryIt>
+Open an Xcode playground. Import `os` and instantiate a `Logger`. Experiment with `debug`, `info`, and `error` methods using privacy annotations.
+</TryIt>
+
+<QuickCheck>
+  <Question>Which OSLog level is intended for system-level bugs and automatically captures thread call stacks?</Question>
+  <Option id="a">`debug`</Option>
+  <Option id="b" correct>`fault`</Option>
+  <Option id="c">`notice`</Option>
+  <Explanation>The fault level marks critical system errors and automatically captures stack traces to aid diagnosis.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Leaving print statements in production">
+Calling `print()` does synchronous disk and console writing on the caller thread.
+In tight loops or scroll handlers, this causes frame drops and stutters.
+Furthermore, `print()` outputs personal user data in plaintext.
+Always use `Logger` for production telemetry.
+</Trap>
+
+<Trap title="Using NSLog in modern Swift">
+`NSLog` is a legacy Objective-C function.
+It writes synchronously to standard error and adds timestamp overhead.
+In modern iOS apps, always prefer `os.Logger`.
+</Trap>
+
+<Trap title="Marking sensitive user data as public">
+Writing `\(userPassword, privacy: .public)` exposes secrets in device logs.
+Anyone with device access can view plaintext logs in Console.app.
+Keep sensitive data private or use hash masking with `privacy: .private(mask: .hash)`.
+</Trap>
+
+<Trap title="Choosing the wrong log level">
+Logging everything at the `error` level clutters diagnostic reports.
+Reserving `fault` for true critical bugs keeps telemetry actionable.
+Use `debug` for high-volume logs, `info` for milestones, and `error` for handled failures.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+OSLog is Apple's modern logging system for iOS.
+Unlike `print()`, which writes plaintext and slows down the app, OSLog is fast and organized.
+It organizes messages by subsystem and category.
+It also protects user privacy by hiding sensitive strings as `<private>` in release builds.
+We use levels like `debug`, `info`, `error`, and `fault`.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+I use `os.Logger` for all production logging instead of `print()`.
+I organize logs with reverse-DNS subsystems and categories, like `com.app.network`, so we can filter messages in Xcode and Console.app.
+OSLog is fast because string formatting is deferred until needed.
+I choose levels carefully: `debug` for local diagnostics, `info` for app milestones, and `error` or `fault` for failures.
+I also use privacy annotations to prevent sensitive customer data from leaking into device logs.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+`os.Logger` provides zero-overhead telemetry because string interpolation is skipped if a log level is disabled.
+In Swift 6, `Logger` is `Sendable`, making it safe across concurrent actor boundaries.
+By annotating values with `privacy: .private(mask: .hash)`, we maintain auditability without exposing personal identifiable information.
+For production diagnostics, we also use `OSLogStore` to extract recent logs in memory and attach them to crash reports and user feedback tickets.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- **OSLog** replaces `print()` with high-performance, structured telemetry.
+- Organize logs by **subsystem** (e.g. `com.company.app`) and **category** (e.g. `auth`).
+- The 5 log levels are **debug**, **info**, **notice**, **error**, and **fault**.
+- Dynamic strings are **private by default** in release builds to protect personal information.
+- Annotate values with `privacy: .public` only when data is safe to view.
+- Filter and stream live logs easily in Xcode Console and macOS Console.app.
+</Recap>
