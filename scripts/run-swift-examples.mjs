@@ -20,7 +20,16 @@ let passed = 0, failed = 0;
 function compile(code, typecheckOnly) {
   const path = join(dir, "main.swift");
   writeFileSync(path, code);
-  const args = ["-swift-version", "6", path, ...(typecheckOnly ? ["-typecheck"] : ["-o", join(dir, "main")])];
+  const extraArgs = [];
+  if (code.includes("UIKit")) {
+    extraArgs.push(
+      "-target",
+      "arm64-apple-ios17.0-macabi",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/iOSSupport/System/Library/Frameworks"
+    );
+  }
+  const args = [...extraArgs, "-swift-version", "6", path, ...(typecheckOnly ? ["-typecheck"] : ["-o", join(dir, "main")])];
   try {
     const log = execFileSync("swiftc", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
     return { ok: true, log };

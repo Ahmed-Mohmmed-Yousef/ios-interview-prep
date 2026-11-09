@@ -1,0 +1,233 @@
+export const meta = {
+  id: "swiftui-observation",
+  summary: "Share data between views using the Observation framework, @Bindable, and the environment.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Managing model data in your app (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/managing-model-data-in-your-app", kind: "official" },
+    { title: "Observation", url: "https://developer.apple.com/documentation/observation", kind: "official" },
+    { title: "WWDC23: Discover Observation in SwiftUI", url: "https://developer.apple.com/videos/play/wwdc2023/10149/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How does the `@Observable` macro improve SwiftUI view rendering compared to `ObservableObject`?</Question>
+  <Guess>
+    <Option id="a">It runs all view body updates on background threads automatically.</Option>
+    <Option id="b" correct>It tracks access at the property level so views only redraw when properties they read change.</Option>
+    <Option id="c">It cancels view drawing whenever any property changes in the model.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a restaurant kitchen order board.
+
+Two chefs work together. One chef makes soup and the other chef makes salad.
+
+If the soup chef receives an alert every time a salad order changes, the soup chef wastes time.
+
+With `ObservableObject`, changing any property caused every observing view to redraw.
+
+With `@Observable`, each chef only gets alerts for their own orders.
+</Analogy>
+
+In iOS 17, Apple introduced the Observation framework.
+
+You mark a model class with the `@Observable` macro.
+
+SwiftUI tracks which properties each view reads inside its body.
+
+1. **Property-level tracking**:
+   - A view only redraws when a property that it actually accessed changes.
+   - Other properties in the same class can change without causing redraws.
+2. **No `@Published` needed**:
+   - Stored properties are observable by default.
+   - Use `@ObservationIgnored` on stored properties that should not trigger updates.
+3. **Simple view bindings**:
+   - Store models in a parent view using `@State`.
+   - Pass them to child views as regular properties.
+   - Use `@Bindable` in a child view if you need two-way bindings.
+
+## See it
+
+<Diagram id="observation-data-flow" caption="Property-level observation invalidates only views that read the changed property">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Observable Model with two properties: title and score.
+    2. View A reading model.title.
+    3. View B reading model.score.
+    4. Change event on model.title triggering invalidation only on View A.
+  - Steps:
+    Step 1: Model defines properties title and score.
+    Step 2: View A reads title. View B reads score. Both views render once.
+    Step 3: Property title changes to a new value.
+    Step 4: View A redraws. View B does not redraw because it never accessed title.
+  - Static version (reduced motion):
+    A 4-step diagram showing selective view invalidation with property-level observation.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which property wrapper do you use to create and own an `@Observable` model inside a SwiftUI view?</Question>
+  <Option id="a">`@StateObject`</Option>
+  <Option id="b" correct>`@State`</Option>
+  <Option id="c">`@ObservedObject`</Option>
+  <Explanation>In iOS 17 and later, `@State` owns reference types that use `@Observable`. `@StateObject` is only for `ObservableObject`.</Explanation>
+</QuickCheck>
+
+## In code
+
+Here is an `@Observable` class. Notice that properties do not need `@Published`.
+
+<CodeExample title="Defining an observable model">
+
+```swift
+import Observation
+
+@Observable
+class UserProfile {
+    var name: String
+    var age: Int
+    @ObservationIgnored var internalId: String = "ID-99"
+
+    init(name: String, age: Int) {
+        self.name = name
+        self.age = age
+    }
+}
+
+let profile = UserProfile(name: "Taylor", age: 25)
+print("Profile: \(profile.name), \(profile.age)")
+profile.age = 26
+print("Updated age: \(profile.age)")
+```
+
+```output
+Profile: Taylor, 25
+Updated age: 26
+```
+
+</CodeExample>
+
+In this example, `name` and `age` are tracked automatically.
+
+The property `internalId` uses `@ObservationIgnored`. SwiftUI does not watch it for changes.
+
+Next, observe how Swift tracks property access at runtime.
+
+The Observation framework uses `withObservationTracking` behind the scenes.
+
+<CodeExample title="Tracking specific property changes">
+
+```swift
+import Observation
+
+@Observable
+class GameScore {
+    var score: Int = 0
+    var level: Int = 1
+}
+
+let game = GameScore()
+
+withObservationTracking {
+    print("Observed score: \(game.score)")
+} onChange: {
+    print("Score will change!")
+}
+
+game.score = 10
+game.level = 2
+```
+
+```output
+Observed score: 0
+Score will change!
+```
+
+</CodeExample>
+
+When `game.score` changes, the `onChange` closure runs once.
+
+When `game.level` changes, nothing prints. The tracking closure never read `level`.
+
+<QuickCheck>
+  <Question>How do you create a two-way binding for an `@Observable` property in a child view?</Question>
+  <Option id="a">Wrap the property in `@Binding` inside the parent view.</Option>
+  <Option id="b" correct>Mark the received model with `@Bindable` in the child view.</Option>
+  <Option id="c">Make the child view conform to `BindingProvider`.</Option>
+  <Explanation>`@Bindable` allows you to create two-way bindings to properties of an `@Observable` object.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Using @StateObject with @Observable">
+Do not use `@StateObject` or `@ObservedObject` with an `@Observable` class.
+
+The `@Observable` macro does not conform to `ObservableObject`.
+
+Use `@State` to own the object, or a plain property to pass it down.
+</Trap>
+
+<Trap title="Applying @Observable to value types">
+Do not attach `@Observable` to a `struct`.
+
+The `@Observable` macro only supports classes.
+
+For value types, use standard SwiftUI `@Binding` or `@State` values.
+</Trap>
+
+<Trap title="Expecting two-way bindings without @Bindable">
+If a child view receives an `@Observable` class as a plain parameter, you cannot write `$model.name`.
+
+Controls like `TextField` need a binding.
+
+Mark the property with `@Bindable` in the child view to enable the dollar-sign syntax.
+</Trap>
+
+<Trap title="Assuming all views redraw when any property changes">
+Under `ObservableObject`, changing any property caused every observing view to redraw.
+
+With `@Observable`, SwiftUI tracks exact property access.
+
+A view only invalidates when a property that it actually read inside its body changes.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"The `@Observable` macro was added in iOS 17. It turns a class into an observable model for SwiftUI views. We store it with `@State` in the parent view. When any property we display changes, SwiftUI updates the view automatically."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"The `@Observable` macro tracks properties individually instead of invalidating the whole object like `ObservableObject`. In views, we own models using `@State` rather than `@StateObject`. We use `@Bindable` when we need two-way bindings in child views, and we read shared data using `@Environment(Model.self)`."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"The Observation framework replaces Combine-based tracking with compiler-generated observation registrars. It uses runtime tracking to record exactly which properties are read during a view body. This avoids unnecessary body evaluations and reduces view graph diffing. It eliminates the need for `@Published` and streamlines environment injection without custom keys."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Use the `@Observable` macro on classes in iOS 17 and later.
+- SwiftUI tracks changes at the property level, so views only redraw when properties they read change.
+- Store model ownership in views using `@State private var model = Model()`.
+- Use `@Bindable` to create two-way bindings to properties of an `@Observable` instance.
+- Inject models using `.environment(model)` and read them using `@Environment(Model.self)`.
+- Mark stored properties that should not trigger updates with `@ObservationIgnored`.
+</Recap>
+
+## Go deeper
+
+- [Managing model data in your app (SwiftUI)](https://developer.apple.com/documentation/swiftui/managing-model-data-in-your-app) — Official Apple guide for Observation in SwiftUI.
+- [Observation Framework](https://developer.apple.com/documentation/observation) — API documentation for Observation and tracking.
+- [WWDC23: Discover Observation in SwiftUI](https://developer.apple.com/videos/play/wwdc2023/10149/) — Video introduction to `@Observable` and view performance.
