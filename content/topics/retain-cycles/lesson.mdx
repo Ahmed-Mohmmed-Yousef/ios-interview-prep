@@ -1,0 +1,267 @@
+export const meta = {
+  id: "retain-cycles",
+  summary: "Identify and resolve retain cycles in Swift closures and delegate patterns using weak and unowned capture lists.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Automatic Reference Counting", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting", kind: "official" },
+    { title: "WWDC21: ARC in Swift: Basics and beyond", url: "https://developer.apple.com/videos/play/wwdc2021/10216/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does storing a closure that accesses `self` often cause a memory leak in Swift?</Question>
+  <Guess>
+    <Option id="a">Closures are value types that copy memory on every execution.</Option>
+    <Option id="b" correct>The instance holds the closure strongly and the closure captures self strongly, creating a cycle.</Option>
+    <Option id="c">ARC disables deinitializers whenever closures are stored in properties.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine two rock climbers holding onto each other with safety ropes.
+
+Climber A holds the rope of Climber B. Climber B holds the rope of Climber A.
+
+Both climbers want to leave the cliff, but each climber refuses to let go first.
+
+Neither climber can ever go home.
+
+To free them, at least one climber must use a loose slip knot that releases when pulled.
+</Analogy>
+
+A **retain cycle** happens when two or more objects hold strong references to each other.
+
+Because each object keeps the other alive, the strong reference count for both never reaches zero.
+
+ARC can never free their memory. This causes a **memory leak**.
+
+1. **Common cause: Stored closures**:
+   - A class property holds a closure strongly.
+   - The closure references `self` inside its body.
+   - The closure captures `self` strongly by default.
+   - Both hold each other forever.
+2. **Common cause: Delegates**:
+   - A parent view controller owns a helper service strongly.
+   - The helper service holds the view controller strongly through its delegate.
+   - Neither object can deallocate when the user leaves the screen.
+3. **The fix: Break the cycle**:
+   - Use `[weak self]` in closures.
+   - Declare delegate properties as `weak var delegate: CustomDelegate?`.
+   - Weak references do not keep objects alive, allowing the count to reach zero.
+
+## See it
+
+<Diagram id="retain-cycles-diagram" caption="How a strong reference cycle between an object and its closure is broken by weak capture">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. NetworkManager object on the heap.
+    2. onComplete closure on the heap.
+    3. Strong arrows showing circular reference.
+    4. Transition showing [weak self] breaking the loop.
+  - Steps:
+    Step 1: NetworkManager creates onComplete closure. Manager holds closure strongly.
+    Step 2: Closure captures self strongly. Both have strong count 1 pointing to each other.
+    Step 3: External variable is released (manager = nil). Retain cycle keeps both alive. Memory is leaked.
+    Step 4: Fix with [weak self]. Closure holds weak reference. Setting manager = nil drops count to 0 and frees both.
+  - Static version (reduced motion):
+    A 4-panel comparison of strong retain cycle versus weak capture resolution.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>How do you break a retain cycle inside a stored closure that references self?</Question>
+  <Option id="a">Mark the closure with the nonisolated keyword.</Option>
+  <Option id="b" correct>Add [weak self] to the closure capture list.</Option>
+  <Option id="c">Call the deinit method manually before executing the closure.</Option>
+  <Explanation>Adding [weak self] in the capture list tells the closure not to keep a strong hold on self.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Breaking a closure retain cycle using weak self">
+
+```swift
+class NetworkManager {
+    let endpoint: String
+    var onComplete: (() -> Void)?
+    
+    init(endpoint: String) {
+        self.endpoint = endpoint
+    }
+    
+    func setupHandler() {
+        onComplete = { [weak self] in
+            guard let self else {
+                print("Manager deallocated before callback")
+                return
+            }
+            print("Completed request for \(self.endpoint)")
+        }
+    }
+    
+    deinit {
+        print("NetworkManager for \(endpoint) deallocated")
+    }
+}
+
+var manager: NetworkManager? = NetworkManager(endpoint: "/users")
+manager?.setupHandler()
+manager?.onComplete?()
+manager = nil
+print("Finished manager test")
+```
+
+```output
+Completed request for /users
+NetworkManager for /users deallocated
+Finished manager test
+```
+
+</CodeExample>
+
+In this example, `NetworkManager` stores the `onComplete` closure.
+
+The capture list `[weak self]` prevents the closure from holding a strong reference to `self`.
+
+When `manager = nil` runs, the strong count drops to 0.
+
+Swift calls `deinit` right away and reclaims the memory.
+
+<CodeExample title="Breaking a delegate retain cycle using weak delegate">
+
+```swift
+protocol ServiceDelegate: AnyObject {
+    func didFetchData()
+}
+
+class Service {
+    weak var delegate: ServiceDelegate?
+    
+    func execute() {
+        print("Service fetching data")
+        delegate?.didFetchData()
+    }
+    
+    deinit {
+        print("Service deallocated")
+    }
+}
+
+class ViewController: ServiceDelegate {
+    let service = Service()
+    
+    init() {
+        service.delegate = self
+    }
+    
+    func didFetchData() {
+        print("ViewController received data")
+    }
+    
+    deinit {
+        print("ViewController deallocated")
+    }
+}
+
+var vc: ViewController? = ViewController()
+vc?.service.execute()
+vc = nil
+print("Finished delegation test")
+```
+
+```output
+Service fetching data
+ViewController received data
+ViewController deallocated
+Service deallocated
+Finished delegation test
+```
+
+</CodeExample>
+
+`ViewController` holds `service` strongly as a property.
+
+`Service` holds `delegate` as a `weak` reference pointing back to `ViewController`.
+
+When `vc = nil` runs, both objects deallocate cleanly.
+
+<QuickCheck>
+  <Question>Do standard non-escaping closures like Array.forEach cause retain cycles?</Question>
+  <Option id="a">Yes, every closure in Swift always causes a retain cycle.</Option>
+  <Option id="b" correct>No, non-escaping closures execute immediately on the stack and are discarded.</Option>
+  <Option id="c">Yes, unless you explicitly pass unowned self to them.</Option>
+  <Explanation>Non-escaping closures do not outlive the function call, so they do not hold references after returning.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming non-escaping closures need weak self">
+Candidates often write `[weak self]` inside `map`, `filter`, or `forEach`.
+
+Non-escaping closures execute synchronously on the current stack frame.
+
+They do not outlive the method call and do not store `self`. Writing `[weak self]` there adds unnecessary clutter.
+</Trap>
+
+<Trap title="Accessing self.property without a capture list">
+Some developers believe writing `self.name` instead of `self` avoids capturing `self`.
+
+In Swift, accessing any member property inside a closure still captures the entire instance of `self` strongly.
+
+You must still use `[weak self]` in the capture list to prevent the cycle.
+</Trap>
+
+<Trap title="Using unowned self for network callbacks">
+Using `[unowned self]` in asynchronous network handlers is dangerous.
+
+If the user dismisses the screen while the network request is in flight, `self` is deallocated.
+
+When the callback returns and tries to access `self`, your app crashes. Prefer `[weak self]`.
+</Trap>
+
+<Trap title="Forgetting AnyObject on delegate protocols">
+If a delegate protocol does not inherit from `AnyObject`, you cannot mark the delegate property `weak`.
+
+The Swift compiler reports an error because only class types can be weak references.
+
+Always write `protocol CustomDelegate: AnyObject`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"A retain cycle happens when two objects hold strong references to each other. Because neither reference count can drop to zero, both objects leak in memory. Common examples are delegates and closures that capture self. We fix retain cycles by making one reference weak."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"Retain cycles occur when a class owns a closure or child object that holds a strong reference back to the owner. In closures, I break cycles by adding [weak self] to the capture list and unwrapping with guard let self. For delegates, I constrain the protocol to AnyObject and mark the delegate property weak."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"I diagnose retain cycles in production apps using the Xcode Memory Graph Debugger and Instruments Leaks profiling. I also add unit tests asserting that weak references to dismissed view controllers become nil. When designing asynchronous APIs, I choose weak self over unowned self because network or background timing cannot guarantee that the UI hierarchy remains alive."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- A retain cycle prevents reference counts from reaching zero, leaking memory.
+- Stored closures capturing `self` strongly create retain cycles.
+- Break closure cycles by adding `[weak self]` in the capture list.
+- Break delegate cycles by declaring `weak var delegate: CustomDelegate?`.
+- Non-escaping closures like `map` or `forEach` do not cause retain cycles.
+- Accessing any property of `self` captures the entire instance strongly.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Automatic Reference Counting](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting) — Official section on strong reference cycles for class instances and closures.
+- [WWDC21: ARC in Swift: Basics and beyond](https://developer.apple.com/videos/play/wwdc2021/10216/) — Diagnosing leaks and understanding object lifetimes in modern Swift.

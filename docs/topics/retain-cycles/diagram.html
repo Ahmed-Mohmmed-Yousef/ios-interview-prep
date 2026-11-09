@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Breaking a Strong Reference Retain Cycle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --vc-color: #0284c7; --vc-soft: #e0f2fe;
+  --service-color: #6366f1; --service-soft: #eef2ff;
+  --leak-color: #dc2626; --leak-soft: #fee2e2;
+  --fixed-color: #16a34a; --fixed-soft: #dcfce7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --vc-color: #38bdf8; --vc-soft: #082f49;
+  --service-color: #818cf8; --service-soft: #1e1b4b;
+  --leak-color: #f87171; --leak-soft: #450a0a;
+  --fixed-color: #4ade80; --fixed-soft: #14532d;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.vc { background: var(--vc-soft); color: var(--vc-color); }
+.kind.service { background: var(--service-soft); color: var(--service-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 10px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.vc { fill: var(--vc-soft); stroke: var(--vc-color); }
+.box-rect.service { fill: var(--service-soft); stroke: var(--service-color); }
+.box-rect.leaked { fill: var(--leak-soft); stroke: var(--leak-color); stroke-width: 3; }
+.box-rect.freed { fill: var(--fixed-soft); stroke: var(--fixed-color); stroke-dasharray: 4 4; }
+
+.text-title { font-family: var(--font-body); font-size: 14px; font-weight: 700; fill: var(--ink); }
+.text-val { font-family: var(--font-code); font-size: 13px; font-weight: 600; fill: var(--ink); }
+.text-muted { font-family: var(--font-body); font-size: 12px; fill: var(--muted); }
+
+.badge { font-family: var(--font-code); font-size: 15px; font-weight: 700; }
+.badge.ok { fill: var(--vc-color); }
+.badge.leak { fill: var(--leak-color); }
+.badge.fixed { fill: var(--fixed-color); }
+
+.arrow { stroke-width: 2.5; marker-end: url(#arrowhead); transition: stroke 0.3s, stroke-dasharray 0.3s; }
+.arrow.strong-arrow { stroke: var(--vc-color); }
+.arrow.leak-arrow { stroke: var(--leak-color); stroke-width: 3.5; }
+.arrow.weak-arrow { stroke: var(--fixed-color); stroke-dasharray: 6 4; }
+.arrow.inactive { stroke: var(--muted); opacity: 0.15; stroke-dasharray: 4 4; }
+
+.controls {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 16px;
+}
+.btn {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  font: 600 13px var(--font-body); padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 999px; background: var(--line);
+  cursor: pointer; border: none; padding: 0;
+}
+.dot.active { background: var(--vc-color); transform: scale(1.2); }
+
+.reduced-static { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-stepper { display: none; }
+  .reduced-static { display: grid; gap: 12px; }
+  .static-step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .static-step h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--vc-color); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Interactive Retain Cycle Explainer Diagram">
+
+  <div class="interactive-stepper">
+    <div class="panels">
+      <div class="panel">
+        <h3><span class="kind vc">ViewController</span> UI Owner</h3>
+        <svg viewBox="0 0 340 180" id="svg-vc" aria-hidden="true">
+          <g id="group-vc">
+            <rect x="20" y="20" width="300" height="140" class="box-rect vc" id="rect-vc"></rect>
+            <text x="40" y="55" class="text-title" id="title-vc">ViewController</text>
+            <text x="40" y="80" class="text-muted" id="prop-vc">Property: service (strong)</text>
+            <rect x="40" y="100" width="260" height="40" rx="8" fill="var(--code-bg)" stroke="var(--line)"></rect>
+            <text x="55" y="125" class="text-val">Strong Count:</text>
+            <text x="180" y="125" class="badge ok" id="badge-vc">2</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="panel">
+        <h3><span class="kind service">Service</span> Helper Object</h3>
+        <svg viewBox="0 0 340 180" id="svg-service" aria-hidden="true">
+          <g id="group-service">
+            <rect x="20" y="20" width="300" height="140" class="box-rect service" id="rect-service"></rect>
+            <text x="40" y="55" class="text-title" id="title-service">Service</text>
+            <text x="40" y="80" class="text-muted" id="prop-service">Property: delegate (strong)</text>
+            <rect x="40" y="100" width="260" height="40" rx="8" fill="var(--code-bg)" stroke="var(--line)"></rect>
+            <text x="55" y="125" class="text-val">Strong Count:</text>
+            <text x="180" y="125" class="badge ok" id="badge-service">1</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 16px;">
+      <div class="code" id="step-code">vc.service.delegate = vc // strong reference cycle formed!</div>
+      <p class="caption" id="step-caption" aria-live="polite">Step 1: ViewController holds Service strongly. Service holds ViewController strongly through delegate. A retain cycle is born.</p>
+      
+      <div class="controls">
+        <button class="btn" id="btn-prev" onclick="prevStep()" disabled>← Previous</button>
+        <div class="dots" role="tablist">
+          <button class="dot active" onclick="setStep(0)" aria-label="Step 1" role="tab" aria-selected="true"></button>
+          <button class="dot" onclick="setStep(1)" aria-label="Step 2" role="tab" aria-selected="false"></button>
+          <button class="dot" onclick="setStep(2)" aria-label="Step 3" role="tab" aria-selected="false"></button>
+          <button class="dot" onclick="setStep(3)" aria-label="Step 4" role="tab" aria-selected="false"></button>
+        </div>
+        <button class="btn" id="btn-next" onclick="nextStep()">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reduced motion static fallback -->
+  <div class="reduced-static">
+    <div class="static-step">
+      <h4>Step 1: Circular Strong References</h4>
+      <code>vc.service.delegate = vc</code>
+      <p>ViewController holds Service strongly. Service delegate holds ViewController strongly. Both strong reference counts stay above zero.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 2: External Pointer Released</h4>
+      <code>vc = nil</code>
+      <p>The navigation stack dismisses the controller and sets vc to nil. Strong count of ViewController drops to 1, held by Service.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 3: The Retain Cycle (Memory Leak)</h4>
+      <code>Both objects trapped in heap</code>
+      <p>Because each instance holds a strong reference to the other, neither count can reach zero. Memory is leaked permanently.</p>
+    </div>
+    <div class="static-step">
+      <h4>Step 4: The Solution (weak var delegate)</h4>
+      <code>weak var delegate: ServiceDelegate?</code>
+      <p>Marking delegate weak breaks the cycle. When vc = nil, ViewController drops to 0, frees Service, and both deallocate cleanly.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    code: 'vc.service.delegate = vc // strong reference cycle formed!',
+    caption: 'Step 1: ViewController holds Service strongly. Service holds ViewController strongly. Both reference counts are kept active.',
+    propService: 'Property: delegate (strong)',
+    vcCount: '2 (held by stack & Service)',
+    serviceCount: '1 (held by ViewController)',
+    vcClass: 'box-rect vc',
+    serviceClass: 'box-rect service',
+    vcBadge: 'badge ok',
+    serviceBadge: 'badge ok'
+  },
+  {
+    code: 'vc = nil // screen is dismissed from navigation',
+    caption: 'Step 2: User pops the screen. External variable vc is set to nil. ViewController count drops to 1, still held by Service.',
+    propService: 'Property: delegate (strong)',
+    vcCount: '1 (held by Service)',
+    serviceCount: '1 (held by ViewController)',
+    vcClass: 'box-rect leaked',
+    serviceClass: 'box-rect leaked',
+    vcBadge: 'badge leak',
+    serviceBadge: 'badge leak'
+  },
+  {
+    code: '// Memory Leak: neither object can ever reach zero count!',
+    caption: 'Step 3: Both objects are trapped in memory. Neither deinitializer ever runs. This is a classic retain cycle memory leak.',
+    propService: 'Property: delegate (strong cycle)',
+    vcCount: '1 (Leaked)',
+    serviceCount: '1 (Leaked)',
+    vcClass: 'box-rect leaked',
+    serviceClass: 'box-rect leaked',
+    vcBadge: 'badge leak',
+    serviceBadge: 'badge leak'
+  },
+  {
+    code: 'weak var delegate: ServiceDelegate? // The Fix!',
+    caption: 'Step 4: Break the cycle with weak var delegate. Setting vc = nil immediately deallocates ViewController and Service cleanly.',
+    propService: 'Property: weak var delegate',
+    vcCount: '0 (Deallocated)',
+    serviceCount: '0 (Deallocated)',
+    vcClass: 'box-rect freed',
+    serviceClass: 'box-rect freed',
+    vcBadge: 'badge fixed',
+    serviceBadge: 'badge fixed'
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+  document.getElementById("prop-service").textContent = s.propService;
+
+  const bVc = document.getElementById("badge-vc");
+  bVc.textContent = s.vcCount;
+  bVc.className.baseVal = s.vcBadge;
+
+  const bS = document.getElementById("badge-service");
+  bS.textContent = s.serviceCount;
+  bS.className.baseVal = s.serviceBadge;
+
+  document.getElementById("rect-vc").className.baseVal = s.vcClass;
+  document.getElementById("rect-service").className.baseVal = s.serviceClass;
+
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+</script>
+
+</body>
+</html>

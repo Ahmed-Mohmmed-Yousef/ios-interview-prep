@@ -1,0 +1,620 @@
+<title>Retain Cycles Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --vc-color: #0284c7; --vc-soft: #e0f2fe;
+  --service-color: #6366f1; --service-soft: #eef2ff;
+  --leak-color: #dc2626; --leak-soft: #fee2e2;
+  --fixed-color: #16a34a; --fixed-soft: #dcfce7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --vc-color: #38bdf8; --vc-soft: #082f49;
+  --service-color: #818cf8; --service-soft: #1e1b4b;
+  --leak-color: #f87171; --leak-soft: #450a0a;
+  --fixed-color: #4ade80; --fixed-soft: #14532d;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.vc { background: var(--vc-soft); color: var(--vc-color); }
+.kind.service { background: var(--service-soft); color: var(--service-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.box-rect { stroke: var(--line); stroke-width: 2; rx: 10px; transition: fill 0.3s, stroke 0.3s; }
+.box-rect.vc { fill: var(--vc-soft); stroke: var(--vc-color); }
+.box-rect.service { fill: var(--service-soft); stroke: var(--service-color); }
+.box-rect.leaked { fill: var(--leak-soft); stroke: var(--leak-color); stroke-width: 3; }
+.box-rect.freed { fill: var(--fixed-soft); stroke: var(--fixed-color); stroke-dasharray: 4 4; }
+
+.text-title { font-family: var(--font-body); font-size: 14px; font-weight: 700; fill: var(--ink); }
+.text-val { font-family: var(--font-code); font-size: 13px; font-weight: 600; fill: var(--ink); }
+.text-muted { font-family: var(--font-body); font-size: 12px; fill: var(--muted); }
+
+.badge { font-family: var(--font-code); font-size: 15px; font-weight: 700; }
+.badge.ok { fill: var(--vc-color); }
+.badge.leak { fill: var(--leak-color); }
+.badge.fixed { fill: var(--fixed-color); }
+
+.arrow { stroke-width: 2.5; marker-end: url(#arrowhead); transition: stroke 0.3s, stroke-dasharray 0.3s; }
+.arrow.strong-arrow { stroke: var(--vc-color); }
+.arrow.leak-arrow { stroke: var(--leak-color); stroke-width: 3.5; }
+.arrow.weak-arrow { stroke: var(--fixed-color); stroke-dasharray: 6 4; }
+.arrow.inactive { stroke: var(--muted); opacity: 0.15; stroke-dasharray: 4 4; }
+
+.controls {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 16px;
+}
+.btn {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  font: 600 13px var(--font-body); padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 10px; height: 10px; border-radius: 999px; background: var(--line);
+  cursor: pointer; border: none; padding: 0;
+}
+.dot.active { background: var(--vc-color); transform: scale(1.2); }
+
+.reduced-static { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .interactive-stepper { display: none; }
+  .reduced-static { display: grid; gap: 12px; }
+  .static-step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .static-step h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--vc-color); }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Memory · Topic 3 of 3 · Prototype</p>
+    <h1>Retain Cycles</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can find and fix retain cycles in closures and delegates.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Why does storing a closure that accesses <code>self</code> often cause a memory leak in Swift?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Closures are value types that copy memory on every execution.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The instance holds the closure strongly and the closure captures self strongly, creating a cycle.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">ARC disables deinitializers whenever closures are stored in properties.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine two rock climbers holding onto each other with safety ropes.</p><p>Climber A holds the rope of Climber B. Climber B holds the rope of Climber A.</p><p>Both climbers want to leave the cliff, but each climber refuses to let go first.</p><p>Neither climber can ever go home.</p><p>To free them, at least one climber must use a loose slip knot that releases when pulled.</p></aside>
+<p>A <strong>retain cycle</strong> happens when two or more objects hold strong references to each other.</p>
+<p>Because each object keeps the other alive, the strong reference count for both never reaches zero.</p>
+<p>ARC can never free their memory. This causes a <strong>memory leak</strong>.</p>
+<ol>
+<li><strong>Common cause: Stored closures</strong>:
+<ul>
+<li>A class property holds a closure strongly.</li>
+<li>The closure references <code>self</code> inside its body.</li>
+<li>The closure captures <code>self</code> strongly by default.</li>
+<li>Both hold each other forever.</li>
+</ul>
+</li>
+<li><strong>Common cause: Delegates</strong>:
+<ul>
+<li>A parent view controller owns a helper service strongly.</li>
+<li>The helper service holds the view controller strongly through its delegate.</li>
+<li>Neither object can deallocate when the user leaves the screen.</li>
+</ul>
+</li>
+<li><strong>The fix: Break the cycle</strong>:
+<ul>
+<li>Use <code>[weak self]</code> in closures.</li>
+<li>Declare delegate properties as <code>weak var delegate: CustomDelegate?</code>.</li>
+<li>Weak references do not keep objects alive, allowing the count to reach zero.</li>
+</ul>
+</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">How do you break a retain cycle inside a stored closure that references self?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Mark the closure with the nonisolated keyword.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Add [weak self] to the closure capture list.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Call the deinit method manually before executing the closure.</span></button><p class="qc-explain" hidden="">Adding [weak self] in the capture list tells the closure not to keep a strong hold on self.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Breaking a closure retain cycle using weak self</figcaption><pre class="block swift"><code class="language-swift">class NetworkManager {
+    let endpoint: String
+    var onComplete: (() -&gt; Void)?
+    
+    init(endpoint: String) {
+        self.endpoint = endpoint
+    }
+    
+    func setupHandler() {
+        onComplete = { [weak self] in
+            guard let self else {
+                print(&quot;Manager deallocated before callback&quot;)
+                return
+            }
+            print(&quot;Completed request for \(self.endpoint)&quot;)
+        }
+    }
+    
+    deinit {
+        print(&quot;NetworkManager for \(endpoint) deallocated&quot;)
+    }
+}
+
+var manager: NetworkManager? = NetworkManager(endpoint: &quot;/users&quot;)
+manager?.setupHandler()
+manager?.onComplete?()
+manager = nil
+print(&quot;Finished manager test&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Completed request for /users
+NetworkManager for /users deallocated
+Finished manager test
+</code></pre></figure>
+<p>In this example, <code>NetworkManager</code> stores the <code>onComplete</code> closure.</p>
+<p>The capture list <code>[weak self]</code> prevents the closure from holding a strong reference to <code>self</code>.</p>
+<p>When <code>manager = nil</code> runs, the strong count drops to 0.</p>
+<p>Swift calls <code>deinit</code> right away and reclaims the memory.</p>
+<figure class="code-example"><figcaption>Breaking a delegate retain cycle using weak delegate</figcaption><pre class="block swift"><code class="language-swift">protocol ServiceDelegate: AnyObject {
+    func didFetchData()
+}
+
+class Service {
+    weak var delegate: ServiceDelegate?
+    
+    func execute() {
+        print(&quot;Service fetching data&quot;)
+        delegate?.didFetchData()
+    }
+    
+    deinit {
+        print(&quot;Service deallocated&quot;)
+    }
+}
+
+class ViewController: ServiceDelegate {
+    let service = Service()
+    
+    init() {
+        service.delegate = self
+    }
+    
+    func didFetchData() {
+        print(&quot;ViewController received data&quot;)
+    }
+    
+    deinit {
+        print(&quot;ViewController deallocated&quot;)
+    }
+}
+
+var vc: ViewController? = ViewController()
+vc?.service.execute()
+vc = nil
+print(&quot;Finished delegation test&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Service fetching data
+ViewController received data
+ViewController deallocated
+Service deallocated
+Finished delegation test
+</code></pre></figure>
+<p><code>ViewController</code> holds <code>service</code> strongly as a property.</p>
+<p><code>Service</code> holds <code>delegate</code> as a <code>weak</code> reference pointing back to <code>ViewController</code>.</p>
+<p>When <code>vc = nil</code> runs, both objects deallocate cleanly.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Do standard non-escaping closures like Array.forEach cause retain cycles?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, every closure in Swift always causes a retain cycle.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, non-escaping closures execute immediately on the stack and are discarded.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Yes, unless you explicitly pass unowned self to them.</span></button><p class="qc-explain" hidden="">Non-escaping closures do not outlive the function call, so they do not hold references after returning.</p></div>
+<p class="try-it"><p>Try the examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming non-escaping closures need weak self</p><p>Candidates often write <code>[weak self]</code> inside <code>map</code>, <code>filter</code>, or <code>forEach</code>.</p><p>Non-escaping closures execute synchronously on the current stack frame.</p><p>They do not outlive the method call and do not store <code>self</code>. Writing <code>[weak self]</code> there adds unnecessary clutter.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Accessing self.property without a capture list</p><p>Some developers believe writing <code>self.name</code> instead of <code>self</code> avoids capturing <code>self</code>.</p><p>In Swift, accessing any member property inside a closure still captures the entire instance of <code>self</code> strongly.</p><p>You must still use <code>[weak self]</code> in the capture list to prevent the cycle.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using unowned self for network callbacks</p><p>Using <code>[unowned self]</code> in asynchronous network handlers is dangerous.</p><p>If the user dismisses the screen while the network request is in flight, <code>self</code> is deallocated.</p><p>When the callback returns and tries to access <code>self</code>, your app crashes. Prefer <code>[weak self]</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Forgetting AnyObject on delegate protocols</p><p>If a delegate protocol does not inherit from <code>AnyObject</code>, you cannot mark the delegate property <code>weak</code>.</p><p>The Swift compiler reports an error because only class types can be weak references.</p><p>Always write <code>protocol CustomDelegate: AnyObject</code>.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>&quot;A retain cycle happens when two objects hold strong references to each other. Because neither reference count can drop to zero, both objects leak in memory. Common examples are delegates and closures that capture self. We fix retain cycles by making one reference weak.&quot;</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>&quot;Retain cycles occur when a class owns a closure or child object that holds a strong reference back to the owner. In closures, I break cycles by adding [weak self] to the capture list and unwrapping with guard let self. For delegates, I constrain the protocol to AnyObject and mark the delegate property weak.&quot;</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>&quot;I diagnose retain cycles in production apps using the Xcode Memory Graph Debugger and Instruments Leaks profiling. I also add unit tests asserting that weak references to dismissed view controllers become nil. When designing asynchronous APIs, I choose weak self over unowned self because network or background timing cannot guarantee that the UI hierarchy remains alive.&quot;</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>A retain cycle prevents reference counts from reaching zero, leaking memory.</li>
+<li>Stored closures capturing <code>self</code> strongly create retain cycles.</li>
+<li>Break closure cycles by adding <code>[weak self]</code> in the capture list.</li>
+<li>Break delegate cycles by declaring <code>weak var delegate: CustomDelegate?</code>.</li>
+<li>Non-escaping closures like <code>map</code> or <code>forEach</code> do not cause retain cycles.</li>
+<li>Accessing any property of <code>self</code> captures the entire instance strongly.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting">The Swift Programming Language: Automatic Reference Counting</a> — Official section on strong reference cycles for class instances and closures.</li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2021/10216/">WWDC21: ARC in Swift: Basics and beyond</a> — Diagnosing leaks and understanding object lifetimes in modern Swift.</li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    code: 'vc.service.delegate = vc // strong reference cycle formed!',
+    caption: 'Step 1: ViewController holds Service strongly. Service holds ViewController strongly. Both reference counts are kept active.',
+    propService: 'Property: delegate (strong)',
+    vcCount: '2 (held by stack & Service)',
+    serviceCount: '1 (held by ViewController)',
+    vcClass: 'box-rect vc',
+    serviceClass: 'box-rect service',
+    vcBadge: 'badge ok',
+    serviceBadge: 'badge ok'
+  },
+  {
+    code: 'vc = nil // screen is dismissed from navigation',
+    caption: 'Step 2: User pops the screen. External variable vc is set to nil. ViewController count drops to 1, still held by Service.',
+    propService: 'Property: delegate (strong)',
+    vcCount: '1 (held by Service)',
+    serviceCount: '1 (held by ViewController)',
+    vcClass: 'box-rect leaked',
+    serviceClass: 'box-rect leaked',
+    vcBadge: 'badge leak',
+    serviceBadge: 'badge leak'
+  },
+  {
+    code: '// Memory Leak: neither object can ever reach zero count!',
+    caption: 'Step 3: Both objects are trapped in memory. Neither deinitializer ever runs. This is a classic retain cycle memory leak.',
+    propService: 'Property: delegate (strong cycle)',
+    vcCount: '1 (Leaked)',
+    serviceCount: '1 (Leaked)',
+    vcClass: 'box-rect leaked',
+    serviceClass: 'box-rect leaked',
+    vcBadge: 'badge leak',
+    serviceBadge: 'badge leak'
+  },
+  {
+    code: 'weak var delegate: ServiceDelegate? // The Fix!',
+    caption: 'Step 4: Break the cycle with weak var delegate. Setting vc = nil immediately deallocates ViewController and Service cleanly.',
+    propService: 'Property: weak var delegate',
+    vcCount: '0 (Deallocated)',
+    serviceCount: '0 (Deallocated)',
+    vcClass: 'box-rect freed',
+    serviceClass: 'box-rect freed',
+    vcBadge: 'badge fixed',
+    serviceBadge: 'badge fixed'
+  }
+];
+
+let cur = 0;
+
+function updateDiagram() {
+  const s = steps[cur];
+  document.getElementById("step-code").textContent = s.code;
+  document.getElementById("step-caption").textContent = s.caption;
+  document.getElementById("prop-service").textContent = s.propService;
+
+  const bVc = document.getElementById("badge-vc");
+  bVc.textContent = s.vcCount;
+  bVc.className.baseVal = s.vcBadge;
+
+  const bS = document.getElementById("badge-service");
+  bS.textContent = s.serviceCount;
+  bS.className.baseVal = s.serviceBadge;
+
+  document.getElementById("rect-vc").className.baseVal = s.vcClass;
+  document.getElementById("rect-service").className.baseVal = s.serviceClass;
+
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((d, i) => {
+    d.classList.toggle("active", i === cur);
+    d.setAttribute("aria-selected", i === cur ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = cur === 0;
+  document.getElementById("btn-next").disabled = cur === steps.length - 1;
+}
+
+function setStep(idx) {
+  cur = idx;
+  updateDiagram();
+}
+
+function prevStep() {
+  if (cur > 0) {
+    cur--;
+    updateDiagram();
+  }
+}
+
+function nextStep() {
+  if (cur < steps.length - 1) {
+    cur++;
+    updateDiagram();
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") nextStep();
+  if (e.key === "ArrowLeft" || e.key === "PageUp") prevStep();
+});
+
+updateDiagram();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"retain-cycles","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"retain-cycles-q1","type":"mcq","difficulty":1,"prompt":"What is a retain cycle in Swift?","options":[{"id":"a","text":"Two or more objects holding strong references to each other, preventing deallocation.","explanation":"Right. Mutual strong references prevent counts from ever dropping to zero."},{"id":"b","text":"A loop statement that iterates over collections repeatedly without an exit.","explanation":"A retain cycle is about memory references, not infinite iteration loops."},{"id":"c","text":"A compiler error thrown when classes inherit from more than one superclass.","explanation":"Swift does not support multiple class inheritance."},{"id":"d","text":"A runtime mechanism that compresses unused heap objects into disk cache.","explanation":"Retain cycles prevent memory cleanup rather than compress heap objects."}],"answer":"a"},{"id":"retain-cycles-q2","type":"mcq","difficulty":1,"prompt":"What consequence occurs when a retain cycle exists in an iOS app?","options":[{"id":"a","text":"The Swift compiler refuses to produce an executable application binary.","explanation":"Retain cycles are runtime occurrences, not compile-time errors."},{"id":"b","text":"Memory is leaked because the affected objects are never freed from the heap.","explanation":"Right. Leaked objects accumulate and waste device RAM."},{"id":"c","text":"All network requests associated with the instances fail immediately.","explanation":"Network calls still run; the problem is lingering heap memory."},{"id":"d","text":"The app terminates with an unhandled exception upon launching.","explanation":"Retain cycles silently leak memory and do not crash on launch."}],"answer":"b"},{"id":"retain-cycles-q3","type":"mcq","difficulty":2,"prompt":"Why does a stored closure property accessing `self.title` cause a retain cycle?","options":[{"id":"a","text":"Because string properties cannot be read inside Swift closures.","explanation":"Closures can read string properties freely."},{"id":"b","text":"Because ARC forbids closures from being stored as class properties.","explanation":"Storing closures in properties is standard Swift practice."},{"id":"c","text":"Accessing any property on self captures the whole instance strongly by default.","explanation":"Right. The instance holds closure strongly, and closure captures self strongly."},{"id":"d","text":"Because stored closures execute exclusively on background threads.","explanation":"Closures execute on whichever thread invokes them."}],"answer":"c"},{"id":"retain-cycles-q4","type":"mcq","difficulty":1,"prompt":"What capture list syntax prevents a stored closure from retaining self strongly?","options":[{"id":"a","text":"[inout self]","explanation":"Inout is a parameter passing mode, not a capture list modifier."},{"id":"b","text":"[copy self]","explanation":"Copy is not a valid Swift closure capture list keyword."},{"id":"c","text":"[static self]","explanation":"Static is a declaration modifier, not a capture list option."},{"id":"d","text":"[weak self]","explanation":"Right. [weak self] ensures the closure captures self as a weak reference."}],"answer":"d"},{"id":"retain-cycles-q5","type":"mcq","difficulty":2,"prompt":"Why do standard collection methods like `items.forEach { ... }` not cause retain cycles?","options":[{"id":"a","text":"They take non-escaping closures that execute and discard references immediately.","explanation":"Right. Non-escaping closures do not persist after the function returns."},{"id":"b","text":"Swift automatically converts all closures in collection methods into structs.","explanation":"Closures remain reference closures; lifetime determines cycle risk."},{"id":"c","text":"The compiler disables ARC tracking while iterating over Swift arrays.","explanation":"ARC remains fully active during collection iterations."},{"id":"d","text":"Array iterations always execute inside a background thread pool.","explanation":"Standard collection methods execute synchronously on the current thread."}],"answer":"a"},{"id":"retain-cycles-q6","type":"mcq","difficulty":2,"prompt":"What Xcode debugging tool visually displays retain cycles and leaking heap nodes?","options":[{"id":"a","text":"The View Hierarchy Inspector.","explanation":"View Hierarchy inspects view frames and layering, not memory cycles."},{"id":"b","text":"The Memory Graph Debugger.","explanation":"Right. The Memory Graph Debugger highlights leaking reference cycles."},{"id":"c","text":"The Core Data Model Compiler.","explanation":"Core Data compilers generate data model classes."},{"id":"d","text":"The Energy Log Organizer.","explanation":"Energy Organizer monitors battery consumption over time."}],"answer":"b"},{"id":"retain-cycles-q7","type":"mcq","difficulty":2,"prompt":"What is the purpose of writing `guard let self else { return }` inside a `[weak self]` closure?","options":[{"id":"a","text":"It forces self to remain alive forever after the closure finishes.","explanation":"It only creates a temporary local strong reference during execution."},{"id":"b","text":"It cancels background tasks if the network response is malformed.","explanation":"Guard let self checks instance lifetime, not network payload validity."},{"id":"c","text":"It safely unwraps self for the closure scope or exits if deallocated.","explanation":"Right. It safely provides a non-optional self while the block executes."},{"id":"d","text":"It reallocates the class instance on the heap if it was previously freed.","explanation":"Once an object is deallocated, it cannot be resurrected."}],"answer":"c"},{"id":"retain-cycles-q8","type":"mcq","difficulty":2,"prompt":"Which component in the delegation pattern must hold a weak reference to avoid a cycle?","options":[{"id":"a","text":"The view controller property that holds the service instance.","explanation":"If the view controller holds service weakly, service deallocates immediately."},{"id":"b","text":"The protocol definition itself using static functions.","explanation":"Protocols define contracts, not instance reference ownership."},{"id":"c","text":"The app delegate reference inside the main UIApplication singleton.","explanation":"UIApplication holds its delegate strongly by design."},{"id":"d","text":"The delegate property inside the child or helper service object.","explanation":"Right. The child holds its delegate weakly to prevent circular ownership."}],"answer":"d"},{"id":"retain-cycles-q9","type":"mcq","difficulty":2,"prompt":"Why can a retain cycle not occur between two pure Swift structs?","options":[{"id":"a","text":"Structs have value semantics and are copied without reference counts.","explanation":"Right. Structs do not share references or maintain ARC counts."},{"id":"b","text":"The Swift compiler rejects structs that define more than one property.","explanation":"Structs can hold arbitrary numbers of properties."},{"id":"c","text":"Structs are allocated on the GPU where ARC is not needed.","explanation":"Struct values live on the CPU stack or inside container storage."},{"id":"d","text":"Structs automatically clear all properties when passed to functions.","explanation":"Passing a struct copies its fields without clearing them."}],"answer":"a"},{"id":"retain-cycles-q10","type":"mcq","difficulty":3,"prompt":"How can unit tests automatically detect if a view controller leaks from a retain cycle?","options":[{"id":"a","text":"By checking if device battery drops while running the test suite.","explanation":"Battery usage does not verify whether an object deallocated."},{"id":"b","text":"By keeping a weak reference to the controller and asserting it becomes nil.","explanation":"Right. If weakRef is not nil after releasing strongRef, a cycle leaked it."},{"id":"c","text":"By measuring the file size of the compiled application package.","explanation":"Binary file size does not reveal runtime heap memory leaks."},{"id":"d","text":"By catching fatal error exceptions thrown by ARC during test execution.","explanation":"Retain cycles do not throw catchable exceptions."}],"answer":"b"},{"id":"retain-cycles-q11","type":"mcq","difficulty":2,"prompt":"What simple check during manual testing confirms that a view controller was deallocated?","options":[{"id":"a","text":"Checking if the app icon remains visible on the home screen.","explanation":"App icons have nothing to do with view controller lifecycles."},{"id":"b","text":"Verifying that the device screen brightness resets automatically.","explanation":"Screen brightness is managed by iOS system preferences."},{"id":"c","text":"Placing a print statement inside deinit and confirming it logs on pop.","explanation":"Right. If the print statement in deinit does not execute, a leak exists."},{"id":"d","text":"Watching whether the status bar changes color from black to white.","explanation":"Status bar style does not reflect memory deallocation."}],"answer":"c"},{"id":"retain-cycles-q12","type":"mcq","difficulty":2,"prompt":"What happens if a timer retains its target strongly and is never invalidated?","options":[{"id":"a","text":"The timer terminates automatically after sixty seconds of idle time.","explanation":"Repeating timers continue running indefinitely until invalidated."},{"id":"b","text":"The app restarts immediately with an out-of-memory error alert.","explanation":"A single leaking timer does not immediately exhaust device memory."},{"id":"c","text":"The target is converted to an unowned reference by the run loop.","explanation":"Timers hold strong references to their targets."},{"id":"d","text":"The target leaks and continues firing because the timer keeps it alive.","explanation":"Right. Timers retain their targets strongly, causing leaks unless stopped."}],"answer":"d"},{"id":"retain-cycles-q13","type":"mcq","difficulty":2,"prompt":"In Swift 5.3 and newer, what shorthand syntax allows shadowing weak self cleanly?","options":[{"id":"a","text":"guard let self else { return }","explanation":"Right. Swift permits clean guard let self unwrapping without self = self."},{"id":"b","text":"unwrap(self) or exit","explanation":"Swift does not have an unwrap or exit keyword construct."},{"id":"c","text":"check self != nil","explanation":"Check is not a Swift language keyword."},{"id":"d","text":"self.forceUnwrap()","explanation":"Force unwrapping is done with ! rather than a method call."}],"answer":"a"},{"id":"retain-cycles-q14","type":"mcq","difficulty":3,"prompt":"Why can NotificationCenter token observers cause retain cycles if not cleaned up?","options":[{"id":"a","text":"Because NotificationCenter converts all notification names to global singletons.","explanation":"Notification names are simply string or enum wrappers."},{"id":"b","text":"Because the notification center holds the block strongly, retaining captured self.","explanation":"Right. The block lives in the notification center, keeping self alive."},{"id":"c","text":"Because notifications can only be observed by struct instances.","explanation":"Notification observers can be reference or value objects."},{"id":"d","text":"Because notification tokens automatically cancel all other network tasks.","explanation":"Notification tokens do not interfere with network tasks."}],"answer":"b"},{"id":"retain-cycles-q15","type":"mcq","difficulty":2,"prompt":"If object A holds object B strongly and object B holds object A weakly, does a retain cycle exist?","options":[{"id":"a","text":"Yes, because any reference between two objects forms a retain cycle.","explanation":"Only circular strong references create retain cycles."},{"id":"b","text":"Yes, because weak references increment reference counts by half.","explanation":"Weak references do not increment reference counts at all."},{"id":"c","text":"No, because the weak reference does not increment the strong count of A.","explanation":"Right. The weak reference allows object A reference count to reach zero."},{"id":"d","text":"Yes, unless both objects are marked with the final keyword.","explanation":"The final keyword affects inheritance, not reference counting."}],"answer":"c"},{"id":"retain-cycles-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"class Worker {\n    var job: (() -> Void)?\n    deinit { print(\"Worker deallocated\") }\n}\n\nvar w: Worker? = Worker()\nw?.job = {\n    print(\"Doing work\")\n}\nw = nil\nprint(\"Finished worker\")","options":[{"id":"a","text":"Doing work\nWorker deallocated\nFinished worker","explanation":"The job closure is stored but never executed."},{"id":"b","text":"Finished worker","explanation":"Worker deallocates because the closure does not capture self."},{"id":"c","text":"Doing work\nFinished worker","explanation":"The closure is never called, so Doing work does not print."},{"id":"d","text":"Worker deallocated\nFinished worker","explanation":"Right. The closure does not capture self, so w deallocates cleanly."}],"answer":"d"},{"id":"retain-cycles-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"class JobRunner {\n    var title = \"Data Job\"\n    var action: (() -> Void)?\n    deinit { print(\"JobRunner deallocated\") }\n}\n\nvar runner: JobRunner? = JobRunner()\nrunner?.action = { [weak runner] in\n    print(\"Running \\(runner?.title ?? \"none\")\")\n}\nrunner?.action?()\nrunner = nil\nprint(\"After runner nil\")","options":[{"id":"a","text":"Running Data Job\nJobRunner deallocated\nAfter runner nil","explanation":"Right. runner executes, deallocates on nil, and prints messages."},{"id":"b","text":"Running Data Job\nAfter runner nil","explanation":"JobRunner deallocates because [weak runner] breaks the retain cycle."},{"id":"c","text":"JobRunner deallocated\nRunning Data Job\nAfter runner nil","explanation":"The action closure runs before runner is set to nil."},{"id":"d","text":"Running none\nJobRunner deallocated\nAfter runner nil","explanation":"runner is still alive when action is invoked, printing Data Job."}],"answer":"a"},{"id":"retain-cycles-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class LeakTester {\n    var closure: (() -> Void)?\n    func setup() {\n        closure = {\n            _ = self\n        }\n    }\n    deinit { print(\"LeakTester freed\") }\n}\n\nvar tester: LeakTester? = LeakTester()\ntester?.setup()\ntester = nil\nprint(\"After tester nil\")","options":[{"id":"a","text":"LeakTester freed\nAfter tester nil","explanation":"A retain cycle was formed; LeakTester is never deallocated."},{"id":"b","text":"After tester nil","explanation":"Right. The strong closure capture leaks tester, so deinit never runs."},{"id":"c","text":"LeakTester freed","explanation":"The deinit method does not execute due to the circular reference."},{"id":"d","text":"Fatal error: Retain cycle detected by ARC","explanation":"Swift does not throw runtime errors for retain cycles."}],"answer":"b"},{"id":"retain-cycles-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Printer {\n    let text: String\n    init(_ text: String) { self.text = text }\n    func printAll() {\n        [1, 2].forEach { _ in\n            print(self.text)\n        }\n    }\n    deinit { print(\"Printer deallocated\") }\n}\n\nvar p: Printer? = Printer(\"Hello\")\np?.printAll()\np = nil\nprint(\"After printer nil\")","options":[{"id":"a","text":"Hello\nHello\nAfter printer nil","explanation":"Printer deallocates because forEach does not retain self."},{"id":"b","text":"Printer deallocated\nHello\nHello\nAfter printer nil","explanation":"printAll runs before setting p to nil."},{"id":"c","text":"Hello\nHello\nPrinter deallocated\nAfter printer nil","explanation":"Right. Non-escaping closure executes and releases p immediately."},{"id":"d","text":"Hello\nPrinter deallocated\nAfter printer nil","explanation":"The array has two elements, so Hello is printed twice."}],"answer":"c"},{"id":"retain-cycles-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class Downloader {\n    var onFinish: (() -> Void)?\n    func start() {\n        onFinish = { [weak self] in\n            print(\"Finished: \\(self != nil)\")\n        }\n    }\n    deinit { print(\"Downloader deallocated\") }\n}\n\nvar d: Downloader? = Downloader()\nd?.start()\nd?.onFinish?()\nd = nil\nprint(\"After downloader nil\")","options":[{"id":"a","text":"Finished: true\nAfter downloader nil","explanation":"Downloader deallocates because [weak self] prevents a retain cycle."},{"id":"b","text":"Finished: false\nDownloader deallocated\nAfter downloader nil","explanation":"self is not nil when onFinish is invoked."},{"id":"c","text":"Downloader deallocated\nFinished: true\nAfter downloader nil","explanation":"onFinish executes before d is set to nil."},{"id":"d","text":"Finished: true\nDownloader deallocated\nAfter downloader nil","explanation":"Right. onFinish runs with alive self, then d deallocates on nil."}],"answer":"d"},{"id":"retain-cycles-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"protocol EngineDelegate: AnyObject {\n    func engineDidStart()\n}\n\nclass Engine {\n    weak var delegate: EngineDelegate?\n    func ignite() {\n        delegate?.engineDidStart()\n    }\n    deinit { print(\"Engine deallocated\") }\n}\n\nclass Car: EngineDelegate {\n    let engine = Engine()\n    init() { engine.delegate = self }\n    func engineDidStart() { print(\"Vroom\") }\n    deinit { print(\"Car deallocated\") }\n}\n\nvar car: Car? = Car()\ncar?.engine.ignite()\ncar = nil\nprint(\"After car nil\")","options":[{"id":"a","text":"Vroom\nCar deallocated\nEngine deallocated\nAfter car nil","explanation":"Right. Weak delegate breaks the cycle; both car and engine deallocate."},{"id":"b","text":"Vroom\nAfter car nil","explanation":"Both instances deallocate because the delegate reference is weak."},{"id":"c","text":"Vroom\nEngine deallocated\nCar deallocated\nAfter car nil","explanation":"Car is released first, cascading deallocation to Engine."},{"id":"d","text":"Car deallocated\nVroom\nEngine deallocated\nAfter car nil","explanation":"Vroom is printed during ignite() before car is set to nil."}],"answer":"a"},{"id":"retain-cycles-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class SessionHandler {\n    var callback: (() -> Void)?\n    let token = \"XYZ\"\n    func bind() {\n        callback = { [weak self] in\n            guard let self else {\n                print(\"Self was nil\")\n                return\n            }\n            print(\"Token: \\(self.token)\")\n        }\n    }\n    deinit { print(\"SessionHandler freed\") }\n}\n\nvar s: SessionHandler? = SessionHandler()\ns?.bind()\nlet savedCallback = s?.callback\ns = nil\nsavedCallback?()","options":[{"id":"a","text":"Token: XYZ\nSessionHandler freed","explanation":"s is set to nil before savedCallback is invoked, so self is nil."},{"id":"b","text":"SessionHandler freed\nSelf was nil","explanation":"Right. Setting s to nil frees handler, so guard let self fails."},{"id":"c","text":"Self was nil\nSessionHandler freed","explanation":"Deinit executes when s is set to nil, before calling savedCallback."},{"id":"d","text":"Fatal error: Can not unwrap optional value","explanation":"guard let self handles nil safely without crashing."}],"answer":"b"},{"id":"retain-cycles-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"class NameHolder {\n    let name = \"Alice\"\n    var action: (() -> Void)?\n    func setup() {\n        action = { [weak self] in\n            print(\"Name: \\(self?.name ?? \"unknown\")\")\n        }\n    }\n    deinit { print(\"NameHolder freed\") }\n}\n\nvar holder: NameHolder? = NameHolder()\nholder?.setup()\nholder?.action?()\nholder = nil\nprint(\"After holder nil\")","options":[{"id":"a","text":"Name: Alice\nAfter holder nil","explanation":"NameHolder deallocates because action uses [weak self]."},{"id":"b","text":"Name: unknown\nNameHolder freed\nAfter holder nil","explanation":"self is alive when action is invoked, so name reads as Alice."},{"id":"c","text":"Name: Alice\nNameHolder freed\nAfter holder nil","explanation":"Right. action prints Alice, then holder = nil triggers deinit."},{"id":"d","text":"NameHolder freed\nName: Alice\nAfter holder nil","explanation":"action is called before holder is set to nil."}],"answer":"c"},{"id":"retain-cycles-q24","type":"written","difficulty":1,"prompt":"Explain what a retain cycle is and how it leads to memory leaks in Swift apps. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that a retain cycle occurs when two or more instances hold strong references to each other.","weight":50,"key":true},{"criterion":"Notes that reference counts never drop to zero, preventing ARC deallocation.","weight":30,"key":true},{"criterion":"Mentions that leaked memory remains allocated on the heap for the app session.","weight":20}],"modelAnswer":"A retain cycle occurs when two or more class instances hold strong references to each other. Because each instance keeps the other alive, their strong reference counts never drop to zero. As a result, ARC cannot free their memory, creating a permanent memory leak in the app."},{"id":"retain-cycles-q25","type":"written","difficulty":2,"prompt":"Explain how stored closures capturing `self` cause retain cycles, and how `[weak self]` resolves this. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that the instance holds the closure strongly and the closure captures self strongly by default.","weight":50,"key":true},{"criterion":"Explains that adding [weak self] captures self without incrementing its strong reference count.","weight":30,"key":true},{"criterion":"Mentions that weak self becomes nil if the instance deallocates first.","weight":20}],"modelAnswer":"A retain cycle forms when an instance stores a closure property and the closure references `self`, creating mutual strong references. Adding `[weak self]` in the closure capture list breaks this cycle by not incrementing the strong reference count of `self`. If the instance deallocates, the weak reference safely becomes `nil`."},{"id":"retain-cycles-q26","type":"written","difficulty":2,"prompt":"Why do standard non-escaping closures like `map` or `forEach` not require `[weak self]`? Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that non-escaping closures execute synchronously within the immediate stack frame.","weight":50,"key":true},{"criterion":"States that the closure does not outlive the calling function and is discarded after execution.","weight":30,"key":true},{"criterion":"Concludes that because the closure is not stored, no circular reference can form.","weight":20}],"modelAnswer":"Non-escaping closures like `map` or `forEach` execute synchronously within the current function call on the stack. They are never stored as properties and do not outlive the function return. Because the closure is immediately discarded, no persistent strong reference can form, making `[weak self]` unnecessary."},{"id":"retain-cycles-q27","type":"written","difficulty":2,"prompt":"Name two tools or methods used to identify retain cycles during iOS app development and describe how they work. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Identifies the Xcode Memory Graph Debugger and explains that it visualizes heap reference edges and cycle warnings.","weight":50,"key":true},{"criterion":"Identifies Instruments Leaks/Allocations or deinit print statements to observe whether deallocation occurs.","weight":30,"key":true},{"criterion":"Explains how the developer uses the findings to locate the offending strong pointer.","weight":20}],"modelAnswer":"Developers use the Xcode Memory Graph Debugger to inspect heap objects and spot circular reference arrows marked with purple warning badges. Another effective method is adding `print` statements inside `deinit` to verify that view controllers deallocate when popped from navigation. If `deinit` fails to log, a retain cycle is present."},{"id":"retain-cycles-q28","type":"written","difficulty":2,"prompt":"Explain how the `guard let self else { return }` pattern operates inside a `[weak self]` closure. Answer in 2 to 4 sentences.","rubric":[{"criterion":"Explains that guard let self checks if self is still non-nil when the closure runs.","weight":50,"key":true},{"criterion":"Explains that it creates a temporary local strong reference for the closure execution duration.","weight":30,"key":true},{"criterion":"Notes that if self has already deallocated, the closure returns early and safely.","weight":20}],"modelAnswer":"The `guard let self else { return }` pattern checks if the weakly captured `self` is still alive when the closure is called. If `self` has deallocated, the guard exits early to prevent executing logic on dead state. If `self` exists, it creates a temporary local strong reference on the stack that guarantees `self` stays alive until the closure finishes."},{"id":"retain-cycles-q29","type":"code-write","difficulty":2,"prompt":"Write a class `DataLoader` with `endpoint: String`, a stored closure `var onResult: (() -> Void)?`, and a method `configure()` that sets `onResult` using `[weak self]` and `guard let self else { return }` to print `\"Fetched \\(self.endpoint)\"`. Implement `deinit` printing `\"DataLoader deallocated\"`. Create an instance with `\"/items\"`, call `configure()`, execute `onResult`, set loader to `nil`, and print `\"Finished loader test\"`.","starterCode":null,"modelAnswer":"class DataLoader {\n    let endpoint: String\n    var onResult: (() -> Void)?\n    init(endpoint: String) {\n        self.endpoint = endpoint\n    }\n    func configure() {\n        onResult = { [weak self] in\n            guard let self else { return }\n            print(\"Fetched \\(self.endpoint)\")\n        }\n    }\n    deinit {\n        print(\"DataLoader deallocated\")\n    }\n}\n\nvar loader: DataLoader? = DataLoader(endpoint: \"/items\")\nloader?.configure()\nloader?.onResult?()\nloader = nil\nprint(\"Finished loader test\")","rubric":[{"criterion":"Declares DataLoader with onResult closure property and deinit.","weight":30,"key":true},{"criterion":"Uses [weak self] capture list and guard let self unwrapping in configure().","weight":40,"key":true},{"criterion":"Demonstrates clean deallocation when loader is set to nil without leaking.","weight":30}]},{"id":"retain-cycles-q30","type":"code-write","difficulty":2,"prompt":"Write a protocol `FormDelegate: AnyObject` with `func formSubmitted()`. Write a class `FormView` with `weak var delegate: FormDelegate?` and `func submit() { delegate?.formSubmitted() }`. Write a class `FormPresenter: FormDelegate` with `let form = FormView()`, `init()` setting `form.delegate = self`, `formSubmitted()` printing `\"Form processed\"`, and `deinit` printing `\"Presenter deallocated\"`. Call `form.submit()`, set presenter to `nil`, and print `\"Finished presenter test\"`.","starterCode":null,"modelAnswer":"protocol FormDelegate: AnyObject {\n    func formSubmitted()\n}\n\nclass FormView {\n    weak var delegate: FormDelegate?\n    func submit() {\n        delegate?.formSubmitted()\n    }\n}\n\nclass FormPresenter: FormDelegate {\n    let form = FormView()\n    init() {\n        form.delegate = self\n    }\n    func formSubmitted() {\n        print(\"Form processed\")\n    }\n    deinit {\n        print(\"Presenter deallocated\")\n    }\n}\n\nvar presenter: FormPresenter? = FormPresenter()\npresenter?.form.submit()\npresenter = nil\nprint(\"Finished presenter test\")","rubric":[{"criterion":"Declares protocol FormDelegate with AnyObject class constraint.","weight":30,"key":true},{"criterion":"Declares FormView with weak var delegate: FormDelegate? property.","weight":40,"key":true},{"criterion":"Demonstrates bidirectional relationship without leaking when presenter is set to nil.","weight":30}]},{"id":"retain-cycles-q31","type":"code-write","difficulty":2,"prompt":"Write a class named `TimerHelper` with `id: Int` and a closure `var onTick: (() -> Void)?`. Add a method `setup()` configuring `onTick` with `[weak self]` to print `\"Tick: \\(self.id)\"`. Add `cleanUp()` setting `onTick = nil`, and `deinit` printing `\"TimerHelper deallocated\"`. Create an instance with id `1`, call `setup()`, execute `onTick`, call `cleanUp()`, set timer to `nil`, and print `\"Finished timer test\"`.","starterCode":null,"modelAnswer":"class TimerHelper {\n    let id: Int\n    var onTick: (() -> Void)?\n    init(id: Int) {\n        self.id = id\n    }\n    func setup() {\n        onTick = { [weak self] in\n            guard let self else { return }\n            print(\"Tick: \\(self.id)\")\n        }\n    }\n    func cleanUp() {\n        onTick = nil\n    }\n    deinit {\n        print(\"TimerHelper deallocated\")\n    }\n}\n\nvar timer: TimerHelper? = TimerHelper(id: 1)\ntimer?.setup()\ntimer?.onTick?()\ntimer?.cleanUp()\ntimer = nil\nprint(\"Finished timer test\")","rubric":[{"criterion":"Declares TimerHelper with onTick closure property and cleanUp method.","weight":30,"key":true},{"criterion":"Configures onTick using [weak self] capture and guard let self unwrapping.","weight":40,"key":true},{"criterion":"Demonstrates calling tick, cleanUp, and deallocating cleanly on nil.","weight":30}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
