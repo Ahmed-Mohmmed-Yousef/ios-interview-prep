@@ -1,0 +1,195 @@
+export const meta = {
+  id: "opaque-and-boxed-types",
+  summary: "Understand the difference between opaque types with some and boxed existential types with any.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Opaque and Boxed Protocol Types", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/opaquetypes", kind: "official" },
+    { title: "WWDC22: Embrace Swift generics", url: "https://developer.apple.com/videos/play/wwdc2022/110352/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>In modern Swift, what is the core architectural difference between returning 'some View' and 'any View'?</Question>
+  <Guess>
+    <Option id="a">They are completely identical synonyms that compile to the exact same bytecode.</Option>
+    <Option id="b" correct>some guarantees one fixed type with static dispatch, while any creates a dynamic existential box.</Option>
+    <Option id="c">any works only with structs, while some works only with classes.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of ordering a surprise gift. An opaque type (`some Gift`) means the shop wraps one real, specific item in opaque paper. You know it is a gift, and the shop knows exactly what it is. A boxed type (`any Gift`) is a magic box that can hold completely different items over time. The magic box needs extra packaging to hold different sizes.
+</Analogy>
+
+In Swift, **`some`** declares an **opaque type**. An opaque type represents one specific concrete type that conforms to a protocol. The caller only knows the protocol, but the compiler knows the real underlying type. Because the compiler knows the exact type, it preserves full type identity and optimizes the code with static dispatch.
+
+In contrast, **`any`** declares a **boxed protocol type**, also known as an **existential type**. An `any` type is a box that can hold any conforming type at runtime.
+
+A boxed type lets you store different types in one collection, like an array containing circles and squares.
+
+However, that flexibility has a price. Boxed types use dynamic dispatch through witness tables. Large values also allocate memory on the heap.
+
+**Default to `some` for speed and type safety; use `any` only when you need to store different types together.**
+
+## See it
+
+<Diagram id="opaque-and-boxed-types-main" caption="Comparing opaque types (some) with boxed existential types (any)">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Opaque Type (some Shape): Direct pointer to concrete Circle struct in stack memory.
+    2. Boxed Existential (any Shape): Existential container with 3-word buffer, metadata pointer, and witness table.
+    3. Heterogeneous Array: [any Shape] holding Circle and Square boxes.
+    4. Static vs Dynamic Dispatch: Inlined static call vs indirect witness table lookup.
+  - Steps:
+    Step 1: 'some' represents one fixed type, known to compiler and optimized directly.
+    Step 2: 'any' creates an existential container box with metadata and witness table pointers.
+    Step 3: 'any' allows collections to mix different conforming types dynamically.
+    Step 4: 'some' enables static dispatch and type identity, while 'any' uses dynamic lookup.
+  - Static version (reduced motion):
+    Side-by-side diagram showing fixed concrete struct behind 'some' versus flexible existential container behind 'any'.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why does SwiftUI use 'var body: some View' instead of 'any View'?</Question>
+  <Option id="a">Because SwiftUI views cannot conform to protocols.</Option>
+  <Option id="b" correct>Because some preserves the exact view hierarchy type at compile time with zero box overhead.</Option>
+  <Option id="c">Because Swift does not allow any inside computed properties.</Option>
+  <Explanation>Using some View lets SwiftUI know the exact view layout type at compile time, avoiding runtime box overhead.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Opaque return types with some preserving type identity">
+
+```swift
+protocol Vehicle {
+    func startEngine() -> String
+}
+
+struct ElectricCar: Vehicle {
+    func startEngine() -> String {
+        return "Silent start: Motor ready"
+    }
+}
+
+// Function returns one specific concrete type hidden behind the protocol
+func makeVehicle() -> some Vehicle {
+    return ElectricCar()
+}
+
+let myRide = makeVehicle()
+print(myRide.startEngine())
+```
+
+```output
+Silent start: Motor ready
+```
+
+</CodeExample>
+
+This example shows how `some` works:
+- **Hiding implementation details**: Callers only know that `makeVehicle()` returns a `Vehicle`.
+- **Compiler knowledge**: Swift knows the return value is actually an `ElectricCar`. It generates fast, direct function calls.
+
+<CodeExample title="Boxed types with any enabling heterogeneous collections">
+
+```swift
+protocol Drawable {
+    func draw() -> String
+}
+
+struct Circle: Drawable {
+    let radius: Int
+    func draw() -> String {
+        return "Circle with radius \(radius)"
+    }
+}
+
+struct Rectangle: Drawable {
+    let width: Int
+    let height: Int
+    func draw() -> String {
+        return "Rectangle \(width)x\(height)"
+    }
+}
+
+// Array holding different concrete types inside existential boxes
+let shapes: [any Drawable] = [
+    Circle(radius: 5),
+    Rectangle(width: 10, height: 20)
+]
+
+for shape in shapes {
+    print(shape.draw())
+}
+```
+
+```output
+Circle with radius 5
+Rectangle 10x20
+```
+
+</CodeExample>
+
+This example highlights the power of `any`:
+- **Mixed types**: The array holds both `Circle` and `Rectangle` instances. You cannot do this with `[some Drawable]`.
+- **Dynamic box**: Each element is stored in an existential container that looks up `draw()` at runtime.
+
+<QuickCheck>
+  <Question>Can an array be declared as [some Drawable] if it stores both Circle and Rectangle?</Question>
+  <Option id="a" correct>No, because some requires every element to be the exact same concrete type.</Option>
+  <Option id="b">Yes, some allows unlimited different types in collections.</Option>
+  <Option id="c">Yes, but only if all structs are marked final.</Option>
+  <Explanation>Opaque types require a single fixed underlying type. For mixed types in an array, you must use any Drawable.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Experiment with some and any in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Returning different concrete types from a function returning some">
+If a function return type is `some Shape`, every `return` statement must return the exact same concrete type. You cannot return a `Circle` in an `if` branch and a `Square` in an `else` branch. If you need dynamic branches, return `any Shape` or wrap the branches in a custom enum.
+</Trap>
+
+<Trap title="Using any everywhere by default">
+In older Swift code, developers wrote `let item: Protocol` everywhere. Swift 6 makes the existential box explicit by requiring `any Protocol`. Writing `any` introduces runtime boxes and dynamic dispatch. Always prefer `some` unless you truly need heterogeneous collections.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+The keyword some creates an opaque type. The function chooses one concrete type, but hides the exact name from callers. The keyword any creates a boxed type that can hold different types at runtime. We use some for performance and any when we need to mix different types in an array.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+The difference between some and any is static versus dynamic typing. With some, the compiler knows the exact concrete type, enabling static dispatch and full type identity. All return branches must return the same type. With any, Swift creates an existential container that can hold different conforming types dynamically. Swift 6 requires the any keyword to make this runtime overhead explicit.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Opaque types (some) provide reverse generics, hiding implementation details while retaining compile-time type identity and zero-cost abstraction. Boxed existentials (any) store values in existential containers with a 3-word value buffer, allocating heap memory for larger values. They incur witness table dynamic dispatch. Modern Swift automatically opens existentials when passed into generic arguments taking some. We default to some and reserve any for heterogeneous collections.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `some` represents an opaque type with one fixed underlying concrete type.
+- The compiler knows the concrete type behind `some`, enabling static dispatch and optimizations.
+- Functions returning `some` must return the same concrete type from all branches.
+- `any` creates a boxed existential type that can hold different types dynamically.
+- Collections containing mixed conforming types must use `any`.
+- Swift 6 requires the `any` keyword to make existential container costs visible.
+- Prefer `some` by default for performance and safety; use `any` when dynamic flexibility is required.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Opaque and Boxed Protocol Types](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/opaquetypes)
+- [WWDC22: Embrace Swift generics](https://developer.apple.com/videos/play/wwdc2022/110352/)

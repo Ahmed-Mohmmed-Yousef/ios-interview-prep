@@ -1,0 +1,541 @@
+<title>Opaque and Boxed Types: some vs any Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --some-color: #0284c7; --some-soft: #e0f2fe;
+  --any-color: #d97706; --any-soft: #fef3c7;
+  --fast-color: #059669; --fast-soft: #d1fae5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --some-color: #38bdf8; --some-soft: #082f49;
+  --any-color: #fbbf24; --any-soft: #451a03;
+  --fast-color: #34d399; --fast-soft: #064e3b;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--some-soft); color: var(--some-color); }
+.p-right .kind { background: var(--any-soft); color: var(--any-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-box { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-box.active-some { stroke: var(--some-color); stroke-width: 2.5; fill: var(--some-soft); }
+.node-box.active-any { stroke: var(--any-color); stroke-width: 2.5; fill: var(--any-soft); }
+.node-box.active-fast { stroke: var(--fast-color); stroke-width: 2.5; fill: var(--fast-soft); }
+
+.controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 16px; flex-wrap: wrap;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 16px; font: 600 14px var(--font-body);
+  cursor: pointer; transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { border-color: var(--some-color); color: var(--some-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.static-summary {
+  display: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interactive-view { display: none; }
+  .static-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Swift Language · Topic 3 of 7 · Prototype</p>
+    <h1>Opaque and Boxed Types: some vs any</h1>
+    <p class="meta-line"><span>About 12 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain the difference between some and any, and choose one.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">In modern Swift, what is the core architectural difference between returning &#x27;some View&#x27; and &#x27;any View&#x27;?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">They are completely identical synonyms that compile to the exact same bytecode.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">some guarantees one fixed type with static dispatch, while any creates a dynamic existential box.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">any works only with structs, while some works only with classes.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of ordering a surprise gift. An opaque type (<code>some Gift</code>) means the shop wraps one real, specific item in opaque paper. You know it is a gift, and the shop knows exactly what it is. A boxed type (<code>any Gift</code>) is a magic box that can hold completely different items over time. The magic box needs extra packaging to hold different sizes.</p></aside>
+<p>In Swift, <strong><code>some</code></strong> declares an <strong>opaque type</strong>. An opaque type represents one specific concrete type that conforms to a protocol. The caller only knows the protocol, but the compiler knows the real underlying type. Because the compiler knows the exact type, it preserves full type identity and optimizes the code with static dispatch.</p>
+<p>In contrast, <strong><code>any</code></strong> declares a <strong>boxed protocol type</strong>, also known as an <strong>existential type</strong>. An <code>any</code> type is a box that can hold any conforming type at runtime.</p>
+<p>A boxed type lets you store different types in one collection, like an array containing circles and squares.</p>
+<p>However, that flexibility has a price. Boxed types use dynamic dispatch through witness tables. Large values also allocate memory on the heap.</p>
+<p><strong>Default to <code>some</code> for speed and type safety; use <code>any</code> only when you need to store different types together.</strong></p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why does SwiftUI use &#x27;var body: some View&#x27; instead of &#x27;any View&#x27;?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because SwiftUI views cannot conform to protocols.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because some preserves the exact view hierarchy type at compile time with zero box overhead.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because Swift does not allow any inside computed properties.</span></button><p class="qc-explain" hidden="">Using some View lets SwiftUI know the exact view layout type at compile time, avoiding runtime box overhead.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Opaque return types with some preserving type identity</figcaption><pre class="block swift"><code class="language-swift">protocol Vehicle {
+    func startEngine() -&gt; String
+}
+
+struct ElectricCar: Vehicle {
+    func startEngine() -&gt; String {
+        return &quot;Silent start: Motor ready&quot;
+    }
+}
+
+// Function returns one specific concrete type hidden behind the protocol
+func makeVehicle() -&gt; some Vehicle {
+    return ElectricCar()
+}
+
+let myRide = makeVehicle()
+print(myRide.startEngine())
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Silent start: Motor ready
+</code></pre></figure>
+<p>This example shows how <code>some</code> works:</p>
+<ul>
+<li><strong>Hiding implementation details</strong>: Callers only know that <code>makeVehicle()</code> returns a <code>Vehicle</code>.</li>
+<li><strong>Compiler knowledge</strong>: Swift knows the return value is actually an <code>ElectricCar</code>. It generates fast, direct function calls.</li>
+</ul>
+<figure class="code-example"><figcaption>Boxed types with any enabling heterogeneous collections</figcaption><pre class="block swift"><code class="language-swift">protocol Drawable {
+    func draw() -&gt; String
+}
+
+struct Circle: Drawable {
+    let radius: Int
+    func draw() -&gt; String {
+        return &quot;Circle with radius \(radius)&quot;
+    }
+}
+
+struct Rectangle: Drawable {
+    let width: Int
+    let height: Int
+    func draw() -&gt; String {
+        return &quot;Rectangle \(width)x\(height)&quot;
+    }
+}
+
+// Array holding different concrete types inside existential boxes
+let shapes: [any Drawable] = [
+    Circle(radius: 5),
+    Rectangle(width: 10, height: 20)
+]
+
+for shape in shapes {
+    print(shape.draw())
+}
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Circle with radius 5
+Rectangle 10x20
+</code></pre></figure>
+<p>This example highlights the power of <code>any</code>:</p>
+<ul>
+<li><strong>Mixed types</strong>: The array holds both <code>Circle</code> and <code>Rectangle</code> instances. You cannot do this with <code>[some Drawable]</code>.</li>
+<li><strong>Dynamic box</strong>: Each element is stored in an existential container that looks up <code>draw()</code> at runtime.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Can an array be declared as [some Drawable] if it stores both Circle and Rectangle?</p><button type="button" class="opt" data-id="a" data-correct=""><span class="opt-id">A</span><span class="opt-text">No, because some requires every element to be the exact same concrete type.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Yes, some allows unlimited different types in collections.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Yes, but only if all structs are marked final.</span></button><p class="qc-explain" hidden="">Opaque types require a single fixed underlying type. For mixed types in an array, you must use any Drawable.</p></div>
+<p class="try-it"><p>Experiment with some and any in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Returning different concrete types from a function returning some</p><p>If a function return type is <code>some Shape</code>, every <code>return</code> statement must return the exact same concrete type. You cannot return a <code>Circle</code> in an <code>if</code> branch and a <code>Square</code> in an <code>else</code> branch. If you need dynamic branches, return <code>any Shape</code> or wrap the branches in a custom enum.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using any everywhere by default</p><p>In older Swift code, developers wrote <code>let item: Protocol</code> everywhere. Swift 6 makes the existential box explicit by requiring <code>any Protocol</code>. Writing <code>any</code> introduces runtime boxes and dynamic dispatch. Always prefer <code>some</code> unless you truly need heterogeneous collections.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>The keyword some creates an opaque type. The function chooses one concrete type, but hides the exact name from callers. The keyword any creates a boxed type that can hold different types at runtime. We use some for performance and any when we need to mix different types in an array.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>The difference between some and any is static versus dynamic typing. With some, the compiler knows the exact concrete type, enabling static dispatch and full type identity. All return branches must return the same type. With any, Swift creates an existential container that can hold different conforming types dynamically. Swift 6 requires the any keyword to make this runtime overhead explicit.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Opaque types (some) provide reverse generics, hiding implementation details while retaining compile-time type identity and zero-cost abstraction. Boxed existentials (any) store values in existential containers with a 3-word value buffer, allocating heap memory for larger values. They incur witness table dynamic dispatch. Modern Swift automatically opens existentials when passed into generic arguments taking some. We default to some and reserve any for heterogeneous collections.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>some</code> represents an opaque type with one fixed underlying concrete type.</li>
+<li>The compiler knows the concrete type behind <code>some</code>, enabling static dispatch and optimizations.</li>
+<li>Functions returning <code>some</code> must return the same concrete type from all branches.</li>
+<li><code>any</code> creates a boxed existential type that can hold different types dynamically.</li>
+<li>Collections containing mixed conforming types must use <code>any</code>.</li>
+<li>Swift 6 requires the <code>any</code> keyword to make existential container costs visible.</li>
+<li>Prefer <code>some</code> by default for performance and safety; use <code>any</code> when dynamic flexibility is required.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/opaquetypes">The Swift Programming Language: Opaque and Boxed Protocol Types</a></li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2022/110352/">WWDC22: Embrace Swift generics</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    leftCode: "func makeShape() -> some Shape {\n    return Circle(radius: 10)\n}",
+    leftCaption: "'some Shape' has one fixed underlying type: Circle. Compiler inlines it.",
+    rightCode: "// Boxed existential\nlet item: any Shape = Circle(radius: 10)",
+    rightCaption: "'any Shape' wraps the value in an existential container box.",
+    activeBoxes: ["someOuterBox", "someInnerBox"]
+  },
+  {
+    step: 2,
+    leftCode: "// Fixed return requirement:\n// All return branches MUST return the same type\nreturn Circle(radius: 10)",
+    leftCaption: "With 'some', you cannot return a Circle in one branch and a Square in another.",
+    rightCode: "func pick(flag: Bool) -> any Shape {\n    return flag ? Circle(5) : Square(10)\n}",
+    rightCaption: "'any Shape' can return different concrete types from different branches.",
+    activeBoxes: ["anyOuterBox", "bufferBox", "witnessBox"]
+  },
+  {
+    step: 3,
+    leftCode: "// Array of opaque types:\n// [some Shape] is NOT allowed for mixed types!",
+    leftCaption: "Collections of 'some Shape' require every element to share the identical type.",
+    rightCode: "let list: [any Shape] = [\n    Circle(radius: 5),\n    Square(side: 10)\n]",
+    rightCaption: "'any' enables heterogeneous arrays holding distinct conforming structs.",
+    activeBoxes: ["anyOuterBox", "bufferBox"]
+  },
+  {
+    step: 4,
+    leftCode: "let shape = makeShape()\nshape.draw() // Static call directly to Circle.draw()",
+    leftCaption: "'some' uses static dispatch: fast, zero allocation overhead, preserves identity.",
+    rightCode: "for s in list {\n    s.draw() // Dynamic lookup via witness table\n}",
+    rightCaption: "'any' uses dynamic dispatch and indirect pointers. Default to 'some'!",
+    activeBoxes: ["someOuterBox", "someInnerBox", "anyOuterBox", "witnessBox"]
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+const leftCode = document.getElementById("leftCode");
+const leftCaption = document.getElementById("leftCaption");
+const rightCode = document.getElementById("rightCode");
+const rightCaption = document.getElementById("rightCaption");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+  leftCode.textContent = s.leftCode;
+  leftCaption.textContent = s.leftCaption;
+  rightCode.textContent = s.rightCode;
+  rightCaption.textContent = s.rightCaption;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.querySelectorAll(".node-box").forEach(el => {
+    el.classList.remove("active-some", "active-any", "active-fast");
+  });
+
+  if (idx === 0) {
+    document.getElementById("someOuterBox").classList.add("active-some");
+  } else if (idx === 1) {
+    document.getElementById("anyOuterBox").classList.add("active-any");
+  } else if (idx === 2) {
+    document.getElementById("anyOuterBox").classList.add("active-any");
+  } else if (idx === 3) {
+    document.getElementById("someOuterBox").classList.add("active-fast");
+    document.getElementById("anyOuterBox").classList.add("active-any");
+  }
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"opaque-and-boxed-types","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"obt-q1","type":"mcq","difficulty":1,"prompt":"What does the keyword 'some' represent when used as a return type in Swift?","options":[{"id":"a","text":"An opaque type where the compiler knows the single specific concrete type.","explanation":"An opaque type returns one fixed concrete type that conforms to the protocol, hiding the name from callers."},{"id":"b","text":"An optional value that might be nil at runtime.","explanation":"Optional types are written with a question mark, not the some keyword."},{"id":"c","text":"A dynamically allocated Objective-C pointer box.","explanation":"Opaque types are native Swift compile-time constructs with static dispatch."},{"id":"d","text":"A random selection from conforming types at runtime.","explanation":"The underlying concrete type is fixed and deterministic."}],"answer":"a"},{"id":"obt-q2","type":"mcq","difficulty":1,"prompt":"What does the keyword 'any' represent before a protocol name in modern Swift?","options":[{"id":"a","text":"An assertion that the type cannot be mutated.","explanation":"Immutability is declared with let, not any."},{"id":"b","text":"A boxed existential type that can hold any conforming type at runtime.","explanation":"The any keyword explicitly designates an existential container box holding any conforming type dynamically."},{"id":"c","text":"A guarantee that the function returns in constant time.","explanation":"The any keyword does not affect algorithmic time complexity."},{"id":"d","text":"A macro that converts structs into reference classes.","explanation":"The any keyword creates an existential box, not a class converter macro."}],"answer":"b"},{"id":"obt-q3","type":"mcq","difficulty":1,"prompt":"Can a function returning 'some Shape' return Circle in one branch and Square in another branch?","options":[{"id":"a","text":"Yes, as long as both structs are marked with the public access modifier.","explanation":"Access levels do not change the requirement that some must resolve to a single type."},{"id":"b","text":"Yes, because some automatically boxes different types into an array.","explanation":"Opaque types do not create existential boxes or arrays."},{"id":"c","text":"No, every return branch must return the exact same underlying concrete type.","explanation":"An opaque return type must resolve to a single concrete type at compile time across all branches."},{"id":"d","text":"No, because Swift forbids if statements inside functions that return protocols.","explanation":"If statements are allowed as long as all return statements yield the same concrete type."}],"answer":"c"},{"id":"obt-q4","type":"mcq","difficulty":2,"prompt":"Which type annotation allows an array to store both Circle and Square instances?","options":[{"id":"a","text":"[some Shape]","explanation":"[some Shape] requires every element in the array to be the identical concrete type."},{"id":"b","text":"[static Shape]","explanation":"static is not a valid collection element modifier."},{"id":"c","text":"[opaque Shape]","explanation":"opaque is not a Swift type keyword."},{"id":"d","text":"[any Shape]","explanation":"[any Shape] creates an array of existential boxes, enabling mixed conforming types."}],"answer":"d"},{"id":"obt-q5","type":"mcq","difficulty":2,"prompt":"Why does Swift 6 make the 'any' keyword mandatory when referring to existential types?","options":[{"id":"a","text":"To make the runtime boxing and dynamic dispatch costs explicit to developers.","explanation":"Existential containers incur memory indirection and dynamic dispatch. The any keyword makes these costs visible."},{"id":"b","text":"To prevent protocols from being used in unit test files.","explanation":"Protocols and existentials remain fully supported in testing."},{"id":"c","text":"Because Swift 6 deprecated all generic type parameters.","explanation":"Generics are not deprecated."},{"id":"d","text":"To convert pure Swift protocols into Objective-C protocols.","explanation":"The any keyword has no connection to Objective-C protocol conversion."}],"answer":"a"},{"id":"obt-q6","type":"mcq","difficulty":2,"prompt":"Why is 'some' preferred over 'any' as a default choice?","options":[{"id":"a","text":"Because some allows classes to inherit from multiple parents.","explanation":"Swift does not support multiple class inheritance."},{"id":"b","text":"Because some enables static dispatch, inlining, and avoids heap boxing overhead.","explanation":"Opaque types preserve type identity and compile to fast, direct static calls without existential boxes."},{"id":"c","text":"Because any cannot be used inside SwiftUI views.","explanation":"any can be used in SwiftUI, though some View is standard for view bodies."},{"id":"d","text":"Because some eliminates the need to compile Swift code.","explanation":"Swift is always a compiled language."}],"answer":"b"},{"id":"obt-q7","type":"mcq","difficulty":2,"prompt":"What does a parameter declared as 'func render(_ item: some Shape)' mean in modern Swift?","options":[{"id":"a","text":"The function must execute on a background dispatch queue.","explanation":"The some keyword has nothing to do with concurrency dispatch queues."},{"id":"b","text":"The parameter is converted to a raw untyped memory buffer.","explanation":"The parameter remains strongly typed."},{"id":"c","text":"It is concise shorthand for a generic parameter 'func render\u003cT: Shape>(_ item: T)'.","explanation":"In Swift 5.7 and later, some in parameter position is syntactic sugar for a generic type parameter."},{"id":"d","text":"The parameter can only accept structs defined in the same source file.","explanation":"Any type satisfying Shape can be passed."}],"answer":"c"},{"id":"obt-q8","type":"mcq","difficulty":3,"prompt":"What is the memory structure of an existential container used by 'any Protocol'?","options":[{"id":"a","text":"A single 64-bit integer representing an Objective-C selector address.","explanation":"Existential containers are composite Swift structures, not single selector integers."},{"id":"b","text":"A reference count pointer followed by a C++ virtual method table.","explanation":"Existential containers use value buffers and witness tables, not C++ vtables."},{"id":"c","text":"A fixed 1024-byte static heap allocation block.","explanation":"Existential containers do not allocate fixed 1024-byte blocks."},{"id":"d","text":"A 3-word inline value buffer, a type metadata pointer, and witness table pointers.","explanation":"Values up to 3 machine words fit inline; larger values allocate storage on the heap."}],"answer":"d"},{"id":"obt-q9","type":"mcq","difficulty":3,"prompt":"What feature allows modern Swift to pass an 'any Protocol' into a function taking 'some Protocol'?","options":[{"id":"a","text":"Automatically opening the existential box to bind its underlying concrete type.","explanation":"Swift 5.7+ opens existentials when passed as arguments to generic functions, extracting the underlying type."},{"id":"b","text":"Dynamic Objective-C method forwarding across framework boundaries.","explanation":"Opening existentials is a native Swift type system feature."},{"id":"c","text":"Runtime reflection inspection performed through the Mirror API.","explanation":"The Mirror API is for runtime reflection inspection, not existential opening."},{"id":"d","text":"Automatic data translation into serialized JSON binary format.","explanation":"Serialization plays no role in existential opening."}],"answer":"a"},{"id":"obt-q10","type":"mcq","difficulty":2,"prompt":"Why does 'some View' solve the problem of giant, complex generic view return types in SwiftUI?","options":[{"id":"a","text":"It converts all SwiftUI view code into raw UIKit view controllers.","explanation":"SwiftUI views remain pure lightweight SwiftUI structs."},{"id":"b","text":"It hides deeply nested generic types like ModifiedContent from the public API contract.","explanation":"Instead of writing complex nested generics, some View expresses the exact return contract simply."},{"id":"c","text":"It forces every view to render asynchronously on background threads.","explanation":"View body computation runs on the main actor."},{"id":"d","text":"It automatically writes unit tests for the view layout.","explanation":"The some keyword does not write tests."}],"answer":"b"},{"id":"obt-q11","type":"mcq","difficulty":3,"prompt":"Why can types with associated type requirements or Self requirements work seamlessly with 'some'?","options":[{"id":"a","text":"Because some turns off all type validation at compile time.","explanation":"some preserves full static type checking."},{"id":"b","text":"Because some allocates dynamic memory on the heap for all properties.","explanation":"some does not allocate heap memory."},{"id":"c","text":"Because the compiler knows the exact concrete type and preserves its type identity.","explanation":"Since the underlying type is known at compile time, associated types and Self requirements are fully resolved."},{"id":"d","text":"Because associated types are converted into AnyObject pointers.","explanation":"Associated types are not erased to AnyObject with some."}],"answer":"c"},{"id":"obt-q12","type":"mcq","difficulty":2,"prompt":"When is it REQUIRED to use 'any' instead of 'some' in Swift code?","options":[{"id":"a","text":"When declaring a public function that returns a custom value struct.","explanation":"Public functions can return some or concrete structs."},{"id":"b","text":"When defining an immutable constant initialized with the let keyword.","explanation":"let constants can store any type, including opaque types."},{"id":"c","text":"When importing and using Foundation and CoreGraphics framework APIs.","explanation":"Importing frameworks does not force any."},{"id":"d","text":"When a collection or property must store different conforming types dynamically.","explanation":"Heterogeneous storage requires existential boxes created with any."}],"answer":"d"},{"id":"obt-q13","type":"mcq","difficulty":1,"prompt":"What is another name commonly used in computer science for a boxed protocol type?","options":[{"id":"a","text":"An existential type.","explanation":"In type theory, a boxed protocol type that can hold any conforming value is known as an existential type."},{"id":"b","text":"A recursive closure.","explanation":"Closures are functions that capture variables, not existential types."},{"id":"c","text":"A primitive memory scalar.","explanation":"Scalars are basic types like Int or Double."},{"id":"d","text":"An atomic hardware transaction.","explanation":"Hardware transactions are concurrency synchronization primitives."}],"answer":"a"},{"id":"obt-q14","type":"mcq","difficulty":2,"prompt":"Can a function return an opaque type that conforms to multiple protocols using composition?","options":[{"id":"a","text":"No, opaque types are limited to exactly one single protocol name.","explanation":"You can compose multiple protocols with some."},{"id":"b","text":"Yes, using the ampersand syntax like 'func getItem() -> some Identifiable & Equatable'.","explanation":"The ampersand operator combines multiple protocols in opaque return types."},{"id":"c","text":"Yes, but only if all protocols are declared in Objective-C headers.","explanation":"Protocol composition is a native Swift feature."},{"id":"d","text":"No, multiple protocols can only be composed with any.","explanation":"Both some and any support protocol composition with the ampersand."}],"answer":"b"},{"id":"obt-q15","type":"mcq","difficulty":3,"prompt":"How does using 'some' instead of 'any' improve compiler performance and optimization?","options":[{"id":"a","text":"It skips syntax checking during the build process.","explanation":"The compiler always performs thorough syntax checking."},{"id":"b","text":"It causes Xcode to run only one build phase.","explanation":"Build phases are determined by Xcode project configuration."},{"id":"c","text":"It allows the compiler to devirtualize calls, inline code, and avoid heap allocations.","explanation":"Knowing the underlying concrete type allows full compiler optimizations without indirect dispatch."},{"id":"d","text":"It generates C++ code that bypasses the Swift runtime entirely.","explanation":"Swift compiles to machine code through LLVM."}],"answer":"c"},{"id":"obt-q16","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"protocol Greeting {\n    func message() -> String\n}\n\nstruct FriendlyGreeting: Greeting {\n    func message() -> String { \"Hello from Swift!\" }\n}\n\nfunc getGreeting() -> some Greeting {\n    return FriendlyGreeting()\n}\n\nlet g = getGreeting()\nprint(g.message())","options":[{"id":"a","text":"FriendlyGreeting","explanation":"message() returns the greeting string, not the type name."},{"id":"b","text":"Greeting","explanation":"Greeting is the protocol name, not the output of message()."},{"id":"c","text":"It fails to compile because getGreeting does not name FriendlyGreeting in its return type.","explanation":"Opaque return types intentionally hide the concrete type behind the protocol."},{"id":"d","text":"Hello from Swift!","explanation":"getGreeting returns FriendlyGreeting as an opaque type, printing 'Hello from Swift!'."}],"answer":"d"},{"id":"obt-q17","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol Animal {\n    func sound() -> String\n}\n\nstruct Dog: Animal {\n    func sound() -> String { \"Woof\" }\n}\n\nstruct Cat: Animal {\n    func sound() -> String { \"Meow\" }\n}\n\nlet animals: [any Animal] = [Dog(), Cat()]\nlet sounds = animals.map { $0.sound() }.joined(separator: \", \")\nprint(sounds)","options":[{"id":"a","text":"Woof, Meow","explanation":"The array of existential boxes holds both Dog and Cat, mapping and joining their sounds."},{"id":"b","text":"Woof, Woof","explanation":"The second element is a Cat, which prints 'Meow'."},{"id":"c","text":"Animal, Animal","explanation":"The sound() method returns 'Woof' and 'Meow', not the protocol name."},{"id":"d","text":"It fails to compile because [any Animal] cannot store two different struct types.","explanation":"An array of any Animal is designed specifically to hold mixed conforming types."}],"answer":"a"},{"id":"obt-q18","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol Speaker {\n    func speak() -> String\n}\n\nstruct Announcer: Speaker {\n    func speak() -> String { \"Welcome everyone!\" }\n}\n\nfunc makeSpeaker() -> some Speaker {\n    return Announcer()\n}\n\nlet s1 = makeSpeaker()\nlet s2 = makeSpeaker()\nprint(type(of: s1) == type(of: s2))","options":[{"id":"a","text":"false","explanation":"Because both calls return Announcer, their underlying dynamic types are identical."},{"id":"b","text":"true","explanation":"Opaque types preserve type identity. Both calls produce instances of the exact same Announcer type."},{"id":"c","text":"Announcer","explanation":"The expression evaluates a boolean comparison with ==."},{"id":"d","text":"It causes a compiler error because type(of:) cannot inspect opaque types.","explanation":"Swift fully supports type(of:) on values returned from opaque functions."}],"answer":"b"},{"id":"obt-q19","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol NamedEntity {\n    var name: String { get }\n}\n\nstruct UserProfile: NamedEntity {\n    let name: String\n}\n\nfunc formatName(_ entity: some NamedEntity) -> String {\n    return \"Entity: \\(entity.name)\"\n}\n\nlet profile = UserProfile(name: \"Sam\")\nprint(formatName(profile))","options":[{"id":"a","text":"Sam","explanation":"The formatName function adds the prefix 'Entity: '."},{"id":"b","text":"UserProfile: Sam","explanation":"The prefix in the code is 'Entity: '."},{"id":"c","text":"Entity: Sam","explanation":"The function accepts 'some NamedEntity' as a generic parameter and formats the name string."},{"id":"d","text":"It fails to compile because some cannot be used in function parameters.","explanation":"Swift 5.7+ explicitly supports some in parameter position as generic shorthand."}],"answer":"c"},{"id":"obt-q20","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"protocol Measurable {\n    var measurement: Double { get }\n}\n\nstruct Speed: Measurable {\n    let measurement: Double\n}\n\nstruct Weight: Measurable {\n    let measurement: Double\n}\n\nfunc sumMeasurements(items: [any Measurable]) -> Double {\n    var total = 0.0\n    for item in items {\n        total += item.measurement\n    }\n    return total\n}\n\nlet data: [any Measurable] = [Speed(measurement: 55.5), Weight(measurement: 44.5)]\nprint(sumMeasurements(items: data))","options":[{"id":"a","text":"55.5","explanation":"The function sums all items in the array."},{"id":"b","text":"44.5","explanation":"Both elements are summed together."},{"id":"c","text":"0.0","explanation":"The loop adds both measurements to total."},{"id":"d","text":"100.0","explanation":"The function iterates through the existential boxes, summing 55.5 + 44.5 to produce 100.0."}],"answer":"d"},{"id":"obt-q21","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"protocol Counter {\n    var value: Int { get }\n}\n\nstruct StepCounter: Counter {\n    let value: Int\n}\n\nfunc createCounter(steps: Int) -> some Counter {\n    return StepCounter(value: steps)\n}\n\nlet c = createCounter(steps: 500)\nprint(\"Steps: \\(c.value)\")","options":[{"id":"a","text":"Steps: 500","explanation":"createCounter returns an opaque Counter wrapping StepCounter with value 500."},{"id":"b","text":"Steps: 0","explanation":"The value passed is 500, not 0."},{"id":"c","text":"StepCounter: 500","explanation":"The print format string prints 'Steps: \\(c.value)'."},{"id":"d","text":"It fails to compile because opaque types cannot access properties.","explanation":"Protocol requirements like value are fully accessible on opaque types."}],"answer":"a"},{"id":"obt-q22","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"protocol GreeterProtocol {\n    func greeting() -> String\n}\n\nstruct FriendlyGreeter: GreeterProtocol {\n    func greeting() -> String { \"Hi there\" }\n}\n\nfunc printMessage(_ item: some GreeterProtocol) {\n    print(item.greeting())\n}\n\nlet boxedGreeter: any GreeterProtocol = FriendlyGreeter()\nprintMessage(boxedGreeter)","options":[{"id":"a","text":"FriendlyGreeter","explanation":"greeting() outputs 'Hi there', not the type name."},{"id":"b","text":"Hi there","explanation":"Swift opens the existential box of boxedGreeter and passes its underlying value to printMessage."},{"id":"c","text":"nil","explanation":"greeting() returns a non-optional String."},{"id":"d","text":"It fails to compile because any cannot be passed to a parameter expecting some.","explanation":"Swift 5.7+ automatically opens existentials when passed into parameters taking some."}],"answer":"b"},{"id":"obt-q23","type":"code-reading","difficulty":3,"prompt":"What does this Swift code print when executed?","code":"protocol Describable {\n    func describe() -> String\n}\n\nstruct Card: Describable, Equatable {\n    let suit: String\n    func describe() -> String { suit }\n}\n\nfunc makeCard() -> some Describable & Equatable {\n    return Card(suit: \"Hearts\")\n}\n\nlet c1 = makeCard()\nlet c2 = makeCard()\nprint(c1 == c2)","options":[{"id":"a","text":"Hearts","explanation":"The code prints the boolean result of c1 == c2."},{"id":"b","text":"false","explanation":"Both c1 and c2 are Card(suit: 'Hearts'), so they are equal."},{"id":"c","text":"true","explanation":"Opaque composition preserves type identity and Equatable conformance, so c1 == c2 evaluates to true."},{"id":"d","text":"It fails to compile because opaque types cannot use the equality operator.","explanation":"Because some Describable & Equatable conforms to Equatable, the == operator is valid."}],"answer":"c"},{"id":"obt-q24","type":"written","difficulty":1,"prompt":"Explain the difference between 'some Protocol' and 'any Protocol' in Swift. In 2 to 5 sentences, describe how they differ in terms of type identity and dynamic dispatch.","rubric":[{"criterion":"Explains that some creates an opaque type where the compiler knows the single concrete type, preserving type identity and static dispatch","weight":50,"key":true},{"criterion":"Explains that any creates a boxed existential type that can hold different conforming types dynamically via witness table dispatch","weight":50,"key":true}],"modelAnswer":"The some keyword creates an opaque type that represents one specific concrete type known to the compiler. This preserves static dispatch and type identity. In contrast, any creates a boxed existential type that can hold any conforming type at runtime. While any enables heterogeneous collections, it incurs runtime box overhead and dynamic dispatch through witness tables."},{"id":"obt-q25","type":"written","difficulty":2,"prompt":"Why does a function returning 'some Protocol' require all return statements to return the same concrete type? In 2 to 5 sentences, explain why returning different types causes a compiler error.","rubric":[{"criterion":"Explains that an opaque type represents one fixed underlying concrete type determined at compile time","weight":50,"key":true},{"criterion":"Explains that returning different types across branches prevents the compiler from resolving a single underlying type","weight":50,"key":true}],"modelAnswer":"An opaque return type must resolve to a single concrete type at compile time. Even though the caller only sees the protocol interface, the compiler requires a fixed underlying type for memory layout and optimization. Returning different types from different branches prevents the compiler from determining that single type. To return different types conditionally, developers must return an existential type with any."},{"id":"obt-q26","type":"written","difficulty":2,"prompt":"Why does SwiftUI use 'var body: some View' instead of 'any View'? In 2 to 5 sentences, describe the performance and architectural reasons.","rubric":[{"criterion":"Explains that some View preserves the exact concrete view hierarchy type at compile time with zero box overhead","weight":50,"key":true},{"criterion":"Notes that it enables SwiftUI view diffing optimizations and avoids existential container heap allocations","weight":50,"key":true}],"modelAnswer":"SwiftUI uses some View because it preserves the exact view hierarchy type at compile time without existential boxing overhead. Knowing the concrete type allows SwiftUI to perform fast, efficient view hierarchy diffing during state changes. It also avoids memory allocations and dynamic witness table dispatch that any View would introduce on every body re-evaluation."},{"id":"obt-q27","type":"written","difficulty":3,"prompt":"What is an existential container in Swift, and how does it store values in memory? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that an existential container includes a 3-word inline buffer, a type metadata pointer, and witness table pointers","weight":50,"key":true},{"criterion":"Mentions that values larger than 3 words allocate storage on the heap, introducing memory indirection","weight":50,"key":true}],"modelAnswer":"An existential container is the memory structure Swift uses to represent boxed any types. It consists of a 3-word inline value buffer, a type metadata pointer, and one or more protocol witness table pointers. Small structs fit directly inside the 3-word buffer. Structs larger than 3 words allocate storage on the heap, adding memory indirection and reference counting overhead."},{"id":"obt-q28","type":"written","difficulty":3,"prompt":"What does 'opening an existential' mean in Swift 5.7 and later? In 2 to 5 sentences, explain how it improves ergonomics when passing existentials to generic functions.","rubric":[{"criterion":"Explains that opening an existential extracts the underlying concrete value from the any box at the call site","weight":50,"key":true},{"criterion":"Explains that it allows passing any Protocol directly into functions expecting generic types or some Protocol without manual type casting","weight":50,"key":true}],"modelAnswer":"Opening an existential is a Swift feature. The compiler automatically extracts the concrete value stored inside an any container when passed to a generic function. The underlying type is bound to the function's generic parameter or some parameter. In earlier Swift versions, passing an existential caused compiler errors because the protocol did not conform to itself. Automatic unboxing makes working with existentials seamless."},{"id":"obt-q29","type":"code-write","difficulty":1,"prompt":"Write a protocol named Greeter with a method requirement 'func greet() -> String'. Write a struct Friend conforming to Greeter returning 'Hello, friend!'. Write a function named makeGreeter that returns 'some Greeter' by returning an instance of Friend. Call makeGreeter and print greet().","starterCode":"protocol Greeter {\n    // greet requirement\n}\n\n// struct Friend conforming\n\n// func makeGreeter returning some Greeter\n\n// Call and print greet()","rubric":[{"criterion":"Declares protocol Greeter with func greet() -> String","weight":30,"key":true},{"criterion":"Declares struct Friend conforming to Greeter returning 'Hello, friend!'","weight":30,"key":true},{"criterion":"Declares makeGreeter returning some Greeter and prints output","weight":40,"key":true}],"modelAnswer":"protocol Greeter {\n    func greet() -> String\n}\n\nstruct Friend: Greeter {\n    func greet() -> String {\n        return \"Hello, friend!\"\n    }\n}\n\nfunc makeGreeter() -> some Greeter {\n    return Friend()\n}\n\nlet greeter = makeGreeter()\nprint(greeter.greet())"},{"id":"obt-q30","type":"code-write","difficulty":2,"prompt":"Write a protocol named Renderable with a method 'func render() -> String'. Declare two structs TextItem and ImageItem conforming to Renderable, returning 'Text' and 'Image' respectively. Create an array of type [any Renderable] containing both items, map their render() results, and print them joined by a comma and space.","starterCode":"protocol Renderable {\n    // render requirement\n}\n\n// TextItem and ImageItem structs\n\n// Array [any Renderable] mapped and printed","rubric":[{"criterion":"Declares protocol Renderable with func render() -> String","weight":25,"key":true},{"criterion":"Declares TextItem and ImageItem conforming to Renderable","weight":35,"key":true},{"criterion":"Creates array typed [any Renderable] containing both items and prints joined render results","weight":40,"key":true}],"modelAnswer":"protocol Renderable {\n    func render() -> String\n}\n\nstruct TextItem: Renderable {\n    func render() -> String { \"Text\" }\n}\n\nstruct ImageItem: Renderable {\n    func render() -> String { \"Image\" }\n}\n\nlet items: [any Renderable] = [TextItem(), ImageItem()]\nprint(items.map { $0.render() }.joined(separator: \", \"))"},{"id":"obt-q31","type":"code-write","difficulty":3,"prompt":"Write a protocol named Scalable with property 'var size: Int { get }'. Write a generic function named doubleSize that accepts a parameter 'item: some Scalable' and returns item.size * 2. Create a struct Window conforming to Scalable with size 15, call doubleSize on it, and print the result.","starterCode":"protocol Scalable {\n    // size property\n}\n\n// doubleSize function with some Scalable parameter\n\n// Window struct conforming\n\n// Call and print doubleSize result","rubric":[{"criterion":"Declares protocol Scalable with var size: Int { get }","weight":30,"key":true},{"criterion":"Declares function doubleSize taking parameter of type some Scalable returning Int","weight":40,"key":true},{"criterion":"Declares struct Window conforming to Scalable, calls doubleSize, and prints result","weight":30,"key":true}],"modelAnswer":"protocol Scalable {\n    var size: Int { get }\n}\n\nfunc doubleSize(item: some Scalable) -> Int {\n    return item.size * 2\n}\n\nstruct Window: Scalable {\n    let size: Int\n}\n\nlet window = Window(size: 15)\nprint(doubleSize(item: window))"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
