@@ -1,0 +1,634 @@
+<title>Debugging with Breakpoints and LLDB Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #16a34a; --step2-soft: #dcfce7;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #7c3aed; --step4-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #4ade80; --step2-soft: #052e16;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #a78bfa; --step4-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 12px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Testing and Release · Topic 1 of 3 · Prototype</p>
+    <h1>Debugging with Breakpoints and LLDB</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can find bugs with breakpoints and LLDB.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">What is the difference between <code>po</code> and <code>v</code> when inspecting variables in the Xcode LLDB console?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>po</code> is for Objective-C objects while <code>v</code> only works with Swift structs.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>po</code> compiles and evaluates a Swift expression, while <code>v</code> reads memory directly without running code.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text"><code>v</code> prints values in hexadecimal format while <code>po</code> formats numbers as decimals.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine a movie director filming an action scene.</p><p>If a stunt goes wrong, the director yells <strong>Cut!</strong>
+The entire film crew freezes in place.
+Actors stop moving, lights hold their positions, and cameras pause.
+This pause is like a <strong>breakpoint</strong>.</p><p>While everyone stands frozen, the director walks onto the set.
+The director checks the actor props and asks what line comes next.
+The director can inspect the exact scene without filming a brand new movie.
+This is like using <strong>LLDB</strong> to inspect variables in memory.</p><p>Now imagine if the director had to reload the film reel and reshoot the entire movie from scene one every time someone blinked.
+That would waste hours.
+Adding <code>print()</code> statements and rebuilding your app every time is like reshooting the entire movie.
+Using breakpoints and LLDB lets you pause, inspect, and continue instantly.</p></aside>
+<p>In Xcode, debugging combines two tools:</p>
+<ol>
+<li><strong>Breakpoints</strong>: Markers that tell Xcode to pause execution at a line of code or when an exception throws.</li>
+<li><strong>LLDB</strong>: The console debugger where you inspect variables, step through lines, and test expressions.</li>
+</ol>
+<p>Common breakpoint types in Xcode include:</p>
+<ul>
+<li><strong>Line Breakpoints</strong>: Click any line number in the gutter to pause there.</li>
+<li><strong>Conditional Breakpoints</strong>: Right-click a breakpoint and add a condition like <code>count &gt; 10</code>. It only pauses when true.</li>
+<li><strong>Action Breakpoints</strong>: Log a custom message or play a sound without stopping execution.</li>
+<li><strong>Exception Breakpoints</strong>: Pause at the exact line of code where a crash or exception begins.</li>
+</ul>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why is a conditional breakpoint useful when debugging a loop with one thousand iterations?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It speeds up CPU execution by skipping unneeded loop cycles.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It pauses execution only when the loop reaches a specific problematic index or condition.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It automatically fixes array index out-of-range errors at runtime.</span></button><p class="qc-explain" hidden="">A conditional breakpoint avoids clicking Continue hundreds of times by pausing only when your condition is met.</p></div>
+<h2>In code</h2>
+<p>Customizing how models print in LLDB helps you diagnose bugs faster.
+Conforming to <code>CustomDebugStringConvertible</code> gives you clear output when calling <code>po</code>.</p>
+<figure class="code-example"><figcaption>Customizing debug descriptions for LLDB inspection</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+struct Order: CustomDebugStringConvertible {
+    let id: Int
+    let totalCents: Int
+
+    var debugDescription: String {
+        let dollars = Double(totalCents) / 100.0
+        return String(format: &quot;Order #%d [$%.2f]&quot;, id, dollars)
+    }
+}
+
+final class OrderAuditor {
+    func audit(orders: [Order]) -&gt; Int {
+        var flaggedCount = 0
+        for order in orders {
+            if order.totalCents &gt; 10000 {
+                flaggedCount += 1
+            }
+        }
+        return flaggedCount
+    }
+}
+
+let orders = [
+    Order(id: 1, totalCents: 4500),
+    Order(id: 2, totalCents: 12500),
+    Order(id: 3, totalCents: 20000)
+]
+
+let auditor = OrderAuditor()
+print(&quot;Flagged: \(auditor.audit(orders: orders))&quot;)
+print(&quot;Sample: \(orders[1].debugDescription)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Flagged: 2
+Sample: Order #2 [$125.00]
+</code></pre></figure>
+<p>Be careful when evaluating expressions in the LLDB console.
+Evaluating a mutating method permanently alters state in memory during debugging.
+Evaluating a non-mutating preview method lets you test results safely.</p>
+<figure class="code-example"><figcaption>Testing methods safely during debugging</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+final class GameScoreTracker {
+    private(set) var score = 100
+
+    func bonus(points: Int) -&gt; Int {
+        return score + points
+    }
+
+    func applyBonus(points: Int) {
+        score += points
+    }
+}
+
+let tracker = GameScoreTracker()
+let preview = tracker.bonus(points: 50)
+print(&quot;Preview score: \(preview)&quot;)
+print(&quot;Current stored score: \(tracker.score)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Preview score: 150
+Current stored score: 100
+</code></pre></figure>
+<p class="try-it"><p>Open an Xcode project. Place a breakpoint inside a loop, right-click to edit, and add a condition like <code>index == 5</code>. Test <code>po</code> and <code>v</code> in the console.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What is the main benefit of using v (frame variable) over po in LLDB?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>v</code> can run complex asynchronous Swift closures.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>v</code> reads memory directly without compiling expressions, so it is faster and cannot trigger side effects.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text"><code>v</code> uploads the current call stack to remote crash servers.</span></button><p class="qc-explain" hidden="">Because v reads stack variables directly from memory symbols, it avoids expression compilation and never mutates state.</p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Evaluating mutating expressions in LLDB</p><p>When you type <code>p user.resetPassword()</code> or <code>p counter += 1</code> in the LLDB console, it executes live in memory.
+This changes application state while debugging.
+Future logic might fail because of your debugger evaluation.
+Use <code>v</code> or non-mutating expressions when you only want to inspect state.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Relying on print statements instead of action breakpoints</p><p>Adding <code>print()</code> requires recompiling your app, which wastes time on large projects.
+Developers also forget to delete them before committing.
+Instead, use an Action Breakpoint with &quot;Automatically continue&quot; checked to log live messages without touching code.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Debugging without Exception Breakpoints</p><p>When an app crashes from an uncaught exception, Xcode often highlights the <code>main</code> file without showing the bad code line.
+Add an <strong>All Exceptions Breakpoint</strong> in the Breakpoint Navigator.
+Xcode will pause at the exact line of code that triggered the error before the stack unwinds.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing Step Over with Step Into</p><p>Step Over (<code>n</code>) advances to the next line of code in the current function.
+Step Into (<code>s</code>) jumps inside the function being called on that line.
+If you click Step Into on a system framework method, you step into disassembly instructions.
+Use Step Out (<code>finish</code>) to return to your code.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>Breakpoints pause an app so we can inspect variables in Xcode.
+LLDB is the debugger console where we run commands while paused.
+I use <code>po</code> to print object descriptions and <code>p</code> to evaluate values.
+Stepping buttons let us step over or into lines of code.
+I also use Exception Breakpoints to catch where crashes happen.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>I use breakpoints and LLDB to diagnose bugs quickly without rebuilding the app.
+Conditional breakpoints let me pause loops only when a specific condition is met.
+Action breakpoints with &quot;automatically continue&quot; let me inject live logs without editing source files.
+In LLDB, I use <code>po</code> for descriptions, <code>p</code> to evaluate expressions, and <code>v</code> (<code>frame variable</code>) to read local variables fast without side effects.
+I also use Exception Breakpoints to catch crashes before the stack unwinds.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>In complex debugging, LLDB provides deep process introspection.
+I set Symbolic Breakpoints on <code>UIViewAlertForUnsatisfiableConstraints</code> to catch Auto Layout conflicts immediately.
+I use memory watchpoints via <code>watchpoint set variable</code> to detect unwanted mutations across threads.
+When analyzing race conditions, I inspect all thread stacks with <code>thread backtrace all</code>.
+To avoid expression-compiler latency and state pollution, I prefer <code>v</code> over <code>po</code> for variable inspection.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><strong>Breakpoints</strong> pause execution at specific lines, conditions, or unhandled exceptions.</li>
+<li><strong>Conditional Breakpoints</strong> pause only when an expression evaluates to true.</li>
+<li><strong>Action Breakpoints</strong> log live messages without editing source code or rebuilding.</li>
+<li><strong>po</strong> evaluates and prints an object description using <code>CustomDebugStringConvertible</code>.</li>
+<li><strong>p</strong> evaluates Swift expressions and prints results with full type information.</li>
+<li><strong>v</strong> (<code>frame variable</code>) reads stack memory directly without side effects or compilation.</li>
+<li><strong>n</strong> steps over, <strong>s</strong> steps into, <strong>finish</strong> steps out, and <strong>c</strong> continues execution.</li>
+</ul></div></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "Breakpoint Pause & Call Stack",
+    desc: "Clicking the gutter places a breakpoint. Execution freezes at that line, opening the call stack for inspection.",
+    code: `// Thread 1: Paused at line 42\nlet user = fetchUser()  // <-- Breakpoint\nupdateUI(user: user)`,
+    svg: `
+      <rect x="25" y="30" width="270" height="135" rx="6" fill="var(--code-bg)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="35" y="55" font-size="10" font-family="var(--font-code)" fill="var(--muted)">40  func load() {</text>
+      <text x="35" y="75" font-size="10" font-family="var(--font-code)" fill="var(--muted)">41    prepareState()</text>
+
+      <rect x="25" y="85" width="270" height="24" fill="var(--step1-soft)" />
+      <polygon points="35,97 45,91 45,103" fill="var(--step1-color)" />
+      <text x="52" y="101" font-size="10" font-family="var(--font-code)" font-weight="700" fill="var(--step1-color)">42    let user = fetch()</text>
+
+      <text x="35" y="125" font-size="10" font-family="var(--font-code)" fill="var(--muted)">43    display(user)</text>
+      <text x="35" y="145" font-size="10" font-family="var(--font-code)" fill="var(--muted)">44  }</text>
+
+      <text x="160" y="182" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Thread pauses at exact line</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "Execution Stepping Controls",
+    desc: "Step Over advances to the next line. Step Into enters the called function. Step Out finishes and returns to caller.",
+    code: `n       // Step Over (next line)\ns       // Step Into (enter function)\nfinish  // Step Out (return to caller)\nc       // Continue running`,
+    svg: `
+      <rect x="25" y="35" width="125" height="50" rx="6" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="1.5" />
+      <text x="87" y="56" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step2-color)">Step Over (n)</text>
+      <text x="87" y="72" text-anchor="middle" font-size="8" fill="var(--muted)">Advance to next line</text>
+
+      <rect x="170" y="35" width="125" height="50" rx="6" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="1.5" />
+      <text x="232" y="56" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step2-color)">Step Into (s)</text>
+      <text x="232" y="72" text-anchor="middle" font-size="8" fill="var(--muted)">Enter inner function</text>
+
+      <rect x="25" y="95" width="125" height="50" rx="6" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="1.5" />
+      <text x="87" y="116" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step2-color)">Step Out (finish)</text>
+      <text x="87" y="132" text-anchor="middle" font-size="8" fill="var(--muted)">Return to caller frame</text>
+
+      <rect x="170" y="95" width="125" height="50" rx="6" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="1.5" />
+      <text x="232" y="116" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step2-color)">Continue (c)</text>
+      <text x="232" y="132" text-anchor="middle" font-size="8" fill="var(--muted)">Resume until breakpoint</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Full execution stepping controls</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Inspecting Variables: po vs p vs v",
+    desc: "po prints string descriptions. p compiles expressions with types. v reads memory directly without side effects.",
+    code: `(lldb) po user\nOrder #2 [$125.00]\n(lldb) v user.id\n(Int) 2`,
+    svg: `
+      <rect x="25" y="35" width="85" height="110" rx="6" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="1.5" />
+      <text x="67" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">po</text>
+      <text x="67" y="78" text-anchor="middle" font-size="8" fill="var(--muted)">Print Object</text>
+      <text x="67" y="98" text-anchor="middle" font-size="8" fill="var(--ink)">Description</text>
+      <text x="67" y="125" text-anchor="middle" font-size="8" fill="var(--muted)">Compiles code</text>
+
+      <rect x="117" y="35" width="85" height="110" rx="6" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="1.5" />
+      <text x="159" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">p</text>
+      <text x="159" y="78" text-anchor="middle" font-size="8" fill="var(--muted)">Expression</text>
+      <text x="159" y="98" text-anchor="middle" font-size="8" fill="var(--ink)">Full types + $R0</text>
+      <text x="159" y="125" text-anchor="middle" font-size="8" fill="var(--muted)">Compiles code</text>
+
+      <rect x="210" y="35" width="85" height="110" rx="6" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="252" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">v</text>
+      <text x="252" y="78" text-anchor="middle" font-size="8" fill="var(--step3-color)">Frame Variable</text>
+      <text x="252" y="98" text-anchor="middle" font-size="8" fill="var(--ink)">Direct memory</text>
+      <text x="252" y="125" text-anchor="middle" font-size="8" font-weight="600" fill="var(--step3-color)">No side effects!</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Choose the right inspection tool</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Advanced Breakpoints & Actions",
+    desc: "Conditional breakpoints filter loops. Action breakpoints log messages and automatically continue without recompiling.",
+    code: `Condition: index == 99\nAction: Log "Count is @count@"\n[x] Automatically continue`,
+    svg: `
+      <rect x="30" y="35" width="260" height="115" rx="8" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="160" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step4-color)">Breakpoint Configuration</text>
+
+      <rect x="45" y="70" width="230" height="24" rx="4" fill="var(--surface)" />
+      <text x="55" y="86" font-size="9" fill="var(--ink)">Condition: <tspan font-weight="700" fill="var(--step4-color)">index == 100</tspan></text>
+
+      <rect x="45" y="100" width="230" height="24" rx="4" fill="var(--surface)" />
+      <text x="55" y="116" font-size="9" fill="var(--ink)">Action: Log <tspan font-weight="600">"Order total: @order.total@"</tspan></text>
+
+      <text x="160" y="140" text-anchor="middle" font-size="8" fill="var(--muted)">[x] Automatically continue after evaluating</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Zero-recompile live diagnosis</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"debugging-lldb","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"debugging-lldb-q1","type":"mcq","difficulty":1,"prompt":"What happens when app execution hits an active line breakpoint in Xcode?","options":[{"id":"a","text":"The thread freezes execution at that line, opening the debug console.","explanation":"Breakpoints freeze execution on that line and switch Xcode to debug mode."},{"id":"b","text":"The app immediately restarts from the application entry point.","explanation":"Breakpoints pause execution; they do not reboot the app."},{"id":"c","text":"The compiler creates a release archive and uploads it to TestFlight.","explanation":"TestFlight uploads are triggered via Product > Archive, not breakpoints."},{"id":"d","text":"The iPhone hardware switches from Wi-Fi to cellular data.","explanation":"Hardware network connections are completely unaffected by breakpoints."}],"answer":"a"},{"id":"debugging-lldb-q2","type":"mcq","difficulty":2,"prompt":"How does a conditional breakpoint help when debugging a loop with many iterations?","options":[{"id":"a","text":"It skips the loop entirely by jumping to the return statement.","explanation":"Conditional breakpoints do not skip or alter code execution loops."},{"id":"b","text":"It pauses execution only when a specified boolean condition evaluates to true.","explanation":"A condition like index == 50 avoids manual clicking for earlier items."},{"id":"c","text":"It runs the loop twice as fast by disabling memory safety checks.","explanation":"Breakpoints do not optimize loop execution performance."},{"id":"d","text":"It automatically converts the loop into a recursive Swift function.","explanation":"Breakpoints are debugging markers and do not rewrite code."}],"answer":"b"},{"id":"debugging-lldb-q3","type":"mcq","difficulty":2,"prompt":"What does the po command do in the LLDB debugger console?","options":[{"id":"a","text":"It permanently deletes an object from device storage memory.","explanation":"po stands for print-object; it does not delete objects."},{"id":"b","text":"It restarts the debug session and rebuilds all modified files.","explanation":"po evaluates expressions in memory without rebuilding the app."},{"id":"c","text":"It evaluates an expression and prints its textual debug description.","explanation":"po runs expression -O -- and prints object descriptions."},{"id":"d","text":"It outputs raw assembly instructions for the current stack frame.","explanation":"Assembly instructions are viewed using disassemble, not po."}],"answer":"c"},{"id":"debugging-lldb-q4","type":"mcq","difficulty":2,"prompt":"What is the primary difference between p and v in LLDB?","options":[{"id":"a","text":"p works only in Objective-C files while v works only in Swift.","explanation":"Both commands work across both Swift and Objective-C files."},{"id":"b","text":"v requires a simulator while p requires a physical test iPhone.","explanation":"Both commands operate identically in simulators and on devices."},{"id":"c","text":"p prints numbers in hexadecimal while v formats numbers in binary.","explanation":"Format specifiers are independent of the choice between p and v."},{"id":"d","text":"p compiles an expression context, while v reads memory directly.","explanation":"v reads stack memory without compilation, preventing side effects."}],"answer":"d"},{"id":"debugging-lldb-q5","type":"mcq","difficulty":2,"prompt":"What risk occurs when evaluating expressions using p or po in LLDB?","options":[{"id":"a","text":"Evaluating mutating methods permanently modifies live application memory.","explanation":"Expressions execute inside the live process and can alter real state."},{"id":"b","text":"The debugger immediately invalidates all active signing certificates.","explanation":"Debugger commands do not revoke developer signing certificates."},{"id":"c","text":"The Swift compiler permanently removes the inspected source file.","explanation":"LLDB evaluation cannot delete project source files."},{"id":"d","text":"The physical device screen lock passcode is automatically cleared.","explanation":"Device passcode settings are unaffected by the LLDB debugger."}],"answer":"a"},{"id":"debugging-lldb-q6","type":"mcq","difficulty":2,"prompt":"What does the Step Over button (or n command) do during a pause?","options":[{"id":"a","text":"It jumps inside the implementation of the function on that line.","explanation":"Jumping inside a function is Step Into (s), not Step Over."},{"id":"b","text":"It executes the current line and advances to the next line of code.","explanation":"Step Over advances to the next line in the current function frame."},{"id":"c","text":"It stops the debugger and terminates the active simulator app.","explanation":"Stopping the process is handled by the Stop button or kill command."},{"id":"d","text":"It skips the next line of code without executing its instructions.","explanation":"Step Over executes the line; it does not skip execution."}],"answer":"b"},{"id":"debugging-lldb-q7","type":"mcq","difficulty":2,"prompt":"What is the purpose of an Exception Breakpoint in Xcode?","options":[{"id":"a","text":"To prevent any runtime error from ever occurring in production.","explanation":"Breakpoints help developers debug; they do not prevent errors in release."},{"id":"b","text":"To print all Swift compiler warnings to the system log daemon.","explanation":"Compiler warnings appear at build time, not through exception breakpoints."},{"id":"c","text":"To pause execution at the exact throw site before stack unwinding.","explanation":"It freezes execution at the point of origin before call frames unwind."},{"id":"d","text":"To restart the iOS springboard whenever memory usage exceeds limits.","explanation":"Springboard memory management is controlled by the operating system."}],"answer":"c"},{"id":"debugging-lldb-q8","type":"mcq","difficulty":2,"prompt":"How can an Action Breakpoint provide live logging without touching source code?","options":[{"id":"a","text":"By adding print statements to the project Podfile configuration.","explanation":"Podfiles configure dependencies, not runtime execution logs."},{"id":"b","text":"By converting all local variables into global UserDefaults keys.","explanation":"UserDefaults is persistence, not a breakpoint logging mechanism."},{"id":"c","text":"By launching a secondary Instruments trace session in the background.","explanation":"Instruments is a separate profiling tool, not an action breakpoint."},{"id":"d","text":"By adding a Log Message action with Automatically continue checked.","explanation":"This logs variable values and continues running without pausing or rebuilding."}],"answer":"d"},{"id":"debugging-lldb-q9","type":"mcq","difficulty":2,"prompt":"What does the Step Out button (or finish command) do in LLDB?","options":[{"id":"a","text":"It runs the current function to completion and pauses in the caller.","explanation":"Step Out finishes the current stack frame and pauses in the calling function."},{"id":"b","text":"It immediately exits the entire application and closes the window.","explanation":"Step Out only exits the current function frame, not the app."},{"id":"c","text":"It deletes all breakpoints currently set in the active project file.","explanation":"Deleting breakpoints requires breakpoint delete commands."},{"id":"d","text":"It resets all variables in the active stack frame back to initial state.","explanation":"Step Out does not reset or roll back variable values."}],"answer":"a"},{"id":"debugging-lldb-q10","type":"mcq","difficulty":2,"prompt":"What Swift protocol can a struct adopt to customize its po printout in LLDB?","options":[{"id":"a","text":"The standard Identifiable protocol definition.","explanation":"Identifiable provides unique id values, not formatted debug text."},{"id":"b","text":"The CustomDebugStringConvertible protocol.","explanation":"debugDescription in CustomDebugStringConvertible formats po output."},{"id":"c","text":"The concurrency Sendable protocol definition.","explanation":"Sendable indicates thread safety across concurrency boundaries."},{"id":"d","text":"The collection Hashable protocol definition.","explanation":"Hashable enables using types in sets or dictionary keys."}],"answer":"b"},{"id":"debugging-lldb-q11","type":"mcq","difficulty":2,"prompt":"What command outputs the active thread call stack backtrace in LLDB?","options":[{"id":"a","text":"run --stack","explanation":"run restarts the target process."},{"id":"b","text":"frame reset","explanation":"frame reset is not a standard LLDB backtrace command."},{"id":"c","text":"bt","explanation":"bt (backtrace) outputs the current thread call stack frames."},{"id":"d","text":"echo callstack","explanation":"echo is a shell utility, not an LLDB call stack command."}],"answer":"c"},{"id":"debugging-lldb-q12","type":"mcq","difficulty":2,"prompt":"Why should developers avoid committing temporary print statements to git?","options":[{"id":"a","text":"Because git automatically rejects any commit with the word print.","explanation":"Git does not scan or reject files based on print statements."},{"id":"b","text":"Because Apple App Store review rejects apps with print statements.","explanation":"Apple review does not reject apps containing print calls."},{"id":"c","text":"Because print statements increase compiled app size by twenty megabytes.","explanation":"Print statements have negligible impact on binary size."},{"id":"d","text":"They clutter console output and require unnecessary code modifications.","explanation":"Breakpoints and OSLog provide cleaner debugging without code pollution."}],"answer":"d"},{"id":"debugging-lldb-q13","type":"mcq","difficulty":2,"prompt":"What is a Symbolic Breakpoint in Xcode?","options":[{"id":"a","text":"A breakpoint that pauses when a specific method symbol executes.","explanation":"Symbolic breakpoints pause on symbols across apps and frameworks."},{"id":"b","text":"A breakpoint represented as an emoji in the Xcode user settings.","explanation":"Symbolic breakpoints refer to function symbols, not emojis."},{"id":"c","text":"A breakpoint that only triggers on physical Apple Silicon Macs.","explanation":"Symbolic breakpoints function across Intel, Apple Silicon, and iOS."},{"id":"d","text":"A breakpoint that deletes unused code symbols from app binaries.","explanation":"Dead code stripping handles symbol stripping, not breakpoints."}],"answer":"a"},{"id":"debugging-lldb-q14","type":"mcq","difficulty":2,"prompt":"What symbolic breakpoint is commonly used to catch conflicting Auto Layout constraints?","options":[{"id":"a","text":"UIConstraintCrashDetector","explanation":"This is a fabricated symbol name."},{"id":"b","text":"UIViewAlertForUnsatisfiableConstraints","explanation":"This symbolic breakpoint halts on Auto Layout constraint conflicts."},{"id":"c","text":"NSLayoutManagerDidFail","explanation":"NSLayoutManager is for TextKit rendering, not Auto Layout constraints."},{"id":"d","text":"UIKitAutoLayoutAssertionSymbol","explanation":"This is a fabricated symbol name."}],"answer":"b"},{"id":"debugging-lldb-q15","type":"mcq","difficulty":3,"prompt":"What LLDB command pauses execution whenever a specific memory address or variable mutates?","options":[{"id":"a","text":"breakpoint pause on write","explanation":"This is invalid LLDB syntax."},{"id":"b","text":"memory lock variable","explanation":"This is invalid LLDB syntax."},{"id":"c","text":"watchpoint set variable","explanation":"watchpoint monitors memory locations and pauses when they are modified."},{"id":"d","text":"thread freeze memory","explanation":"This is invalid LLDB syntax."}],"answer":"c"},{"id":"debugging-lldb-q16","type":"code-reading","difficulty":2,"prompt":"What does this code print when evaluating the CustomDebugStringConvertible description?","code":"import Foundation\n\nstruct UserProfile: CustomDebugStringConvertible {\n    let username: String\n    let active: Bool\n    var debugDescription: String {\n        return \"User: \\(username) [active=\\(active)]\"\n    }\n}\n\nlet profile = UserProfile(username: \"alex99\", active: true)\nprint(profile.debugDescription)","options":[{"id":"a","text":"User: alex99","explanation":"The output includes [active=true]."},{"id":"b","text":"alex99 is active","explanation":"The format string specifies User: alex99 [active=true]."},{"id":"c","text":"UserProfile(username: alex99, active: true)","explanation":"This is the default struct reflection, overridden by debugDescription."},{"id":"d","text":"User: alex99 [active=true]","explanation":"debugDescription formats the username and active status as specified."}],"answer":"d"},{"id":"debugging-lldb-q17","type":"code-reading","difficulty":2,"prompt":"What value is printed when the condition inside the loop is satisfied?","code":"import Foundation\n\nvar triggeredValue = 0\nfor i in 1...10 {\n    if i == 7 {\n        triggeredValue = i * 2\n        break\n    }\n}\nprint(\"Triggered: \\(triggeredValue)\")","options":[{"id":"a","text":"Triggered: 14","explanation":"When i equals 7, triggeredValue becomes 7 * 2 = 14."},{"id":"b","text":"Triggered: 20","explanation":"The loop breaks at i = 7 before reaching 10."},{"id":"c","text":"Triggered: 7","explanation":"The code multiplies i by 2, yielding 14."},{"id":"d","text":"Triggered: 0","explanation":"The loop reaches 7 and updates the variable."}],"answer":"a"},{"id":"debugging-lldb-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print after executing the increment method?","code":"import Foundation\n\nfinal class Counter {\n    var count = 0\n    func incrementAndReturn() -> Int {\n        count += 1\n        return count\n    }\n}\n\nlet c = Counter()\n_ = c.incrementAndReturn()\nprint(\"Count is \\(c.count)\")","options":[{"id":"a","text":"Count is 0","explanation":"incrementAndReturn increments the stored property count by 1."},{"id":"b","text":"Count is 1","explanation":"Evaluating the mutating method modifies count from 0 to 1."},{"id":"c","text":"Count is nil","explanation":"count is a non-optional integer initialized to 0."},{"id":"d","text":"Compiler error: discard result requires variable assignment.","explanation":"Underscore _ is standard Swift syntax to discard return values."}],"answer":"b"},{"id":"debugging-lldb-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when run() finishes execution?","code":"import Foundation\n\nfunc compute(val: Int) -> Int {\n    return val * 3\n}\n\nfunc run() -> Int {\n    let a = 10\n    let b = compute(val: a)\n    return b + 5\n}\n\nprint(\"Result: \\(run())\")","options":[{"id":"a","text":"Result: 15","explanation":"compute multiplies 10 by 3 to get 30; 30 + 5 = 35."},{"id":"b","text":"Result: 30","explanation":"The return statement adds 5 to 30, yielding 35."},{"id":"c","text":"Result: 35","explanation":"10 * 3 = 30, and 30 + 5 = 35."},{"id":"d","text":"Result: 50","explanation":"The formula evaluates to 35, not 50."}],"answer":"c"},{"id":"debugging-lldb-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when evaluating the computed property?","code":"import Foundation\n\nstruct InventoryItem {\n    let quantity: Int\n    var isLowStock: Bool {\n        return quantity \u003c 5\n    }\n}\n\nlet item = InventoryItem(quantity: 3)\nprint(\"Low stock: \\(item.isLowStock)\")","options":[{"id":"a","text":"Low stock: false","explanation":"Quantity is 3, which is less than 5, so isLowStock is true."},{"id":"b","text":"Low stock: 3","explanation":"isLowStock returns a Boolean value, not an integer."},{"id":"c","text":"Low stock: nil","explanation":"isLowStock is non-optional."},{"id":"d","text":"Low stock: true","explanation":"Because 3 is less than 5, the computed property returns true."}],"answer":"d"},{"id":"debugging-lldb-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when executing the nested call stack frames?","code":"import Foundation\n\nfunc inner() -> String {\n    return \"inner frame\"\n}\n\nfunc outer() -> String {\n    return inner()\n}\n\nprint(\"Reached: \\(outer())\")","options":[{"id":"a","text":"Reached: inner frame","explanation":"outer calls inner, which returns the string inner frame."},{"id":"b","text":"Reached: outer frame","explanation":"inner returns inner frame."},{"id":"c","text":"Reached: main","explanation":"The functions return inner frame to the print statement."},{"id":"d","text":"Nothing is printed because inner is nested.","explanation":"Both functions execute synchronously."}],"answer":"a"},{"id":"debugging-lldb-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when unwrapping the optional token with default fallback?","code":"import Foundation\n\nstruct AppSession {\n    var token: String?\n}\n\nlet session = AppSession(token: nil)\nlet status = session.token ?? \"unauthenticated\"\nprint(\"Status: \\(status)\")","options":[{"id":"a","text":"Status: nil","explanation":"The nil-coalescing operator ?? provides the fallback string."},{"id":"b","text":"Status: unauthenticated","explanation":"Because token is nil, status falls back to unauthenticated."},{"id":"c","text":"Status: active","explanation":"The token was initialized to nil."},{"id":"d","text":"Compiler error: optional unwrapping requires if let.","explanation":"The nil-coalescing operator ?? is valid Swift syntax."}],"answer":"b"},{"id":"debugging-lldb-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print after collecting logs across three loop iterations?","code":"import Foundation\n\nvar logs: [String] = []\nfor i in 1...3 {\n    logs.append(\"Hit loop \\(i)\")\n}\nprint(logs.joined(separator: \", \"))","options":[{"id":"a","text":"Hit loop 1","explanation":"All three iterations are collected and joined."},{"id":"b","text":"Hit loop 3","explanation":"The joined string contains entries for 1, 2, and 3."},{"id":"c","text":"Hit loop 1, Hit loop 2, Hit loop 3","explanation":"The loop appends entries for 1, 2, and 3, joined by commas."},{"id":"d","text":"Hit loop 0, Hit loop 1, Hit loop 2","explanation":"The loop range is 1...3, not starting from 0."}],"answer":"c"},{"id":"debugging-lldb-q24","type":"written","difficulty":2,"prompt":"Compare po, p, and v in LLDB. Explain when you would use each command and the trade-offs between them.","rubric":[{"weight":40,"criterion":"Explains po (expression -O --) evaluates expressions to print textual debug descriptions using CustomDebugStringConvertible.","key":true},{"weight":30,"criterion":"Explains p (expression --) evaluates expressions to print full Swift type information and assigns a temporary $R result variable.","key":true},{"weight":30,"criterion":"Explains v (frame variable) reads stack memory directly without compilation, making it fast and safe from unintended side effects."}],"modelAnswer":"In LLDB, po, p, and v serve different variable inspection needs:\n\n1. po (print object) compiles and evaluates an expression, printing the object description string formatted by CustomDebugStringConvertible or debugDescription. It is ideal for human-readable summaries.\n2. p (print) compiles an expression and displays the raw data structure with full Swift type information. It also stores the result in a temporary variable like $R0 for subsequent debugger commands.\n3. v (frame variable) reads memory directly from debug symbols without compiling an expression context. It executes instantly and cannot trigger side effects, making it the safest tool for reading local variables."},{"id":"debugging-lldb-q25","type":"written","difficulty":2,"prompt":"What are Conditional Breakpoints and Action Breakpoints, and how do they speed up debugging compared to print statements?","rubric":[{"weight":50,"criterion":"Explains conditional breakpoints evaluate boolean expressions to pause only on target loop iterations or states without manual clicking.","key":true},{"weight":50,"criterion":"Explains action breakpoints with automatic continue log live messages without rebuilding or polluting git commits with print statements.","key":true}],"modelAnswer":"Conditional Breakpoints and Action Breakpoints save substantial debugging time compared to print statements:\n\nA Conditional Breakpoint pauses execution only when a boolean condition evaluates to true, like index == 500. This avoids clicking Continue hundreds of times in large loops.\n\nAn Action Breakpoint performs tasks when hit, such as logging a message with variable interpolation. By checking 'Automatically continue after evaluating actions', developers can inject live logs into the console without pausing.\n\nCompared to print statements, both breakpoint types eliminate recompilation time on large projects and prevent accidental commits of temporary debugging code."},{"id":"debugging-lldb-q26","type":"written","difficulty":2,"prompt":"Explain the difference between Step Over, Step Into, and Step Out during an active debugging session.","rubric":[{"weight":34,"criterion":"Explains Step Over (n) executes the current line and pauses at the next line in the same function frame.","key":true},{"weight":33,"criterion":"Explains Step Into (s) enters the implementation of the function being called on the current line."},{"weight":33,"criterion":"Explains Step Out (finish) executes the remainder of the current function and pauses at the return point in the caller."}],"modelAnswer":"During an active debugging session in Xcode or LLDB:\n\n1. Step Over (n command): Executes the current line of code and pauses at the next line within the same function frame. It does not enter functions called on that line.\n2. Step Into (s command): Jumps inside the function being called on the current line, pausing at its first instruction. This lets you inspect inner function logic.\n3. Step Out (finish command): Runs the remainder of the current function until it returns, pausing execution immediately in the calling function frame."},{"id":"debugging-lldb-q27","type":"written","difficulty":2,"prompt":"What is an Exception Breakpoint, and why is it one of the first breakpoints every iOS developer should configure?","rubric":[{"weight":50,"criterion":"Explains that an Exception Breakpoint catches crashes and exceptions at the exact throw site before the call stack unwinds.","key":true},{"weight":50,"criterion":"Explains that without it, crashes often highlight AppDelegate or main.swift without showing the originating code line.","key":true}],"modelAnswer":"An Exception Breakpoint instructs Xcode to pause execution immediately when an unhandled exception or runtime error is thrown, before the call stack unwinds.\n\nWithout an Exception Breakpoint, unhandled crashes (such as unrecognized selectors, fatal errors, or index out-of-range exceptions) cause the stack to collapse. Xcode then highlights AppDelegate or main.swift with a generic crash message, hiding where the bug occurred.\n\nWith an Exception Breakpoint, Xcode freezes at the exact failing line. It displays local variables and the full call stack."},{"id":"debugging-lldb-q28","type":"written","difficulty":3,"prompt":"How can evaluating expressions in LLDB cause accidental bugs during a debugging session, and how can you avoid this?","rubric":[{"weight":50,"criterion":"Explains that p and po execute code live in process memory, so calling mutating methods alters actual application state.","key":true},{"weight":50,"criterion":"Explains how to avoid side effects: use v (frame variable) for reading variables directly, or evaluate only pure read-only expressions.","key":true}],"modelAnswer":"Evaluating expressions in LLDB with p or po compiles code dynamically and executes it inside the running application address space.\n\nEvaluating mutating expressions like p counter += 1 permanently alters process memory. Calling methods that update databases also mutates live state. Subsequent logic will run against this altered state, leading to false bugs or unexpected failures.\n\nTo avoid accidental state mutation, developers should use v (frame variable) to inspect local memory without expression evaluation. When using p, evaluate only read-only properties and pure getters."},{"id":"debugging-lldb-q29","type":"code-write","difficulty":2,"prompt":"Create a BugReport struct conforming to CustomDebugStringConvertible with an id of type Int, a severity of type String, and a debugDescription returning [severity] Bug #id.","starterCode":"import Foundation\n\n// Create BugReport struct here\n","rubric":[{"weight":40,"criterion":"Defines BugReport struct with id: Int and severity: String properties.","key":true},{"weight":30,"criterion":"Conforms to CustomDebugStringConvertible.","key":true},{"weight":30,"criterion":"Returns properly formatted debugDescription like [HIGH] Bug #101."}],"modelAnswer":"import Foundation\n\nstruct BugReport: CustomDebugStringConvertible {\n    let id: Int\n    let severity: String\n\n    var debugDescription: String {\n        return \"[\\(severity)] Bug #\\(id)\"\n    }\n}\n\nlet report = BugReport(id: 101, severity: \"HIGH\")\nprint(report.debugDescription)"},{"id":"debugging-lldb-q30","type":"code-write","difficulty":2,"prompt":"Create a BreakpointConditionEvaluator struct with a static method shouldPause(iteration: Int, target: Int) -> Bool returning true when iteration equals target.","starterCode":"import Foundation\n\n// Create BreakpointConditionEvaluator here\n","rubric":[{"weight":40,"criterion":"Defines BreakpointConditionEvaluator struct.","key":true},{"weight":30,"criterion":"Implements static shouldPause(iteration:target:) -> Bool method.","key":true},{"weight":30,"criterion":"Returns true when iteration equals target and false otherwise."}],"modelAnswer":"import Foundation\n\nstruct BreakpointConditionEvaluator {\n    static func shouldPause(iteration: Int, target: Int) -> Bool {\n        return iteration == target\n    }\n}\n\nlet pause = BreakpointConditionEvaluator.shouldPause(iteration: 5, target: 5)\nprint(\"Should pause: \\(pause)\")"},{"id":"debugging-lldb-q31","type":"code-write","difficulty":2,"prompt":"Create a DebugLoggerAction class with a private(set) array of string messages, a log(message: String) method that appends messages, and a lastLog() -> String? method.","starterCode":"import Foundation\n\n// Create DebugLoggerAction here\n","rubric":[{"weight":40,"criterion":"Defines DebugLoggerAction class with private(set) messages array.","key":true},{"weight":30,"criterion":"Implements log(message: String) method appending messages.","key":true},{"weight":30,"criterion":"Implements lastLog() -> String? returning the last message or nil."}],"modelAnswer":"import Foundation\n\nfinal class DebugLoggerAction {\n    private(set) var messages: [String] = []\n\n    func log(message: String) {\n        messages.append(message)\n    }\n\n    func lastLog() -> String? {\n        return messages.last\n    }\n}\n\nlet logger = DebugLoggerAction()\nlogger.log(message: \"Breakpoint hit at line 42\")\nprint(\"Logged: \\(logger.lastLog() ?? \"none\")\")"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

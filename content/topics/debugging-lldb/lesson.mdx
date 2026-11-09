@@ -1,0 +1,235 @@
+export const meta = {
+  id: "debugging-lldb",
+  summary: "Pause code execution, inspect memory, and diagnose iOS bugs with Xcode breakpoints and LLDB commands.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "Stepping through code and inspecting variables to isolate bugs (Xcode)", url: "https://developer.apple.com/documentation/xcode/stepping-through-code-and-inspecting-variables-to-isolate-bugs", kind: "official" },
+    { title: "LLDB Tutorial (LLVM)", url: "https://lldb.llvm.org/use/tutorial.html", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is the difference between `po` and `v` when inspecting variables in the Xcode LLDB console?</Question>
+  <Guess>
+    <Option id="a">`po` is for Objective-C objects while `v` only works with Swift structs.</Option>
+    <Option id="b" correct>`po` compiles and evaluates a Swift expression, while `v` reads memory directly without running code.</Option>
+    <Option id="c">`v` prints values in hexadecimal format while `po` formats numbers as decimals.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a movie director filming an action scene.
+
+If a stunt goes wrong, the director yells **Cut!**
+The entire film crew freezes in place.
+Actors stop moving, lights hold their positions, and cameras pause.
+This pause is like a **breakpoint**.
+
+While everyone stands frozen, the director walks onto the set.
+The director checks the actor props and asks what line comes next.
+The director can inspect the exact scene without filming a brand new movie.
+This is like using **LLDB** to inspect variables in memory.
+
+Now imagine if the director had to reload the film reel and reshoot the entire movie from scene one every time someone blinked.
+That would waste hours.
+Adding `print()` statements and rebuilding your app every time is like reshooting the entire movie.
+Using breakpoints and LLDB lets you pause, inspect, and continue instantly.
+</Analogy>
+
+In Xcode, debugging combines two tools:
+
+1. **Breakpoints**: Markers that tell Xcode to pause execution at a line of code or when an exception throws.
+2. **LLDB**: The console debugger where you inspect variables, step through lines, and test expressions.
+
+Common breakpoint types in Xcode include:
+
+- **Line Breakpoints**: Click any line number in the gutter to pause there.
+- **Conditional Breakpoints**: Right-click a breakpoint and add a condition like `count > 10`. It only pauses when true.
+- **Action Breakpoints**: Log a custom message or play a sound without stopping execution.
+- **Exception Breakpoints**: Pause at the exact line of code where a crash or exception begins.
+
+## See it
+
+<Diagram id="debugging-lldb-diagram">
+{/*
+  Interactive 4-step diagram of debugging with breakpoints and LLDB:
+  1. Breakpoint Trigger: App execution pausing at line breakpoint.
+  2. Stepping Controls: Step over (n), step into (s), step out (finish), and continue (c).
+  3. LLDB Commands: Evaluating expressions with po, p, and frame variable (v).
+  4. Advanced Breakpoints: Conditional evaluation and automated action logging.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why is a conditional breakpoint useful when debugging a loop with one thousand iterations?</Question>
+  <Option id="a">It speeds up CPU execution by skipping unneeded loop cycles.</Option>
+  <Option id="b" correct>It pauses execution only when the loop reaches a specific problematic index or condition.</Option>
+  <Option id="c">It automatically fixes array index out-of-range errors at runtime.</Option>
+  <Explanation>A conditional breakpoint avoids clicking Continue hundreds of times by pausing only when your condition is met.</Explanation>
+</QuickCheck>
+
+## In code
+
+Customizing how models print in LLDB helps you diagnose bugs faster.
+Conforming to `CustomDebugStringConvertible` gives you clear output when calling `po`.
+
+<CodeExample title="Customizing debug descriptions for LLDB inspection">
+
+```swift
+import Foundation
+
+struct Order: CustomDebugStringConvertible {
+    let id: Int
+    let totalCents: Int
+
+    var debugDescription: String {
+        let dollars = Double(totalCents) / 100.0
+        return String(format: "Order #%d [$%.2f]", id, dollars)
+    }
+}
+
+final class OrderAuditor {
+    func audit(orders: [Order]) -> Int {
+        var flaggedCount = 0
+        for order in orders {
+            if order.totalCents > 10000 {
+                flaggedCount += 1
+            }
+        }
+        return flaggedCount
+    }
+}
+
+let orders = [
+    Order(id: 1, totalCents: 4500),
+    Order(id: 2, totalCents: 12500),
+    Order(id: 3, totalCents: 20000)
+]
+
+let auditor = OrderAuditor()
+print("Flagged: \(auditor.audit(orders: orders))")
+print("Sample: \(orders[1].debugDescription)")
+```
+
+```output
+Flagged: 2
+Sample: Order #2 [$125.00]
+```
+
+</CodeExample>
+
+Be careful when evaluating expressions in the LLDB console.
+Evaluating a mutating method permanently alters state in memory during debugging.
+Evaluating a non-mutating preview method lets you test results safely.
+
+<CodeExample title="Testing methods safely during debugging">
+
+```swift
+import Foundation
+
+final class GameScoreTracker {
+    private(set) var score = 100
+
+    func bonus(points: Int) -> Int {
+        return score + points
+    }
+
+    func applyBonus(points: Int) {
+        score += points
+    }
+}
+
+let tracker = GameScoreTracker()
+let preview = tracker.bonus(points: 50)
+print("Preview score: \(preview)")
+print("Current stored score: \(tracker.score)")
+```
+
+```output
+Preview score: 150
+Current stored score: 100
+```
+
+</CodeExample>
+
+<TryIt>
+Open an Xcode project. Place a breakpoint inside a loop, right-click to edit, and add a condition like `index == 5`. Test `po` and `v` in the console.
+</TryIt>
+
+<QuickCheck>
+  <Question>What is the main benefit of using v (frame variable) over po in LLDB?</Question>
+  <Option id="a">`v` can run complex asynchronous Swift closures.</Option>
+  <Option id="b" correct>`v` reads memory directly without compiling expressions, so it is faster and cannot trigger side effects.</Option>
+  <Option id="c">`v` uploads the current call stack to remote crash servers.</Option>
+  <Explanation>Because v reads stack variables directly from memory symbols, it avoids expression compilation and never mutates state.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Evaluating mutating expressions in LLDB">
+When you type `p user.resetPassword()` or `p counter += 1` in the LLDB console, it executes live in memory.
+This changes application state while debugging.
+Future logic might fail because of your debugger evaluation.
+Use `v` or non-mutating expressions when you only want to inspect state.
+</Trap>
+
+<Trap title="Relying on print statements instead of action breakpoints">
+Adding `print()` requires recompiling your app, which wastes time on large projects.
+Developers also forget to delete them before committing.
+Instead, use an Action Breakpoint with "Automatically continue" checked to log live messages without touching code.
+</Trap>
+
+<Trap title="Debugging without Exception Breakpoints">
+When an app crashes from an uncaught exception, Xcode often highlights the `main` file without showing the bad code line.
+Add an **All Exceptions Breakpoint** in the Breakpoint Navigator.
+Xcode will pause at the exact line of code that triggered the error before the stack unwinds.
+</Trap>
+
+<Trap title="Confusing Step Over with Step Into">
+Step Over (`n`) advances to the next line of code in the current function.
+Step Into (`s`) jumps inside the function being called on that line.
+If you click Step Into on a system framework method, you step into disassembly instructions.
+Use Step Out (`finish`) to return to your code.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Breakpoints pause an app so we can inspect variables in Xcode.
+LLDB is the debugger console where we run commands while paused.
+I use `po` to print object descriptions and `p` to evaluate values.
+Stepping buttons let us step over or into lines of code.
+I also use Exception Breakpoints to catch where crashes happen.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+I use breakpoints and LLDB to diagnose bugs quickly without rebuilding the app.
+Conditional breakpoints let me pause loops only when a specific condition is met.
+Action breakpoints with "automatically continue" let me inject live logs without editing source files.
+In LLDB, I use `po` for descriptions, `p` to evaluate expressions, and `v` (`frame variable`) to read local variables fast without side effects.
+I also use Exception Breakpoints to catch crashes before the stack unwinds.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+In complex debugging, LLDB provides deep process introspection.
+I set Symbolic Breakpoints on `UIViewAlertForUnsatisfiableConstraints` to catch Auto Layout conflicts immediately.
+I use memory watchpoints via `watchpoint set variable` to detect unwanted mutations across threads.
+When analyzing race conditions, I inspect all thread stacks with `thread backtrace all`.
+To avoid expression-compiler latency and state pollution, I prefer `v` over `po` for variable inspection.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- **Breakpoints** pause execution at specific lines, conditions, or unhandled exceptions.
+- **Conditional Breakpoints** pause only when an expression evaluates to true.
+- **Action Breakpoints** log live messages without editing source code or rebuilding.
+- **po** evaluates and prints an object description using `CustomDebugStringConvertible`.
+- **p** evaluates Swift expressions and prints results with full type information.
+- **v** (`frame variable`) reads stack memory directly without side effects or compilation.
+- **n** steps over, **s** steps into, **finish** steps out, and **c** continues execution.
+</Recap>

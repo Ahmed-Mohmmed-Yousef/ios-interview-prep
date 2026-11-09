@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Debugging with Breakpoints and LLDB</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --step1-color: #0284c7; --step1-soft: #e0f2fe;
+  --step2-color: #16a34a; --step2-soft: #dcfce7;
+  --step3-color: #ea580c; --step3-soft: #ffedd5;
+  --step4-color: #7c3aed; --step4-soft: #f5f3ff;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --step1-color: #38bdf8; --step1-soft: #082f49;
+  --step2-color: #4ade80; --step2-soft: #052e16;
+  --step3-color: #fb923c; --step3-soft: #431407;
+  --step4-color: #a78bfa; --step4-soft: #2e1065;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.kind.s1 { background: var(--step1-soft); color: var(--step1-color); }
+.kind.s2 { background: var(--step2-soft); color: var(--step2-color); }
+.kind.s3 { background: var(--step3-soft); color: var(--step3-color); }
+.kind.s4 { background: var(--step4-soft); color: var(--step4-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 4.8em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.8em; }
+
+svg { width: 100%; height: auto; display: block; }
+.device-frame { fill: var(--surface); stroke: var(--line); stroke-width: 2; rx: 12px; }
+.base-screen { fill: var(--code-bg); }
+
+.stepper {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.step-indicators { display: flex; gap: 8px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; background: var(--code-bg); color: var(--muted);
+  border: 1px solid var(--line); cursor: pointer; transition: all 0.2s;
+}
+.step-dot.active {
+  background: var(--step1-color); color: #ffffff; border-color: var(--step1-color);
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font: 14px/1 var(--font-body); font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: var(--code-bg); border-color: var(--step1-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Interactive Debugging and LLDB Stepper">
+  <div class="panels">
+    <div class="panel">
+      <h3>
+        <span class="kind s1" id="badge">Step 1</span>
+        <span id="title">Breakpoint Pause & Call Stack</span>
+      </h3>
+      <p class="caption" id="desc">
+        Clicking the gutter places a breakpoint. The thread freezes in place so you can inspect active memory frames.
+      </p>
+      <div class="code" id="codeSnippet">// Thread 1: Paused at line 42
+let user = fetchUser() // &larr; Breakpoint
+updateUI(user: user)</div>
+    </div>
+    <div class="panel">
+      <svg viewBox="0 0 320 200" aria-hidden="true">
+        <rect x="0" y="0" width="320" height="200" class="device-frame" />
+        <g id="visualScene"></g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="stepper">
+    <div class="step-indicators" role="tablist">
+      <div class="step-dot active" role="tab" aria-selected="true" tabindex="0">1</div>
+      <div class="step-dot" role="tab" aria-selected="false" tabindex="0">2</div>
+      <div class="step-dot" role="tab" aria-selected="false" tabindex="0">3</div>
+      <div class="step-dot" role="tab" aria-selected="false" tabindex="0">4</div>
+    </div>
+    <div class="btn-group">
+      <button id="prevBtn" disabled>Back</button>
+      <button id="nextBtn">Next</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    badge: "Step 1",
+    badgeClass: "s1",
+    title: "Breakpoint Pause & Call Stack",
+    desc: "Clicking the gutter places a breakpoint. Execution freezes at that line, opening the call stack for inspection.",
+    code: `// Thread 1: Paused at line 42\nlet user = fetchUser()  // <-- Breakpoint\nupdateUI(user: user)`,
+    svg: `
+      <rect x="25" y="30" width="270" height="135" rx="6" fill="var(--code-bg)" stroke="var(--line)" stroke-width="1.5" />
+      <text x="35" y="55" font-size="10" font-family="var(--font-code)" fill="var(--muted)">40  func load() {</text>
+      <text x="35" y="75" font-size="10" font-family="var(--font-code)" fill="var(--muted)">41    prepareState()</text>
+
+      <rect x="25" y="85" width="270" height="24" fill="var(--step1-soft)" />
+      <polygon points="35,97 45,91 45,103" fill="var(--step1-color)" />
+      <text x="52" y="101" font-size="10" font-family="var(--font-code)" font-weight="700" fill="var(--step1-color)">42    let user = fetch()</text>
+
+      <text x="35" y="125" font-size="10" font-family="var(--font-code)" fill="var(--muted)">43    display(user)</text>
+      <text x="35" y="145" font-size="10" font-family="var(--font-code)" fill="var(--muted)">44  }</text>
+
+      <text x="160" y="182" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Thread pauses at exact line</text>
+    `
+  },
+  {
+    step: 2,
+    badge: "Step 2",
+    badgeClass: "s2",
+    title: "Execution Stepping Controls",
+    desc: "Step Over advances to the next line. Step Into enters the called function. Step Out finishes and returns to caller.",
+    code: `n       // Step Over (next line)\ns       // Step Into (enter function)\nfinish  // Step Out (return to caller)\nc       // Continue running`,
+    svg: `
+      <rect x="25" y="35" width="125" height="50" rx="6" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="1.5" />
+      <text x="87" y="56" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step2-color)">Step Over (n)</text>
+      <text x="87" y="72" text-anchor="middle" font-size="8" fill="var(--muted)">Advance to next line</text>
+
+      <rect x="170" y="35" width="125" height="50" rx="6" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="1.5" />
+      <text x="232" y="56" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step2-color)">Step Into (s)</text>
+      <text x="232" y="72" text-anchor="middle" font-size="8" fill="var(--muted)">Enter inner function</text>
+
+      <rect x="25" y="95" width="125" height="50" rx="6" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="1.5" />
+      <text x="87" y="116" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step2-color)">Step Out (finish)</text>
+      <text x="87" y="132" text-anchor="middle" font-size="8" fill="var(--muted)">Return to caller frame</text>
+
+      <rect x="170" y="95" width="125" height="50" rx="6" fill="var(--surface)" stroke="var(--step2-color)" stroke-width="1.5" />
+      <text x="232" y="116" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step2-color)">Continue (c)</text>
+      <text x="232" y="132" text-anchor="middle" font-size="8" fill="var(--muted)">Resume until breakpoint</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Full execution stepping controls</text>
+    `
+  },
+  {
+    step: 3,
+    badge: "Step 3",
+    badgeClass: "s3",
+    title: "Inspecting Variables: po vs p vs v",
+    desc: "po prints string descriptions. p compiles expressions with types. v reads memory directly without side effects.",
+    code: `(lldb) po user\nOrder #2 [$125.00]\n(lldb) v user.id\n(Int) 2`,
+    svg: `
+      <rect x="25" y="35" width="85" height="110" rx="6" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="1.5" />
+      <text x="67" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">po</text>
+      <text x="67" y="78" text-anchor="middle" font-size="8" fill="var(--muted)">Print Object</text>
+      <text x="67" y="98" text-anchor="middle" font-size="8" fill="var(--ink)">Description</text>
+      <text x="67" y="125" text-anchor="middle" font-size="8" fill="var(--muted)">Compiles code</text>
+
+      <rect x="117" y="35" width="85" height="110" rx="6" fill="var(--surface)" stroke="var(--step3-color)" stroke-width="1.5" />
+      <text x="159" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">p</text>
+      <text x="159" y="78" text-anchor="middle" font-size="8" fill="var(--muted)">Expression</text>
+      <text x="159" y="98" text-anchor="middle" font-size="8" fill="var(--ink)">Full types + $R0</text>
+      <text x="159" y="125" text-anchor="middle" font-size="8" fill="var(--muted)">Compiles code</text>
+
+      <rect x="210" y="35" width="85" height="110" rx="6" fill="var(--step3-soft)" stroke="var(--step3-color)" stroke-width="2" />
+      <text x="252" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step3-color)">v</text>
+      <text x="252" y="78" text-anchor="middle" font-size="8" fill="var(--step3-color)">Frame Variable</text>
+      <text x="252" y="98" text-anchor="middle" font-size="8" fill="var(--ink)">Direct memory</text>
+      <text x="252" y="125" text-anchor="middle" font-size="8" font-weight="600" fill="var(--step3-color)">No side effects!</text>
+
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Choose the right inspection tool</text>
+    `
+  },
+  {
+    step: 4,
+    badge: "Step 4",
+    badgeClass: "s4",
+    title: "Advanced Breakpoints & Actions",
+    desc: "Conditional breakpoints filter loops. Action breakpoints log messages and automatically continue without recompiling.",
+    code: `Condition: index == 99\nAction: Log "Count is @count@"\n[x] Automatically continue`,
+    svg: `
+      <rect x="30" y="35" width="260" height="115" rx="8" fill="var(--step4-soft)" stroke="var(--step4-color)" stroke-width="2" />
+      <text x="160" y="58" text-anchor="middle" font-size="11" font-weight="700" fill="var(--step4-color)">Breakpoint Configuration</text>
+
+      <rect x="45" y="70" width="230" height="24" rx="4" fill="var(--surface)" />
+      <text x="55" y="86" font-size="9" fill="var(--ink)">Condition: <tspan font-weight="700" fill="var(--step4-color)">index == 100</tspan></text>
+
+      <rect x="45" y="100" width="230" height="24" rx="4" fill="var(--surface)" />
+      <text x="55" y="116" font-size="9" fill="var(--ink)">Action: Log <tspan font-weight="600">"Order total: @order.total@"</tspan></text>
+
+      <text x="160" y="140" text-anchor="middle" font-size="8" fill="var(--muted)">[x] Automatically continue after evaluating</text>
+      <text x="160" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">Zero-recompile live diagnosis</text>
+    `
+  }
+];
+
+let curIdx = 0;
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dots = document.querySelectorAll('.step-dot');
+const badge = document.getElementById('badge');
+const title = document.getElementById('title');
+const desc = document.getElementById('desc');
+const codeSnippet = document.getElementById('codeSnippet');
+const visualScene = document.getElementById('visualScene');
+
+function render(idx) {
+  curIdx = idx;
+  const s = steps[idx];
+  badge.textContent = s.badge;
+  badge.className = 'kind ' + s.badgeClass;
+  title.textContent = s.title;
+  desc.textContent = s.desc;
+  codeSnippet.textContent = s.code;
+  visualScene.innerHTML = s.svg;
+
+  dots.forEach((d, i) => {
+    const act = i === idx;
+    d.classList.toggle('active', act);
+    d.setAttribute('aria-selected', act ? 'true' : 'false');
+  });
+
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === steps.length - 1;
+}
+
+prevBtn.addEventListener('click', () => { if (curIdx > 0) render(curIdx - 1); });
+nextBtn.addEventListener('click', () => { if (curIdx < steps.length - 1) render(curIdx + 1); });
+dots.forEach((d, i) => d.addEventListener('click', () => render(i)));
+
+render(0);
+</script>
+</body>
+</html>
