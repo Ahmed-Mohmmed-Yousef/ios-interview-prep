@@ -173,6 +173,10 @@ export function Trap({ title, children }: { title: string; children: React.React
   );
 }
 
+export function Traps({ children }: { children: React.ReactNode }) {
+  return <div className="space-y-4 my-4">{children}</div>;
+}
+
 export function VersionNote({ since, children }: { since: string; children: React.ReactNode }) {
   return (
     <aside className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted text-xs font-medium text-foreground my-2">

@@ -174,7 +174,7 @@ export type WrittenQuestion = z.infer<typeof WrittenQuestionSchema>;
 
 export const CodeWriteQuestionSchema = BaseQuestionSchema.extend({
   type: z.literal('code-write'),
-  starterCode: z.string(),
+  starterCode: z.string().optional(),
   rubric: z.array(RubricCriterionSchema).min(1),
   modelAnswer: z.string(),
   verify: VerifySchema,
