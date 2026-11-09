@@ -1,0 +1,249 @@
+export const meta = {
+  id: "http-rest-basics",
+  summary: "Understand HTTP request methods, headers, response status codes, and REST architecture in iOS apps.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "RFC 9110: HTTP Semantics", url: "https://www.rfc-editor.org/info/rfc9110/", kind: "official" },
+    { title: "URLRequest (Foundation)", url: "https://developer.apple.com/documentation/foundation/urlrequest", kind: "official" },
+    { title: "Fetching website data into memory (Foundation)", url: "https://developer.apple.com/documentation/foundation/urlsession/fetching_website_data_into_memory", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is the technical difference between HTTP status code 401 and status code 403?</Question>
+  <Guess>
+    <Option id="a">Status 401 means server failure, while status 403 means client rate limit exceeded.</Option>
+    <Option id="b" correct>Status 401 means unauthenticated (missing or invalid credentials), while 403 means authenticated but lacking permission.</Option>
+    <Option id="c">They are identical status codes used interchangeably in REST APIs.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine dining at a busy restaurant.
+
+You speak with a waiter who acts as your messenger to the kitchen.
+
+When you want to see the menu, you make a request. The waiter brings back the food choices without changing the kitchen pantry.
+
+When you place an order for a new sandwich, the kitchen cooks fresh food and adds it to your bill.
+
+If you ask for a table without an invitation badge, the host turns you away because your identity is unknown.
+
+If you have a badge but try to walk into the manager office, the staff stops you because you lack permission.
+</Analogy>
+
+HTTP is the primary network protocol your iOS app uses to communicate with backend servers.
+
+The client app sends an **HTTP Request** to the server:
+
+1. **HTTP Method (Verb)**:
+   - `GET`: Reads data without modifying the server.
+   - `POST`: Creates a new record on the server.
+   - `PUT`: Replaces an entire existing resource with new data.
+   - `PATCH`: Modifies specific fields of an existing resource.
+   - `DELETE`: Removes a resource from the server.
+2. **URL and Path**: The address of the resource, like `/api/v1/users/42`.
+3. **Headers**: Key-value pairs providing metadata, like `Content-Type: application/json` or auth tokens.
+4. **Body**: The payload data sent to the server (for example, encoded JSON).
+
+The server processes the request and sends back an **HTTP Response**:
+
+- **Status Code**: A three-digit number describing the result.
+- **Headers**: Metadata describing the response size, date, and content format.
+- **Body**: The returned data, such as requested user details or error explanations.
+
+REST is an architectural style for building clean web services.
+
+In REST, URLs use nouns instead of verbs (`/articles` instead of `/getArticles`).
+
+REST is **stateless**. Each request contains all information needed to complete the task.
+
+## See it
+
+<Diagram id="http-rest-basics-diagram" caption="HTTP Request-Response Lifecycle and Status Code Families">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. iOS Client App.
+    2. HTTP Request envelope (Method, URL, Headers, Body).
+    3. Backend Server.
+    4. HTTP Response envelope (Status code, Headers, JSON data).
+  - Steps:
+    Step 1: iOS client prepares HTTP request (GET /users/42 with auth header).
+    Step 2: Server receives stateless request and processes query.
+    Step 3: Server returns 200 OK response with JSON payload.
+    Step 4: Error handling branches: 401 (unauthenticated), 403 (forbidden), 404 (not found), 500 (server crash).
+  - Static version (reduced motion):
+    A 4-step diagram showing Client, Request Envelope, Server, and Response Codes.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which HTTP method should you choose to update only the email field of an existing user profile?</Question>
+  <Option id="a">GET</Option>
+  <Option id="b" correct>PATCH</Option>
+  <Option id="c">POST</Option>
+  <Explanation>PATCH is designed for partial updates to specific fields, while PUT replaces the entire resource.</Explanation>
+</QuickCheck>
+
+## In code
+
+Model HTTP requests and inspect their headers in your network code.
+
+Foundation provides `URLRequest` to configure HTTP methods and headers cleanly.
+
+<CodeExample title="Constructing an HTTP request representation">
+
+```swift
+enum HTTPMethod: String {
+    case get = "GET"
+    case post = "POST"
+    case put = "PUT"
+    case patch = "PATCH"
+    case delete = "DELETE"
+}
+
+struct SimpleRequest {
+    let urlString: String
+    let method: HTTPMethod
+    var headers: [String: String] = [:]
+}
+
+var req = SimpleRequest(urlString: "https://api.example.com/users/42", method: .get)
+req.headers["Accept"] = "application/json"
+
+print("Request method: \(req.method.rawValue)")
+print("Target URL: \(req.urlString)")
+print("Accept header: \(req.headers["Accept"] ?? "none")")
+```
+
+```output
+Request method: GET
+Target URL: https://api.example.com/users/42
+Accept header: application/json
+```
+
+</CodeExample>
+
+HTTP status codes are grouped into five standard number families.
+
+Write code that categorizes status codes to handle network errors reliably.
+
+<CodeExample title="Categorizing HTTP status codes">
+
+```swift
+enum StatusCodeCategory {
+    case success
+    case clientError
+    case serverError
+    case other
+}
+
+func categorize(statusCode: Int) -> StatusCodeCategory {
+    switch statusCode {
+    case 200...299:
+        return .success
+    case 400...499:
+        return .clientError
+    case 500...599:
+        return .serverError
+    default:
+        return .other
+    }
+}
+
+let code = 404
+let category = categorize(statusCode: code)
+print("Status code: \(code)")
+print("Is client error: \(category == .clientError)")
+```
+
+```output
+Status code: 404
+Is client error: true
+```
+
+</CodeExample>
+
+<QuickCheck>
+  <Question>Why is `DELETE` considered an idempotent HTTP method?</Question>
+  <Option id="a">Because it can only be called once before the server crashes.</Option>
+  <Option id="b" correct>Because repeating the request multiple times produces the same server state as calling it once.</Option>
+  <Option id="c">Because it does not require an active internet connection.</Option>
+  <Explanation>Idempotent methods leave server state identical whether called once or many times. Deleting user 42 once or five times leaves user 42 deleted.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Confusing 401 Unauthorized with 403 Forbidden">
+Developers often mix up these two status codes.
+
+`401 Unauthorized` means the user is not authenticated. The auth token is missing, expired, or invalid.
+
+`403 Forbidden` means the server knows who the user is, but the user lacks permission to access the resource.
+</Trap>
+
+<Trap title="Using verbs instead of nouns in REST URLs">
+A common design mistake is writing endpoints like `/createArticle` or `/deleteUser`.
+
+RESTful design uses nouns for resource paths (`/articles`, `/users/42`).
+
+The HTTP method specifies the action (`POST`, `DELETE`), keeping URLs clean and predictable.
+</Trap>
+
+<Trap title="Returning HTTP 200 OK for errors">
+Some poorly designed backend APIs return `200 OK` with a JSON body saying `{"error": "User not found"}`.
+
+This breaks standard HTTP caching and prevents network layers from detecting failures automatically.
+
+Always insist that APIs return standard 4xx and 5xx status codes for error conditions.
+</Trap>
+
+<Trap title="Assuming PUT preserves missing fields">
+`PUT` represents a complete replacement of a resource.
+
+If you send a `PUT` request with only an updated title, the backend may erase the author and timestamp.
+
+Use `PATCH` when you want to update only specific fields without touching the rest of the object.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+"HTTP is how our app talks to a server. We send a request with a method, URL, headers, and an optional body. The server replies with a status code, headers, and data. In REST, URLs use nouns like `/users`, and HTTP methods define the actions. Status codes in the 200s indicate success, 400s are client errors, and 500s are server failures."
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+"REST relies on stateless communication where each request holds all necessary context. We use HTTP semantics: safe methods like GET never alter server state, while idempotent methods produce identical side-effects when repeated. I also distinguish 401 Unauthorized from 403 Forbidden. I verify that APIs use real HTTP error status codes rather than masking failures in 200 OK responses."
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+"We design network architectures around HTTP semantics and idempotence. Understanding idempotence allows our app to safely retry failed PUT or DELETE requests across unreliable cellular connections. For POST requests, we attach idempotency keys to avoid duplicate charges. We also handle conditional caching using `ETag` headers for 304 responses, and apply exponential backoff on 429 rate limit or 503 service unavailable codes."
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- HTTP requests consist of a Method, URL, Headers, and an optional Body.
+- HTTP responses return a three-digit Status Code, Headers, and a Body.
+- Common methods include `GET` (read), `POST` (create), `PUT` (replace), `PATCH` (update), and `DELETE` (remove).
+- Safe methods like `GET` do not alter server state.
+- Idempotent methods like `GET`, `PUT`, and `DELETE` produce identical server state when repeated.
+- Status codes: 2xx success, 3xx redirection, 4xx client error, 5xx server error.
+- Status `401` means unauthenticated; status `403` means unauthorized (forbidden).
+- REST APIs use nouns for resource endpoints and remain stateless.
+</Recap>
+
+## Go deeper
+
+- [RFC 9110: HTTP Semantics](https://www.rfc-editor.org/info/rfc9110/) — The modern official standard for HTTP semantics and methods.
+- [URLRequest (Foundation)](https://developer.apple.com/documentation/foundation/urlrequest) — Apple documentation on configuring HTTP requests.
+- [Fetching website data into memory (Foundation)](https://developer.apple.com/documentation/foundation/urlsession/fetching_website_data_into_memory) — Apple guide to network requests.
