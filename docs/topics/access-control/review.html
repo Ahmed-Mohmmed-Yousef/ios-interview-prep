@@ -1,0 +1,611 @@
+<title>Access Control Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --open-color: #0284c7; --open-soft: #e0f2fe;
+  --pkg-color: #0c765c; --pkg-soft: #dcf2ea;
+  --int-color: #7c3aed; --int-soft: #ede9fe;
+  --priv-color: #d97706; --priv-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --open-color: #38bdf8; --open-soft: #082f49;
+  --pkg-color: #45cfa3; --pkg-soft: #13362c;
+  --int-color: #a78bfa; --int-soft: #2e1065;
+  --priv-color: #fbbf24; --priv-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--open-soft); color: var(--open-color); }
+.p-right .kind { background: var(--pkg-soft); color: var(--pkg-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.card-shape.active-open { stroke: var(--open-color); stroke-width: 2.5; fill: var(--open-soft); }
+.card-shape.active-pkg { stroke: var(--pkg-color); stroke-width: 2.5; fill: var(--pkg-soft); }
+.card-shape.active-int { stroke: var(--int-color); stroke-width: 2.5; fill: var(--int-soft); }
+.card-shape.active-priv { stroke: var(--priv-color); stroke-width: 2.5; fill: var(--priv-soft); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--open-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Junior · Swift Language · Topic 7 of 9 · Prototype</p>
+    <h1>Access Control</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can choose the right access level for your code.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">What is the crucial difference between open and public access levels for classes in Swift?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">public allows classes to be subclassed outside their module, while open forbids subclassing.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">open allows classes to be subclassed and overridden outside their module, while public restricts subclassing to the defining module.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">open works with structs, while public works only with reference classes.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of an office building with different security badges. The lobby is open to the general public. Meeting rooms require an employee badge. The server room requires special security clearance. Access control in Swift works like security badges: it restricts which files, modules, and clients can view or modify specific parts of your code.</p></aside>
+<p>In Swift, <strong>access control</strong> restricts access to parts of your code from code in other source files and modules.</p>
+<p>This enables clean encapsulation and protects implementation details from unintended external modifications.</p>
+<p>The access levels from least restrictive to most restrictive:</p>
+<ol>
+<li><strong><code>open</code></strong>: Accessible and subclassable by any source file in any module importing it. Applies only to classes.</li>
+<li><strong><code>public</code></strong>: Accessible by importing modules, but cannot be subclassed or overridden outside its module.</li>
+<li><strong><code>package</code></strong>: Accessible by any file inside the same Swift package across multiple package modules.</li>
+<li><strong><code>internal</code></strong> (Default): Accessible anywhere within the defining module, but invisible outside.</li>
+<li><strong><code>fileprivate</code></strong>: Accessible only within its own defining source file.</li>
+<li><strong><code>private</code></strong>: Accessible only within the enclosing declaration and extensions in the same file.</li>
+</ol>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What is the default access level for code in Swift when no modifier is written?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">public</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">internal</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">fileprivate</span></button><p class="qc-explain" hidden="">internal is the default access level in Swift. Code is accessible anywhere within its defining module without explicit keywords.</p></div>
+<h2>In code</h2>
+<figure class="code-example"><figcaption>Encapsulating state with private(set) and private variables</figcaption><pre class="block swift"><code class="language-swift">class BankAccount {
+    // 1. Public read-only access with private mutation
+    private(set) var balance: Double = 0.0
+    
+    // 2. Private internal tracking property
+    private var transactionLog: [String] = []
+    
+    func deposit(amount: Double) {
+        guard amount &gt; 0 else { return }
+        balance += amount
+        transactionLog.append(&quot;Deposited $\(amount)&quot;)
+    }
+}
+
+let account = BankAccount()
+account.deposit(amount: 150.0)
+
+// Reading balance is permitted
+print(&quot;Current balance: $\(account.balance)&quot;)
+
+// Direct assignment like account.balance = 500.0 fails compilation
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Current balance: $150.0
+</code></pre></figure>
+<p>This code shows effective encapsulation:</p>
+<ul>
+<li><strong><code>private(set)</code> modifier</strong>: Outside callers can read <code>balance</code>, but only <code>BankAccount</code> methods can mutate it.</li>
+<li><strong><code>private</code> list</strong>: <code>transactionLog</code> is completely hidden from external code, preventing unauthorized access.</li>
+</ul>
+<figure class="code-example"><figcaption>Private access in extensions and public struct initializers</figcaption><pre class="block swift"><code class="language-swift">// Demonstrating private accessibility within same-file extensions
+struct GamePlayer {
+    private var secretScore = 100
+}
+
+extension GamePlayer {
+    func printScore() {
+        // Legal in Swift: extension in the same file accesses private members
+        print(&quot;Player score: \(secretScore)&quot;)
+    }
+}
+
+let player = GamePlayer()
+player.printScore()
+
+// Public struct requiring explicit public initializer for external modules
+public struct Configuration {
+    public let serverURL: String
+    
+    // Explicit public initializer is required for importing modules
+    public init(serverURL: String) {
+        self.serverURL = serverURL
+    }
+}
+
+let config = Configuration(serverURL: &quot;https://api.example.com&quot;)
+print(&quot;Configured URL: \(config.serverURL)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Player score: 100
+Configured URL: https://api.example.com
+</code></pre></figure>
+<p>This example shows two important access control rules:</p>
+<ul>
+<li><strong>Same-file extensions</strong>: Extensions in the same source file can access <code>private</code> properties freely.</li>
+<li><strong>Public struct initializers</strong>: Public structs do not receive an automatic public memberwise initializer. You must define an explicit <code>public init</code>.</li>
+</ul>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Can callers from external modules initialize a public struct if no initializer is explicitly written?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, the compiler generates a public memberwise initializer automatically.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, the synthesized memberwise initializer is internal, blocking external callers.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Only if all stored properties are marked open.</span></button><p class="qc-explain" hidden="">The synthesized memberwise initializer has internal access. You must write an explicit public init to allow external module initialization.</p></div>
+<p class="try-it"><p>Experiment with private(set) and access levels in Swift Playgrounds on iPad or Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Assuming public structs have public memberwise initializers</p><p>Marking a struct as <code>public</code> does not make its automatic memberwise initializer public. The synthesized initializer remains <code>internal</code>. You must write a <code>public init</code> manually for external modules.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Confusing open and public class subclassing</p><p>A <code>public</code> class can only be subclassed inside its own module. To permit callers from other modules to subclass a class or override its methods, you must mark it <code>open</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Defining public functions with private or internal parameter types</p><p>The guiding principle of Swift access control states that no entity can be defined in terms of another entity with lower access. A public function cannot take private types as arguments.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>Swift has access levels from open to private. The default is internal, which allows access anywhere in the module. private hides code inside the enclosing scope, and private(set) makes properties read-only to outside callers while allowing internal mutation.</p></div>
+<div class="answer"><p class="label">Junior answer</p><p>Swift provides six access levels: open, public, package, internal, fileprivate, and private. The difference between open and public is that open allows subclassing and overrides outside the defining module. We use private(set) to expose read-only state while keeping mutation logic safe and encapsulated.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>Access control defines architectural boundaries between modules and clients. By keeping classes public rather than open, frameworks preserve internal invariants and enable compiler devirtualization. In multi-module Swift packages, package access allows shared utilities across internal modules without leaking implementation details into public client APIs.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>open</code> allows cross-module access, subclassing, and method overriding.</li>
+<li><code>public</code> allows cross-module access, but restricts subclassing to its defining module.</li>
+<li><code>package</code> allows sharing code across modules within the same Swift package.</li>
+<li><code>internal</code> is the default access level across Swift code.</li>
+<li><code>fileprivate</code> restricts access to its defining source file.</li>
+<li><code>private</code> restricts access to its enclosing declaration and same-file extensions.</li>
+<li><code>private(set)</code> provides public read access with private write mutations.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/accesscontrol">The Swift Programming Language: Access Control</a></li>
+<li><a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0386-package-access-modifier.md">Swift Evolution: Package Access Control (SE-0386)</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    leftTitle: "1. External Boundaries",
+    leftTag: "External Access",
+    leftCode: "open class FrameworkView { ... }\npublic struct APIConfig { ... }",
+    leftDesc: "open allows subclassing outside the module. public permits usage but forbids external subclassing.",
+    rightTitle: "Public vs Open",
+    rightTag: "Module Boundary",
+    rightCode: "// Client importing module:\n// Subclassing: open only\n// Instantiation: open and public",
+    rightDesc: "Classes marked public cannot be subclassed outside their module.",
+    outerTitle: "External Module Level",
+    outerLine1: "open: Subclassable anywhere",
+    outerLine2: "public: Usable anywhere",
+    innerTitle: "Module Protection",
+    innerLine1: "Prevents fragile subclassing",
+    innerLine2: "Allows API usage",
+    outerStyle: "active-open",
+    innerStyle: "card-shape"
+  },
+  {
+    leftTitle: "2. Package Boundary",
+    leftTag: "package keyword",
+    leftCode: "package struct InternalHelper {\n    package static func format() { ... }\n}",
+    leftDesc: "package allows multiple internal modules in a package to share code cleanly.",
+    rightTitle: "Multi-Module Package",
+    rightTag: "Package Target",
+    rightCode: "// Target A can call Target B helpers\n// App importing package sees nothing",
+    rightDesc: "Ideal for modular package architectures (SE-0386).",
+    outerTitle: "Package Boundary",
+    outerLine1: "Shared across package targets",
+    outerLine2: "Hidden from outside apps",
+    innerTitle: "Internal Package Tools",
+    innerLine1: "package access level",
+    innerLine2: "Encapsulation within package",
+    outerStyle: "card-shape",
+    innerStyle: "active-pkg"
+  },
+  {
+    leftTitle: "3. Module Default",
+    leftTag: "internal (Default)",
+    leftCode: "class ViewModel {\n    var title: String = \"Home\"\n}",
+    leftDesc: "internal is the default access level in Swift. Accessible by all files in the module.",
+    rightTitle: "Entire App Target",
+    rightTag: "Module Scope",
+    rightCode: "// Accessible anywhere in the same target\n// No keyword needed on declarations",
+    rightDesc: "Eliminates boilerplate within single-target application code.",
+    outerTitle: "Module: internal",
+    outerLine1: "Default for all declarations",
+    outerLine2: "Visible to all module files",
+    innerTitle: "Target Protection",
+    innerLine1: "Hidden from external imports",
+    innerLine2: "Clean module boundaries",
+    outerStyle: "active-int",
+    innerStyle: "active-int"
+  },
+  {
+    leftTitle: "4. File & Scope Limits",
+    leftTag: "private & fileprivate",
+    leftCode: "class BankAccount {\n    private(set) var balance = 0.0\n    private var pin = \"1234\"\n}",
+    leftDesc: "private restricts access to the enclosing declaration and same-file extensions.",
+    rightTitle: "private(set) Encapsulation",
+    rightTag: "Read vs Write",
+    rightCode: "print(acc.balance) // Public read\n// acc.balance = 50 // Error: private write",
+    rightDesc: "Encapsulates state mutations while granting public or internal read visibility.",
+    outerTitle: "File / Scope Scope",
+    outerLine1: "fileprivate: File-only",
+    outerLine2: "private: Enclosing scope",
+    innerTitle: "private(set) Encapsulation",
+    innerLine1: "Read: Public/Internal",
+    innerLine2: "Write: Strictly Private",
+    outerStyle: "card-shape",
+    innerStyle: "active-priv"
+  }
+];
+
+let currentStep = 0;
+
+function updateUI() {
+  const s = steps[currentStep];
+  document.getElementById("left-title").textContent = s.leftTitle;
+  document.getElementById("left-tag").textContent = s.leftTag;
+  document.getElementById("left-code").textContent = s.leftCode;
+  document.getElementById("left-desc").textContent = s.leftDesc;
+  
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("outer-title").textContent = s.outerTitle;
+  document.getElementById("outer-line1").textContent = s.outerLine1;
+  document.getElementById("outer-line2").textContent = s.outerLine2;
+
+  document.getElementById("inner-title").textContent = s.innerTitle;
+  document.getElementById("inner-line1").textContent = s.innerLine1;
+  document.getElementById("inner-line2").textContent = s.innerLine2;
+
+  const cardOuter = document.getElementById("card-outer");
+  const cardInner = document.getElementById("card-inner");
+  cardOuter.className = "card-shape " + s.outerStyle;
+  cardInner.className = "card-shape " + s.innerStyle;
+
+  // Update dots and buttons
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.className = "dot" + (idx === currentStep ? " active" : "");
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = currentStep === 0;
+  document.getElementById("btn-next").disabled = currentStep === steps.length - 1;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateUI();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateUI();
+  }
+}
+
+function jumpTo(idx) {
+  currentStep = idx;
+  updateUI();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateUI();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"access-control","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"access-control-q1","type":"mcq","difficulty":1,"prompt":"What is the default access level in Swift when no modifier is written?","options":[{"id":"a","text":"internal, accessible anywhere inside the same module.","explanation":"Right. Swift defaults to internal access, allowing use anywhere within the defining target or module."},{"id":"b","text":"public, accessible across all modules and projects.","explanation":"public requires an explicit modifier so APIs are not exposed across targets unintentionally."},{"id":"c","text":"private, accessible only within the enclosing type.","explanation":"private must be written explicitly when you want to restrict visibility to a type."},{"id":"d","text":"open, subclassable and overridable in any target.","explanation":"open is the least restrictive level and requires an explicit modifier on classes."}],"answer":"a"},{"id":"access-control-q2","type":"mcq","difficulty":1,"prompt":"What is the primary difference between open and public access levels?","options":[{"id":"a","text":"open applies only to structs, while public applies to classes.","explanation":"open applies exclusively to classes and class members, never to structs."},{"id":"b","text":"open allows external subclassing, while public blocks it.","explanation":"Right. open allows external modules to subclass and override, whereas public prevents external subclassing."},{"id":"c","text":"open requires custom inits, while public provides them.","explanation":"Initializers are not automatically generated based on open versus public."},{"id":"d","text":"open is restricted to files, while public works globally.","explanation":"Both open and public are visible outside the defining module."}],"answer":"b"},{"id":"access-control-q3","type":"mcq","difficulty":1,"prompt":"Which access level restricts code visibility to the enclosing declaration and extensions in the same file?","options":[{"id":"a","text":"The fileprivate modifier.","explanation":"fileprivate allows access from any code in the file, even outside the type declaration."},{"id":"b","text":"The internal modifier.","explanation":"internal allows access across the entire module, not just the enclosing declaration."},{"id":"c","text":"The private modifier.","explanation":"Right. private restricts access to the enclosing declaration and same-file extensions."},{"id":"d","text":"The package modifier.","explanation":"package allows access across all targets in the package."}],"answer":"c"},{"id":"access-control-q4","type":"mcq","difficulty":1,"prompt":"Which access level allows types and members to be shared across targets in the same package without exposing them publicly?","options":[{"id":"a","text":"The internal modifier.","explanation":"internal restricts access to a single module target, preventing sharing across targets."},{"id":"b","text":"The fileprivate modifier.","explanation":"fileprivate restricts access to a single source file."},{"id":"c","text":"The open modifier.","explanation":"open exposes classes publicly to all outside consumers."},{"id":"d","text":"The package modifier.","explanation":"Right. package shares declarations across package targets without making them public to external clients."}],"answer":"d"},{"id":"access-control-q5","type":"mcq","difficulty":2,"prompt":"What does the modifier private(set) do when placed on a property?","options":[{"id":"a","text":"It keeps writes private while leaving reads at the default level.","explanation":"Right. private(set) gives the getter internal or public access while restricting the setter to private."},{"id":"b","text":"It makes reads and writes invisible outside the defining file.","explanation":"That describes fileprivate or private, not private(set)."},{"id":"c","text":"It prevents subclasses from reading the current value of state.","explanation":"Subclasses can still read the property if getter access permits."},{"id":"d","text":"It forces callers to set values inside an explicit initializer.","explanation":"private(set) does not change initializer requirements."}],"answer":"a"},{"id":"access-control-q6","type":"mcq","difficulty":2,"prompt":"Why does a public struct not automatically get a public memberwise initializer?","options":[{"id":"a","text":"Structs never support memberwise initializers in Swift code.","explanation":"Swift structs receive internal memberwise initializers automatically when internal."},{"id":"b","text":"The default initializer is internal to protect private state.","explanation":"Right. The synthesized memberwise initializer is internal to avoid leaking private properties as public API."},{"id":"c","text":"Public types must always inherit from an Objective-C class.","explanation":"Swift structs are pure value types and do not inherit from any class."},{"id":"d","text":"Memberwise initializers are reserved for fileprivate structs.","explanation":"Internal and private structs also receive synthesized memberwise initializers."}],"answer":"b"},{"id":"access-control-q7","type":"mcq","difficulty":2,"prompt":"What rule governs the relationship between a function's access level and its parameter types?","options":[{"id":"a","text":"Functions can use any access level regardless of arguments.","explanation":"Swift forbids exposing types through functions with higher access levels."},{"id":"b","text":"Parameter types must always be more restrictive than functions.","explanation":"Parameter types must have equal or higher access than the function."},{"id":"c","text":"Functions cannot have higher access than their parameter types.","explanation":"Right. No entity can be declared with a higher access level than any of its parameter types."},{"id":"d","text":"Parameter types must be public whenever functions are internal.","explanation":"Internal functions can use internal or public parameter types."}],"answer":"c"},{"id":"access-control-q8","type":"mcq","difficulty":1,"prompt":"Where is an entity marked fileprivate accessible?","options":[{"id":"a","text":"Across any target within the same Swift package.","explanation":"package access is required to share across targets."},{"id":"b","text":"Only inside the enclosing type declaration scope.","explanation":"private scopes to the enclosing type, while fileprivate scopes to the whole file."},{"id":"c","text":"Throughout the entire application module bundle.","explanation":"internal is visible throughout the entire module."},{"id":"d","text":"Anywhere inside the source file where it is declared.","explanation":"Right. fileprivate makes a declaration accessible anywhere within the same source file."}],"answer":"d"},{"id":"access-control-q9","type":"mcq","difficulty":2,"prompt":"Can an extension in the same file access private members of the type it extends?","options":[{"id":"a","text":"Yes, extensions in the same file can access private members.","explanation":"Right. Since Swift 4, extensions in the same file share access to private members."},{"id":"b","text":"No, private members are never accessible outside type braces.","explanation":"Same-file extensions can access private members of the extended type."},{"id":"c","text":"Only if the extension is explicitly marked with public level.","explanation":"The extension does not need public access to access private members."},{"id":"d","text":"Only if the extended type is a class rather than a struct.","explanation":"This rule applies equally to structs, classes, and enums."}],"answer":"a"},{"id":"access-control-q10","type":"mcq","difficulty":2,"prompt":"Can an extension in a separate source file access private members of a type?","options":[{"id":"a","text":"Yes, extensions always inherit full access across files.","explanation":"Extensions in separate files cannot access private or fileprivate members."},{"id":"b","text":"No, private members cannot be read from separate files.","explanation":"Right. private members are only accessible within the original file where the type is declared."},{"id":"c","text":"Yes, if both files belong to the same framework target.","explanation":"Belonging to the same target does not bypass private or fileprivate scopes."},{"id":"d","text":"Only when compiling code with optimization flags enabled.","explanation":"Compiler flags do not change access control visibility."}],"answer":"b"},{"id":"access-control-q11","type":"mcq","difficulty":2,"prompt":"What happens if you mark a protocol as public, but one of its method requirements uses an internal type?","options":[{"id":"a","text":"The code compiles and promotes the internal type to public.","explanation":"Swift never silently changes the declared access level of your types."},{"id":"b","text":"The protocol becomes internal without compiler warnings.","explanation":"The protocol does not silently downgrade its access level."},{"id":"c","text":"The compiler rejects the protocol for exposing internal types.","explanation":"Right. A public protocol requirement cannot expose an internal type because callers outside the module could not satisfy it."},{"id":"d","text":"The internal parameter type is converted to Any silently.","explanation":"Swift enforces static type safety rather than casting to Any."}],"answer":"c"},{"id":"access-control-q12","type":"mcq","difficulty":2,"prompt":"What access level can be applied to an open class member?","options":[{"id":"a","text":"Only struct and enumeration members can be marked open.","explanation":"open cannot be used on value types like structs or enums."},{"id":"b","text":"Any member inside an internal class can be marked open.","explanation":"An open member cannot reside inside an internal class."},{"id":"c","text":"Open members can only be declared inside file scope.","explanation":"open applies to classes and class members, not file-level variables."},{"id":"d","text":"Only classes and members of open classes can be marked open.","explanation":"Right. An open member can only exist within an open class."}],"answer":"d"},{"id":"access-control-q13","type":"mcq","difficulty":2,"prompt":"How can unit test targets access internal declarations of an app target in Swift?","options":[{"id":"a","text":"By adding the @testable import attribute to the import line.","explanation":"Right. @testable import grants the test module access to all internal declarations of the tested module."},{"id":"b","text":"By changing all declarations in the main module to public.","explanation":"Marking everything public is bad practice and unnecessary when @testable exists."},{"id":"c","text":"By declaring all unit test classes as open superclasses.","explanation":"Test classes do not need to be open to test internal code."},{"id":"d","text":"By moving test files into the main application project.","explanation":"Tests should remain in dedicated test targets."}],"answer":"a"},{"id":"access-control-q14","type":"mcq","difficulty":2,"prompt":"Which of the following correctly orders Swift access levels from most restrictive to least restrictive?","options":[{"id":"a","text":"internal, private, fileprivate, package, public, open","explanation":"internal is less restrictive than private and fileprivate."},{"id":"b","text":"private, fileprivate, internal, package, public, open","explanation":"Right. private is most restrictive, followed by fileprivate, internal, package, public, and open."},{"id":"c","text":"fileprivate, private, internal, package, open, public","explanation":"private is more restrictive than fileprivate, and open is less restrictive than public."},{"id":"d","text":"private, internal, fileprivate, public, package, open","explanation":"fileprivate is more restrictive than internal, and package is more restrictive than public."}],"answer":"b"},{"id":"access-control-q15","type":"mcq","difficulty":3,"prompt":"When writing a reusable framework, why should you prefer public over open unless inheritance is explicitly planned?","options":[{"id":"a","text":"public code runs faster by avoiding compiler optimization.","explanation":"public code does not disable compiler optimizations."},{"id":"b","text":"open classes cannot contain stored properties or methods.","explanation":"open classes can contain stored properties and methods."},{"id":"c","text":"Restricting subclassing protects state and design contracts.","explanation":"Right. Subclassing creates fragile base classes, so you should only mark classes open when designed for extension."},{"id":"d","text":"public classes cannot be imported into external frameworks.","explanation":"public classes are specifically meant to be imported into external code."}],"answer":"c"},{"id":"access-control-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"struct BankAccount {\n    private(set) var balance = 100\n    mutating func deposit(_ amount: Int) {\n        balance += amount\n    }\n}\nvar account = BankAccount()\naccount.deposit(50)\nprint(account.balance)","options":[{"id":"a","text":"It prints 50.","explanation":"50 is the deposit amount added to 100, not the resulting balance."},{"id":"b","text":"It prints 100.","explanation":"The deposit method increases the balance by 50."},{"id":"c","text":"It prints 0.","explanation":"The initial balance was 100, so it does not evaluate to 0."},{"id":"d","text":"It prints 150.","explanation":"Right. The initial balance of 100 increases by 50 to 150, and balance is readable externally."}],"answer":"d"},{"id":"access-control-q17","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"fileprivate class SecretManager {\n    fileprivate var token = \"token123\"\n}\nfileprivate class TokenInspector {\n    func printToken() {\n        let manager = SecretManager()\n        print(manager.token)\n    }\n}\nfileprivate let inspector = TokenInspector()\ninspector.printToken()","options":[{"id":"a","text":"It prints the token string token123.","explanation":"Right. Both classes and the global constant are in the same source file, so fileprivate members are accessible."},{"id":"b","text":"It prints the type name SecretManager.","explanation":"The code prints manager.token, which holds the string token123."},{"id":"c","text":"It prints the type name TokenInspector.","explanation":"The code prints manager.token, not the class name."},{"id":"d","text":"It prints an empty optional value nil.","explanation":"token is a non-optional String containing token123."}],"answer":"a"},{"id":"access-control-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"struct User {\n    private var password = \"secret\"\n}\nextension User {\n    func printPassword() {\n        print(password)\n    }\n}\nlet user = User()\nuser.printPassword()","options":[{"id":"a","text":"It prints the optional nil.","explanation":"password is a non-optional String with value secret."},{"id":"b","text":"It prints the string secret.","explanation":"Right. Extensions in the same source file have access to private members of the extended type."},{"id":"c","text":"It prints the type name User.","explanation":"The print function outputs the password property."},{"id":"d","text":"It prints an empty string.","explanation":"password is initialized to secret."}],"answer":"b"},{"id":"access-control-q19","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"struct StepCounter {\n    private(set) var steps = 0\n    mutating func addSteps(_ count: Int) {\n        steps += count\n    }\n}\nvar tracker = StepCounter()\ntracker.addSteps(10)\ntracker.addSteps(15)\nprint(tracker.steps)","options":[{"id":"a","text":"It prints the number 0.","explanation":"steps is mutated by two method calls adding 10 and 15."},{"id":"b","text":"It prints the number 10.","explanation":"Both addSteps(10) and addSteps(15) execute, accumulating steps."},{"id":"c","text":"It prints the number 25.","explanation":"Right. 0 + 10 + 15 = 25, and steps is readable externally."},{"id":"d","text":"It prints the number 15.","explanation":"The method adds to existing steps rather than replacing them."}],"answer":"c"},{"id":"access-control-q20","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"class Vault {\n    private var code = 999\n    func reveal() -> Int {\n        return code\n    }\n}\nlet vault = Vault()\nprint(vault.reveal())","options":[{"id":"a","text":"It prints the number 0.","explanation":"code is initialized to 999."},{"id":"b","text":"It prints the number 10.","explanation":"reveal returns code, which is 999."},{"id":"c","text":"It prints the number 100.","explanation":"The code property has value 999."},{"id":"d","text":"It prints the number 999.","explanation":"Right. The internal method reveal accesses the private property code and returns 999."}],"answer":"d"},{"id":"access-control-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"struct Temperature {\n    private var celsius: Double\n    init(celsius: Double) {\n        self.celsius = celsius\n    }\n    var fahrenheit: Double {\n        return celsius * 1.8 + 32.0\n    }\n}\nlet temp = Temperature(celsius: 0.0)\nprint(Int(temp.fahrenheit))","options":[{"id":"a","text":"It prints the number 32.","explanation":"Right. 0.0 * 1.8 + 32.0 equals 32.0, converted to Int as 32."},{"id":"b","text":"It prints the number 0.","explanation":"The computed property fahrenheit converts 0.0 celsius to 32 fahrenheit."},{"id":"c","text":"It prints the number 100.","explanation":"100 is the boiling point of water in celsius, not the result for 0 celsius."},{"id":"d","text":"It prints the number 212.","explanation":"212 fahrenheit corresponds to 100 celsius, not 0 celsius."}],"answer":"a"},{"id":"access-control-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"class ScoreCard {\n    fileprivate var score = 10\n}\nextension ScoreCard {\n    func doubleScore() {\n        score *= 2\n    }\n}\nlet card = ScoreCard()\ncard.doubleScore()\nprint(card.score)","options":[{"id":"a","text":"It prints the number 10.","explanation":"doubleScore multiplies score by 2."},{"id":"b","text":"It prints the number 20.","explanation":"Right. 10 * 2 = 20, and fileprivate members can be read and mutated across the source file."},{"id":"c","text":"It prints the number 30.","explanation":"10 multiplied by 2 produces 20, not 30."},{"id":"d","text":"It prints the number 40.","explanation":"The method doubles 10 once, giving 20."}],"answer":"b"},{"id":"access-control-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"struct Wallet {\n    private(set) var coins = 50\n    mutating func spend(_ amount: Int) {\n        if amount \u003c= coins {\n            coins -= amount\n        }\n    }\n}\nvar wallet = Wallet()\nwallet.spend(20)\nprint(wallet.coins)","options":[{"id":"a","text":"It prints the number 50.","explanation":"spend(20) successfully subtracts 20 from coins."},{"id":"b","text":"It prints the number 20.","explanation":"20 is the spent amount, not the remaining balance."},{"id":"c","text":"It prints the number 30.","explanation":"Right. 50 - 20 = 30, and coins is readable externally."},{"id":"d","text":"It prints the number 0.","explanation":"The wallet still retains 30 coins after spending 20."}],"answer":"c"},{"id":"access-control-q24","type":"written","difficulty":2,"prompt":"Explain the difference between open and public access levels in Swift. When would you choose open over public? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that public allows external access but prevents subclassing and overriding outside the module","weight":50,"key":true},{"criterion":"Explains that open allows external subclassing and overriding, chosen when designing reusable framework extension points","weight":50,"key":true}],"modelAnswer":"Both open and public allow code to be accessed from outside the defining module. However, open allows external modules to subclass a class or override a method, while public forbids external subclassing and overriding. You choose open when you are designing a framework and intentionally want clients to customize behavior through inheritance."},{"id":"access-control-q25","type":"written","difficulty":2,"prompt":"What does private(set) do in Swift, and why is it preferred over declaring a property completely private with a separate getter method? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that private(set) provides read access at the enclosing level while restricting writes to private","weight":50,"key":true},{"criterion":"Explains that it avoids boilerplate getter methods and protects state while keeping standard dot syntax for reading","weight":50,"key":true}],"modelAnswer":"The private(set) modifier keeps write access private while allowing read access at the enclosing declaration's access level. It is preferred because it avoids writing boilerplate getter methods while protecting internal state from accidental external modification. External code can read the property with standard dot syntax without being able to mutate it."},{"id":"access-control-q26","type":"written","difficulty":2,"prompt":"Why does the Swift compiler not synthesize a public memberwise initializer for public structs? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that default memberwise initializers are internal to prevent accidental leakage of private properties","weight":50,"key":true},{"criterion":"Mentions API stability or protecting external consumers when internal struct properties change","weight":50,"key":true}],"modelAnswer":"The Swift compiler creates an internal memberwise initializer by default so internal implementation details are not exposed accidentally. If a public memberwise initializer were generated automatically, adding a private stored property later would break external client code. Requiring an explicit public initializer forces library authors to design a stable API contract intentionally."},{"id":"access-control-q27","type":"written","difficulty":2,"prompt":"Explain the difference between private and fileprivate access levels in Swift, including how extensions in the same file behave. Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that private is scoped to the enclosing declaration and same-file extensions","weight":50,"key":true},{"criterion":"Explains that fileprivate is accessible anywhere within the source file, including unrelated types","weight":50,"key":true}],"modelAnswer":"The private modifier restricts access to the enclosing type declaration and its extensions within the same source file. The fileprivate modifier allows access from any code anywhere within the same source file, even outside the type declaration. In modern Swift, both private and fileprivate allow same-file extensions to access members, but fileprivate also exposes them to unrelated types in that file."},{"id":"access-control-q28","type":"written","difficulty":3,"prompt":"What is package access level introduced in Swift 5.9, and what problem does it solve for modular iOS apps? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that package access shares code across targets inside the same Swift package","weight":50,"key":true},{"criterion":"Explains that it prevents exposing internal architecture APIs publicly to external clients","weight":50,"key":true}],"modelAnswer":"The package access level allows types and members to be shared across multiple targets within the same Swift package. Before package access, sharing code across targets required marking APIs public, which unintentionally exposed them to external app clients. Package access solves this by keeping modular code internal to the package while enabling collaboration across its internal modules."},{"id":"access-control-q29","type":"code-write","difficulty":2,"prompt":"Create a struct Player with an integer property score that is publicly readable but can only be modified internally. Add a mutating method addPoints(_ count: Int) that increases score.","starterCode":"// Create Player struct here","modelAnswer":"struct Player {\n    private(set) var score: Int = 0\n    mutating func addPoints(_ count: Int) {\n        score += count\n    }\n}\nvar player = Player()\nplayer.addPoints(10)\nplayer.addPoints(5)\nprint(player.score)","rubric":[{"criterion":"Declares struct Player with private(set) var score","weight":50,"key":true},{"criterion":"Implements mutating method addPoints that increments score","weight":50,"key":true}]},{"id":"access-control-q30","type":"code-write","difficulty":2,"prompt":"Write a public struct ServerConfig with two public constant properties: host of type String and port of type Int. Provide an explicit public initializer so external modules can instantiate it.","starterCode":"// Create public ServerConfig struct here","modelAnswer":"public struct ServerConfig {\n    public let host: String\n    public let port: Int\n    public init(host: String, port: Int) {\n        self.host = host\n        self.port = port\n    }\n}\nlet config = ServerConfig(host: \"api.example.com\", port: 443)\nprint(\"\\(config.host):\\(config.port)\")","rubric":[{"criterion":"Declares public struct ServerConfig with public let host: String and port: Int","weight":50,"key":true},{"criterion":"Declares explicit public init setting host and port properties","weight":50,"key":true}]},{"id":"access-control-q31","type":"code-write","difficulty":2,"prompt":"Create a class Counter with a private integer property count initialized to 0. Add a method increment() to increase count by 1 and a method getValue() -> Int that returns count.","starterCode":"// Create Counter class here","modelAnswer":"class Counter {\n    private var count: Int = 0\n    func increment() {\n        count += 1\n    }\n    func getValue() -> Int {\n        return count\n    }\n}\nlet counter = Counter()\ncounter.increment()\ncounter.increment()\nprint(counter.getValue())","rubric":[{"criterion":"Declares class Counter with private var count: Int = 0","weight":40,"key":true},{"criterion":"Implements increment() method increasing count","weight":30,"key":true},{"criterion":"Implements getValue() -> Int returning count","weight":30,"key":true}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

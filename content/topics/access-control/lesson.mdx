@@ -1,0 +1,203 @@
+export const meta = {
+  id: "access-control",
+  summary: "Manage visibility and encapsulation in Swift using open, public, package, internal, fileprivate, and private.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-09",
+  sources: [
+    { title: "The Swift Programming Language: Access Control", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/accesscontrol", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is the crucial difference between open and public access levels for classes in Swift?</Question>
+  <Guess>
+    <Option id="a">public allows classes to be subclassed outside their module, while open forbids subclassing.</Option>
+    <Option id="b" correct>open allows classes to be subclassed and overridden outside their module, while public restricts subclassing to the defining module.</Option>
+    <Option id="c">open works with structs, while public works only with reference classes.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of an office building with different security badges. The lobby is open to the general public. Meeting rooms require an employee badge. The server room requires special security clearance. Access control in Swift works like security badges: it restricts which files, modules, and clients can view or modify specific parts of your code.
+</Analogy>
+
+In Swift, **access control** restricts access to parts of your code from code in other source files and modules.
+
+This enables clean encapsulation and protects implementation details from unintended external modifications.
+
+The access levels from least restrictive to most restrictive:
+1. **`open`**: Accessible and subclassable by any source file in any module importing it. Applies only to classes.
+2. **`public`**: Accessible by importing modules, but cannot be subclassed or overridden outside its module.
+3. **`package`**: Accessible by any file inside the same Swift package across multiple package modules.
+4. **`internal`** (Default): Accessible anywhere within the defining module, but invisible outside.
+5. **`fileprivate`**: Accessible only within its own defining source file.
+6. **`private`**: Accessible only within the enclosing declaration and extensions in the same file.
+
+## See it
+
+<Diagram id="access-control-main" caption="The hierarchy of Swift access levels from external modules to private scopes">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. External Module box holding open and public interfaces.
+    2. Package boundary box holding package level declarations.
+    3. Module boundary box holding internal declarations (the default).
+    4. File and Scope boxes holding fileprivate and private declarations.
+  - Steps:
+    Step 1: Open allows external subclassing; Public allows external usage without subclassing.
+    Step 2: Package allows sharing across targets within the same Swift package.
+    Step 3: Internal limits visibility to files within the same app or framework module.
+    Step 4: Private limits visibility strictly to the enclosing declaration and its same-file extensions.
+  - Static version (reduced motion):
+    Nested boundary rectangles illustrating concentric scopes of visibility.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What is the default access level for code in Swift when no modifier is written?</Question>
+  <Option id="a">public</Option>
+  <Option id="b" correct>internal</Option>
+  <Option id="c">fileprivate</Option>
+  <Explanation>internal is the default access level in Swift. Code is accessible anywhere within its defining module without explicit keywords.</Explanation>
+</QuickCheck>
+
+## In code
+
+<CodeExample title="Encapsulating state with private(set) and private variables">
+
+```swift
+class BankAccount {
+    // 1. Public read-only access with private mutation
+    private(set) var balance: Double = 0.0
+    
+    // 2. Private internal tracking property
+    private var transactionLog: [String] = []
+    
+    func deposit(amount: Double) {
+        guard amount > 0 else { return }
+        balance += amount
+        transactionLog.append("Deposited $\(amount)")
+    }
+}
+
+let account = BankAccount()
+account.deposit(amount: 150.0)
+
+// Reading balance is permitted
+print("Current balance: $\(account.balance)")
+
+// Direct assignment like account.balance = 500.0 fails compilation
+```
+
+```output
+Current balance: $150.0
+```
+
+</CodeExample>
+
+This code shows effective encapsulation:
+- **`private(set)` modifier**: Outside callers can read `balance`, but only `BankAccount` methods can mutate it.
+- **`private` list**: `transactionLog` is completely hidden from external code, preventing unauthorized access.
+
+<CodeExample title="Private access in extensions and public struct initializers">
+
+```swift
+// Demonstrating private accessibility within same-file extensions
+struct GamePlayer {
+    private var secretScore = 100
+}
+
+extension GamePlayer {
+    func printScore() {
+        // Legal in Swift: extension in the same file accesses private members
+        print("Player score: \(secretScore)")
+    }
+}
+
+let player = GamePlayer()
+player.printScore()
+
+// Public struct requiring explicit public initializer for external modules
+public struct Configuration {
+    public let serverURL: String
+    
+    // Explicit public initializer is required for importing modules
+    public init(serverURL: String) {
+        self.serverURL = serverURL
+    }
+}
+
+let config = Configuration(serverURL: "https://api.example.com")
+print("Configured URL: \(config.serverURL)")
+```
+
+```output
+Player score: 100
+Configured URL: https://api.example.com
+```
+
+</CodeExample>
+
+This example shows two important access control rules:
+- **Same-file extensions**: Extensions in the same source file can access `private` properties freely.
+- **Public struct initializers**: Public structs do not receive an automatic public memberwise initializer. You must define an explicit `public init`.
+
+<QuickCheck>
+  <Question>Can callers from external modules initialize a public struct if no initializer is explicitly written?</Question>
+  <Option id="a">Yes, the compiler generates a public memberwise initializer automatically.</Option>
+  <Option id="b" correct>No, the synthesized memberwise initializer is internal, blocking external callers.</Option>
+  <Option id="c">Only if all stored properties are marked open.</Option>
+  <Explanation>The synthesized memberwise initializer has internal access. You must write an explicit public init to allow external module initialization.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Experiment with private(set) and access levels in Swift Playgrounds on iPad or Mac.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming public structs have public memberwise initializers">
+Marking a struct as `public` does not make its automatic memberwise initializer public. The synthesized initializer remains `internal`. You must write a `public init` manually for external modules.
+</Trap>
+
+<Trap title="Confusing open and public class subclassing">
+A `public` class can only be subclassed inside its own module. To permit callers from other modules to subclass a class or override its methods, you must mark it `open`.
+</Trap>
+
+<Trap title="Defining public functions with private or internal parameter types">
+The guiding principle of Swift access control states that no entity can be defined in terms of another entity with lower access. A public function cannot take private types as arguments.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Swift has access levels from open to private. The default is internal, which allows access anywhere in the module. private hides code inside the enclosing scope, and private(set) makes properties read-only to outside callers while allowing internal mutation.
+</InterviewAnswer>
+
+<InterviewAnswer level="junior">
+Swift provides six access levels: open, public, package, internal, fileprivate, and private. The difference between open and public is that open allows subclassing and overrides outside the defining module. We use private(set) to expose read-only state while keeping mutation logic safe and encapsulated.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Access control defines architectural boundaries between modules and clients. By keeping classes public rather than open, frameworks preserve internal invariants and enable compiler devirtualization. In multi-module Swift packages, package access allows shared utilities across internal modules without leaking implementation details into public client APIs.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `open` allows cross-module access, subclassing, and method overriding.
+- `public` allows cross-module access, but restricts subclassing to its defining module.
+- `package` allows sharing code across modules within the same Swift package.
+- `internal` is the default access level across Swift code.
+- `fileprivate` restricts access to its defining source file.
+- `private` restricts access to its enclosing declaration and same-file extensions.
+- `private(set)` provides public read access with private write mutations.
+</Recap>
+
+## Go deeper
+
+- [The Swift Programming Language: Access Control](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/accesscontrol)
+- [Swift Evolution: Package Access Control (SE-0386)](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0386-package-access-modifier.md)

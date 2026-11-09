@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swift Access Control: Levels and Boundaries</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --open-color: #0284c7; --open-soft: #e0f2fe;
+  --pkg-color: #0c765c; --pkg-soft: #dcf2ea;
+  --int-color: #7c3aed; --int-soft: #ede9fe;
+  --priv-color: #d97706; --priv-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --open-color: #38bdf8; --open-soft: #082f49;
+  --pkg-color: #45cfa3; --pkg-soft: #13362c;
+  --int-color: #a78bfa; --int-soft: #2e1065;
+  --priv-color: #fbbf24; --priv-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-left .kind { background: var(--open-soft); color: var(--open-color); }
+.p-right .kind { background: var(--pkg-soft); color: var(--pkg-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.card-shape { stroke-width: 2; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.card-shape.active-open { stroke: var(--open-color); stroke-width: 2.5; fill: var(--open-soft); }
+.card-shape.active-pkg { stroke: var(--pkg-color); stroke-width: 2.5; fill: var(--pkg-soft); }
+.card-shape.active-int { stroke: var(--int-color); stroke-width: 2.5; fill: var(--int-soft); }
+.card-shape.active-priv { stroke: var(--priv-color); stroke-width: 2.5; fill: var(--priv-soft); }
+
+.title-text { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
+.sub-text { font-family: var(--font-code); font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; }
+
+/* Step Controls */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.steps-dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line);
+  border: none; padding: 0; cursor: pointer;
+}
+.dot.active { background: var(--open-color); transform: scale(1.2); }
+.btn-group { display: flex; gap: 8px; }
+.btn-nav {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  padding: 6px 14px; border-radius: 8px; font: 600 13px var(--font-body); cursor: pointer;
+}
+.btn-nav:hover { background: var(--bg); }
+.btn-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* Reduced motion view */
+@media (prefers-reduced-motion: reduce) {
+  .anim-only { display: none !important; }
+  .static-fallback { display: grid !important; }
+}
+.static-fallback { display: none; gap: 16px; }
+.comp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.comp-card h4 { margin: 0 0 6px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div class="diagram-host" tabindex="0" role="region" aria-label="Interactive diagram: Swift Access Control">
+
+  <!-- Interactive Animator -->
+  <div class="anim-only" style="display: grid; gap: 16px;">
+    <div class="panels">
+      <div class="panel p-left">
+        <h3><span id="left-title">1. External Boundaries</span><span class="kind" id="left-tag">Module Boundary</span></h3>
+        <div class="code" id="left-code">open class BaseView { ... }
+public struct Config { ... }</div>
+        <p class="caption" id="left-desc">open allows subclassing outside the module. public permits usage but forbids external subclassing.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="card-outer" x="40" y="20" width="260" height="85" rx="10" class="card-shape active-open" />
+          <text id="outer-title" x="170" y="50" class="title-text">External Module Level</text>
+          <text id="outer-line1" x="170" y="72" class="sub-text">open: Subclassable anywhere</text>
+          <text id="outer-line2" x="170" y="90" class="sub-text">public: Usable anywhere</text>
+        </svg>
+      </div>
+
+      <div class="panel p-right">
+        <h3><span id="right-title">Enclosing Scopes</span><span class="kind" id="right-tag">Package Scope</span></h3>
+        <div class="code" id="right-code">// Package-level visibility
+// Shared across package targets</div>
+        <p class="caption" id="right-desc">package allows multiple internal modules in a package to share code cleanly.</p>
+        <svg viewBox="0 0 340 130" aria-hidden="true">
+          <rect id="card-inner" x="40" y="20" width="260" height="85" rx="10" class="card-shape" />
+          <text id="inner-title" x="170" y="50" class="title-text">Package Scope</text>
+          <text id="inner-line1" x="170" y="72" class="sub-text">package: Internal to package</text>
+          <text id="inner-line2" x="170" y="90" class="sub-text">Hidden from outside apps</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="steps-dots" role="tablist" aria-label="Steps">
+        <button class="dot active" role="tab" aria-selected="true" aria-label="Step 1" onclick="jumpTo(0)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 2" onclick="jumpTo(1)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 3" onclick="jumpTo(2)"></button>
+        <button class="dot" role="tab" aria-selected="false" aria-label="Step 4" onclick="jumpTo(3)"></button>
+      </div>
+      <div class="btn-group">
+        <button class="btn-nav" id="btn-prev" disabled onclick="prevStep()">Back</button>
+        <button class="btn-nav" id="btn-next" onclick="nextStep()">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accessible Static Fallback (Reduced Motion) -->
+  <div class="static-fallback" role="region" aria-label="Access control summary">
+    <div class="comp-card">
+      <h4>1. Open vs Public</h4>
+      <p><code>open</code> allows subclassing and overriding outside its module. <code>public</code> allows usage across modules but prevents external subclassing.</p>
+    </div>
+    <div class="comp-card">
+      <h4>2. Package Level</h4>
+      <p><code>package</code> allows sharing code across modules within the same Swift package while keeping it hidden from external clients.</p>
+    </div>
+    <div class="comp-card">
+      <h4>3. Internal (Default)</h4>
+      <p><code>internal</code> is the default access level, allowing access anywhere inside the same module or target.</p>
+    </div>
+    <div class="comp-card">
+      <h4>4. Fileprivate and Private</h4>
+      <p><code>fileprivate</code> restricts access to the source file. <code>private</code> restricts access to the enclosing scope and same-file extensions.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    leftTitle: "1. External Boundaries",
+    leftTag: "External Access",
+    leftCode: "open class FrameworkView { ... }\npublic struct APIConfig { ... }",
+    leftDesc: "open allows subclassing outside the module. public permits usage but forbids external subclassing.",
+    rightTitle: "Public vs Open",
+    rightTag: "Module Boundary",
+    rightCode: "// Client importing module:\n// Subclassing: open only\n// Instantiation: open and public",
+    rightDesc: "Classes marked public cannot be subclassed outside their module.",
+    outerTitle: "External Module Level",
+    outerLine1: "open: Subclassable anywhere",
+    outerLine2: "public: Usable anywhere",
+    innerTitle: "Module Protection",
+    innerLine1: "Prevents fragile subclassing",
+    innerLine2: "Allows API usage",
+    outerStyle: "active-open",
+    innerStyle: "card-shape"
+  },
+  {
+    leftTitle: "2. Package Boundary",
+    leftTag: "package keyword",
+    leftCode: "package struct InternalHelper {\n    package static func format() { ... }\n}",
+    leftDesc: "package allows multiple internal modules in a package to share code cleanly.",
+    rightTitle: "Multi-Module Package",
+    rightTag: "Package Target",
+    rightCode: "// Target A can call Target B helpers\n// App importing package sees nothing",
+    rightDesc: "Ideal for modular package architectures (SE-0386).",
+    outerTitle: "Package Boundary",
+    outerLine1: "Shared across package targets",
+    outerLine2: "Hidden from outside apps",
+    innerTitle: "Internal Package Tools",
+    innerLine1: "package access level",
+    innerLine2: "Encapsulation within package",
+    outerStyle: "card-shape",
+    innerStyle: "active-pkg"
+  },
+  {
+    leftTitle: "3. Module Default",
+    leftTag: "internal (Default)",
+    leftCode: "class ViewModel {\n    var title: String = \"Home\"\n}",
+    leftDesc: "internal is the default access level in Swift. Accessible by all files in the module.",
+    rightTitle: "Entire App Target",
+    rightTag: "Module Scope",
+    rightCode: "// Accessible anywhere in the same target\n// No keyword needed on declarations",
+    rightDesc: "Eliminates boilerplate within single-target application code.",
+    outerTitle: "Module: internal",
+    outerLine1: "Default for all declarations",
+    outerLine2: "Visible to all module files",
+    innerTitle: "Target Protection",
+    innerLine1: "Hidden from external imports",
+    innerLine2: "Clean module boundaries",
+    outerStyle: "active-int",
+    innerStyle: "active-int"
+  },
+  {
+    leftTitle: "4. File & Scope Limits",
+    leftTag: "private & fileprivate",
+    leftCode: "class BankAccount {\n    private(set) var balance = 0.0\n    private var pin = \"1234\"\n}",
+    leftDesc: "private restricts access to the enclosing declaration and same-file extensions.",
+    rightTitle: "private(set) Encapsulation",
+    rightTag: "Read vs Write",
+    rightCode: "print(acc.balance) // Public read\n// acc.balance = 50 // Error: private write",
+    rightDesc: "Encapsulates state mutations while granting public or internal read visibility.",
+    outerTitle: "File / Scope Scope",
+    outerLine1: "fileprivate: File-only",
+    outerLine2: "private: Enclosing scope",
+    innerTitle: "private(set) Encapsulation",
+    innerLine1: "Read: Public/Internal",
+    innerLine2: "Write: Strictly Private",
+    outerStyle: "card-shape",
+    innerStyle: "active-priv"
+  }
+];
+
+let currentStep = 0;
+
+function updateUI() {
+  const s = steps[currentStep];
+  document.getElementById("left-title").textContent = s.leftTitle;
+  document.getElementById("left-tag").textContent = s.leftTag;
+  document.getElementById("left-code").textContent = s.leftCode;
+  document.getElementById("left-desc").textContent = s.leftDesc;
+  
+  document.getElementById("right-title").textContent = s.rightTitle;
+  document.getElementById("right-tag").textContent = s.rightTag;
+  document.getElementById("right-code").textContent = s.rightCode;
+  document.getElementById("right-desc").textContent = s.rightDesc;
+
+  document.getElementById("outer-title").textContent = s.outerTitle;
+  document.getElementById("outer-line1").textContent = s.outerLine1;
+  document.getElementById("outer-line2").textContent = s.outerLine2;
+
+  document.getElementById("inner-title").textContent = s.innerTitle;
+  document.getElementById("inner-line1").textContent = s.innerLine1;
+  document.getElementById("inner-line2").textContent = s.innerLine2;
+
+  const cardOuter = document.getElementById("card-outer");
+  const cardInner = document.getElementById("card-inner");
+  cardOuter.className = "card-shape " + s.outerStyle;
+  cardInner.className = "card-shape " + s.innerStyle;
+
+  // Update dots and buttons
+  const dots = document.querySelectorAll(".dot");
+  dots.forEach((dot, idx) => {
+    dot.className = "dot" + (idx === currentStep ? " active" : "");
+    dot.setAttribute("aria-selected", idx === currentStep ? "true" : "false");
+  });
+
+  document.getElementById("btn-prev").disabled = currentStep === 0;
+  document.getElementById("btn-next").disabled = currentStep === steps.length - 1;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateUI();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateUI();
+  }
+}
+
+function jumpTo(idx) {
+  currentStep = idx;
+  updateUI();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateUI();
+</script>
+</body>
+</html>
