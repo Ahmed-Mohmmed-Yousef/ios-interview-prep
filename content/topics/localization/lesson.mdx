@@ -1,0 +1,191 @@
+export const meta = {
+  id: "localization",
+  summary: "Translate your app into multiple languages and cultures using modern String Catalogs, formatted values, and adaptive layouts.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "Localizing and varying text with a string catalog (Xcode)", url: "https://developer.apple.com/documentation/xcode/localizing-and-varying-text-with-a-string-catalog", kind: "official" },
+    { title: "Localization (Xcode)", url: "https://developer.apple.com/documentation/xcode/localization", kind: "official" },
+    { title: "Right to Left (Human Interface Guidelines)", url: "https://developer.apple.com/design/human-interface-guidelines/right-to-left", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does modern iOS development use String Catalogs instead of older strings files for translating text?</Question>
+  <Guess>
+    <Option id="a">String Catalogs automatically translate English words into foreign languages using cloud artificial intelligence.</Option>
+    <Option id="b" correct>String Catalogs extract localizable keys at build time, manage plurals visually, and track translation states.</Option>
+    <Option id="c">Old strings files only worked on 32-bit devices and are blocked in modern iOS versions.</Option>
+    <Option id="d">String Catalogs compress text into binary archives that download on demand from the App Store.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine an international passport office with service counters for travelers from many nations.
+Instead of rewriting every sign by hand each morning, the office keeps a central translation binder.
+When a clerk announces "Gate 4", the binder shows the exact words for Spanish, Japanese, or Arabic.
+String Catalogs act like this central translation binder for your app.
+</Analogy>
+
+**Internationalization** prepares your code so it can adapt to different languages, regions, and cultures without engineering redesigns.
+**Localization** is the process of translating text and adjusting assets for a specific language or market.
+
+Starting in Xcode 15, Apple introduced **String Catalogs** with the `.xcstrings` file format.
+A String Catalog replaces both legacy `.strings` and `.stringsdict` files.
+Xcode automatically scans your Swift and SwiftUI files at build time.
+Whenever it finds a `LocalizedStringKey` in SwiftUI or a `String(localized:)` call in Swift, it extracts the key into the catalog.
+
+String Catalogs track the lifecycle of each translation:
+- **NEW**: Extracted from code but not yet translated into this language.
+- **NEEDS REVIEW**: The default text or translator comment changed in code.
+- **TRANSLATED**: Completed and approved.
+- **STALE**: The key no longer appears in code, but Xcode preserves past translations so work is never lost.
+
+**String Catalogs automate string extraction and handle plural forms directly in one visual editor.**
+
+## See it
+
+<Diagram id="localization-main" caption="How Xcode extracts localizable strings from code into a String Catalog and resolves them at runtime.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: Swift Code Source, Xcode Build Extraction Step, String Catalog (.xcstrings) with Translation States, Runtime Locale Resolver.
+  - Step 1: Developer writes String(localized: "Welcome") in source code.
+  - Step 2: Xcode build pass extracts key into String Catalog marked as NEW.
+  - Step 3: Translator provides localized values for target locales.
+  - Step 4: Runtime combines active device Locale to present localized text.
+  - Static version (reduced motion): Displays a flow chart comparing source code, catalog states, and final rendered user interface.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens in a String Catalog when you delete a localized string key from your Swift code?</Question>
+  <Option id="a">Xcode immediately deletes all translated text for that key across all languages.</Option>
+  <Option id="b" correct>Xcode marks the key as STALE so past translations are kept safely.</Option>
+  <Option id="c">The app fails to compile until you delete the key by hand.</Option>
+  <Explanation>Xcode marks deleted keys as STALE so you do not lose paid translations by mistake.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Localizing strings and numbers in Swift
+
+Use `String(localized:)` to declare localizable strings with clear comments for translators.
+Use the modern `.formatted()` API to format numbers and currencies according to the active locale.
+
+```swift
+import Foundation
+
+let itemCount = 5
+let unitPrice = 24.50
+
+let localizedTitle = String(localized: "Shopping Cart", comment: "Header title for checkout screen")
+let localizedPrice = unitPrice.formatted(.currency(code: "USD").locale(Locale(identifier: "en_US")))
+
+print("Title: \(localizedTitle)")
+print("Price: \(localizedPrice)")
+```
+
+```output
+Title: Shopping Cart
+Price: $24.50
+```
+
+Providing comments explains context to translators so they choose the right grammatical form.
+
+### Handling plural rules per language
+
+Languages have different rules for plurals.
+English has one and other.
+Arabic has zero, one, two, few, many, and other.
+String Catalogs handle these variations visually without XML files.
+
+```swift
+import Foundation
+
+struct PluralTextResolver {
+    func photoCountMessage(count: Int) -> String {
+        if count == 1 {
+            return "1 photo selected"
+        } else {
+            return "\(count) photos selected"
+        }
+    }
+}
+
+let resolver = PluralTextResolver()
+print("Singular: \(resolver.photoCountMessage(count: 1))")
+print("Plural: \(resolver.photoCountMessage(count: 4))")
+```
+
+```output
+Singular: 1 photo selected
+Plural: 4 photos selected
+```
+
+In Xcode, right-click any string key in a String Catalog and choose "Vary by Plural" to configure each form.
+
+<QuickCheck>
+  <Question>Why should you pass a comment when creating a localized string in Swift?</Question>
+  <Option id="a">Comments are required by the compiler to build machine code.</Option>
+  <Option id="b" correct>Comments give human translators vital context about where and how the word is used.</Option>
+  <Option id="c">Comments increase app speed by caching strings in device memory.</Option>
+  <Explanation>A word like "Book" can mean a novel or the action of reserving a ticket. Comments clarify the intended meaning.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open an Xcode project, add a String Catalog file, and add German or Spanish to view automatic plural variations.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Concatenating localized strings with the plus operator">
+Do not write `greeting + " " + userName` or assemble sentences with string addition.
+Different languages put verbs, nouns, and adjectives in different orders.
+Always use string interpolation with named arguments, such as `String(localized: "Hello, \(userName)")`.
+This gives translators the freedom to reorder words naturally.
+</Trap>
+
+<Trap title="Using left and right instead of leading and trailing">
+Languages like Arabic and Hebrew read from right to left (RTL).
+If you pin constraints to `left` and `right`, views will not mirror for RTL users.
+Always use `leading` and `trailing` in Auto Layout and SwiftUI.
+The system automatically flips leading and trailing margins to match the reading direction.
+</Trap>
+
+<Trap title="Hardcoding number and date formatting">
+Never format currency with fixed dollar signs or dates with manual string slicing.
+A date written as `03/04/2026` means March 4 in the United States, but April 3 in the United Kingdom.
+Use `Date.now.formatted(date: .numeric, time: .omitted)` and `.currency(code:)`.
+The system formats numbers and dates according to the user device region.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Localization adapts an app for different languages and regions.
+In modern iOS, I use String Catalogs with the `.xcstrings` extension.
+Xcode extracts keys automatically from `LocalizedStringKey` in SwiftUI and `String(localized:)` in Swift.
+I always provide comments for translators and use leading and trailing constraints so layouts adapt to right-to-left languages.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+A robust localization strategy encompasses internationalization architecture, formatting, and layout mirroring.
+I design modular apps with `LocalizedStringResource` so frameworks vend deferred localizations that resolve in the host app locale.
+For pluralization, I configure String Catalogs to support full CLDR plural categories across target markets.
+I test layouts with Xcode pseudolocalization schemes like Double-Length text to catch clipping early.
+Finally, I integrate String Catalogs into CI pipelines with automated XLIFF exports for translation agencies.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- String Catalogs (`.xcstrings`) unify translations, plurals, and device variations in a single modern file.
+- Xcode extracts strings from code at build time, marking them as NEW, NEEDS REVIEW, TRANSLATED, or STALE.
+- Never use string concatenation to assemble sentences; use string interpolation with arguments.
+- Always use `leading` and `trailing` to support right-to-left languages like Arabic and Hebrew.
+- Use `.formatted()` for numbers, dates, and currencies to follow regional conventions.
+- Use `LocalizedStringResource` when passing localizable strings across frameworks and background processes.
+</Recap>
