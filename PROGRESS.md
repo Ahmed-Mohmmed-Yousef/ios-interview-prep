@@ -205,7 +205,15 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **caching** (Caching) — published (lesson, diagram, 31 questions) → [docs/topics/caching/review.html](docs/topics/caching/review.html)
     - ✅ **pagination** (Pagination) — published (lesson, diagram, 31 questions) → [docs/topics/pagination/review.html](docs/topics/pagination/review.html)
     - ✅ **combine-basics** (Combine Basics) — published (lesson, diagram, 31 questions) → [docs/topics/combine-basics/review.html](docs/topics/combine-basics/review.html)
-  - ⬜ **Batch 3G: Architecture & Testing Strategy (8 topics)**
+  - 🔄 **Batch 3G: Architecture & Testing Strategy (8 topics)**
+    - 🔄 **mvvm** (MVVM) — starting research
+    - ⬜ **dependency-injection** (Dependency Injection)
+    - ⬜ **design-patterns** (Design Patterns)
+    - ⬜ **navigation-patterns** (Navigation Patterns)
+    - ⬜ **testable-code-mocks** (Testable Code and Mocks)
+    - ⬜ **testing-async-code** (Testing Async Code)
+    - ⬜ **ui-testing** (UI Tests)
+    - ⬜ **code-review** (Code Review)
   - ⬜ **Batch 3H: Performance & System Design Foundations (3 topics)**
 - ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
 - ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
@@ -374,6 +382,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Starting Batch 3G: Architecture & Testing Strategy (8 topics: `mvvm` through `code-review`). Launching dedicated autonomous subagent.
 
 - **2026-11-10** — Built and published topic `combine-basics` (Combine Basics): researched official Apple Combine and event handling docs, authored lesson in simple English, interactive 4-step reactive pipeline diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/combine-basics/review.html`). All checks passed. Batch 3F (Data Persistence & Networking) is now 100% COMPLETE (5 of 5 published)! Mid level progress: 42 of 53 published (109 total published topics across curriculum).
 
