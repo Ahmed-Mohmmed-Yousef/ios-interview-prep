@@ -1,0 +1,226 @@
+export const meta = {
+  id: "combine-basics",
+  summary: "Process asynchronous event streams using Combine publishers, subscribers, subjects, and cancellables.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.0", xcode: "16.0", ios: "17.0" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "Combine", url: "https://developer.apple.com/documentation/combine", kind: "official" },
+    { title: "Receiving and Handling Events with Combine", url: "https://developer.apple.com/documentation/combine/receiving-and-handling-events-with-combine", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What happens to a Combine subscription if you do not store the returned AnyCancellable?</Question>
+  <Guess>
+    <Option id="a">The subscription runs forever on the system global queue without stopping.</Option>
+    <Option id="b" correct>The cancellable deallocates immediately, automatically cancelling the subscription before events can be processed.</Option>
+    <Option id="c">The app crashes with a fatal memory allocation exception on the main thread.</Option>
+    <Option id="d">The compiler automatically rewrites the code using Swift Concurrency async tasks.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine water flowing from a mountain reservoir through a garden hose to a sprinkler.
+The reservoir is the **Publisher**: it produces streams of water over time.
+The sprinkler is the **Subscriber**: it receives the water and waters the lawn.
+The valve on the hose is the **Subscription**: it controls how much water flows.
+If you let go of the hose, the spring-loaded nozzle snaps shut at once.
+That spring-loaded nozzle is **AnyCancellable**: you must anchor it down, or it shuts off the water immediately.
+</Analogy>
+
+**Combine** is Apple framework for processing asynchronous values over time.
+Introduced in iOS 13, it provides a unified reactive pattern for handling notification events, network responses, and user interface inputs.
+While newer projects often choose Swift Concurrency, many large production codebases rely heavily on Combine.
+
+Combine rests upon three core concepts:
+
+1. **`Publisher`**: A protocol that emits a sequence of values over time, finishing either successfully or with an error.
+2. **`Subscriber`**: A protocol that attaches to a publisher to receive incoming values and completion signals.
+3. **`Subscription`**: The active connection between a publisher and a subscriber that manages demand and backpressure.
+
+### Managing subscription lifecycles with AnyCancellable
+
+When you attach a subscriber using the **`.sink`** operator, Combine returns an **`AnyCancellable`** token.
+This token represents the active lifetime of your subscription:
+
+- If you do not store the `AnyCancellable`, it deallocates as soon as your local function scope exits.
+- Deallocating the token calls `cancel()`, terminating the subscription before values arrive.
+- Always store cancellables in a persistent container like `var cancellables = Set<AnyCancellable>()`.
+- When your view model deallocates, the set cleans up all subscriptions automatically, preventing memory leaks.
+
+### Subjects: Imperative bridges to publishers
+
+Sometimes you need to inject values into a stream manually. Combine provides **Subjects**:
+
+- **`PassthroughSubject`**: Broadcasts elements to active subscribers without caching past values. Late subscribers miss past events.
+- **`CurrentValueSubject`**: Stores a current value. It replays its latest value immediately to any new subscriber upon connection.
+
+### Transforming streams with operators
+
+Combine provides dozens of functional operators:
+
+- **`map`**: Transforms each incoming element into a new format.
+- **`filter`**: Passes only elements that meet a boolean condition.
+- **`compactMap`**: Unwraps optionals and discards any `nil` values.
+- **`removeDuplicates`**: Ignores sequential duplicate elements in the stream.
+- **`debounce`**: Waits for a quiet pause in rapid events (like typing in a search bar) before emitting the latest value.
+- **`Just`**: Emits a single value immediately and completes.
+
+**Combine organizes asynchronous events into clear, declarative pipelines managed by explicit cancellation tokens.**
+
+## See it
+
+<Diagram id="combine-stream" caption="How Combine routes values from a Publisher through transformation operators into a Subscriber anchored by AnyCancellable.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: Publisher/Subject Source, Operator Pipeline (Filter -> Map), Subscriber (.sink), AnyCancellable Token Storage.
+  - Step 1: Publisher or Subject emits a value downstream.
+  - Step 2: Operators filter and transform the value along the stream.
+  - Step 3: Subscriber receives the transformed element inside .sink and runs user logic.
+  - Step 4: AnyCancellable held in Set<AnyCancellable> keeps the connection alive; on deinit, calls cancel().
+  - Static version (reduced motion): Shows linear reactive stream flow from upstream Publisher through operator nodes to downstream Subscriber.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which Subject type requires an initial value and immediately replays its latest value to new subscribers?</Question>
+  <Option id="a">PassthroughSubject</Option>
+  <Option id="b" correct>CurrentValueSubject</Option>
+  <Option id="c">AnyPublisher</Option>
+  <Explanation>CurrentValueSubject maintains a buffered value that it publishes immediately to any new subscriber.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Creating a publisher pipeline with filter and map
+
+Create a `PassthroughSubject`, transform numbers with operators, and subscribe using `sink`.
+
+```swift
+import Combine
+import Foundation
+
+var bag = Set<AnyCancellable>()
+let numbers = PassthroughSubject<Int, Never>()
+
+var squaredEvenNumbers: [Int] = []
+
+numbers
+    .filter { $0 % 2 == 0 }
+    .map { $0 * $0 }
+    .sink { value in
+        squaredEvenNumbers.append(value)
+    }
+    .store(in: &bag)
+
+numbers.send(1)
+numbers.send(2)
+numbers.send(3)
+numbers.send(4)
+
+print("Result: \(squaredEvenNumbers)")
+```
+
+```output
+Result: [4, 16]
+```
+
+Storing the cancellable inside `bag` keeps the pipeline alive so it can receive all four values.
+
+### Observing state with CurrentValueSubject
+
+Use `CurrentValueSubject` to manage reactive state that delivers initial values to subscribers.
+
+```swift
+import Combine
+import Foundation
+
+var bag = Set<AnyCancellable>()
+let score = CurrentValueSubject<Int, Never>(10)
+
+var log: [Int] = []
+
+score
+    .sink { value in
+        log.append(value)
+    }
+    .store(in: &bag)
+
+score.send(20)
+score.value = 30
+
+print("Scores: \(log)")
+```
+
+```output
+Scores: [10, 20, 30]
+```
+
+Notice that `10` is logged immediately upon subscription because `CurrentValueSubject` replays its current value.
+
+<QuickCheck>
+  <Question>Why must you store the token returned by .sink() in a Set of AnyCancellable?</Question>
+  <Option id="a">To convert the synchronous code into an asynchronous background Task.</Option>
+  <Option id="b" correct>To keep the subscription alive and prevent automatic cancellation on scope exit.</Option>
+  <Option id="c">To encrypt the network connection using TLS certificates.</Option>
+  <Explanation>If the AnyCancellable is not retained, its deinitializer cancels the subscription immediately.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open an iOS playground, create a PassthroughSubject with a debounce operator of 0.5 seconds, and send rapid values to see debouncing in action.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Discarding the AnyCancellable return value">
+The most common mistake when starting with Combine is ignoring the returned `AnyCancellable`.
+Writing `publisher.sink { ... }` without storing the return value causes the cancellable to deallocate at the end of the line.
+Its deinitializer runs immediately, cancelling the subscription before any asynchronous events can arrive.
+Always chain `.store(in: &cancellables)` to retain the active connection.
+</Trap>
+
+<Trap title="Creating retain cycles with assign(to:on: self)">
+The `assign(to: \.property, on: self)` operator creates a strong reference to the target object `self`.
+If `self` also holds the returned `AnyCancellable` in its properties, you form a retain cycle (`self -> cancellable -> self`).
+Neither object can ever deallocate, creating a silent memory leak.
+To avoid this leak, use `sink { [weak self] in self?.property = $0 }` or the newer `assign(to: &$property)` on `@Published` properties.
+</Trap>
+
+<Trap title="Confusing PassthroughSubject with CurrentValueSubject">
+If a screen component subscribes after initial values were sent, a `PassthroughSubject` will not replay anything.
+The view will appear empty until a brand new event is triggered.
+If your UI needs the current or latest state upon appearance, always choose `CurrentValueSubject`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Combine is Apple framework for reactive event programming over time.
+It connects Publishers that emit values with Subscribers that receive them, using operators like `map`, `filter`, and `debounce` to transform the data.
+When we subscribe with `.sink`, it returns an `AnyCancellable` token that we must store in a set to keep the stream alive.
+When our view model deallocates, the set cleans up all subscriptions automatically, preventing memory leaks.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Combine provides a structured reactive architecture based on functional reactive streams and backpressure management.
+I use `PassthroughSubject` for transient actions like button taps, and `CurrentValueSubject` for stateful models requiring immediate replay on subscription.
+For memory safety, I avoid the retain cycle risk of `assign(to:on: self)` by using `[weak self]` closures or binding directly to `@Published` properties.
+While modern Swift applications prioritize `AsyncStream` and Swift Concurrency, Combine remains a critical tool for legacy UIKit view models and complex stream debouncing.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Combine standardizes asynchronous event processing using declarative pipelines.
+- `Publisher` emits values over time; `Subscriber` receives them.
+- `Subscription` connects publisher to subscriber and handles backpressure demand.
+- `.sink` attaches a closure subscriber and returns an `AnyCancellable` token.
+- You must store `AnyCancellable` in a set or property; otherwise, it cancels immediately.
+- `PassthroughSubject` broadcasts events without buffering past elements.
+- `CurrentValueSubject` buffers its latest value and replays it to new subscribers.
+- `assign(to:on: self)` causes retain cycles; prefer `sink` with `[weak self]`.
+- Operators like `map`, `filter`, and `debounce` transform event streams cleanly.
+</Recap>
