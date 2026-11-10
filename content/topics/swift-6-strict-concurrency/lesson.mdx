@@ -1,0 +1,166 @@
+export const meta = {
+  id: "swift-6-strict-concurrency",
+  summary: "Migrate your project to Swift 6, understand strict concurrency checking, and solve common compiler errors cleanly.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "Migrating to Swift 6 (Swift.org)",
+      url: "https://www.swift.org/migration/documentation/migrationguide/"
+    },
+    {
+      title: "WWDC24: Migrate your app to Swift 6",
+      url: "https://developer.apple.com/videos/play/wwdc2024/10169/"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    You enable Swift 6 language mode in Xcode. Your code fails with errors about passing non-Sendable types and calling main actor methods. Why?
+  </Question>
+  <Guess>
+    <Option id="a">Swift 6 deletes all background threads and runs all code on the GPU.</Option>
+    <Option id="b">Apple deprecated Grand Central Dispatch and removed async await.</Option>
+    <Option id="c" correct>Swift 6 turns concurrency warnings into hard compiler errors to guarantee zero data races.</Option>
+    <Option id="d">The Swift compiler requires all classes to inherit from NSManagedObject.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+In Swift 5, concurrency checks were optional warnings. You could ship code with potential data races.
+
+Swift 6 enables complete concurrency checking by default. The compiler turns those warnings into strict errors.
+
+Code that compiles without errors in Swift 6 is proven free of data races.
+
+<Analogy>
+  Think of building a house. Swift 5 gave you helpful advice from building inspectors. You could ignore the advice and move in anyway. Swift 6 acts like a locked gate. You cannot open the door until every electrical connection passes strict inspection.
+</Analogy>
+
+Most Swift 6 errors fall into three common patterns:
+
+First, passing a mutable class across task boundaries. You fix this by converting the class to a struct or an actor.
+
+Second, calling a `@MainActor` function from background code without `await`. You fix this by adding `await` or marking the caller `@MainActor`.
+
+Third, accessing a mutable global variable. You fix this by turning it into a `let` constant or protecting it with `@MainActor`.
+
+When migrating legacy libraries, you can use `@preconcurrency import`. For classes that manage locks manually, you can use `nonisolated(unsafe)`.
+
+## See it
+
+<Diagram id="swift-6-strict-concurrency" caption="Visualize Swift 6 strict concurrency checks: error detection, actor isolation hopping, and global variable protection." />
+
+## In code
+
+Here is how you fix a non-isolated caller trying to use a `@MainActor` class. You write `await` to hop onto the actor safely.
+
+```swift
+@MainActor
+final class StatusReporter {
+    var status = "Idle"
+
+    func update(to newStatus: String) {
+        status = newStatus
+    }
+}
+
+nonisolated func refresh() async {
+    let reporter = await StatusReporter()
+    await reporter.update(to: "Running")
+    let current = await reporter.status
+    print("Status: \(current)")
+}
+
+await refresh()
+```
+```output
+Status: Running
+```
+
+Without the `await` keyword, Swift 6 stops the build because background code cannot access main actor state synchronously.
+
+Next, here is how you protect shared static state using `@MainActor`.
+
+```swift
+enum AppState {
+    @MainActor static var launchCount = 0
+}
+
+func recordLaunch() async {
+    await MainActor.run {
+        AppState.launchCount += 1
+        print("Launch count: \(AppState.launchCount)")
+    }
+}
+
+await recordLaunch()
+```
+```output
+Launch count: 1
+```
+
+In Swift 5, unprotected static variables produced runtime crashes. In Swift 6, `@MainActor` makes mutations thread-safe.
+
+<TryIt>
+  Open Xcode build settings. Set Swift Language Version to Swift 6. Build a sample project to inspect the compiler diagnostics.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    What is the main difference between Swift 5 and Swift 6 concurrency checking?
+  </Question>
+  <Option id="a">Swift 6 removes actor support and replaces it with locks.</Option>
+  <Option id="b" correct>Swift 6 enforces strict concurrency by default, turning data race warnings into compiler errors.</Option>
+  <Option id="c">Swift 6 requires all code to execute exclusively on the main thread.</Option>
+  <Option id="d">Swift 6 disables value semantics for structs and arrays.</Option>
+  <Explanation>
+    Swift 6 turns optional warnings into compiler errors. This guarantees data race safety at build time.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    How do you protect a mutable static variable against Swift 6 compiler errors?
+  </Question>
+  <Option id="a">Wrap the variable inside an autoreleasepool block.</Option>
+  <Option id="b">Declare the variable with the dynamic and weak keywords.</Option>
+  <Option id="c" correct>Isolate the static variable with @MainActor or convert it to an immutable let constant.</Option>
+  <Option id="d">Move the variable to an Objective-C header file.</Option>
+  <Explanation>
+    Isolating the variable to @MainActor prevents concurrent unsynchronized writes. If the value never changes, make it a let constant.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Do not sprinkle nonisolated(unsafe) everywhere">
+  `nonisolated(unsafe)` bypasses compiler checks for that specific variable. If you use it without manual synchronization like locks, your app will still crash. Only use it when a variable is already protected by custom locks.
+</Trap>
+
+<Trap label="Avoid migrating an entire huge codebase at once">
+  Turning on Swift 6 across hundreds of thousands of lines creates thousands of errors at once. Migrate module by module. Swift 5 and Swift 6 modules can interoperate smoothly.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  Swift 6 turns concurrency warnings into hard compiler errors to guarantee zero data races. The three most common errors are passing non-Sendable classes, calling main actor methods without await, and mutable global variables. I solve them by converting classes to Sendable structs, awaiting main actor hops, and isolating global state to `@MainActor`.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I lead Swift 6 migration incrementally by enabling complete strict concurrency module by module. I fix boundary issues using Sendable value types and actors. For third-party dependencies that lack annotations, I apply `@preconcurrency import`. For legacy types with internal locking, I use `nonisolated(unsafe)`. Swift 6 region-based isolation also lets us transfer unshared objects without boilerplate.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Swift 6 strict concurrency eliminates data races at compile time. Swift 5 warnings become Swift 6 errors. Fix boundary errors by using Sendable value types or actors. Protect global variables with let constants or @MainActor. Migrate incrementally module by module.
+</Recap>
+
+## Go deeper
+
+- Migrating to Swift 6: https://www.swift.org/migration/documentation/migrationguide/
+- WWDC24: Migrate your app to Swift 6: https://developer.apple.com/videos/play/wwdc2024/10169/

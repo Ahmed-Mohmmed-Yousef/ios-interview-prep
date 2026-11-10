@@ -1,0 +1,685 @@
+<title>Swift 6 Strict Concurrency Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stage-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.badge.danger { background: var(--danger-soft); color: var(--danger-color); }
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.step-counter {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--ink);
+  transform: translateY(-1px);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.caption-box {
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 4px solid var(--safe-color);
+  background: var(--code-bg);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Concurrency · Topic 6 of 7 · Prototype</p>
+    <h1>Swift 6 Strict Concurrency</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can fix common Swift 6 concurrency errors.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>You enable Swift 6 language mode in Xcode. Your code fails with errors about passing non-Sendable types and calling main actor methods. Why?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Swift 6 deletes all background threads and runs all code on the GPU.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Apple deprecated Grand Central Dispatch and removed async await.</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">Swift 6 turns concurrency warnings into hard compiler errors to guarantee zero data races.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">The Swift compiler requires all classes to inherit from NSManagedObject.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<p>In Swift 5, concurrency checks were optional warnings. You could ship code with potential data races.</p>
+<p>Swift 6 enables complete concurrency checking by default. The compiler turns those warnings into strict errors.</p>
+<p>Code that compiles without errors in Swift 6 is proven free of data races.</p>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of building a house. Swift 5 gave you helpful advice from building inspectors. You could ignore the advice and move in anyway. Swift 6 acts like a locked gate. You cannot open the door until every electrical connection passes strict inspection.</p></aside>
+<p>Most Swift 6 errors fall into three common patterns:</p>
+<p>First, passing a mutable class across task boundaries. You fix this by converting the class to a struct or an actor.</p>
+<p>Second, calling a <code>@MainActor</code> function from background code without <code>await</code>. You fix this by adding <code>await</code> or marking the caller <code>@MainActor</code>.</p>
+<p>Third, accessing a mutable global variable. You fix this by turning it into a <code>let</code> constant or protecting it with <code>@MainActor</code>.</p>
+<p>When migrating legacy libraries, you can use <code>@preconcurrency import</code>. For classes that manage locks manually, you can use <code>nonisolated(unsafe)</code>.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<p>Here is how you fix a non-isolated caller trying to use a <code>@MainActor</code> class. You write <code>await</code> to hop onto the actor safely.</p>
+<pre class="block swift"><code class="language-swift">@MainActor
+final class StatusReporter {
+    var status = &quot;Idle&quot;
+
+    func update(to newStatus: String) {
+        status = newStatus
+    }
+}
+
+nonisolated func refresh() async {
+    let reporter = await StatusReporter()
+    await reporter.update(to: &quot;Running&quot;)
+    let current = await reporter.status
+    print(&quot;Status: \(current)&quot;)
+}
+
+await refresh()
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Status: Running
+</code></pre>
+<p>Without the <code>await</code> keyword, Swift 6 stops the build because background code cannot access main actor state synchronously.</p>
+<p>Next, here is how you protect shared static state using <code>@MainActor</code>.</p>
+<pre class="block swift"><code class="language-swift">enum AppState {
+    @MainActor static var launchCount = 0
+}
+
+func recordLaunch() async {
+    await MainActor.run {
+        AppState.launchCount += 1
+        print(&quot;Launch count: \(AppState.launchCount)&quot;)
+    }
+}
+
+await recordLaunch()
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Launch count: 1
+</code></pre>
+<p>In Swift 5, unprotected static variables produced runtime crashes. In Swift 6, <code>@MainActor</code> makes mutations thread-safe.</p>
+<p class="try-it"><p>Open Xcode build settings. Set Swift Language Version to Swift 6. Build a sample project to inspect the compiler diagnostics.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>What is the main difference between Swift 5 and Swift 6 concurrency checking?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Swift 6 removes actor support and replaces it with locks.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Swift 6 enforces strict concurrency by default, turning data race warnings into compiler errors.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Swift 6 requires all code to execute exclusively on the main thread.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Swift 6 disables value semantics for structs and arrays.</span></button><p class="qc-explain" hidden=""><p>Swift 6 turns optional warnings into compiler errors. This guarantees data race safety at build time.</p></p></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>How do you protect a mutable static variable against Swift 6 compiler errors?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Wrap the variable inside an autoreleasepool block.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Declare the variable with the dynamic and weak keywords.</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">Isolate the static variable with @MainActor or convert it to an immutable let constant.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Move the variable to an Objective-C header file.</span></button><p class="qc-explain" hidden=""><p>Isolating the variable to @MainActor prevents concurrent unsynchronized writes. If the value never changes, make it a let constant.</p></p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p><code>nonisolated(unsafe)</code> bypasses compiler checks for that specific variable. If you use it without manual synchronization like locks, your app will still crash. Only use it when a variable is already protected by custom locks.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Turning on Swift 6 across hundreds of thousands of lines creates thousands of errors at once. Migrate module by module. Swift 5 and Swift 6 modules can interoperate smoothly.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>Swift 6 turns concurrency warnings into hard compiler errors to guarantee zero data races. The three most common errors are passing non-Sendable classes, calling main actor methods without await, and mutable global variables. I solve them by converting classes to Sendable structs, awaiting main actor hops, and isolating global state to <code>@MainActor</code>.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>I lead Swift 6 migration incrementally by enabling complete strict concurrency module by module. I fix boundary issues using Sendable value types and actors. For third-party dependencies that lack annotations, I apply <code>@preconcurrency import</code>. For legacy types with internal locking, I use <code>nonisolated(unsafe)</code>. Swift 6 region-based isolation also lets us transfer unshared objects without boilerplate.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><p>Swift 6 strict concurrency eliminates data races at compile time. Swift 5 warnings become Swift 6 errors. Fix boundary errors by using Sendable value types or actors. Protect global variables with let constants or @MainActor. Migrate incrementally module by module.</p></div>
+<h2>Go deeper</h2>
+<ul>
+<li>Migrating to Swift 6: <a href="https://www.swift.org/migration/documentation/migrationguide/">https://www.swift.org/migration/documentation/migrationguide/</a></li>
+<li>WWDC24: Migrate your app to Swift 6: <a href="https://developer.apple.com/videos/play/wwdc2024/10169/">https://developer.apple.com/videos/play/wwdc2024/10169/</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    title: "Step 1: Swift 5 Warning vs Swift 6 Error",
+    badge: "Swift 6 Error",
+    badgeClass: "danger",
+    caption: "Swift 5 generated a warning that was often ignored. In Swift 6, passing a mutable reference type across a task boundary produces a hard compiler error.",
+    code: "// Swift 6 Error:\nclass UserState { var score = 100 }\nlet state = UserState()\nTask.detached {\n    print(state.score) // Error: passing non-Sendable 'state'\n}",
+    leftTitle: "Caller Context",
+    leftCode1: "class UserState",
+    leftCode2: "var score = 100",
+    leftDetail: "Non-Sendable class",
+    leftTagText: "MUTABLE REFERENCE",
+    leftTagFill: "var(--danger-soft)",
+    leftTagColor: "var(--danger-color)",
+    gateText: "BLOCKED",
+    gateFill: "var(--danger-color)",
+    arrowColor: "var(--danger-color)",
+    arrowDash: "6 4",
+    rightRectFill: "var(--danger-soft)",
+    rightRectStroke: "var(--danger-color)",
+    rightTitle: "Swift 6 Diagnostic",
+    rightTitleColor: "var(--danger-color)",
+    rightDiag1: "error: passing non-Sendable",
+    rightDiag2: "type 'UserState' into Task",
+    rightDetail: "Build halts immediately",
+    rightTagText: "ZERO RUNTIME DATA RACES",
+    rightTagFill: "var(--danger-color)"
+  },
+  {
+    title: "Step 2: Fixing Boundary with Sendable Struct",
+    badge: "Fixed: Value Type",
+    badgeClass: "safe",
+    caption: "Fix the error by converting the model into an immutable Sendable struct. The data is copied safely without shared memory.",
+    code: "// Swift 6 Clean Solution:\nstruct UserState: Sendable {\n    let score: Int\n}\nlet state = UserState(score: 100)\nTask.detached {\n    print(state.score) // OK: UserState is Sendable\n}",
+    leftTitle: "Value Semantics",
+    leftCode1: "struct UserState: Sendable",
+    leftCode2: "let score: Int",
+    leftDetail: "Independent value copy",
+    leftTagText: "IMMUTABLE VALUE",
+    leftTagFill: "var(--safe-soft)",
+    leftTagColor: "var(--safe-color)",
+    gateText: "PASSED",
+    gateFill: "var(--safe-color)",
+    arrowColor: "var(--safe-color)",
+    arrowDash: "none",
+    rightRectFill: "var(--safe-soft)",
+    rightRectStroke: "var(--safe-color)",
+    rightTitle: "Compiler Approved",
+    rightTitleColor: "var(--safe-color)",
+    rightDiag1: "ok: UserState conforms",
+    rightDiag2: "to Sendable protocol",
+    rightDetail: "Clean build with 0 errors",
+    rightTagText: "SAFE CONCURRENCY PASS",
+    rightTagFill: "var(--safe-color)"
+  },
+  {
+    title: "Step 3: Fixing Main Actor Access with await",
+    badge: "Fixed: Actor Hop",
+    badgeClass: "safe",
+    caption: "When calling a @MainActor method from a non-isolated background context, you must write await. Swift inserts an asynchronous actor hop.",
+    code: "@MainActor final class ViewModel {\n    func updateTitle() { ... }\n}\n\nnonisolated func loadData() async {\n    let vm = await ViewModel()\n    await vm.updateTitle() // Awaits main actor hop\n}",
+    leftTitle: "Background Task",
+    leftCode1: "nonisolated func loadData()",
+    leftCode2: "await vm.updateTitle()",
+    leftDetail: "Asynchronous hop",
+    leftTagText: "ACTOR HOP REQUIRED",
+    leftTagFill: "var(--accent-soft)",
+    leftTagColor: "var(--accent-color)",
+    gateText: "AWAIT HOP",
+    gateFill: "var(--accent-color)",
+    arrowColor: "var(--accent-color)",
+    arrowDash: "none",
+    rightRectFill: "var(--accent-soft)",
+    rightRectStroke: "var(--accent-color)",
+    rightTitle: "@MainActor Isolated",
+    rightTitleColor: "var(--accent-color)",
+    rightDiag1: "@MainActor final class VM",
+    rightDiag2: "Runs on main thread",
+    rightDetail: "Thread-safe UI mutations",
+    rightTagText: "MAIN THREAD PROTECTED",
+    rightTagFill: "var(--accent-color)"
+  },
+  {
+    title: "Step 4: Protecting Shared Static / Global State",
+    badge: "Fixed: State Isolation",
+    badgeClass: "safe",
+    caption: "Global mutable variables are forbidden in Swift 6. Protect them by placing static variables inside an enum isolated with @MainActor.",
+    code: "enum AppConfig {\n    @MainActor static var launchCount = 0\n}\n\n// Mutations must run on @MainActor:\nawait MainActor.run {\n    AppConfig.launchCount += 1\n}",
+    leftTitle: "Global State Access",
+    leftCode1: "enum AppConfig {",
+    leftCode2: "  @MainActor static var c",
+    leftDetail: "Protected static variable",
+    leftTagText: "ISOLATED STATIC",
+    leftTagFill: "var(--safe-soft)",
+    leftTagColor: "var(--safe-color)",
+    gateText: "PROTECTED",
+    gateFill: "var(--safe-color)",
+    arrowColor: "var(--safe-color)",
+    arrowDash: "none",
+    rightRectFill: "var(--safe-soft)",
+    rightRectStroke: "var(--safe-color)",
+    rightTitle: "Data Race Free",
+    rightTitleColor: "var(--safe-color)",
+    rightDiag1: "Static variable isolated",
+    rightDiag2: "to @MainActor context",
+    rightDetail: "No concurrent write hazards",
+    rightTagText: "ZERO SHARED STATE ERRORS",
+    rightTagFill: "var(--safe-color)"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  document.getElementById("stageTitle").textContent = s.title;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = s.badge;
+  badge.className = `badge ${s.badgeClass}`;
+
+  document.getElementById("captionText").textContent = s.caption;
+  document.getElementById("codeText").textContent = s.code;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.getElementById("leftTitle").textContent = s.leftTitle;
+  document.getElementById("leftCode1").textContent = s.leftCode1;
+  document.getElementById("leftCode2").textContent = s.leftCode2;
+  document.getElementById("leftDetail").textContent = s.leftDetail;
+  document.getElementById("leftTagText").textContent = s.leftTagText;
+  document.getElementById("leftTagText").setAttribute("fill", s.leftTagColor);
+  document.getElementById("leftTag").setAttribute("fill", s.leftTagFill);
+
+  document.getElementById("gateText").textContent = s.gateText;
+  document.getElementById("gateRect").setAttribute("fill", s.gateFill);
+  document.getElementById("flowArrow").setAttribute("stroke", s.arrowColor);
+  document.getElementById("flowArrow").setAttribute("stroke-dasharray", s.arrowDash);
+  document.getElementById("arrowHead").setAttribute("fill", s.arrowColor);
+
+  document.getElementById("rightRect").setAttribute("fill", s.rightRectFill);
+  document.getElementById("rightRect").setAttribute("stroke", s.rightRectStroke);
+  document.getElementById("rightTitle").textContent = s.rightTitle;
+  document.getElementById("rightTitle").setAttribute("fill", s.rightTitleColor);
+  document.getElementById("rightDiag1").textContent = s.rightDiag1;
+  document.getElementById("rightDiag2").textContent = s.rightDiag2;
+  document.getElementById("rightDetail").textContent = s.rightDetail;
+  document.getElementById("rightTagText").textContent = s.rightTagText;
+  document.getElementById("rightTag").setAttribute("fill", s.rightTagFill);
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"swift-6-strict-concurrency","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"s6-q1","type":"mcq","difficulty":1,"prompt":"What happens by default when you enable Swift 6 language mode in Xcode?","options":[{"id":"a","text":"Complete strict concurrency checking is enabled, turning data race warnings into compiler errors.","explanation":"Swift 6 enforces complete strict concurrency checking by default, transforming warnings into hard errors."},{"id":"b","text":"The compiler disables ARC and switches memory management to a tracing garbage collector.","explanation":"Swift continues using Automatic Reference Counting (ARC) in Swift 6."},{"id":"c","text":"All concurrent tasks are forced to execute on thread number zero at reduced clock speed.","explanation":"Swift concurrency continues using the cooperative background thread pool."},{"id":"d","text":"Grand Central Dispatch APIs are automatically deleted from the iOS SDK headers.","explanation":"GCD remains fully available for legacy interoperability."}],"answer":"a"},{"id":"s6-q2","type":"mcq","difficulty":1,"prompt":"Why did Swift 5 allow code with potential data races to compile while Swift 6 stops the build?","options":[{"id":"a","text":"Because Swift 5 was designed exclusively to execute on single-core mobile application processors.","explanation":"iOS devices have used multi-core processors for more than a decade."},{"id":"b","text":"Because Swift 5 treated concurrency checks as optional warnings to give developers time to migrate.","explanation":"Swift 5 provided an opt-in migration period with warnings before Swift 6 made safety mandatory."},{"id":"c","text":"Because Swift 5 lacked language support for immutable structs and value-typed collections.","explanation":"Structs have been fundamental to Swift since version 1.0."},{"id":"d","text":"Because Swift 5 compiled source code directly into intermediate Objective-C bytecode files.","explanation":"Swift compiles directly into machine code via LLVM."}],"answer":"b"},{"id":"s6-q3","type":"mcq","difficulty":2,"prompt":"You see this error in Swift 6: 'Call to main actor-isolated method in a synchronous nonisolated context'. How do you fix it?","options":[{"id":"a","text":"Mark the called method with the discardableResult attribute to suppress returned errors.","explanation":"discardableResult only silences unused return value warnings."},{"id":"b","text":"Convert the enclosing Swift class into an Objective-C category across all targets.","explanation":"Objective-C categories do not solve Swift concurrency isolation."},{"id":"c","text":"Call the method with await from an async context or annotate the caller with @MainActor.","explanation":"Adding await hops onto the main actor asynchronously, or marking the caller @MainActor isolates it."},{"id":"d","text":"Declare all parameter arguments using the pass-by-reference inout keyword modifier.","explanation":"inout modifiers are for pass-by-reference mutation and do not fix isolation."}],"answer":"c"},{"id":"s6-q4","type":"mcq","difficulty":2,"prompt":"Why does Swift 6 flag mutable global variables like 'var globalCount = 0' as compiler errors?","options":[{"id":"a","text":"Because global mutable variables consume double the memory footprint on 64-bit systems.","explanation":"Memory size is standard across variable scopes."},{"id":"b","text":"Because global variables cannot be imported or referenced inside declarative SwiftUI views.","explanation":"SwiftUI views can reference accessible global symbols."},{"id":"c","text":"Because the Swift compiler forbids basic arithmetic operations outside struct declarations.","explanation":"Arithmetic is legal throughout all Swift code."},{"id":"d","text":"Because any concurrent task can write to unsynchronized global memory simultaneously, creating a data race.","explanation":"Unsynchronized global variables allow simultaneous reads and writes across threads, causing data races."}],"answer":"d"},{"id":"s6-q5","type":"mcq","difficulty":2,"prompt":"What is the recommended fix for a shared static variable that must be mutated by user interface code?","options":[{"id":"a","text":"Isolate the static variable with the @MainActor attribute so all mutations run on the main thread.","explanation":"Annotating the static property with @MainActor guarantees that all reads and writes synchronize on the main actor."},{"id":"b","text":"Wrap the variable in a lazy computed property returning an optional type.","explanation":"Computed properties do not solve thread safety on shared mutable storage."},{"id":"c","text":"Cast the variable to AnyObject before passing it to background threads.","explanation":"Casting to AnyObject retains reference semantics and does not synchronize access."},{"id":"d","text":"Declare the variable inside a C bridge header file using macro definitions.","explanation":"Bridging through C headers does not provide Swift Concurrency safety."}],"answer":"a"},{"id":"s6-q6","type":"mcq","difficulty":2,"prompt":"What does the @preconcurrency attribute do when importing a third-party framework?","options":[{"id":"a","text":"It forces the framework to recompile using Grand Central Dispatch queues.","explanation":"It does not alter third-party binary code or inject GCD queues."},{"id":"b","text":"It silences strict concurrency diagnostics for that dependency until the library authors adopt Swift 6.","explanation":"@preconcurrency softens concurrency checks for unannotated dependencies during migration."},{"id":"c","text":"It runs all framework methods on high priority background threads.","explanation":"Thread priorities are unaffected by the import attribute."},{"id":"d","text":"It strips out all public protocol conformances from that library.","explanation":"Protocol conformances remain intact."}],"answer":"b"},{"id":"s6-q7","type":"mcq","difficulty":2,"prompt":"What does the 'nonisolated(unsafe)' keyword do when attached to a variable in Swift 6?","options":[{"id":"a","text":"It permanently crashes the application if accessed by more than one thread.","explanation":"It does not insert crash assertions; it silences compiler isolation checks."},{"id":"b","text":"It marks the variable as weak to prevent retain cycles in closures.","explanation":"weak is a separate keyword for reference counting."},{"id":"c","text":"It opts that specific variable out of compiler isolation checks when thread safety is managed manually.","explanation":"nonisolated(unsafe) tells the compiler that the developer manages synchronization manually."},{"id":"d","text":"It automatically converts the variable into a Sendable struct copy.","explanation":"It does not modify the underlying type or semantics."}],"answer":"c"},{"id":"s6-q8","type":"mcq","difficulty":2,"prompt":"What is the recommended strategy for migrating a large iOS codebase to Swift 6?","options":[{"id":"a","text":"Rewrite the entire application in C++ using modern standard library containers.","explanation":"Rewriting in C++ is counterproductive for iOS apps."},{"id":"b","text":"Disable all warnings in Xcode and ship the app without testing.","explanation":"Ignoring warnings defeats the safety goals of Swift Concurrency."},{"id":"c","text":"Enable Swift 6 mode across all targets simultaneously on a single branch.","explanation":"Migrating all targets at once creates thousands of errors simultaneously."},{"id":"d","text":"Migrate module by module, resolving warnings in Swift 5 before switching individual targets to Swift 6.","explanation":"Incremental migration per module allows teams to deliver features while modernizing code."}],"answer":"d"},{"id":"s6-q9","type":"mcq","difficulty":2,"prompt":"How does region-based isolation in Swift 6 assist with migrating non-Sendable types?","options":[{"id":"a","text":"It allows transferring non-Sendable values between tasks when the compiler proves no other reference exists.","explanation":"Region analysis permits transferring unshared non-Sendable instances without compiler errors."},{"id":"b","text":"It moves application memory allocations to specific geographical cloud server regions.","explanation":"Region isolation refers to program variable memory regions, not cloud data centers."},{"id":"c","text":"It converts all reference types into Objective-C NSData binary property list payloads.","explanation":"Types remain standard Swift objects without conversion."},{"id":"d","text":"It replaces all asynchronous functions with synchronous POSIX thread dispatch semaphores.","explanation":"It works directly with Swift Concurrency without semaphores."}],"answer":"a"},{"id":"s6-q10","type":"mcq","difficulty":2,"prompt":"When should you use MainActor.assumeIsolated instead of MainActor.run?","options":[{"id":"a","text":"When executing network requests on background thread pools.","explanation":"assumeIsolated requires the current thread to be the main thread."},{"id":"b","text":"When your code is already running on the main thread, such as in a synchronous UIKit delegate callback.","explanation":"assumeIsolated synchronously accesses main actor state without await when execution is already on main."},{"id":"c","text":"When writing unit tests that deliberately test background race conditions.","explanation":"assumeIsolated will crash if executed off the main thread."},{"id":"d","text":"When you want to suppress all compiler warnings in release builds.","explanation":"assumeIsolated is an isolation tool, not a warning suppression flag."}],"answer":"b"},{"id":"s6-q11","type":"mcq","difficulty":2,"prompt":"What happens if MainActor.assumeIsolated is called from a background thread at runtime?","options":[{"id":"a","text":"It logs a warning to the console and resumes execution after a brief delay.","explanation":"assumeIsolated performs a hard assertion and does not merely log a warning."},{"id":"b","text":"It switches the calling thread to the main thread transparently.","explanation":"It is synchronous and cannot switch threads mid-call."},{"id":"c","text":"It traps and crashes the application with a precondition failure.","explanation":"assumeIsolated verifies main thread execution with a runtime assertion, trapping if false."},{"id":"d","text":"It returns nil without executing the provided closure block.","explanation":"It traps immediately upon failing the main thread precondition."}],"answer":"c"},{"id":"s6-q12","type":"mcq","difficulty":2,"prompt":"Why does Swift 6 forbid mutating a local variable captured by an escaping Task closure?","options":[{"id":"a","text":"Because Task closures can only capture constants declared in system frameworks.","explanation":"Closures can capture any Sendable constant."},{"id":"b","text":"Because local variables are automatically deallocated when an async function begins.","explanation":"Variables live for their enclosing scope lifetime."},{"id":"c","text":"Because the Swift runtime allocates all local variables on external flash memory.","explanation":"Local variables reside on the execution stack or heap capture boxes."},{"id":"d","text":"Because mutating shared local memory concurrently from another thread produces a data race.","explanation":"Capturing a mutable variable across concurrent threads allows unsynchronized simultaneous access."}],"answer":"d"},{"id":"s6-q13","type":"mcq","difficulty":2,"prompt":"How should you refactor code that tries to mutate a captured local variable inside a Task?","options":[{"id":"a","text":"Return the calculated value from the Task and await task.value in the caller.","explanation":"Returning the result from the Task eliminates shared mutable memory by using structured return values."},{"id":"b","text":"Mark the local variable with the unowned keyword modifier.","explanation":"unowned is for class references and does not solve concurrency data races."},{"id":"c","text":"Cast the Task into a DispatchWorkItem and call notify().","explanation":"Converting to GCD primitives does not fix Swift Concurrency safety."},{"id":"d","text":"Wrap the variable in a fatalError statement before executing the Task.","explanation":"fatalError crashes the app and is not a refactoring fix."}],"answer":"a"},{"id":"s6-q14","type":"mcq","difficulty":2,"prompt":"Can a Swift 5 module and a Swift 6 module interoperate within the same iOS application?","options":[{"id":"a","text":"No, all targets must use identical Swift language versions to compile.","explanation":"Swift has module-level language version support."},{"id":"b","text":"Yes, Swift supports module-level adoption so Swift 5 and Swift 6 targets link seamlessly.","explanation":"Module-by-module migration allows apps to upgrade one library or feature module at a time."},{"id":"c","text":"Only if both modules disable all optimizations in release configurations.","explanation":"Optimization levels do not affect language interoperability."},{"id":"d","text":"Only when running on macOS, but not on iOS or iPadOS devices.","explanation":"Module language interoperability is fully supported on all Apple platforms."}],"answer":"b"},{"id":"s6-q15","type":"mcq","difficulty":3,"prompt":"What compiler build setting in Swift 5 enabled testing for Swift 6 concurrency issues before migration?","options":[{"id":"a","text":"SWIFT_TREAT_WARNINGS_AS_ERRORS build setting set to NO in build options.","explanation":"Treat warnings as errors does not turn on concurrency checks."},{"id":"b","text":"SWIFT_OPTIMIZATION_LEVEL build setting set to fast unchecked release mode.","explanation":"Optimization levels control machine code generation, not language diagnostics."},{"id":"c","text":"Strict Concurrency Checking set to Complete (-strict-concurrency=complete).","explanation":"Setting Strict Concurrency Checking to Complete in Swift 5 surfaces Swift 6 warnings early."},{"id":"d","text":"CLANG_ENABLE_MODULES build setting set to YES across application targets.","explanation":"Clang modules enable modular framework imports, not concurrency diagnostics."}],"answer":"c"},{"id":"s6-q16","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"@MainActor\nfinal class UIState {\n    var title = \"Draft\"\n    func publish() {\n        title = \"Published\"\n    }\n}\n\nnonisolated func run() async {\n    let state = await UIState()\n    await state.publish()\n    let text = await state.title\n    print(\"State: \\(text)\")\n}\n\nawait run()","options":[{"id":"a","text":"State: Draft","explanation":"publish() updates title to 'Published'."},{"id":"b","text":"State: nil","explanation":"title is a non-optional String."},{"id":"c","text":"State: Error","explanation":"The code compiles and runs cleanly with await."},{"id":"d","text":"State: Published","explanation":"The nonisolated function hops onto @MainActor using await, updates title, and prints 'State: Published'."}],"answer":"d"},{"id":"s6-q17","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"enum DatabaseMetrics {\n    @MainActor static var queries = 0\n}\n\nfunc logQuery() async {\n    await MainActor.run {\n        DatabaseMetrics.queries += 3\n        print(\"Queries: \\(DatabaseMetrics.queries)\")\n    }\n}\n\nawait logQuery()","options":[{"id":"a","text":"Queries: 3","explanation":"MainActor.run isolates the static variable mutation safely and prints 'Queries: 3'."},{"id":"b","text":"Queries: 0","explanation":"queries is incremented by 3 before printing."},{"id":"c","text":"Queries: 1","explanation":"The addition adds 3, not 1."},{"id":"d","text":"Queries: nil","explanation":"queries is a non-optional Int."}],"answer":"a"},{"id":"s6-q18","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed under Swift 6 region-based isolation?","code":"class Report {\n    var title = \"Weekly Summary\"\n}\n\nfunc generateReport() async {\n    let report = Report()\n    let task = Task {\n        report.title = \"Final Summary\"\n        return report.title\n    }\n    let res = await task.value\n    print(\"Report: \\(res)\")\n}\n\nawait generateReport()","options":[{"id":"a","text":"Report: Weekly Summary","explanation":"report.title was updated to 'Final Summary' inside the Task."},{"id":"b","text":"Report: Final Summary","explanation":"Under region-based isolation (SE-0414), transferring unshared report into the Task is permitted and returns 'Final Summary'."},{"id":"c","text":"Report: Draft Summary","explanation":"Draft Summary does not appear in the code."},{"id":"d","text":"Report: nil","explanation":"title is a non-optional String."}],"answer":"b"},{"id":"s6-q19","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"func calculateScores() async {\n    let t = Task {\n        var localSum = 0\n        for i in 1...3 {\n            localSum += i\n        }\n        return localSum\n    }\n    let total = await t.value\n    print(\"Total: \\(total)\")\n}\n\nawait calculateScores()","options":[{"id":"a","text":"Total: 3","explanation":"1 + 2 + 3 equals 6."},{"id":"b","text":"Total: 5","explanation":"The loop includes 1, 2, and 3."},{"id":"c","text":"Total: 6","explanation":"localSum accumulates 1 + 2 + 3 = 6, which is returned from the Task."},{"id":"d","text":"Total: 0","explanation":"localSum is incremented inside the loop."}],"answer":"c"},{"id":"s6-q20","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"final class UnsafeCache: @unchecked Sendable {\n    nonisolated(unsafe) var rawPointerTag: Int = 42\n}\n\nfunc testCache() async {\n    let cache = UnsafeCache()\n    let t = Task {\n        cache.rawPointerTag\n    }\n    let res = await t.value\n    print(\"Tag: \\(res)\")\n}\n\nawait testCache()","options":[{"id":"a","text":"Tag: 0","explanation":"rawPointerTag is initialized to 42."},{"id":"b","text":"Tag: nil","explanation":"rawPointerTag is a non-optional Int."},{"id":"c","text":"Tag: 100","explanation":"The tag value is 42."},{"id":"d","text":"Tag: 42","explanation":"The nonisolated(unsafe) property allows direct read across the task boundary, returning 42."}],"answer":"d"},{"id":"s6-q21","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"@MainActor\nfunc readCurrentTheme() -> String {\n    \"Dark\"\n}\n\n@MainActor\nfunc setupTheme() {\n    let theme = MainActor.assumeIsolated {\n        readCurrentTheme()\n    }\n    print(\"Theme: \\(theme)\")\n}\n\nawait setupTheme()","options":[{"id":"a","text":"Theme: Dark","explanation":"MainActor.assumeIsolated verifies main actor isolation synchronously and executes the closure, returning 'Dark'."},{"id":"b","text":"Theme: Light","explanation":"readCurrentTheme() returns 'Dark'."},{"id":"c","text":"Theme: System","explanation":"System does not appear in the code."},{"id":"d","text":"Theme: nil","explanation":"theme is a non-optional String."}],"answer":"a"},{"id":"s6-q22","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"struct UserPreferences: Sendable {\n    let soundEnabled: Bool\n    let volume: Int\n}\n\nfunc readPrefs() async {\n    let prefs = UserPreferences(soundEnabled: true, volume: 80)\n    let t = Task.detached {\n        \"Sound: \\(prefs.soundEnabled), Volume: \\(prefs.volume)\"\n    }\n    let res = await t.value\n    print(res)\n}\n\nawait readPrefs()","options":[{"id":"a","text":"Sound: false, Volume: 80","explanation":"soundEnabled was passed as true."},{"id":"b","text":"Sound: true, Volume: 80","explanation":"UserPreferences conforms to Sendable, so the detached task safely reads its properties and returns the formatted string."},{"id":"c","text":"Sound: true, Volume: 0","explanation":"volume was initialized to 80."},{"id":"d","text":"UserPreferences: soundEnabled","explanation":"The interpolation outputs 'Sound: true, Volume: 80'."}],"answer":"b"},{"id":"s6-q23","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"actor MigrationTracker {\n    var migratedCount = 0\n\n    func step() {\n        migratedCount += 10\n    }\n\n    func total() -> Int {\n        migratedCount\n    }\n}\n\nfunc executeMigration() async {\n    let tracker = MigrationTracker()\n    await tracker.step()\n    let count = await tracker.total()\n    print(\"Migrated: \\(count)%\")\n}\n\nawait executeMigration()","options":[{"id":"a","text":"Migrated: 0%","explanation":"step() was called before total()."},{"id":"b","text":"Migrated: 100%","explanation":"step() increments by 10, not 100."},{"id":"c","text":"Migrated: 10%","explanation":"The actor protects migratedCount. step() sets it to 10 and total() returns 10, printing 'Migrated: 10%'."},{"id":"d","text":"Migrated: nil%","explanation":"count is a non-optional Int."}],"answer":"c"},{"id":"s6-q24","type":"written","difficulty":3,"prompt":"What is the primary difference between Swift 5 and Swift 6 concurrency checking, and what does Swift 6 guarantee?","rubric":[{"criterion":"Explains that Swift 5 had optional concurrency warnings while Swift 6 enables complete checking by default","weight":40,"key":true},{"criterion":"Explains that concurrency warnings become hard compiler errors in Swift 6","weight":35,"key":true},{"criterion":"States that compiling without errors in Swift 6 guarantees compile-time freedom from data races","weight":25,"key":true}],"modelAnswer":"In Swift 5, concurrency checking was optional and produced compiler warnings that could be ignored. Swift 6 enables complete strict concurrency checking by default, transforming data race warnings into hard compiler errors. Once code compiles cleanly in Swift 6, it is statically guaranteed to be free of data races."},{"id":"s6-q25","type":"written","difficulty":3,"prompt":"When migrating to Swift 6, you encounter the error 'Call to main actor-isolated method in a synchronous nonisolated context'. Describe two valid ways to resolve it.","rubric":[{"criterion":"Describes calling the method asynchronously with await from an async context","weight":40,"key":true},{"criterion":"Describes annotating the calling function or class with @MainActor","weight":40,"key":true},{"criterion":"Alternatively mentions MainActor.run or MainActor.assumeIsolated where appropriate","weight":20}],"modelAnswer":"One way to resolve this error is by calling the method with `await` from an asynchronous context. This tells Swift to hop onto the main actor safely. A second way is to annotate the calling function or class with `@MainActor`. This isolates the caller so it executes directly on the main thread."},{"id":"s6-q26","type":"written","difficulty":3,"prompt":"Why are mutable global variables banned by default in Swift 6, and what are two safe ways to fix them?","rubric":[{"criterion":"Explains that mutable global variables allow concurrent unsynchronized reads and writes, creating data races","weight":40,"key":true},{"criterion":"States converting to an immutable let constant if the value never changes","weight":30,"key":true},{"criterion":"States isolating the variable to @MainActor or a custom actor","weight":30,"key":true}],"modelAnswer":"Mutable global variables allow any concurrent thread to read or write shared memory without synchronization. This produces data races. If the value never changes, you can fix it by changing `var` to an immutable `let` constant. If mutations are needed, you can isolate the variable with `@MainActor` or place it inside an actor."},{"id":"s6-q27","type":"written","difficulty":3,"prompt":"What is the purpose of the @preconcurrency attribute during Swift 6 migration, and when should you use it?","rubric":[{"criterion":"Explains that @preconcurrency suppresses or downgrades concurrency diagnostics for unannotated third-party dependencies","weight":40,"key":true},{"criterion":"Explains that it is used during incremental migration when external libraries have not yet adopted Swift 6 annotations","weight":35,"key":true},{"criterion":"Mentions that it should be removed once the dependency updates with native Sendable conformances","weight":25}],"modelAnswer":"The `@preconcurrency` attribute suppresses strict concurrency errors caused by older third-party libraries that have not yet updated for Swift 6. You use it when importing external frameworks that lack `Sendable` annotations. It allows your project to compile in Swift 6 without waiting for external library updates."},{"id":"s6-q28","type":"written","difficulty":3,"prompt":"What does nonisolated(unsafe) do in Swift 6, and what risks does it introduce?","rubric":[{"criterion":"Explains that nonisolated(unsafe) opts a specific variable or property out of compiler isolation checks","weight":40,"key":true},{"criterion":"States that it should only be used when thread safety is guaranteed manually with custom locks or queues","weight":35,"key":true},{"criterion":"Warns that bugs in manual locking will still cause runtime data races because the compiler no longer checks it","weight":25,"key":true}],"modelAnswer":"`nonisolated(unsafe)` tells the Swift compiler to skip isolation checks on a specific variable or property. It is designed for legacy types where thread safety is managed manually using locks or dispatch queues. The risk is that it disables compiler verification. If the manual locking logic has bugs, runtime data races will occur without warning."},{"id":"s6-q29","type":"code-write","difficulty":3,"prompt":"Write an enum named AppLaunchTracker with a @MainActor static var count: Int = 0. In an asynchronous function incrementLaunchCount(), increment count inside MainActor.run and print 'Launch: {count}'. Call await incrementLaunchCount().","starterCode":"enum AppLaunchTracker {\n    // Define @MainActor static var count\n}\n\nfunc incrementLaunchCount() async {\n    // Mutate and print on MainActor\n}\n\n// Await incrementLaunchCount()","rubric":[{"criterion":"Declares AppLaunchTracker with @MainActor static var count","weight":35,"key":true},{"criterion":"Increments count inside MainActor.run or isolated context","weight":35,"key":true},{"criterion":"Prints exact output 'Launch: 1'","weight":30,"key":true}],"modelAnswer":"enum AppLaunchTracker {\n    @MainActor static var count: Int = 0\n}\n\nfunc incrementLaunchCount() async {\n    await MainActor.run {\n        AppLaunchTracker.count += 1\n        print(\"Launch: \\(AppLaunchTracker.count)\")\n    }\n}\n\nawait incrementLaunchCount()"},{"id":"s6-q30","type":"code-write","difficulty":3,"prompt":"Write a @MainActor final class ProfileService with var username = 'Guest' and a method updateUsername(to:). In a nonisolated async function refreshProfile(), create an instance, await updating the username to 'Jordan', and print 'User: {username}'. Call await refreshProfile().","starterCode":"@MainActor\nfinal class ProfileService {\n    // Implement username and updateUsername(to:)\n}\n\nnonisolated func refreshProfile() async {\n    // Instantiate, await update, and print User: username\n}\n\n// Call await refreshProfile()","rubric":[{"criterion":"Declares @MainActor final class ProfileService with username and update method","weight":35,"key":true},{"criterion":"Declares nonisolated func refreshProfile() async and awaits ProfileService calls","weight":35,"key":true},{"criterion":"Prints exact output 'User: Jordan'","weight":30,"key":true}],"modelAnswer":"@MainActor\nfinal class ProfileService {\n    var username = \"Guest\"\n\n    func updateUsername(to newName: String) {\n        username = newName\n    }\n}\n\nnonisolated func refreshProfile() async {\n    let service = await ProfileService()\n    await service.updateUsername(to: \"Jordan\")\n    let current = await service.username\n    print(\"User: \\(current)\")\n}\n\nawait refreshProfile()"},{"id":"s6-q31","type":"code-write","difficulty":3,"prompt":"Write an async function computeSumAsync(numbers: [Int]) async -> Int. Calculate the sum inside a Task closure without mutating captured outer variables, and return the result. Call computeSumAsync with [10, 20, 30] and print 'Sum: {total}'.","starterCode":"func computeSumAsync(numbers: [Int]) async -> Int {\n    // Spawn Task, calculate sum internally, return awaited value\n}\n\n// Call computeSumAsync with [10, 20, 30] and print Sum: total","rubric":[{"criterion":"Declares computeSumAsync taking numbers: [Int] returning async Int","weight":35,"key":true},{"criterion":"Calculates sum inside Task without mutating captured outer variables","weight":35,"key":true},{"criterion":"Returns awaited task.value and prints 'Sum: 60'","weight":30,"key":true}],"modelAnswer":"func computeSumAsync(numbers: [Int]) async -> Int {\n    let task = Task {\n        numbers.reduce(0, +)\n    }\n    return await task.value\n}\n\nfunc testSum() async {\n    let total = await computeSumAsync(numbers: [10, 20, 30])\n    print(\"Sum: \\(total)\")\n}\n\nawait testSum()"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

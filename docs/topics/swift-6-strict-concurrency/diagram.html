@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swift 6 Strict Concurrency</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stage-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.badge.danger { background: var(--danger-soft); color: var(--danger-color); }
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.step-counter {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--ink);
+  transform: translateY(-1px);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.caption-box {
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 4px solid var(--safe-color);
+  background: var(--code-bg);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Swift 6 Strict Concurrency Stepper">
+  <div class="diagram-card">
+    <div class="header-row">
+      <h2 class="stage-title" id="stageTitle">Step 1: Swift 5 Warning vs Swift 6 Error</h2>
+      <span class="badge danger" id="statusBadge">Swift 6 Error</span>
+    </div>
+
+    <div class="stepper-controls" aria-label="Diagram stepper">
+      <span class="step-counter" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+      <div class="button-group">
+        <button id="btnBack" aria-label="Previous step" disabled>&larr; Back</button>
+        <button id="btnNext" aria-label="Next step">Next &rarr;</button>
+        <button id="btnReplay" aria-label="Restart stepper">&#8635; Replay</button>
+      </div>
+    </div>
+
+    <svg viewBox="0 0 760 280" role="img" aria-label="Swift 6 Strict Concurrency Diagnostic Flow">
+      <!-- Source Scope Box -->
+      <g id="leftBox" transform="translate(30, 40)">
+        <rect id="leftRect" width="220" height="180" rx="8" fill="var(--code-bg)" stroke="var(--line)" stroke-width="2"/>
+        <text id="leftTitle" x="16" y="32" fill="var(--ink)" font-weight="700" font-size="14">Caller Context</text>
+        <text id="leftCode1" x="16" y="66" fill="var(--muted)" font-family="var(--font-code)" font-size="12">class UserState</text>
+        <text id="leftCode2" x="16" y="90" fill="var(--muted)" font-family="var(--font-code)" font-size="12">var score = 100</text>
+        <text id="leftDetail" x="16" y="130" fill="var(--ink)" font-size="12">Non-Sendable class</text>
+        <rect id="leftTag" x="16" y="148" width="180" height="24" rx="4" fill="var(--danger-soft)"/>
+        <text id="leftTagText" x="106" y="164" fill="var(--danger-color)" font-size="11" font-weight="700" text-anchor="middle">MUTABLE REFERENCE</text>
+      </g>
+
+      <!-- Concurrency Boundary Arrow -->
+      <g id="centerArrowGroup" transform="translate(260, 110)">
+        <path id="flowArrow" d="M 10 20 L 190 20" stroke="var(--danger-color)" stroke-width="3" stroke-dasharray="6 4"/>
+        <polygon id="arrowHead" points="190,14 206,20 190,26" fill="var(--danger-color)"/>
+        <text id="boundaryLabel" x="105" y="-6" fill="var(--muted)" font-size="11" font-weight="600" text-anchor="middle">Task Boundary</text>
+        <rect id="gateRect" x="75" y="4" width="60" height="32" rx="6" fill="var(--danger-color)"/>
+        <text id="gateText" x="105" y="24" fill="#ffffff" font-size="11" font-weight="700" text-anchor="middle">BLOCKED</text>
+      </g>
+
+      <!-- Target Scope Box -->
+      <g id="rightBox" transform="translate(480, 40)">
+        <rect id="rightRect" width="250" height="180" rx="8" fill="var(--danger-soft)" stroke="var(--danger-color)" stroke-width="2"/>
+        <text id="rightTitle" x="16" y="32" fill="var(--danger-color)" font-weight="700" font-size="14">Swift 6 Diagnostic</text>
+        <text id="rightDiag1" x="16" y="66" fill="var(--ink)" font-family="var(--font-code)" font-size="11">error: passing non-Sendable</text>
+        <text id="rightDiag2" x="16" y="86" fill="var(--ink)" font-family="var(--font-code)" font-size="11">type 'UserState' into Task</text>
+        <text id="rightDetail" x="16" y="130" fill="var(--muted)" font-size="12">Build halts immediately</text>
+        <rect id="rightTag" x="16" y="148" width="210" height="24" rx="4" fill="var(--danger-color)"/>
+        <text id="rightTagText" x="121" y="164" fill="#ffffff" font-size="11" font-weight="700" text-anchor="middle">ZERO RUNTIME DATA RACES</text>
+      </g>
+    </svg>
+
+    <div class="caption-box" id="captionText">
+      Swift 5 generated a warning that was often ignored. In Swift 6, passing a mutable reference type across a task boundary produces a hard compiler error.
+    </div>
+
+    <div class="code-preview" id="codeText">// Swift 6 Error:
+class UserState { var score = 100 }
+let state = UserState()
+Task.detached {
+    print(state.score) // Error: passing non-Sendable 'state'
+}</div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Step 1: Swift 5 Warning vs Swift 6 Error",
+    badge: "Swift 6 Error",
+    badgeClass: "danger",
+    caption: "Swift 5 generated a warning that was often ignored. In Swift 6, passing a mutable reference type across a task boundary produces a hard compiler error.",
+    code: "// Swift 6 Error:\nclass UserState { var score = 100 }\nlet state = UserState()\nTask.detached {\n    print(state.score) // Error: passing non-Sendable 'state'\n}",
+    leftTitle: "Caller Context",
+    leftCode1: "class UserState",
+    leftCode2: "var score = 100",
+    leftDetail: "Non-Sendable class",
+    leftTagText: "MUTABLE REFERENCE",
+    leftTagFill: "var(--danger-soft)",
+    leftTagColor: "var(--danger-color)",
+    gateText: "BLOCKED",
+    gateFill: "var(--danger-color)",
+    arrowColor: "var(--danger-color)",
+    arrowDash: "6 4",
+    rightRectFill: "var(--danger-soft)",
+    rightRectStroke: "var(--danger-color)",
+    rightTitle: "Swift 6 Diagnostic",
+    rightTitleColor: "var(--danger-color)",
+    rightDiag1: "error: passing non-Sendable",
+    rightDiag2: "type 'UserState' into Task",
+    rightDetail: "Build halts immediately",
+    rightTagText: "ZERO RUNTIME DATA RACES",
+    rightTagFill: "var(--danger-color)"
+  },
+  {
+    title: "Step 2: Fixing Boundary with Sendable Struct",
+    badge: "Fixed: Value Type",
+    badgeClass: "safe",
+    caption: "Fix the error by converting the model into an immutable Sendable struct. The data is copied safely without shared memory.",
+    code: "// Swift 6 Clean Solution:\nstruct UserState: Sendable {\n    let score: Int\n}\nlet state = UserState(score: 100)\nTask.detached {\n    print(state.score) // OK: UserState is Sendable\n}",
+    leftTitle: "Value Semantics",
+    leftCode1: "struct UserState: Sendable",
+    leftCode2: "let score: Int",
+    leftDetail: "Independent value copy",
+    leftTagText: "IMMUTABLE VALUE",
+    leftTagFill: "var(--safe-soft)",
+    leftTagColor: "var(--safe-color)",
+    gateText: "PASSED",
+    gateFill: "var(--safe-color)",
+    arrowColor: "var(--safe-color)",
+    arrowDash: "none",
+    rightRectFill: "var(--safe-soft)",
+    rightRectStroke: "var(--safe-color)",
+    rightTitle: "Compiler Approved",
+    rightTitleColor: "var(--safe-color)",
+    rightDiag1: "ok: UserState conforms",
+    rightDiag2: "to Sendable protocol",
+    rightDetail: "Clean build with 0 errors",
+    rightTagText: "SAFE CONCURRENCY PASS",
+    rightTagFill: "var(--safe-color)"
+  },
+  {
+    title: "Step 3: Fixing Main Actor Access with await",
+    badge: "Fixed: Actor Hop",
+    badgeClass: "safe",
+    caption: "When calling a @MainActor method from a non-isolated background context, you must write await. Swift inserts an asynchronous actor hop.",
+    code: "@MainActor final class ViewModel {\n    func updateTitle() { ... }\n}\n\nnonisolated func loadData() async {\n    let vm = await ViewModel()\n    await vm.updateTitle() // Awaits main actor hop\n}",
+    leftTitle: "Background Task",
+    leftCode1: "nonisolated func loadData()",
+    leftCode2: "await vm.updateTitle()",
+    leftDetail: "Asynchronous hop",
+    leftTagText: "ACTOR HOP REQUIRED",
+    leftTagFill: "var(--accent-soft)",
+    leftTagColor: "var(--accent-color)",
+    gateText: "AWAIT HOP",
+    gateFill: "var(--accent-color)",
+    arrowColor: "var(--accent-color)",
+    arrowDash: "none",
+    rightRectFill: "var(--accent-soft)",
+    rightRectStroke: "var(--accent-color)",
+    rightTitle: "@MainActor Isolated",
+    rightTitleColor: "var(--accent-color)",
+    rightDiag1: "@MainActor final class VM",
+    rightDiag2: "Runs on main thread",
+    rightDetail: "Thread-safe UI mutations",
+    rightTagText: "MAIN THREAD PROTECTED",
+    rightTagFill: "var(--accent-color)"
+  },
+  {
+    title: "Step 4: Protecting Shared Static / Global State",
+    badge: "Fixed: State Isolation",
+    badgeClass: "safe",
+    caption: "Global mutable variables are forbidden in Swift 6. Protect them by placing static variables inside an enum isolated with @MainActor.",
+    code: "enum AppConfig {\n    @MainActor static var launchCount = 0\n}\n\n// Mutations must run on @MainActor:\nawait MainActor.run {\n    AppConfig.launchCount += 1\n}",
+    leftTitle: "Global State Access",
+    leftCode1: "enum AppConfig {",
+    leftCode2: "  @MainActor static var c",
+    leftDetail: "Protected static variable",
+    leftTagText: "ISOLATED STATIC",
+    leftTagFill: "var(--safe-soft)",
+    leftTagColor: "var(--safe-color)",
+    gateText: "PROTECTED",
+    gateFill: "var(--safe-color)",
+    arrowColor: "var(--safe-color)",
+    arrowDash: "none",
+    rightRectFill: "var(--safe-soft)",
+    rightRectStroke: "var(--safe-color)",
+    rightTitle: "Data Race Free",
+    rightTitleColor: "var(--safe-color)",
+    rightDiag1: "Static variable isolated",
+    rightDiag2: "to @MainActor context",
+    rightDetail: "No concurrent write hazards",
+    rightTagText: "ZERO SHARED STATE ERRORS",
+    rightTagFill: "var(--safe-color)"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  document.getElementById("stageTitle").textContent = s.title;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = s.badge;
+  badge.className = `badge ${s.badgeClass}`;
+
+  document.getElementById("captionText").textContent = s.caption;
+  document.getElementById("codeText").textContent = s.code;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.getElementById("leftTitle").textContent = s.leftTitle;
+  document.getElementById("leftCode1").textContent = s.leftCode1;
+  document.getElementById("leftCode2").textContent = s.leftCode2;
+  document.getElementById("leftDetail").textContent = s.leftDetail;
+  document.getElementById("leftTagText").textContent = s.leftTagText;
+  document.getElementById("leftTagText").setAttribute("fill", s.leftTagColor);
+  document.getElementById("leftTag").setAttribute("fill", s.leftTagFill);
+
+  document.getElementById("gateText").textContent = s.gateText;
+  document.getElementById("gateRect").setAttribute("fill", s.gateFill);
+  document.getElementById("flowArrow").setAttribute("stroke", s.arrowColor);
+  document.getElementById("flowArrow").setAttribute("stroke-dasharray", s.arrowDash);
+  document.getElementById("arrowHead").setAttribute("fill", s.arrowColor);
+
+  document.getElementById("rightRect").setAttribute("fill", s.rightRectFill);
+  document.getElementById("rightRect").setAttribute("stroke", s.rightRectStroke);
+  document.getElementById("rightTitle").textContent = s.rightTitle;
+  document.getElementById("rightTitle").setAttribute("fill", s.rightTitleColor);
+  document.getElementById("rightDiag1").textContent = s.rightDiag1;
+  document.getElementById("rightDiag2").textContent = s.rightDiag2;
+  document.getElementById("rightDetail").textContent = s.rightDetail;
+  document.getElementById("rightTagText").textContent = s.rightTagText;
+  document.getElementById("rightTag").setAttribute("fill", s.rightTagFill);
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>
