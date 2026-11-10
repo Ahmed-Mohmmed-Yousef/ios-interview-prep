@@ -1,0 +1,1120 @@
+{
+  "topicId": "sendable-data-races",
+  "version": 1,
+  "questions": [
+    {
+      "id": "sdr-q1",
+      "type": "mcq",
+      "difficulty": 1,
+      "prompt": "What defines a data race in concurrent software execution?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "Two concurrent tasks access the same memory location, at least one access is a write, and there is no synchronization.",
+          "explanation": "A data race occurs when unsynchronized concurrent tasks access the same memory location and at least one access is a write."
+        },
+        {
+          "id": "b",
+          "text": "Two concurrent tasks wait indefinitely for locks held by each other, stopping all execution.",
+          "explanation": "Mutual waiting for locks is a deadlock, not a data race."
+        },
+        {
+          "id": "c",
+          "text": "A task finishes after its expected deadline because background CPU priority was lower than normal.",
+          "explanation": "Delayed execution due to priority is priority inversion or latency, not a data race."
+        },
+        {
+          "id": "d",
+          "text": "A network request returns data after the presenting view controller has already been deallocated.",
+          "explanation": "Receiving network responses after deallocation is a memory lifecycle issue, not a data race."
+        }
+      ],
+      "answer": "a",
+      "sources": [
+        {
+          "title": "WWDC22: Eliminate data races using Swift Concurrency",
+          "url": "https://developer.apple.com/videos/play/wwdc2022/110351/"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q2",
+      "type": "mcq",
+      "difficulty": 1,
+      "prompt": "What kind of protocol is Sendable in the Swift standard library?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "A protocol with mandatory serialization methods for converting instances into binary property lists.",
+          "explanation": "Serialization protocols like Codable require methods; Sendable has no runtime methods."
+        },
+        {
+          "id": "b",
+          "text": "A marker protocol with no runtime requirements that tells the compiler a type is safe to share across concurrency boundaries.",
+          "explanation": "Sendable is a marker protocol without requirements, used by the compiler to verify thread safety."
+        },
+        {
+          "id": "c",
+          "text": "A runtime reflection protocol that inspects dynamic memory layouts before copying objects across background threads.",
+          "explanation": "Sendable does not perform reflection or runtime checks; it is enforced statically."
+        },
+        {
+          "id": "d",
+          "text": "An Objective-C compatibility protocol used to bridge Foundation data structures into Swift task groups.",
+          "explanation": "Sendable is a pure Swift compile-time concurrency protocol, not an Objective-C bridge."
+        }
+      ],
+      "answer": "b",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q3",
+      "type": "mcq",
+      "difficulty": 1,
+      "prompt": "Why are Swift value types like structs generally safe to pass across concurrent tasks?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "Because the runtime allocates all structs directly on the main thread run loop.",
+          "explanation": "Structs are allocated on the stack or inline within heap objects, not pinned to the main thread."
+        },
+        {
+          "id": "b",
+          "text": "Because the compiler automatically wraps all struct mutations in atomic os_unfair_lock primitives.",
+          "explanation": "The compiler does not add runtime locks to structs; safety comes from value copying."
+        },
+        {
+          "id": "c",
+          "text": "Because value semantics copy data, giving each concurrent task an independent instance without shared mutable memory.",
+          "explanation": "Value copying means each task operates on its own memory, eliminating data races."
+        },
+        {
+          "id": "d",
+          "text": "Because structs prevent callers from creating more than one instance during the app lifecycle.",
+          "explanation": "Structs can be instantiated unlimited times; they are not singletons."
+        }
+      ],
+      "answer": "c",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q4",
+      "type": "mcq",
+      "difficulty": 1,
+      "prompt": "Why are standard Swift classes NOT Sendable by default?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "Because classes cannot conform to protocols declared outside their original module.",
+          "explanation": "Classes can conform to external protocols through extensions."
+        },
+        {
+          "id": "b",
+          "text": "Because classes always execute their initializers on secondary thread pools.",
+          "explanation": "Initializers execute synchronously on whichever thread invokes them."
+        },
+        {
+          "id": "c",
+          "text": "Because classes do not support reference counting in modern 64-bit architectures.",
+          "explanation": "Classes rely heavily on Automatic Reference Counting (ARC) on all architectures."
+        },
+        {
+          "id": "d",
+          "text": "Because classes are reference types, so multiple tasks can mutate the same shared heap memory simultaneously.",
+          "explanation": "Sharing a mutable reference allows concurrent unsynchronized writes, triggering data races."
+        }
+      ],
+      "answer": "d",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q5",
+      "type": "mcq",
+      "difficulty": 2,
+      "prompt": "Which set of requirements allows a Swift class to conform to Sendable without compiler errors?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "The class must be final, and all stored properties must be immutable let constants that are themselves Sendable.",
+          "explanation": "A Sendable class must be final and contain only immutable Sendable stored properties."
+        },
+        {
+          "id": "b",
+          "text": "The class must inherit from NSObject, implement NSCopying, and declare private mutable var properties.",
+          "explanation": "Inheriting from NSObject or having mutable properties does not make a class Sendable."
+        },
+        {
+          "id": "c",
+          "text": "The class must define dynamic dispatch getters and use lazy var properties for cached values.",
+          "explanation": "Lazy var properties introduce mutable state and are not permitted in Sendable classes."
+        },
+        {
+          "id": "d",
+          "text": "The class must declare all methods with the mutating keyword and adopt the Identifiable protocol.",
+          "explanation": "Classes do not use mutating method declarations; that keyword is for value types."
+        }
+      ],
+      "answer": "a",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q6",
+      "type": "mcq",
+      "difficulty": 2,
+      "prompt": "Why does a Swift actor automatically conform to the Sendable protocol?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "Because actors convert all stored reference types into value types at compile time.",
+          "explanation": "Actors do not alter member types; they enforce synchronized access."
+        },
+        {
+          "id": "b",
+          "text": "Because actor isolation guarantees that only one task can access its internal mutable state at any given moment.",
+          "explanation": "Actor isolation enforces mutual exclusion, making actor references inherently safe to pass across tasks."
+        },
+        {
+          "id": "c",
+          "text": "Because actor methods run exclusively inside background dispatch queues managed by Grand Central Dispatch.",
+          "explanation": "Actors use cooperative thread pools rather than traditional dedicated dispatch queues."
+        },
+        {
+          "id": "d",
+          "text": "Because actors prohibit external callers from reading any stored properties.",
+          "explanation": "External callers can read properties using await."
+        }
+      ],
+      "answer": "b",
+      "sources": [
+        {
+          "title": "WWDC22: Eliminate data races using Swift Concurrency",
+          "url": "https://developer.apple.com/videos/play/wwdc2022/110351/"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q7",
+      "type": "mcq",
+      "difficulty": 2,
+      "prompt": "What restriction applies to closures marked with the @Sendable attribute?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "They cannot return values other than Void or standard 64-bit integers.",
+          "explanation": "@Sendable closures can return any Sendable type."
+        },
+        {
+          "id": "b",
+          "text": "They must be synchronous and cannot call any asynchronous functions.",
+          "explanation": "@Sendable closures can be synchronous or asynchronous."
+        },
+        {
+          "id": "c",
+          "text": "They cannot capture mutable local variables, and all captured values must conform to Sendable.",
+          "explanation": "Capturing mutable variables by reference creates data races, so @Sendable closures forbid it."
+        },
+        {
+          "id": "d",
+          "text": "They must be marked with the dynamic keyword to enable Objective-C message forwarding.",
+          "explanation": "The dynamic keyword is unrelated to Swift concurrency closures."
+        }
+      ],
+      "answer": "c",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q8",
+      "type": "mcq",
+      "difficulty": 2,
+      "prompt": "What is the primary danger of using @unchecked Sendable on a custom class?",
+      "lessonSection": "Interview traps",
+      "options": [
+        {
+          "id": "a",
+          "text": "It forces the compiler to crash when compiling release builds for iOS devices.",
+          "explanation": "The compiler handles @unchecked Sendable cleanly; it does not crash."
+        },
+        {
+          "id": "b",
+          "text": "It slows down app launch times by running extra bytecode verifications.",
+          "explanation": "@unchecked Sendable incurs zero runtime overhead or verification."
+        },
+        {
+          "id": "c",
+          "text": "It automatically converts reference types into structs during memory allocation.",
+          "explanation": "Classes remain reference types on the heap."
+        },
+        {
+          "id": "d",
+          "text": "It bypasses compile-time checks, so flawed manual synchronization still results in runtime data races.",
+          "explanation": "@unchecked disables compiler safety checks, leaving synchronization errors undetected."
+        }
+      ],
+      "answer": "d",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q9",
+      "type": "mcq",
+      "difficulty": 2,
+      "prompt": "When is using @unchecked Sendable genuinely appropriate in a production codebase?",
+      "lessonSection": "Interview traps",
+      "options": [
+        {
+          "id": "a",
+          "text": "When a class manages internal synchronization manually using locks or queues that the compiler cannot verify.",
+          "explanation": "@unchecked Sendable is appropriate when thread safety is guaranteed by locks or queues."
+        },
+        {
+          "id": "b",
+          "text": "Whenever you need a quick way to silence compiler warnings before submitting an app update.",
+          "explanation": "Silencing warnings without thread safety introduces crashes and data races."
+        },
+        {
+          "id": "c",
+          "text": "When building SwiftUI view bodies that display dynamic list rows.",
+          "explanation": "SwiftUI views are structs and do not need @unchecked Sendable."
+        },
+        {
+          "id": "d",
+          "text": "When converting Objective-C protocols into Swift 6 async functions.",
+          "explanation": "Objective-C protocol interop does not require @unchecked Sendable on classes."
+        }
+      ],
+      "answer": "a",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q10",
+      "type": "mcq",
+      "difficulty": 2,
+      "prompt": "How does Thread Sanitizer (TSan) relate to Swift Concurrency data race safety?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "TSan replaces the need for Swift 6 compiler checks by optimizing binary machine code.",
+          "explanation": "TSan is a diagnostic instrument, not an optimizing compiler."
+        },
+        {
+          "id": "b",
+          "text": "TSan detects data races at runtime during testing, while Swift Concurrency stops them at compile time.",
+          "explanation": "TSan monitors executed memory accesses at runtime; Swift Concurrency enforces safety at compile time."
+        },
+        {
+          "id": "c",
+          "text": "TSan is a static analysis linter that checks Swift syntax before compilation starts.",
+          "explanation": "TSan requires instrumented code execution; it is not a static linter."
+        },
+        {
+          "id": "d",
+          "text": "TSan is an Apple Silicon hardware register that blocks unauthorized memory writes.",
+          "explanation": "TSan is a software sanitizer implemented in LLVM and compiler runtimes."
+        }
+      ],
+      "answer": "b",
+      "sources": [
+        {
+          "title": "WWDC22: Eliminate data races using Swift Concurrency",
+          "url": "https://developer.apple.com/videos/play/wwdc2022/110351/"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q11",
+      "type": "mcq",
+      "difficulty": 2,
+      "prompt": "Under what condition does a generic type like Array<Element> conform to Sendable?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "Always, because standard collections are implemented as value types in Swift.",
+          "explanation": "Collections holding non-Sendable elements cannot safely be passed across tasks."
+        },
+        {
+          "id": "b",
+          "text": "Only when the array has fewer than 1024 elements allocated in memory.",
+          "explanation": "Collection capacity has no effect on Sendable conformance."
+        },
+        {
+          "id": "c",
+          "text": "Conditionally, when the generic Element type itself conforms to Sendable.",
+          "explanation": "Array conforms to Sendable only if its Element conforms to Sendable."
+        },
+        {
+          "id": "d",
+          "text": "Only when the array is wrapped inside an actor or declared with the @MainActor attribute.",
+          "explanation": "Arrays conform to Sendable independently outside actors when elements are Sendable."
+        }
+      ],
+      "answer": "c",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q12",
+      "type": "mcq",
+      "difficulty": 2,
+      "prompt": "What happens if a struct contains a stored property whose type is a non-Sendable class?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "The struct automatically promotes the class instance into an actor at runtime.",
+          "explanation": "Swift does not change reference types into actors dynamically."
+        },
+        {
+          "id": "b",
+          "text": "The compiler creates a deep copy of the class heap instance on every function call.",
+          "explanation": "Copying the struct only shallow-copies the class pointer reference."
+        },
+        {
+          "id": "c",
+          "text": "The struct becomes a reference type and moves its allocation to the shared heap.",
+          "explanation": "The struct remains a value type, but it loses Sendable conformance."
+        },
+        {
+          "id": "d",
+          "text": "The struct does NOT conform to Sendable because its stored property can be mutated concurrently.",
+          "explanation": "Because a stored property can be modified via shared reference, the struct is not Sendable."
+        }
+      ],
+      "answer": "d",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q13",
+      "type": "mcq",
+      "difficulty": 2,
+      "prompt": "What is the difference between a data race and a general race condition?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "A data race is unsynchronized memory access, while a race condition is a timing flaw in application logic.",
+          "explanation": "A data race is low-level memory conflict. A race condition is an unexpected order of high-level operations."
+        },
+        {
+          "id": "b",
+          "text": "A data race happens in release mode, while a race condition happens only in debug mode.",
+          "explanation": "Both issues can occur in both release and debug builds."
+        },
+        {
+          "id": "c",
+          "text": "A data race occurs exclusively in C++, while race conditions occur only in Swift.",
+          "explanation": "Both data races and race conditions occur across multiple languages."
+        },
+        {
+          "id": "d",
+          "text": "A data race locks user interface controls, while a race condition triggers memory leaks.",
+          "explanation": "UI locking is main-thread blockage; neither term specifically describes leaks."
+        }
+      ],
+      "answer": "a",
+      "sources": [
+        {
+          "title": "WWDC22: Eliminate data races using Swift Concurrency",
+          "url": "https://developer.apple.com/videos/play/wwdc2022/110351/"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q14",
+      "type": "mcq",
+      "difficulty": 2,
+      "prompt": "How does Swift handle public types versus internal types regarding Sendable conformance?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "Public types are banned from conforming to Sendable to preserve binary stability.",
+          "explanation": "Public types can conform to Sendable when declared explicitly."
+        },
+        {
+          "id": "b",
+          "text": "Internal types infer Sendable automatically when valid, while public types require explicit conformance declarations.",
+          "explanation": "Internal types infer Sendable; public types require explicit conformance to keep public API contracts stable."
+        },
+        {
+          "id": "c",
+          "text": "Internal types must use @unchecked Sendable, while public types use standard Sendable.",
+          "explanation": "Internal types do not require @unchecked."
+        },
+        {
+          "id": "d",
+          "text": "Public types infer Sendable automatically, but internal types require manual compiler flags.",
+          "explanation": "Automatic inference applies to non-public types, not public ones."
+        }
+      ],
+      "answer": "b",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q15",
+      "type": "mcq",
+      "difficulty": 3,
+      "prompt": "What does region-based isolation in Swift 6 allow when sending non-Sendable values between tasks?",
+      "lessonSection": "The simple idea",
+      "options": [
+        {
+          "id": "a",
+          "text": "It converts all non-Sendable values into Objective-C NSData objects automatically.",
+          "explanation": "Region analysis operates within Swift type system without converting types."
+        },
+        {
+          "id": "b",
+          "text": "It moves execution to a dedicated background serial queue for the rest of the application run.",
+          "explanation": "Region analysis is a compile-time static check, not a queue dispatcher."
+        },
+        {
+          "id": "c",
+          "text": "It allows sending a non-Sendable value if the compiler proves no other reference to that memory exists.",
+          "explanation": "If the compiler proves the sending scope discards all references, concurrent access cannot occur."
+        },
+        {
+          "id": "d",
+          "text": "It disables data race diagnostics across all third-party external Swift package dependencies.",
+          "explanation": "Region isolation does not disable diagnostics; it allows proven safe transfers."
+        }
+      ],
+      "answer": "c",
+      "sources": [
+        {
+          "title": "WWDC22: Eliminate data races using Swift Concurrency",
+          "url": "https://developer.apple.com/videos/play/wwdc2022/110351/"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q16",
+      "type": "code-reading",
+      "difficulty": 2,
+      "prompt": "What does this Swift code print when executed?",
+      "lessonSection": "In code",
+      "code": "struct Point: Sendable {\n    var x: Int\n    var y: Int\n}\n\nfunc test() async {\n    let p1 = Point(x: 10, y: 20)\n    let t = Task {\n        var p2 = p1\n        p2.x = 50\n        return p2.x\n    }\n    let res = await t.value\n    print(\"\\(p1.x) \\(res)\")\n}\n\nawait test()",
+      "options": [
+        {
+          "id": "a",
+          "text": "50 50",
+          "explanation": "p1 is not mutated because structs have value semantics."
+        },
+        {
+          "id": "b",
+          "text": "10 10",
+          "explanation": "p2.x is modified to 50, so res returns 50."
+        },
+        {
+          "id": "c",
+          "text": "50 10",
+          "explanation": "p1.x remains 10 and res is 50."
+        },
+        {
+          "id": "d",
+          "text": "10 50",
+          "explanation": "p1 is an independent value copy whose x remains 10; p2.x is updated to 50 and returned."
+        }
+      ],
+      "answer": "d",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ],
+      "verify": {
+        "output": "10 50"
+      }
+    },
+    {
+      "id": "sdr-q17",
+      "type": "code-reading",
+      "difficulty": 2,
+      "prompt": "What does this Swift code print when executed?",
+      "lessonSection": "In code",
+      "code": "final class ImmutableMessage: Sendable {\n    let text: String\n    let senderId: Int\n\n    init(text: String, senderId: Int) {\n        self.text = text\n        self.senderId = senderId\n    }\n}\n\nfunc check() async {\n    let msg = ImmutableMessage(text: \"Hello\", senderId: 7)\n    let task = Task {\n        return \"\\(msg.senderId): \\(msg.text)\"\n    }\n    let result = await task.value\n    print(result)\n}\n\nawait check()",
+      "options": [
+        {
+          "id": "a",
+          "text": "7: Hello",
+          "explanation": "The immutable final class safely conforms to Sendable and prints '7: Hello'."
+        },
+        {
+          "id": "b",
+          "text": "Hello: 7",
+          "explanation": "The string interpolation places senderId first, then text."
+        },
+        {
+          "id": "c",
+          "text": "Message: 7",
+          "explanation": "The interpolation outputs the properties rather than the class name."
+        },
+        {
+          "id": "d",
+          "text": "nil: Hello",
+          "explanation": "senderId is non-optional Int 7."
+        }
+      ],
+      "answer": "a",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ],
+      "verify": {
+        "output": "7: Hello"
+      }
+    },
+    {
+      "id": "sdr-q18",
+      "type": "code-reading",
+      "difficulty": 2,
+      "prompt": "What does this Swift code print when executed?",
+      "lessonSection": "In code",
+      "code": "actor SafeCounter {\n    var count = 0\n    func add() { count += 1 }\n    func value() -> Int { count }\n}\n\nfunc run() async {\n    let counter = SafeCounter()\n    let t = Task {\n        await counter.add()\n        return await counter.value()\n    }\n    let res = await t.value\n    print(\"Result: \\(res)\")\n}\n\nawait run()",
+      "options": [
+        {
+          "id": "a",
+          "text": "Result: 0",
+          "explanation": "add() increments count before value() is called."
+        },
+        {
+          "id": "b",
+          "text": "Result: 1",
+          "explanation": "The actor is Sendable. The task increments count to 1 and returns it."
+        },
+        {
+          "id": "c",
+          "text": "Result: 2",
+          "explanation": "add() is only invoked once."
+        },
+        {
+          "id": "d",
+          "text": "Result: nil",
+          "explanation": "value() returns non-optional Int 1."
+        }
+      ],
+      "answer": "b",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ],
+      "verify": {
+        "output": "Result: 1"
+      }
+    },
+    {
+      "id": "sdr-q19",
+      "type": "code-reading",
+      "difficulty": 2,
+      "prompt": "What does this Swift code print when executed?",
+      "lessonSection": "In code",
+      "code": "enum JobStatus: Sendable {\n    case pending\n    case active(id: Int)\n}\n\nfunc checkStatus() async {\n    let status = JobStatus.active(id: 99)\n    let task = Task {\n        switch status {\n        case .pending:\n            return \"Pending\"\n        case .active(let id):\n            return \"Active \\(id)\"\n        }\n    }\n    let res = await task.value\n    print(res)\n}\n\nawait checkStatus()",
+      "options": [
+        {
+          "id": "a",
+          "text": "Pending",
+          "explanation": "status is initialized to .active(id: 99), not .pending."
+        },
+        {
+          "id": "b",
+          "text": "Active",
+          "explanation": "The switch pattern extracts the associated value id."
+        },
+        {
+          "id": "c",
+          "text": "Active 99",
+          "explanation": "The enum value is .active(id: 99) and prints 'Active 99'."
+        },
+        {
+          "id": "d",
+          "text": "Pending 99",
+          "explanation": "The status is active, not pending."
+        }
+      ],
+      "answer": "c",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ],
+      "verify": {
+        "output": "Active 99"
+      }
+    },
+    {
+      "id": "sdr-q20",
+      "type": "code-reading",
+      "difficulty": 2,
+      "prompt": "What does this Swift code print when executed?",
+      "lessonSection": "In code",
+      "code": "func executeAsync(operation: @escaping @Sendable () -> Int) async -> Int {\n    let task = Task {\n        operation()\n    }\n    return await task.value\n}\n\nfunc testClosure() async {\n    let multiplier = 5\n    let result = await executeAsync {\n        multiplier * 10\n    }\n    print(\"Total: \\(result)\")\n}\n\nawait testClosure()",
+      "options": [
+        {
+          "id": "a",
+          "text": "Total: 10",
+          "explanation": "multiplier is 5, so 5 * 10 is 50."
+        },
+        {
+          "id": "b",
+          "text": "Total: 15",
+          "explanation": "5 * 10 is multiplication, not addition."
+        },
+        {
+          "id": "c",
+          "text": "Total: 25",
+          "explanation": "The calculation produces 50."
+        },
+        {
+          "id": "d",
+          "text": "Total: 50",
+          "explanation": "The @Sendable closure safely captures the immutable multiplier (5) and calculates 50."
+        }
+      ],
+      "answer": "d",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ],
+      "verify": {
+        "output": "Total: 50"
+      }
+    },
+    {
+      "id": "sdr-q21",
+      "type": "code-reading",
+      "difficulty": 2,
+      "prompt": "What does this Swift code print when executed?",
+      "lessonSection": "In code",
+      "code": "func processNames(_ names: [String]) async {\n    let task = Task {\n        names.joined(separator: \", \")\n    }\n    let combined = await task.value\n    print(\"Items: \\(combined)\")\n}\n\nawait processNames([\"Swift\", \"iOS\", \"Xcode\"])",
+      "options": [
+        {
+          "id": "a",
+          "text": "Items: Swift, iOS, Xcode",
+          "explanation": "Array<String> is Sendable because String is Sendable. The task joins the strings correctly."
+        },
+        {
+          "id": "b",
+          "text": "Items: Swift iOS Xcode",
+          "explanation": "The joined separator is comma and space."
+        },
+        {
+          "id": "c",
+          "text": "Items: Xcode, iOS, Swift",
+          "explanation": "The array elements preserve their original insertion order."
+        },
+        {
+          "id": "d",
+          "text": "Items: [Swift, iOS, Xcode]",
+          "explanation": "joined(separator:) returns a formatted String, not array brackets."
+        }
+      ],
+      "answer": "a",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ],
+      "verify": {
+        "output": "Items: Swift, iOS, Xcode"
+      }
+    },
+    {
+      "id": "sdr-q22",
+      "type": "code-reading",
+      "difficulty": 2,
+      "prompt": "What does this Swift code print when executed?",
+      "lessonSection": "In code",
+      "code": "struct TaskRecord: Sendable {\n    let title: String\n    let priority: Int\n}\n\nfunc inspectRecord() async {\n    let record = TaskRecord(title: \"Refactor\", priority: 1)\n    let backgroundTask = Task {\n        return \"\\(record.title) with priority \\(record.priority)\"\n    }\n    let output = await backgroundTask.value\n    print(output)\n}\n\nawait inspectRecord()",
+      "options": [
+        {
+          "id": "a",
+          "text": "Refactor with priority 0",
+          "explanation": "priority was passed as 1."
+        },
+        {
+          "id": "b",
+          "text": "Refactor with priority 1",
+          "explanation": "TaskRecord is Sendable. The background task reads both properties and returns 'Refactor with priority 1'."
+        },
+        {
+          "id": "c",
+          "text": "TaskRecord: Refactor",
+          "explanation": "The interpolation includes both title and priority."
+        },
+        {
+          "id": "d",
+          "text": "Task priority 1",
+          "explanation": "The interpolation outputs the title first."
+        }
+      ],
+      "answer": "b",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ],
+      "verify": {
+        "output": "Refactor with priority 1"
+      }
+    },
+    {
+      "id": "sdr-q23",
+      "type": "code-reading",
+      "difficulty": 2,
+      "prompt": "What does this Swift code print when executed?",
+      "lessonSection": "In code",
+      "code": "struct DeviceSetting: Sendable {\n    var volume: Int\n\n    mutating func increase() {\n        volume += 5\n    }\n}\n\nfunc checkSetting() async {\n    let setting = DeviceSetting(volume: 20)\n    let task = Task {\n        var copy = setting\n        copy.increase()\n        return copy.volume\n    }\n    let newVolume = await task.value\n    print(\"Old: \\(setting.volume), New: \\(newVolume)\")\n}\n\nawait checkSetting()",
+      "options": [
+        {
+          "id": "a",
+          "text": "Old: 25, New: 25",
+          "explanation": "setting is a value type, so its volume remains 20."
+        },
+        {
+          "id": "b",
+          "text": "Old: 20, New: 20",
+          "explanation": "copy.increase() mutates copy, returning 25."
+        },
+        {
+          "id": "c",
+          "text": "Old: 20, New: 25",
+          "explanation": "Value copying keeps setting unmodified at 20, while copy becomes 25."
+        },
+        {
+          "id": "d",
+          "text": "Old: 25, New: 20",
+          "explanation": "The old volume is 20 and the new volume is 25."
+        }
+      ],
+      "answer": "c",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ],
+      "verify": {
+        "output": "Old: 20, New: 25"
+      }
+    },
+    {
+      "id": "sdr-q24",
+      "type": "written",
+      "difficulty": 3,
+      "prompt": "What is a data race in iOS applications, and what specific problems does it cause?",
+      "lessonSection": "The simple idea",
+      "rubric": [
+        {
+          "criterion": "Explains that multiple concurrent tasks access the same memory simultaneously with at least one write without synchronization",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "Describes consequences including silent memory corruption, inconsistent state, crashes, and unpredictable behavior",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "Notes that data races are hard to reproduce because they depend on thread scheduling and timing",
+          "weight": 30
+        }
+      ],
+      "modelAnswer": "A data race occurs when concurrent tasks access the same memory simultaneously. At least one access is a write without synchronization. This causes corrupted memory, inconsistent app state, undefined behavior, and difficult crashes. Because data races depend on thread timing, they are very difficult to reproduce in tests.",
+      "sources": [
+        {
+          "title": "WWDC22: Eliminate data races using Swift Concurrency",
+          "url": "https://developer.apple.com/videos/play/wwdc2022/110351/"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q25",
+      "type": "written",
+      "difficulty": 3,
+      "prompt": "Explain what the Sendable protocol is in Swift and why it is called a marker protocol.",
+      "lessonSection": "The simple idea",
+      "rubric": [
+        {
+          "criterion": "Defines Sendable as a protocol signaling that values can safely cross concurrency boundaries without data races",
+          "weight": 40,
+          "key": true
+        },
+        {
+          "criterion": "Explains that it is a marker protocol because it has no runtime requirements, methods, or properties",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "Mentions that Sendable checks are performed by the Swift compiler at compile time",
+          "weight": 25
+        }
+      ],
+      "modelAnswer": "Sendable is a Swift protocol indicating that values of a type can safely be transferred across concurrency boundaries such as tasks or actors. It is called a marker protocol because it defines no methods, properties, or runtime witnesses. Instead, it serves as a compile-time signal to the Swift compiler to verify thread safety.",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q26",
+      "type": "written",
+      "difficulty": 3,
+      "prompt": "What strict requirements must a Swift class satisfy to conform to Sendable safely without using @unchecked?",
+      "lessonSection": "The simple idea",
+      "rubric": [
+        {
+          "criterion": "States that the class must be marked with the final keyword",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "States that all stored properties must be immutable let constants",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "States that all stored properties must themselves conform to Sendable",
+          "weight": 30,
+          "key": true
+        }
+      ],
+      "modelAnswer": "To safely conform to Sendable without @unchecked, a class must be final so subclasses cannot introduce mutable state. All stored properties must be immutable let constants, preventing state changes after initialization. Finally, every stored property must itself conform to Sendable.",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q27",
+      "type": "written",
+      "difficulty": 3,
+      "prompt": "What is the purpose of the @Sendable attribute on Swift closures, and what rules does it enforce?",
+      "lessonSection": "The simple idea",
+      "rubric": [
+        {
+          "criterion": "Explains that @Sendable marks closures that can safely cross concurrency boundaries to execute in other tasks",
+          "weight": 40,
+          "key": true
+        },
+        {
+          "criterion": "Identifies that the closure cannot capture mutable local variables by reference",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "States that all values captured by the closure must conform to Sendable",
+          "weight": 25
+        }
+      ],
+      "modelAnswer": "The @Sendable attribute marks closures that are safe to transfer across concurrency boundaries. To prevent data races, the compiler stops @Sendable closures from capturing mutable local variables by reference. In addition, any captured values must conform to the Sendable protocol.",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q28",
+      "type": "written",
+      "difficulty": 3,
+      "prompt": "When should you use @unchecked Sendable, and what risks does it introduce?",
+      "lessonSection": "Interview traps",
+      "rubric": [
+        {
+          "criterion": "States that @unchecked Sendable is appropriate when a type manages thread safety manually using locks or dispatch queues",
+          "weight": 40,
+          "key": true
+        },
+        {
+          "criterion": "Explains that it disables compiler verification, creating risk of runtime data races if synchronization contains bugs",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "Emphasizes that it should not be used as a shortcut to silence compiler warnings",
+          "weight": 25
+        }
+      ],
+      "modelAnswer": "@unchecked Sendable is appropriate when a class manages thread safety manually using synchronization primitives like os_unfair_lock, NSLock, or a serial queue. It introduces the risk of runtime data races because it disables compiler verification. If the manual synchronization has flaws, data races will still happen without any compiler warning.",
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q29",
+      "type": "code-write",
+      "difficulty": 3,
+      "prompt": "Write a Sendable struct named ScoreCard with immutable properties player: String and points: Int, and a formatted() method returning '{player}: {points} pts'. Instantiate it with 'Alex' and 150 points, and print its formatted string from a background Task.",
+      "lessonSection": "In code",
+      "starterCode": "struct ScoreCard: Sendable {\n    // Define player, points, and formatted()\n}\n\n// Instantiate ScoreCard(player: \"Alex\", points: 150) in an async function and print result",
+      "rubric": [
+        {
+          "criterion": "Declares ScoreCard as a struct conforming to Sendable with properties player and points",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "Uses let constants for immutable Sendable properties",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "Implements formatted() method returning the exact expected string",
+          "weight": 30,
+          "key": true
+        }
+      ],
+      "modelAnswer": "struct ScoreCard: Sendable {\n    let player: String\n    let points: Int\n\n    func formatted() -> String {\n        \"\\(player): \\(points) pts\"\n    }\n}\n\nfunc printScore() async {\n    let card = ScoreCard(player: \"Alex\", points: 150)\n    let task = Task {\n        card.formatted()\n    }\n    let res = await task.value\n    print(res)\n}\n\nawait printScore()",
+      "verify": {
+        "output": "Alex: 150 pts"
+      },
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q30",
+      "type": "code-write",
+      "difficulty": 3,
+      "prompt": "Write a final class named ImmutableSession conforming safely to Sendable with stored properties token: String and userId: Int, plus an initializer. Instantiate it and print 'User {userId} with token {token}' from a detached task.",
+      "lessonSection": "In code",
+      "starterCode": "final class ImmutableSession: Sendable {\n    // Define stored let properties and initializer\n}\n\n// Create instance and print from Task.detached",
+      "rubric": [
+        {
+          "criterion": "Uses final class and declares Sendable conformance",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "Declares stored properties token and userId as let constants",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "Provides complete initializer and prints from detached task",
+          "weight": 30
+        }
+      ],
+      "modelAnswer": "final class ImmutableSession: Sendable {\n    let token: String\n    let userId: Int\n\n    init(token: String, userId: Int) {\n        self.token = token\n        self.userId = userId\n    }\n}\n\nfunc printSession() async {\n    let session = ImmutableSession(token: \"xyz789\", userId: 101)\n    let task = Task.detached {\n        \"User \\(session.userId) with token \\(session.token)\"\n    }\n    let res = await task.value\n    print(res)\n}\n\nawait printSession()",
+      "verify": {
+        "output": "User 101 with token xyz789"
+      },
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    },
+    {
+      "id": "sdr-q31",
+      "type": "code-write",
+      "difficulty": 3,
+      "prompt": "Write an asynchronous function named runSendableWork that accepts an @escaping @Sendable () -> String closure, executes it inside a Task, awaits the result, and returns it.",
+      "lessonSection": "In code",
+      "starterCode": "func runSendableWork(action: @escaping @Sendable () -> String) async -> String {\n    // Execute action in Task and return result\n}\n\n// Call runSendableWork and print result",
+      "rubric": [
+        {
+          "criterion": "Declares function taking action: @escaping @Sendable () -> String returning async String",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "Spawns a Task executing action()",
+          "weight": 35,
+          "key": true
+        },
+        {
+          "criterion": "Awaits task.value and returns the string result",
+          "weight": 30
+        }
+      ],
+      "modelAnswer": "func runSendableWork(action: @escaping @Sendable () -> String) async -> String {\n    let task = Task {\n        action()\n    }\n    return await task.value\n}\n\nfunc testWork() async {\n    let result = await runSendableWork {\n        \"Worker completed successfully\"\n    }\n    print(result)\n}\n\nawait testWork()",
+      "verify": {
+        "output": "Worker completed successfully"
+      },
+      "sources": [
+        {
+          "title": "Sendable (Swift)",
+          "url": "https://developer.apple.com/documentation/swift/sendable"
+        }
+      ]
+    }
+  ]
+}

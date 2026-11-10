@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sendable and Data Races</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --task1-color: #0284c7;
+  --task1-soft: #e0f2fe;
+  --task2-color: #ea580c;
+  --task2-soft: #ffedd5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --task1-color: #38bdf8;
+    --task1-soft: #082f49;
+    --task2-color: #fb923c;
+    --task2-soft: #431407;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stage-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.badge.danger { background: var(--danger-soft); color: var(--danger-color); }
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.step-counter {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--ink);
+  transform: translateY(-1px);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.caption-box {
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 4px solid var(--safe-color);
+  background: var(--code-bg);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Sendable and Data Races Interactive Stepper">
+  <div class="diagram-card">
+    <div class="header-row">
+      <h2 class="stage-title" id="stageTitle">Step 1: The Data Race (Shared Mutable Class)</h2>
+      <span class="badge danger" id="statusBadge">Data Race Hazard</span>
+    </div>
+
+    <div class="stepper-controls" aria-label="Diagram stepper">
+      <span class="step-counter" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+      <div class="button-group">
+        <button id="btnBack" aria-label="Previous step" disabled>&larr; Back</button>
+        <button id="btnNext" aria-label="Next step">Next &rarr;</button>
+        <button id="btnReplay" aria-label="Restart stepper">&#8635; Replay</button>
+      </div>
+    </div>
+
+    <svg viewBox="0 0 760 300" role="img" aria-label="Diagram of Sendable isolation and data races">
+      <!-- Task 1 Box -->
+      <g id="task1Group" transform="translate(40, 40)">
+        <rect width="190" height="90" rx="8" fill="var(--task1-soft)" stroke="var(--task1-color)" stroke-width="2"/>
+        <text x="14" y="28" fill="var(--task1-color)" font-weight="700" font-size="14">Task A (Thread 1)</text>
+        <text x="14" y="54" fill="var(--ink)" font-size="12" id="task1Action">write: score += 10</text>
+        <text x="14" y="74" fill="var(--muted)" font-size="11" id="task1Status">Concurrent access</text>
+      </g>
+
+      <!-- Task 2 Box -->
+      <g id="task2Group" transform="translate(40, 170)">
+        <rect width="190" height="90" rx="8" fill="var(--task2-soft)" stroke="var(--task2-color)" stroke-width="2"/>
+        <text x="14" y="28" fill="var(--task2-color)" font-weight="700" font-size="14">Task B (Thread 2)</text>
+        <text x="14" y="54" fill="var(--ink)" font-size="12" id="task2Action">read: print(score)</text>
+        <text x="14" y="74" fill="var(--muted)" font-size="11" id="task2Status">Concurrent access</text>
+      </g>
+
+      <!-- Connecting arrows -->
+      <g id="arrowsGroup">
+        <!-- Arrow A to Target -->
+        <path id="arrowA" d="M 230 85 L 420 120" stroke="var(--danger-color)" stroke-width="2.5" fill="none" stroke-dasharray="6 4"/>
+        <!-- Arrow B to Target -->
+        <path id="arrowB" d="M 230 215 L 420 180" stroke="var(--danger-color)" stroke-width="2.5" fill="none" stroke-dasharray="6 4"/>
+      </g>
+
+      <!-- Shared Data Box (Center / Right) -->
+      <g id="sharedTargetGroup" transform="translate(430, 75)">
+        <rect id="targetRect" width="280" height="150" rx="10" fill="var(--danger-soft)" stroke="var(--danger-color)" stroke-width="2.5"/>
+        <text id="targetHeader" x="20" y="32" fill="var(--danger-color)" font-weight="700" font-size="15">Shared Heap Object</text>
+        <text id="targetType" x="20" y="60" fill="var(--ink)" font-size="13" font-family="var(--font-code)">class GameState (Reference)</text>
+        <text id="targetState" x="20" y="86" fill="var(--muted)" font-size="12">var score = 42 (Mutable)</text>
+        <rect id="statusPill" x="20" y="105" width="240" height="28" rx="6" fill="var(--danger-color)"/>
+        <text id="statusPillText" x="140" y="124" fill="#ffffff" font-size="11" font-weight="700" text-anchor="middle">UNSYNCHRONIZED DATA RACE!</text>
+      </g>
+    </svg>
+
+    <div class="caption-box" id="captionText">
+      Two separate threads access the same class instance on the heap at the same time without locks. One writes while the other reads, causing memory corruption or crashes.
+    </div>
+
+    <div class="code-preview" id="codeText">// Swift 5 hazard:
+class GameState { var score = 0 }
+let state = GameState()
+Task { state.score += 10 }
+Task { print(state.score) } // Unsynchronized data race</div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Step 1: The Data Race (Shared Mutable Class)",
+    badge: "Data Race Hazard",
+    badgeClass: "danger",
+    caption: "Two separate threads access the same class instance on the heap at the same time without locks. One writes while the other reads, causing memory corruption or crashes.",
+    code: "// Unsafe shared mutable class:\nclass GameState { var score = 0 }\nlet state = GameState()\nTask { state.score += 10 }\nTask { print(state.score) } // Data race!",
+    t1Action: "write: score += 10",
+    t1Status: "Concurrent write",
+    t2Action: "read: print(score)",
+    t2Status: "Concurrent read",
+    targetHeader: "Shared Heap Object",
+    targetType: "class GameState (Reference)",
+    targetState: "var score = 42 (Mutable)",
+    pillText: "UNSYNCHRONIZED DATA RACE!",
+    pillFill: "var(--danger-color)",
+    targetStroke: "var(--danger-color)",
+    targetFill: "var(--danger-soft)",
+    arrowColor: "var(--danger-color)",
+    arrowDash: "6 4"
+  },
+  {
+    title: "Step 2: Sendable Value Type (Struct Copy)",
+    badge: "Sendable Value Type",
+    badgeClass: "safe",
+    caption: "A struct conforms to Sendable. When passed to another task, Swift makes a complete independent copy. No memory is shared, eliminating data races completely.",
+    code: "// Safe Sendable struct:\nstruct GameScore: Sendable {\n    let score: Int\n}\n// Each task receives its own independent copy",
+    t1Action: "copy A: score = 10",
+    t1Status: "Independent memory",
+    t2Action: "copy B: score = 42",
+    t2Status: "Independent memory",
+    targetHeader: "Independent Value Copies",
+    targetType: "struct GameScore: Sendable",
+    targetState: "Value semantics (No shared pointer)",
+    pillText: "SAFE: ZERO SHARED STATE",
+    pillFill: "var(--safe-color)",
+    targetStroke: "var(--safe-color)",
+    targetFill: "var(--safe-soft)",
+    arrowColor: "var(--safe-color)",
+    arrowDash: "none"
+  },
+  {
+    title: "Step 3: Final Class with Immutable State",
+    badge: "Sendable Class",
+    badgeClass: "safe",
+    caption: "A class can be Sendable only if it is final and contains only immutable let properties that are Sendable. Because state cannot change after init, multiple readers are safe.",
+    code: "final class ServerConfig: Sendable {\n    let host: String\n    let port: Int\n    init(host: String, port: Int) { self.host = host; self.port = port }\n}",
+    t1Action: "read: config.host",
+    t1Status: "Concurrent read-only",
+    t2Action: "read: config.port",
+    t2Status: "Concurrent read-only",
+    targetHeader: "Immutable Sendable Class",
+    targetType: "final class ServerConfig: Sendable",
+    targetState: "All properties are 'let' constants",
+    pillText: "SAFE: READ-ONLY IMMUTABLE",
+    pillFill: "var(--safe-color)",
+    targetStroke: "var(--safe-color)",
+    targetFill: "var(--safe-soft)",
+    arrowColor: "var(--safe-color)",
+    arrowDash: "none"
+  },
+  {
+    title: "Step 4: @Sendable Closure Enforcement",
+    badge: "Compiler Checked",
+    badgeClass: "safe",
+    caption: "Closures passed across task boundaries must be marked @Sendable. The Swift compiler stops code from capturing mutable local variables by reference.",
+    code: "var localCount = 0\nTask.detached {\n    // Compiler Error: Mutation of captured var 'localCount'\n    // in concurrently-executing code\n}",
+    t1Action: "localCount: immutable capture",
+    t1Status: "Checked at compile time",
+    t2Action: "@Sendable closure boundary",
+    t2Status: "No mutable captures allowed",
+    targetHeader: "@Sendable Isolation Boundary",
+    targetType: "Task.detached { @Sendable in ... }",
+    targetState: "Swift compiler verifies captured values",
+    pillText: "SAFE: COMPILE-TIME VERIFIED",
+    pillFill: "var(--safe-color)",
+    targetStroke: "var(--safe-color)",
+    targetFill: "var(--safe-soft)",
+    arrowColor: "var(--safe-color)",
+    arrowDash: "none"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  document.getElementById("stageTitle").textContent = s.title;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = s.badge;
+  badge.className = `badge ${s.badgeClass}`;
+
+  document.getElementById("captionText").textContent = s.caption;
+  document.getElementById("codeText").textContent = s.code;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.getElementById("task1Action").textContent = s.t1Action;
+  document.getElementById("task1Status").textContent = s.t1Status;
+  document.getElementById("task2Action").textContent = s.t2Action;
+  document.getElementById("task2Status").textContent = s.t2Status;
+
+  document.getElementById("targetHeader").textContent = s.targetHeader;
+  document.getElementById("targetType").textContent = s.targetType;
+  document.getElementById("targetState").textContent = s.targetState;
+
+  const targetRect = document.getElementById("targetRect");
+  targetRect.style.stroke = s.targetStroke;
+  targetRect.style.fill = s.targetFill;
+
+  const statusPill = document.getElementById("statusPill");
+  statusPill.style.fill = s.pillFill;
+  document.getElementById("statusPillText").textContent = s.pillText;
+
+  const arrowA = document.getElementById("arrowA");
+  const arrowB = document.getElementById("arrowB");
+  arrowA.style.stroke = s.arrowColor;
+  arrowA.style.strokeDasharray = s.arrowDash;
+  arrowB.style.stroke = s.arrowColor;
+  arrowB.style.strokeDasharray = s.arrowDash;
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>

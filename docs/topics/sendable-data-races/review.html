@@ -1,0 +1,660 @@
+<title>Sendable and Data Races Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --task1-color: #0284c7;
+  --task1-soft: #e0f2fe;
+  --task2-color: #ea580c;
+  --task2-soft: #ffedd5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --task1-color: #38bdf8;
+    --task1-soft: #082f49;
+    --task2-color: #fb923c;
+    --task2-soft: #431407;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stage-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.badge.danger { background: var(--danger-soft); color: var(--danger-color); }
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.step-counter {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--ink);
+  transform: translateY(-1px);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.caption-box {
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 4px solid var(--safe-color);
+  background: var(--code-bg);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Concurrency · Topic 5 of 7 · Prototype</p>
+    <h1>Sendable and Data Races</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain data races and how Sendable helps stop them.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>Two concurrent tasks share a mutable class instance without locks. One task writes to a property while another reads it. What is this called?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A deadlock error.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">A memory leak.</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">A data race.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">A priority inversion.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<p>A data race occurs when two tasks touch the same memory at the same time. At least one task writes, and neither task synchronizes.</p>
+<p>Data races cause unpredictable crashes and corrupt state. They are very hard to reproduce because they depend on thread timing.</p>
+<p>Swift Concurrency prevents data races at compile time with the <code>Sendable</code> protocol.</p>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a physical whiteboard versus a printed book. If two people write on the same whiteboard at once, the text becomes messy and unreadable. But if each person receives their own printed copy of a book, both can read safely without interfering.</p></aside>
+<p><code>Sendable</code> is a marker protocol. It has no required methods or properties. It tells the compiler that a value is safe to share across concurrent boundaries.</p>
+<p>Value types like structs and enums are naturally Sendable when all their stored properties are Sendable. Each task receives an independent copy.</p>
+<p>Actors are Sendable because their internal isolation guarantees only one task accesses mutable state at a time.</p>
+<p>Classes are reference types. They are not Sendable by default because two tasks can mutate the same shared instance simultaneously.</p>
+<p>A class can conform to <code>Sendable</code> only if it is <code>final</code>, all stored properties are <code>let</code> constants, and those properties are also Sendable.</p>
+<p>Closures passed across tasks must be marked <code>@Sendable</code>. An <code>@Sendable</code> closure cannot capture mutable local variables.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<p>Here is how a struct automatically conforms to <code>Sendable</code>. Passing it to a detached task is completely safe.</p>
+<pre class="block swift"><code class="language-swift">struct UserProfile: Sendable {
+    let id: Int
+    let name: String
+}
+
+func printUser(_ user: UserProfile) async {
+    let task = Task {
+        print(&quot;User \(user.id): \(user.name)&quot;)
+    }
+    await task.value
+}
+
+await printUser(UserProfile(id: 42, name: &quot;Sam&quot;))
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">User 42: Sam
+</code></pre>
+<p>Because <code>UserProfile</code> is an immutable struct, copying it across tasks cannot cause a data race.</p>
+<p>Next, here is how a <code>final</code> class with immutable properties conforms to <code>Sendable</code>.</p>
+<pre class="block swift"><code class="language-swift">final class AppConfig: Sendable {
+    let apiEndpoint: String
+    let timeout: Int
+
+    init(apiEndpoint: String, timeout: Int) {
+        self.apiEndpoint = apiEndpoint
+        self.timeout = timeout
+    }
+}
+
+func fetchConfig() async {
+    let config = AppConfig(apiEndpoint: &quot;https://api.example.com&quot;, timeout: 30)
+    let task = Task.detached {
+        print(&quot;Endpoint: \(config.apiEndpoint)&quot;)
+    }
+    await task.value
+}
+
+await fetchConfig()
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Endpoint: https://api.example.com
+</code></pre>
+<p>If <code>AppConfig</code> had any <code>var</code> property or lacked the <code>final</code> keyword, the compiler would reject the <code>Sendable</code> conformance.</p>
+<p class="try-it"><p>Open a Swift Playground. Create a class with a mutable property. Try to pass it into a detached Task under Swift 6 to observe the compiler diagnostic.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>Which type is NOT Sendable by default in Swift?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A standard Int or String value.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">A struct whose stored properties are all primitive types.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">A Swift actor protecting mutable state.</span></button><button type="button" class="opt" data-id="d" data-correct=""><span class="opt-id">D</span><span class="opt-text">A standard class with mutable var properties.</span></button><p class="qc-explain" hidden=""><p>Classes are reference types. A class with mutable variables allows multiple threads to write to the same object at once.</p></p></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>What condition must a class satisfy to safely conform to Sendable?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It must inherit from NSObject and declare dynamic properties.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It must be final, and all stored properties must be immutable let constants that are Sendable.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It must implement the Codable protocol and define a custom decoder.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">It must use private access control on every initializer.</span></button><p class="qc-explain" hidden=""><p>A Sendable class must be final so subclasses cannot add mutable state. All stored properties must be immutable and Sendable.</p></p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Adding <code>@unchecked Sendable</code> silences compiler warnings, but it removes compile-time protection. If your class contains unprotected mutable state, data races will still happen at runtime. Only use <code>@unchecked Sendable</code> when you protect state manually with locks.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>An <code>@Sendable</code> closure executes concurrently on another thread. Capturing a local <code>var</code> creates a data race. The compiler stops you from capturing mutable local variables inside <code>@Sendable</code> closures.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>A data race happens when two concurrent tasks access the same memory simultaneously, and at least one access is a write. In Swift, the <code>Sendable</code> protocol guarantees that values can safely cross concurrency boundaries. Structs and enums with Sendable properties are Sendable by default. A class can only be Sendable if it is <code>final</code> and contains only immutable <code>let</code> properties.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>I rely on Swift compile-time checks rather than runtime tools to stop data races. I design data models as immutable value types or actors. When migrating legacy code, I avoid <code>@unchecked Sendable</code> unless internal state is strictly protected by locks or queues. In Swift 6, strict concurrency checks every boundary, making data race safety guaranteed before code ever runs.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><p>Data races occur when unsynchronized tasks read and write shared memory concurrently. Sendable is a marker protocol indicating safe transfer across concurrency boundaries. Value types and actors conform naturally. Classes must be final with only immutable Sendable properties. The @Sendable attribute protects closures from capturing mutable state.</p></div>
+<h2>Go deeper</h2>
+<ul>
+<li>Apple Developer Documentation: Sendable: <a href="https://developer.apple.com/documentation/swift/sendable">https://developer.apple.com/documentation/swift/sendable</a></li>
+<li>WWDC22: Eliminate data races using Swift Concurrency: <a href="https://developer.apple.com/videos/play/wwdc2022/110351/">https://developer.apple.com/videos/play/wwdc2022/110351/</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    title: "Step 1: The Data Race (Shared Mutable Class)",
+    badge: "Data Race Hazard",
+    badgeClass: "danger",
+    caption: "Two separate threads access the same class instance on the heap at the same time without locks. One writes while the other reads, causing memory corruption or crashes.",
+    code: "// Unsafe shared mutable class:\nclass GameState { var score = 0 }\nlet state = GameState()\nTask { state.score += 10 }\nTask { print(state.score) } // Data race!",
+    t1Action: "write: score += 10",
+    t1Status: "Concurrent write",
+    t2Action: "read: print(score)",
+    t2Status: "Concurrent read",
+    targetHeader: "Shared Heap Object",
+    targetType: "class GameState (Reference)",
+    targetState: "var score = 42 (Mutable)",
+    pillText: "UNSYNCHRONIZED DATA RACE!",
+    pillFill: "var(--danger-color)",
+    targetStroke: "var(--danger-color)",
+    targetFill: "var(--danger-soft)",
+    arrowColor: "var(--danger-color)",
+    arrowDash: "6 4"
+  },
+  {
+    title: "Step 2: Sendable Value Type (Struct Copy)",
+    badge: "Sendable Value Type",
+    badgeClass: "safe",
+    caption: "A struct conforms to Sendable. When passed to another task, Swift makes a complete independent copy. No memory is shared, eliminating data races completely.",
+    code: "// Safe Sendable struct:\nstruct GameScore: Sendable {\n    let score: Int\n}\n// Each task receives its own independent copy",
+    t1Action: "copy A: score = 10",
+    t1Status: "Independent memory",
+    t2Action: "copy B: score = 42",
+    t2Status: "Independent memory",
+    targetHeader: "Independent Value Copies",
+    targetType: "struct GameScore: Sendable",
+    targetState: "Value semantics (No shared pointer)",
+    pillText: "SAFE: ZERO SHARED STATE",
+    pillFill: "var(--safe-color)",
+    targetStroke: "var(--safe-color)",
+    targetFill: "var(--safe-soft)",
+    arrowColor: "var(--safe-color)",
+    arrowDash: "none"
+  },
+  {
+    title: "Step 3: Final Class with Immutable State",
+    badge: "Sendable Class",
+    badgeClass: "safe",
+    caption: "A class can be Sendable only if it is final and contains only immutable let properties that are Sendable. Because state cannot change after init, multiple readers are safe.",
+    code: "final class ServerConfig: Sendable {\n    let host: String\n    let port: Int\n    init(host: String, port: Int) { self.host = host; self.port = port }\n}",
+    t1Action: "read: config.host",
+    t1Status: "Concurrent read-only",
+    t2Action: "read: config.port",
+    t2Status: "Concurrent read-only",
+    targetHeader: "Immutable Sendable Class",
+    targetType: "final class ServerConfig: Sendable",
+    targetState: "All properties are 'let' constants",
+    pillText: "SAFE: READ-ONLY IMMUTABLE",
+    pillFill: "var(--safe-color)",
+    targetStroke: "var(--safe-color)",
+    targetFill: "var(--safe-soft)",
+    arrowColor: "var(--safe-color)",
+    arrowDash: "none"
+  },
+  {
+    title: "Step 4: @Sendable Closure Enforcement",
+    badge: "Compiler Checked",
+    badgeClass: "safe",
+    caption: "Closures passed across task boundaries must be marked @Sendable. The Swift compiler stops code from capturing mutable local variables by reference.",
+    code: "var localCount = 0\nTask.detached {\n    // Compiler Error: Mutation of captured var 'localCount'\n    // in concurrently-executing code\n}",
+    t1Action: "localCount: immutable capture",
+    t1Status: "Checked at compile time",
+    t2Action: "@Sendable closure boundary",
+    t2Status: "No mutable captures allowed",
+    targetHeader: "@Sendable Isolation Boundary",
+    targetType: "Task.detached { @Sendable in ... }",
+    targetState: "Swift compiler verifies captured values",
+    pillText: "SAFE: COMPILE-TIME VERIFIED",
+    pillFill: "var(--safe-color)",
+    targetStroke: "var(--safe-color)",
+    targetFill: "var(--safe-soft)",
+    arrowColor: "var(--safe-color)",
+    arrowDash: "none"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  document.getElementById("stageTitle").textContent = s.title;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = s.badge;
+  badge.className = `badge ${s.badgeClass}`;
+
+  document.getElementById("captionText").textContent = s.caption;
+  document.getElementById("codeText").textContent = s.code;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.getElementById("task1Action").textContent = s.t1Action;
+  document.getElementById("task1Status").textContent = s.t1Status;
+  document.getElementById("task2Action").textContent = s.t2Action;
+  document.getElementById("task2Status").textContent = s.t2Status;
+
+  document.getElementById("targetHeader").textContent = s.targetHeader;
+  document.getElementById("targetType").textContent = s.targetType;
+  document.getElementById("targetState").textContent = s.targetState;
+
+  const targetRect = document.getElementById("targetRect");
+  targetRect.style.stroke = s.targetStroke;
+  targetRect.style.fill = s.targetFill;
+
+  const statusPill = document.getElementById("statusPill");
+  statusPill.style.fill = s.pillFill;
+  document.getElementById("statusPillText").textContent = s.pillText;
+
+  const arrowA = document.getElementById("arrowA");
+  const arrowB = document.getElementById("arrowB");
+  arrowA.style.stroke = s.arrowColor;
+  arrowA.style.strokeDasharray = s.arrowDash;
+  arrowB.style.stroke = s.arrowColor;
+  arrowB.style.strokeDasharray = s.arrowDash;
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"sendable-data-races","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"sdr-q1","type":"mcq","difficulty":1,"prompt":"What defines a data race in concurrent software execution?","options":[{"id":"a","text":"Two concurrent tasks access the same memory location, at least one access is a write, and there is no synchronization.","explanation":"A data race occurs when unsynchronized concurrent tasks access the same memory location and at least one access is a write."},{"id":"b","text":"Two concurrent tasks wait indefinitely for locks held by each other, stopping all execution.","explanation":"Mutual waiting for locks is a deadlock, not a data race."},{"id":"c","text":"A task finishes after its expected deadline because background CPU priority was lower than normal.","explanation":"Delayed execution due to priority is priority inversion or latency, not a data race."},{"id":"d","text":"A network request returns data after the presenting view controller has already been deallocated.","explanation":"Receiving network responses after deallocation is a memory lifecycle issue, not a data race."}],"answer":"a"},{"id":"sdr-q2","type":"mcq","difficulty":1,"prompt":"What kind of protocol is Sendable in the Swift standard library?","options":[{"id":"a","text":"A protocol with mandatory serialization methods for converting instances into binary property lists.","explanation":"Serialization protocols like Codable require methods; Sendable has no runtime methods."},{"id":"b","text":"A marker protocol with no runtime requirements that tells the compiler a type is safe to share across concurrency boundaries.","explanation":"Sendable is a marker protocol without requirements, used by the compiler to verify thread safety."},{"id":"c","text":"A runtime reflection protocol that inspects dynamic memory layouts before copying objects across background threads.","explanation":"Sendable does not perform reflection or runtime checks; it is enforced statically."},{"id":"d","text":"An Objective-C compatibility protocol used to bridge Foundation data structures into Swift task groups.","explanation":"Sendable is a pure Swift compile-time concurrency protocol, not an Objective-C bridge."}],"answer":"b"},{"id":"sdr-q3","type":"mcq","difficulty":1,"prompt":"Why are Swift value types like structs generally safe to pass across concurrent tasks?","options":[{"id":"a","text":"Because the runtime allocates all structs directly on the main thread run loop.","explanation":"Structs are allocated on the stack or inline within heap objects, not pinned to the main thread."},{"id":"b","text":"Because the compiler automatically wraps all struct mutations in atomic os_unfair_lock primitives.","explanation":"The compiler does not add runtime locks to structs; safety comes from value copying."},{"id":"c","text":"Because value semantics copy data, giving each concurrent task an independent instance without shared mutable memory.","explanation":"Value copying means each task operates on its own memory, eliminating data races."},{"id":"d","text":"Because structs prevent callers from creating more than one instance during the app lifecycle.","explanation":"Structs can be instantiated unlimited times; they are not singletons."}],"answer":"c"},{"id":"sdr-q4","type":"mcq","difficulty":1,"prompt":"Why are standard Swift classes NOT Sendable by default?","options":[{"id":"a","text":"Because classes cannot conform to protocols declared outside their original module.","explanation":"Classes can conform to external protocols through extensions."},{"id":"b","text":"Because classes always execute their initializers on secondary thread pools.","explanation":"Initializers execute synchronously on whichever thread invokes them."},{"id":"c","text":"Because classes do not support reference counting in modern 64-bit architectures.","explanation":"Classes rely heavily on Automatic Reference Counting (ARC) on all architectures."},{"id":"d","text":"Because classes are reference types, so multiple tasks can mutate the same shared heap memory simultaneously.","explanation":"Sharing a mutable reference allows concurrent unsynchronized writes, triggering data races."}],"answer":"d"},{"id":"sdr-q5","type":"mcq","difficulty":2,"prompt":"Which set of requirements allows a Swift class to conform to Sendable without compiler errors?","options":[{"id":"a","text":"The class must be final, and all stored properties must be immutable let constants that are themselves Sendable.","explanation":"A Sendable class must be final and contain only immutable Sendable stored properties."},{"id":"b","text":"The class must inherit from NSObject, implement NSCopying, and declare private mutable var properties.","explanation":"Inheriting from NSObject or having mutable properties does not make a class Sendable."},{"id":"c","text":"The class must define dynamic dispatch getters and use lazy var properties for cached values.","explanation":"Lazy var properties introduce mutable state and are not permitted in Sendable classes."},{"id":"d","text":"The class must declare all methods with the mutating keyword and adopt the Identifiable protocol.","explanation":"Classes do not use mutating method declarations; that keyword is for value types."}],"answer":"a"},{"id":"sdr-q6","type":"mcq","difficulty":2,"prompt":"Why does a Swift actor automatically conform to the Sendable protocol?","options":[{"id":"a","text":"Because actors convert all stored reference types into value types at compile time.","explanation":"Actors do not alter member types; they enforce synchronized access."},{"id":"b","text":"Because actor isolation guarantees that only one task can access its internal mutable state at any given moment.","explanation":"Actor isolation enforces mutual exclusion, making actor references inherently safe to pass across tasks."},{"id":"c","text":"Because actor methods run exclusively inside background dispatch queues managed by Grand Central Dispatch.","explanation":"Actors use cooperative thread pools rather than traditional dedicated dispatch queues."},{"id":"d","text":"Because actors prohibit external callers from reading any stored properties.","explanation":"External callers can read properties using await."}],"answer":"b"},{"id":"sdr-q7","type":"mcq","difficulty":2,"prompt":"What restriction applies to closures marked with the @Sendable attribute?","options":[{"id":"a","text":"They cannot return values other than Void or standard 64-bit integers.","explanation":"@Sendable closures can return any Sendable type."},{"id":"b","text":"They must be synchronous and cannot call any asynchronous functions.","explanation":"@Sendable closures can be synchronous or asynchronous."},{"id":"c","text":"They cannot capture mutable local variables, and all captured values must conform to Sendable.","explanation":"Capturing mutable variables by reference creates data races, so @Sendable closures forbid it."},{"id":"d","text":"They must be marked with the dynamic keyword to enable Objective-C message forwarding.","explanation":"The dynamic keyword is unrelated to Swift concurrency closures."}],"answer":"c"},{"id":"sdr-q8","type":"mcq","difficulty":2,"prompt":"What is the primary danger of using @unchecked Sendable on a custom class?","options":[{"id":"a","text":"It forces the compiler to crash when compiling release builds for iOS devices.","explanation":"The compiler handles @unchecked Sendable cleanly; it does not crash."},{"id":"b","text":"It slows down app launch times by running extra bytecode verifications.","explanation":"@unchecked Sendable incurs zero runtime overhead or verification."},{"id":"c","text":"It automatically converts reference types into structs during memory allocation.","explanation":"Classes remain reference types on the heap."},{"id":"d","text":"It bypasses compile-time checks, so flawed manual synchronization still results in runtime data races.","explanation":"@unchecked disables compiler safety checks, leaving synchronization errors undetected."}],"answer":"d"},{"id":"sdr-q9","type":"mcq","difficulty":2,"prompt":"When is using @unchecked Sendable genuinely appropriate in a production codebase?","options":[{"id":"a","text":"When a class manages internal synchronization manually using locks or queues that the compiler cannot verify.","explanation":"@unchecked Sendable is appropriate when thread safety is guaranteed by locks or queues."},{"id":"b","text":"Whenever you need a quick way to silence compiler warnings before submitting an app update.","explanation":"Silencing warnings without thread safety introduces crashes and data races."},{"id":"c","text":"When building SwiftUI view bodies that display dynamic list rows.","explanation":"SwiftUI views are structs and do not need @unchecked Sendable."},{"id":"d","text":"When converting Objective-C protocols into Swift 6 async functions.","explanation":"Objective-C protocol interop does not require @unchecked Sendable on classes."}],"answer":"a"},{"id":"sdr-q10","type":"mcq","difficulty":2,"prompt":"How does Thread Sanitizer (TSan) relate to Swift Concurrency data race safety?","options":[{"id":"a","text":"TSan replaces the need for Swift 6 compiler checks by optimizing binary machine code.","explanation":"TSan is a diagnostic instrument, not an optimizing compiler."},{"id":"b","text":"TSan detects data races at runtime during testing, while Swift Concurrency stops them at compile time.","explanation":"TSan monitors executed memory accesses at runtime; Swift Concurrency enforces safety at compile time."},{"id":"c","text":"TSan is a static analysis linter that checks Swift syntax before compilation starts.","explanation":"TSan requires instrumented code execution; it is not a static linter."},{"id":"d","text":"TSan is an Apple Silicon hardware register that blocks unauthorized memory writes.","explanation":"TSan is a software sanitizer implemented in LLVM and compiler runtimes."}],"answer":"b"},{"id":"sdr-q11","type":"mcq","difficulty":2,"prompt":"Under what condition does a generic type like Array\u003cElement> conform to Sendable?","options":[{"id":"a","text":"Always, because standard collections are implemented as value types in Swift.","explanation":"Collections holding non-Sendable elements cannot safely be passed across tasks."},{"id":"b","text":"Only when the array has fewer than 1024 elements allocated in memory.","explanation":"Collection capacity has no effect on Sendable conformance."},{"id":"c","text":"Conditionally, when the generic Element type itself conforms to Sendable.","explanation":"Array conforms to Sendable only if its Element conforms to Sendable."},{"id":"d","text":"Only when the array is wrapped inside an actor or declared with the @MainActor attribute.","explanation":"Arrays conform to Sendable independently outside actors when elements are Sendable."}],"answer":"c"},{"id":"sdr-q12","type":"mcq","difficulty":2,"prompt":"What happens if a struct contains a stored property whose type is a non-Sendable class?","options":[{"id":"a","text":"The struct automatically promotes the class instance into an actor at runtime.","explanation":"Swift does not change reference types into actors dynamically."},{"id":"b","text":"The compiler creates a deep copy of the class heap instance on every function call.","explanation":"Copying the struct only shallow-copies the class pointer reference."},{"id":"c","text":"The struct becomes a reference type and moves its allocation to the shared heap.","explanation":"The struct remains a value type, but it loses Sendable conformance."},{"id":"d","text":"The struct does NOT conform to Sendable because its stored property can be mutated concurrently.","explanation":"Because a stored property can be modified via shared reference, the struct is not Sendable."}],"answer":"d"},{"id":"sdr-q13","type":"mcq","difficulty":2,"prompt":"What is the difference between a data race and a general race condition?","options":[{"id":"a","text":"A data race is unsynchronized memory access, while a race condition is a timing flaw in application logic.","explanation":"A data race is low-level memory conflict. A race condition is an unexpected order of high-level operations."},{"id":"b","text":"A data race happens in release mode, while a race condition happens only in debug mode.","explanation":"Both issues can occur in both release and debug builds."},{"id":"c","text":"A data race occurs exclusively in C++, while race conditions occur only in Swift.","explanation":"Both data races and race conditions occur across multiple languages."},{"id":"d","text":"A data race locks user interface controls, while a race condition triggers memory leaks.","explanation":"UI locking is main-thread blockage; neither term specifically describes leaks."}],"answer":"a"},{"id":"sdr-q14","type":"mcq","difficulty":2,"prompt":"How does Swift handle public types versus internal types regarding Sendable conformance?","options":[{"id":"a","text":"Public types are banned from conforming to Sendable to preserve binary stability.","explanation":"Public types can conform to Sendable when declared explicitly."},{"id":"b","text":"Internal types infer Sendable automatically when valid, while public types require explicit conformance declarations.","explanation":"Internal types infer Sendable; public types require explicit conformance to keep public API contracts stable."},{"id":"c","text":"Internal types must use @unchecked Sendable, while public types use standard Sendable.","explanation":"Internal types do not require @unchecked."},{"id":"d","text":"Public types infer Sendable automatically, but internal types require manual compiler flags.","explanation":"Automatic inference applies to non-public types, not public ones."}],"answer":"b"},{"id":"sdr-q15","type":"mcq","difficulty":3,"prompt":"What does region-based isolation in Swift 6 allow when sending non-Sendable values between tasks?","options":[{"id":"a","text":"It converts all non-Sendable values into Objective-C NSData objects automatically.","explanation":"Region analysis operates within Swift type system without converting types."},{"id":"b","text":"It moves execution to a dedicated background serial queue for the rest of the application run.","explanation":"Region analysis is a compile-time static check, not a queue dispatcher."},{"id":"c","text":"It allows sending a non-Sendable value if the compiler proves no other reference to that memory exists.","explanation":"If the compiler proves the sending scope discards all references, concurrent access cannot occur."},{"id":"d","text":"It disables data race diagnostics across all third-party external Swift package dependencies.","explanation":"Region isolation does not disable diagnostics; it allows proven safe transfers."}],"answer":"c"},{"id":"sdr-q16","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"struct Point: Sendable {\n    var x: Int\n    var y: Int\n}\n\nfunc test() async {\n    let p1 = Point(x: 10, y: 20)\n    let t = Task {\n        var p2 = p1\n        p2.x = 50\n        return p2.x\n    }\n    let res = await t.value\n    print(\"\\(p1.x) \\(res)\")\n}\n\nawait test()","options":[{"id":"a","text":"50 50","explanation":"p1 is not mutated because structs have value semantics."},{"id":"b","text":"10 10","explanation":"p2.x is modified to 50, so res returns 50."},{"id":"c","text":"50 10","explanation":"p1.x remains 10 and res is 50."},{"id":"d","text":"10 50","explanation":"p1 is an independent value copy whose x remains 10; p2.x is updated to 50 and returned."}],"answer":"d"},{"id":"sdr-q17","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"final class ImmutableMessage: Sendable {\n    let text: String\n    let senderId: Int\n\n    init(text: String, senderId: Int) {\n        self.text = text\n        self.senderId = senderId\n    }\n}\n\nfunc check() async {\n    let msg = ImmutableMessage(text: \"Hello\", senderId: 7)\n    let task = Task {\n        return \"\\(msg.senderId): \\(msg.text)\"\n    }\n    let result = await task.value\n    print(result)\n}\n\nawait check()","options":[{"id":"a","text":"7: Hello","explanation":"The immutable final class safely conforms to Sendable and prints '7: Hello'."},{"id":"b","text":"Hello: 7","explanation":"The string interpolation places senderId first, then text."},{"id":"c","text":"Message: 7","explanation":"The interpolation outputs the properties rather than the class name."},{"id":"d","text":"nil: Hello","explanation":"senderId is non-optional Int 7."}],"answer":"a"},{"id":"sdr-q18","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"actor SafeCounter {\n    var count = 0\n    func add() { count += 1 }\n    func value() -> Int { count }\n}\n\nfunc run() async {\n    let counter = SafeCounter()\n    let t = Task {\n        await counter.add()\n        return await counter.value()\n    }\n    let res = await t.value\n    print(\"Result: \\(res)\")\n}\n\nawait run()","options":[{"id":"a","text":"Result: 0","explanation":"add() increments count before value() is called."},{"id":"b","text":"Result: 1","explanation":"The actor is Sendable. The task increments count to 1 and returns it."},{"id":"c","text":"Result: 2","explanation":"add() is only invoked once."},{"id":"d","text":"Result: nil","explanation":"value() returns non-optional Int 1."}],"answer":"b"},{"id":"sdr-q19","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"enum JobStatus: Sendable {\n    case pending\n    case active(id: Int)\n}\n\nfunc checkStatus() async {\n    let status = JobStatus.active(id: 99)\n    let task = Task {\n        switch status {\n        case .pending:\n            return \"Pending\"\n        case .active(let id):\n            return \"Active \\(id)\"\n        }\n    }\n    let res = await task.value\n    print(res)\n}\n\nawait checkStatus()","options":[{"id":"a","text":"Pending","explanation":"status is initialized to .active(id: 99), not .pending."},{"id":"b","text":"Active","explanation":"The switch pattern extracts the associated value id."},{"id":"c","text":"Active 99","explanation":"The enum value is .active(id: 99) and prints 'Active 99'."},{"id":"d","text":"Pending 99","explanation":"The status is active, not pending."}],"answer":"c"},{"id":"sdr-q20","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"func executeAsync(operation: @escaping @Sendable () -> Int) async -> Int {\n    let task = Task {\n        operation()\n    }\n    return await task.value\n}\n\nfunc testClosure() async {\n    let multiplier = 5\n    let result = await executeAsync {\n        multiplier * 10\n    }\n    print(\"Total: \\(result)\")\n}\n\nawait testClosure()","options":[{"id":"a","text":"Total: 10","explanation":"multiplier is 5, so 5 * 10 is 50."},{"id":"b","text":"Total: 15","explanation":"5 * 10 is multiplication, not addition."},{"id":"c","text":"Total: 25","explanation":"The calculation produces 50."},{"id":"d","text":"Total: 50","explanation":"The @Sendable closure safely captures the immutable multiplier (5) and calculates 50."}],"answer":"d"},{"id":"sdr-q21","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"func processNames(_ names: [String]) async {\n    let task = Task {\n        names.joined(separator: \", \")\n    }\n    let combined = await task.value\n    print(\"Items: \\(combined)\")\n}\n\nawait processNames([\"Swift\", \"iOS\", \"Xcode\"])","options":[{"id":"a","text":"Items: Swift, iOS, Xcode","explanation":"Array\u003cString> is Sendable because String is Sendable. The task joins the strings correctly."},{"id":"b","text":"Items: Swift iOS Xcode","explanation":"The joined separator is comma and space."},{"id":"c","text":"Items: Xcode, iOS, Swift","explanation":"The array elements preserve their original insertion order."},{"id":"d","text":"Items: [Swift, iOS, Xcode]","explanation":"joined(separator:) returns a formatted String, not array brackets."}],"answer":"a"},{"id":"sdr-q22","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"struct TaskRecord: Sendable {\n    let title: String\n    let priority: Int\n}\n\nfunc inspectRecord() async {\n    let record = TaskRecord(title: \"Refactor\", priority: 1)\n    let backgroundTask = Task {\n        return \"\\(record.title) with priority \\(record.priority)\"\n    }\n    let output = await backgroundTask.value\n    print(output)\n}\n\nawait inspectRecord()","options":[{"id":"a","text":"Refactor with priority 0","explanation":"priority was passed as 1."},{"id":"b","text":"Refactor with priority 1","explanation":"TaskRecord is Sendable. The background task reads both properties and returns 'Refactor with priority 1'."},{"id":"c","text":"TaskRecord: Refactor","explanation":"The interpolation includes both title and priority."},{"id":"d","text":"Task priority 1","explanation":"The interpolation outputs the title first."}],"answer":"b"},{"id":"sdr-q23","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"struct DeviceSetting: Sendable {\n    var volume: Int\n\n    mutating func increase() {\n        volume += 5\n    }\n}\n\nfunc checkSetting() async {\n    let setting = DeviceSetting(volume: 20)\n    let task = Task {\n        var copy = setting\n        copy.increase()\n        return copy.volume\n    }\n    let newVolume = await task.value\n    print(\"Old: \\(setting.volume), New: \\(newVolume)\")\n}\n\nawait checkSetting()","options":[{"id":"a","text":"Old: 25, New: 25","explanation":"setting is a value type, so its volume remains 20."},{"id":"b","text":"Old: 20, New: 20","explanation":"copy.increase() mutates copy, returning 25."},{"id":"c","text":"Old: 20, New: 25","explanation":"Value copying keeps setting unmodified at 20, while copy becomes 25."},{"id":"d","text":"Old: 25, New: 20","explanation":"The old volume is 20 and the new volume is 25."}],"answer":"c"},{"id":"sdr-q24","type":"written","difficulty":3,"prompt":"What is a data race in iOS applications, and what specific problems does it cause?","rubric":[{"criterion":"Explains that multiple concurrent tasks access the same memory simultaneously with at least one write without synchronization","weight":35,"key":true},{"criterion":"Describes consequences including silent memory corruption, inconsistent state, crashes, and unpredictable behavior","weight":35,"key":true},{"criterion":"Notes that data races are hard to reproduce because they depend on thread scheduling and timing","weight":30}],"modelAnswer":"A data race occurs when concurrent tasks access the same memory simultaneously. At least one access is a write without synchronization. This causes corrupted memory, inconsistent app state, undefined behavior, and difficult crashes. Because data races depend on thread timing, they are very difficult to reproduce in tests."},{"id":"sdr-q25","type":"written","difficulty":3,"prompt":"Explain what the Sendable protocol is in Swift and why it is called a marker protocol.","rubric":[{"criterion":"Defines Sendable as a protocol signaling that values can safely cross concurrency boundaries without data races","weight":40,"key":true},{"criterion":"Explains that it is a marker protocol because it has no runtime requirements, methods, or properties","weight":35,"key":true},{"criterion":"Mentions that Sendable checks are performed by the Swift compiler at compile time","weight":25}],"modelAnswer":"Sendable is a Swift protocol indicating that values of a type can safely be transferred across concurrency boundaries such as tasks or actors. It is called a marker protocol because it defines no methods, properties, or runtime witnesses. Instead, it serves as a compile-time signal to the Swift compiler to verify thread safety."},{"id":"sdr-q26","type":"written","difficulty":3,"prompt":"What strict requirements must a Swift class satisfy to conform to Sendable safely without using @unchecked?","rubric":[{"criterion":"States that the class must be marked with the final keyword","weight":35,"key":true},{"criterion":"States that all stored properties must be immutable let constants","weight":35,"key":true},{"criterion":"States that all stored properties must themselves conform to Sendable","weight":30,"key":true}],"modelAnswer":"To safely conform to Sendable without @unchecked, a class must be final so subclasses cannot introduce mutable state. All stored properties must be immutable let constants, preventing state changes after initialization. Finally, every stored property must itself conform to Sendable."},{"id":"sdr-q27","type":"written","difficulty":3,"prompt":"What is the purpose of the @Sendable attribute on Swift closures, and what rules does it enforce?","rubric":[{"criterion":"Explains that @Sendable marks closures that can safely cross concurrency boundaries to execute in other tasks","weight":40,"key":true},{"criterion":"Identifies that the closure cannot capture mutable local variables by reference","weight":35,"key":true},{"criterion":"States that all values captured by the closure must conform to Sendable","weight":25}],"modelAnswer":"The @Sendable attribute marks closures that are safe to transfer across concurrency boundaries. To prevent data races, the compiler stops @Sendable closures from capturing mutable local variables by reference. In addition, any captured values must conform to the Sendable protocol."},{"id":"sdr-q28","type":"written","difficulty":3,"prompt":"When should you use @unchecked Sendable, and what risks does it introduce?","rubric":[{"criterion":"States that @unchecked Sendable is appropriate when a type manages thread safety manually using locks or dispatch queues","weight":40,"key":true},{"criterion":"Explains that it disables compiler verification, creating risk of runtime data races if synchronization contains bugs","weight":35,"key":true},{"criterion":"Emphasizes that it should not be used as a shortcut to silence compiler warnings","weight":25}],"modelAnswer":"@unchecked Sendable is appropriate when a class manages thread safety manually using synchronization primitives like os_unfair_lock, NSLock, or a serial queue. It introduces the risk of runtime data races because it disables compiler verification. If the manual synchronization has flaws, data races will still happen without any compiler warning."},{"id":"sdr-q29","type":"code-write","difficulty":3,"prompt":"Write a Sendable struct named ScoreCard with immutable properties player: String and points: Int, and a formatted() method returning '{player}: {points} pts'. Instantiate it with 'Alex' and 150 points, and print its formatted string from a background Task.","starterCode":"struct ScoreCard: Sendable {\n    // Define player, points, and formatted()\n}\n\n// Instantiate ScoreCard(player: \"Alex\", points: 150) in an async function and print result","rubric":[{"criterion":"Declares ScoreCard as a struct conforming to Sendable with properties player and points","weight":35,"key":true},{"criterion":"Uses let constants for immutable Sendable properties","weight":35,"key":true},{"criterion":"Implements formatted() method returning the exact expected string","weight":30,"key":true}],"modelAnswer":"struct ScoreCard: Sendable {\n    let player: String\n    let points: Int\n\n    func formatted() -> String {\n        \"\\(player): \\(points) pts\"\n    }\n}\n\nfunc printScore() async {\n    let card = ScoreCard(player: \"Alex\", points: 150)\n    let task = Task {\n        card.formatted()\n    }\n    let res = await task.value\n    print(res)\n}\n\nawait printScore()"},{"id":"sdr-q30","type":"code-write","difficulty":3,"prompt":"Write a final class named ImmutableSession conforming safely to Sendable with stored properties token: String and userId: Int, plus an initializer. Instantiate it and print 'User {userId} with token {token}' from a detached task.","starterCode":"final class ImmutableSession: Sendable {\n    // Define stored let properties and initializer\n}\n\n// Create instance and print from Task.detached","rubric":[{"criterion":"Uses final class and declares Sendable conformance","weight":35,"key":true},{"criterion":"Declares stored properties token and userId as let constants","weight":35,"key":true},{"criterion":"Provides complete initializer and prints from detached task","weight":30}],"modelAnswer":"final class ImmutableSession: Sendable {\n    let token: String\n    let userId: Int\n\n    init(token: String, userId: Int) {\n        self.token = token\n        self.userId = userId\n    }\n}\n\nfunc printSession() async {\n    let session = ImmutableSession(token: \"xyz789\", userId: 101)\n    let task = Task.detached {\n        \"User \\(session.userId) with token \\(session.token)\"\n    }\n    let res = await task.value\n    print(res)\n}\n\nawait printSession()"},{"id":"sdr-q31","type":"code-write","difficulty":3,"prompt":"Write an asynchronous function named runSendableWork that accepts an @escaping @Sendable () -> String closure, executes it inside a Task, awaits the result, and returns it.","starterCode":"func runSendableWork(action: @escaping @Sendable () -> String) async -> String {\n    // Execute action in Task and return result\n}\n\n// Call runSendableWork and print result","rubric":[{"criterion":"Declares function taking action: @escaping @Sendable () -> String returning async String","weight":35,"key":true},{"criterion":"Spawns a Task executing action()","weight":35,"key":true},{"criterion":"Awaits task.value and returns the string result","weight":30}],"modelAnswer":"func runSendableWork(action: @escaping @Sendable () -> String) async -> String {\n    let task = Task {\n        action()\n    }\n    return await task.value\n}\n\nfunc testWork() async {\n    let result = await runSendableWork {\n        \"Worker completed successfully\"\n    }\n    print(result)\n}\n\nawait testWork()"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

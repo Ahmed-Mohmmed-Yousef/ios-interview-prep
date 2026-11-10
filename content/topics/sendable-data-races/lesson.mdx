@@ -1,0 +1,171 @@
+export const meta = {
+  id: "sendable-data-races",
+  summary: "Understand data races, how the Sendable protocol stops them at compile time, and how to safely pass values between concurrent tasks.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "Sendable (Swift)",
+      url: "https://developer.apple.com/documentation/swift/sendable"
+    },
+    {
+      title: "WWDC22: Eliminate data races using Swift Concurrency",
+      url: "https://developer.apple.com/videos/play/wwdc2022/110351/"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    Two concurrent tasks share a mutable class instance without locks. One task writes to a property while another reads it. What is this called?
+  </Question>
+  <Guess>
+    <Option id="a">A deadlock error.</Option>
+    <Option id="b">A memory leak.</Option>
+    <Option id="c" correct>A data race.</Option>
+    <Option id="d">A priority inversion.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+A data race occurs when two tasks touch the same memory at the same time. At least one task writes, and neither task synchronizes.
+
+Data races cause unpredictable crashes and corrupt state. They are very hard to reproduce because they depend on thread timing.
+
+Swift Concurrency prevents data races at compile time with the `Sendable` protocol.
+
+<Analogy>
+  Think of a physical whiteboard versus a printed book. If two people write on the same whiteboard at once, the text becomes messy and unreadable. But if each person receives their own printed copy of a book, both can read safely without interfering.
+</Analogy>
+
+`Sendable` is a marker protocol. It has no required methods or properties. It tells the compiler that a value is safe to share across concurrent boundaries.
+
+Value types like structs and enums are naturally Sendable when all their stored properties are Sendable. Each task receives an independent copy.
+
+Actors are Sendable because their internal isolation guarantees only one task accesses mutable state at a time.
+
+Classes are reference types. They are not Sendable by default because two tasks can mutate the same shared instance simultaneously.
+
+A class can conform to `Sendable` only if it is `final`, all stored properties are `let` constants, and those properties are also Sendable.
+
+Closures passed across tasks must be marked `@Sendable`. An `@Sendable` closure cannot capture mutable local variables.
+
+## See it
+
+<Diagram id="sendable-data-races" caption="Visualize shared mutable classes causing data races, versus safe Sendable value copies and actor boundaries." />
+
+## In code
+
+Here is how a struct automatically conforms to `Sendable`. Passing it to a detached task is completely safe.
+
+```swift
+struct UserProfile: Sendable {
+    let id: Int
+    let name: String
+}
+
+func printUser(_ user: UserProfile) async {
+    let task = Task {
+        print("User \(user.id): \(user.name)")
+    }
+    await task.value
+}
+
+await printUser(UserProfile(id: 42, name: "Sam"))
+```
+```output
+User 42: Sam
+```
+
+Because `UserProfile` is an immutable struct, copying it across tasks cannot cause a data race.
+
+Next, here is how a `final` class with immutable properties conforms to `Sendable`.
+
+```swift
+final class AppConfig: Sendable {
+    let apiEndpoint: String
+    let timeout: Int
+
+    init(apiEndpoint: String, timeout: Int) {
+        self.apiEndpoint = apiEndpoint
+        self.timeout = timeout
+    }
+}
+
+func fetchConfig() async {
+    let config = AppConfig(apiEndpoint: "https://api.example.com", timeout: 30)
+    let task = Task.detached {
+        print("Endpoint: \(config.apiEndpoint)")
+    }
+    await task.value
+}
+
+await fetchConfig()
+```
+```output
+Endpoint: https://api.example.com
+```
+
+If `AppConfig` had any `var` property or lacked the `final` keyword, the compiler would reject the `Sendable` conformance.
+
+<TryIt>
+  Open a Swift Playground. Create a class with a mutable property. Try to pass it into a detached Task under Swift 6 to observe the compiler diagnostic.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    Which type is NOT Sendable by default in Swift?
+  </Question>
+  <Option id="a">A standard Int or String value.</Option>
+  <Option id="b">A struct whose stored properties are all primitive types.</Option>
+  <Option id="c">A Swift actor protecting mutable state.</Option>
+  <Option id="d" correct>A standard class with mutable var properties.</Option>
+  <Explanation>
+    Classes are reference types. A class with mutable variables allows multiple threads to write to the same object at once.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    What condition must a class satisfy to safely conform to Sendable?
+  </Question>
+  <Option id="a">It must inherit from NSObject and declare dynamic properties.</Option>
+  <Option id="b" correct>It must be final, and all stored properties must be immutable let constants that are Sendable.</Option>
+  <Option id="c">It must implement the Codable protocol and define a custom decoder.</Option>
+  <Option id="d">It must use private access control on every initializer.</Option>
+  <Explanation>
+    A Sendable class must be final so subclasses cannot add mutable state. All stored properties must be immutable and Sendable.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Avoid using @unchecked Sendable as a quick fix">
+  Adding `@unchecked Sendable` silences compiler warnings, but it removes compile-time protection. If your class contains unprotected mutable state, data races will still happen at runtime. Only use `@unchecked Sendable` when you protect state manually with locks.
+</Trap>
+
+<Trap label="Do not capture mutable local variables in @Sendable closures">
+  An `@Sendable` closure executes concurrently on another thread. Capturing a local `var` creates a data race. The compiler stops you from capturing mutable local variables inside `@Sendable` closures.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  A data race happens when two concurrent tasks access the same memory simultaneously, and at least one access is a write. In Swift, the `Sendable` protocol guarantees that values can safely cross concurrency boundaries. Structs and enums with Sendable properties are Sendable by default. A class can only be Sendable if it is `final` and contains only immutable `let` properties.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I rely on Swift compile-time checks rather than runtime tools to stop data races. I design data models as immutable value types or actors. When migrating legacy code, I avoid `@unchecked Sendable` unless internal state is strictly protected by locks or queues. In Swift 6, strict concurrency checks every boundary, making data race safety guaranteed before code ever runs.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Data races occur when unsynchronized tasks read and write shared memory concurrently. Sendable is a marker protocol indicating safe transfer across concurrency boundaries. Value types and actors conform naturally. Classes must be final with only immutable Sendable properties. The @Sendable attribute protects closures from capturing mutable state.
+</Recap>
+
+## Go deeper
+
+- Apple Developer Documentation: Sendable: https://developer.apple.com/documentation/swift/sendable
+- WWDC22: Eliminate data races using Swift Concurrency: https://developer.apple.com/videos/play/wwdc2022/110351/
