@@ -1,0 +1,198 @@
+export const meta = {
+  id: "testing-async-code",
+  title: "Testing Async Code",
+  summary: "Write robust unit tests for asynchronous Swift code, concurrent actors, and task cancellations.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "Testing asynchronous code (Swift Testing)",
+      url: "https://developer.apple.com/documentation/testing/testing-asynchronous-code",
+      kind: "official"
+    },
+    {
+      title: "Asynchronous Tests and Expectations (XCTest)",
+      url: "https://developer.apple.com/documentation/xctest/asynchronous-tests-and-expectations",
+      kind: "official"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    How do modern Swift test frameworks test an asynchronous function that uses async/await?
+  </Question>
+  <Guess>
+    <Option id="a">By blocking the main thread with while loops until a timer expires</Option>
+    <Option id="b" correct>By marking the test method as async throws and directly awaiting the function call</Option>
+    <Option id="c">By forcing the compiler to execute the test as C++ code</Option>
+    <Option id="d">By disabling Swift concurrency checks in build settings</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+Asynchronous code performs work that takes time, such as downloading data or querying a database.
+In older Swift, testing asynchronous code required expectations and completion handlers.
+You had to create an expectation, wait for a callback, and fulfill the expectation before a timeout.
+
+With modern Swift Concurrency, testing asynchronous code is much simpler.
+Test functions can be marked with `async throws`.
+You can call asynchronous methods directly using `await` and write assertions on the returned results.
+
+<Analogy>
+  Think of ordering food at a drive-through window.
+  In the old callback approach, you drove away with a buzzer in your pocket.
+  You had to stand in the parking lot waiting for the buzzer to vibrate before returning to claim your order.
+  With modern async/await, you pull up to the window and wait directly until the attendant hands you the meal.
+  You take the bag, check that the food is correct, and drive home immediately.
+</Analogy>
+
+### Key tools for async tests
+
+1. **Direct `await`**: Test functions can pause and resume naturally without blocking threads.
+2. **Cancellation testing**: You can trigger `task.cancel()` and assert that a `CancellationError` is thrown.
+3. **Actor isolation**: You can test actors safely because calling an actor method from a test requires `await`.
+4. **Swift Testing `confirmation`**: When testing legacy callbacks or event streams, confirmations verify that events fire expected numbers of times.
+
+## See it
+
+<Diagram id="async-testing-flow" caption="How modern test runners await asynchronous operations, verify actor isolation, and test task cancellation.">
+{/*
+  Interactive stepper:
+  Step 1: Test Execution Start: Test runner invokes async test function.
+  Step 2: Awaiting Asynchronous Work: Test pauses at await without blocking runner threads.
+  Step 3: Verification & Assertions: Asynchronous result returns, and test verifies state.
+  Step 4: Cancellation & Error Paths: Testing cooperative cancellation throwing CancellationError.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why is marking test functions with async throws better than using arbitrary thread sleeps?</Question>
+  <Option id="a">It converts reference types into value types</Option>
+  <Option id="b" correct>It allows tests to pause and resume efficiently without causing flaky timing issues</Option>
+  <Option id="c">It forces all network requests to hit live servers</Option>
+  <Option id="d">It deletes the test suite upon failure</Option>
+  <Explanation>Using async throws lets the test runner cooperate with Swift Concurrency, executing immediately when async work finishes without arbitrary sleep delays.</Explanation>
+</QuickCheck>
+
+## In code
+
+Let us look at testing actor-isolated asynchronous methods and testing cooperative task cancellation in Swift.
+
+<CodeExample title="Testing an asynchronous method directly with await">
+```swift
+import Foundation
+
+actor UserClient {
+    func fetchUser(id: Int) async throws -> String {
+        try Task.checkCancellation()
+        return "Maria"
+    }
+}
+
+// In a test method, we await the call directly
+let client = UserClient()
+let name = try await client.fetchUser(id: 101)
+print("Fetched user: \(name)")
+```
+```output
+Fetched user: Maria
+```
+</CodeExample>
+
+<CodeExample title="Verifying cooperative task cancellation in a test">
+```swift
+import Foundation
+
+actor SearchService {
+    func search(query: String) async throws -> [String] {
+        try Task.checkCancellation()
+        return ["Result 1", "Result 2"]
+    }
+}
+
+let service = SearchService()
+let task = Task {
+    try await service.search(query: "Swift")
+}
+task.cancel()
+
+do {
+    _ = try await task.value
+    print("Completed")
+} catch is CancellationError {
+    print("Caught CancellationError as expected")
+} catch {
+    print("Other error: \(error)")
+}
+```
+```output
+Caught CancellationError as expected
+```
+</CodeExample>
+
+<TryIt>
+  Open Swift Playground and write a test that verifies an asynchronous method throwing a custom error.
+</TryIt>
+
+<QuickCheck>
+  <Question>What error does a cooperative Task throw when cancelled before execution?</Question>
+  <Option id="a">fatalError</Option>
+  <Option id="b">URLError.timedOut</Option>
+  <Option id="c" correct>CancellationError</Option>
+  <Option id="d">NSError.unknown</Option>
+  <Explanation>Calling Task.checkCancellation() throws a CancellationError when the task has been marked as cancelled.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Unawaited Detached Tasks in Tests">
+  Launching a detached `Task { ... }` inside a test without awaiting its completion is dangerous.
+  The test method finishes and reports success before the background task completes or crashes.
+  Always await the task value or use structured concurrency inside test methods.
+</Trap>
+
+<Trap title="Using Large Timeouts in CI">
+  Setting a 60-second timeout on asynchronous expectations causes test suites to hang when something breaks.
+  Keep test timeouts short, such as 1 to 2 seconds.
+  Fast timeouts give immediate feedback and keep continuous integration pipelines quick.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="junior">
+  In modern Swift, we write asynchronous unit tests by marking test functions with `async throws`.
+  We call async methods directly using `await` and verify the results with standard assertions.
+  We avoid using sleeps because sleeps make tests slow and unreliable.
+</InterviewAnswer>
+
+<InterviewAnswer level="mid">
+  Modern Swift testing leverages native concurrency.
+  Both Swift Testing and XCTest allow test functions to be `async throws`, eliminating the need for expectation boilerplate when testing async/await code.
+  For legacy callback APIs or streaming events, we use Swift Testing confirmations or `XCTestExpectation`.
+  We also write tests for edge cases like cooperative task cancellation by checking that `CancellationError` is thrown properly.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  Testing concurrent architectures requires strict determinism.
+  I avoid non-deterministic `Task.sleep` delays by injecting custom time clocks or mock schedulers into asynchronous services.
+  When testing actors, calls naturally require `await`, enforcing actor isolation at compile time under Swift 6 rules.
+  For cancellation testing, we verify that tasks respond promptly to cancellation without leaking resources.
+  In large CI pipelines, keeping expectation timeouts tight prevents broken tests from blocking integration queues.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  - Modern Swift tests support `async throws`, allowing direct `await` calls on asynchronous methods.
+  - Test cancellation by cancelling a Task and asserting on `CancellationError`.
+  - Testing actor-isolated methods requires `await` and respects Swift 6 concurrency rules.
+  - Avoid unawaited background tasks in test methods to prevent false-positive test results.
+  - Keep expectation timeouts short (1 to 2 seconds) to keep CI suites fast.
+</Recap>
+
+## Go deeper
+
+- [Testing asynchronous code (Apple Developer Documentation)](https://developer.apple.com/documentation/testing/testing-asynchronous-code)
+- [Asynchronous Tests and Expectations (Apple Developer Documentation)](https://developer.apple.com/documentation/xctest/asynchronous-tests-and-expectations)
