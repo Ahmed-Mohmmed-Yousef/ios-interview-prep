@@ -196,8 +196,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **ipad-adaptive-layout** (iPad and Adaptive Layout) — published (lesson, diagram, 31 questions) → [docs/topics/ipad-adaptive-layout/review.html](docs/topics/ipad-adaptive-layout/review.html)
     - ✅ **notifications** (Push and Local Notifications) — published (lesson, diagram, 31 questions) → [docs/topics/notifications/review.html](docs/topics/notifications/review.html)
     - ✅ **background-tasks** (Background Work) — published (lesson, diagram, 31 questions) → [docs/topics/background-tasks/review.html](docs/topics/background-tasks/review.html)
-    - 🔄 **deep-links** (Deep Links and Universal Links) — starting research
-    - ⬜ **widgets-app-intents** (Widgets and App Intents) [bonus]
+    - ✅ **deep-links** (Deep Links and Universal Links) — published (lesson, diagram, 31 questions) → [docs/topics/deep-links/review.html](docs/topics/deep-links/review.html)
+    - 🔄 **widgets-app-intents** (Widgets and App Intents) [bonus] — starting research
     - ⬜ **foundation-models** (On-Device AI with Foundation Models) [bonus]
   - ⬜ **Batch 3F: Data Persistence & Networking (5 topics)**
   - ⬜ **Batch 3G: Architecture & Testing Strategy (8 topics)**
@@ -369,6 +369,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `deep-links` (Deep Links and Universal Links): researched official Apple Universal Links, custom URL schemes, apple-app-site-association requirements, and SwiftUI onOpenURL modifier, authored lesson in simple English, interactive 4-step Universal Link routing and domain verification diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/deep-links/review.html`). All checks passed. Batch 3E progress: 6 of 8 published (102 total published topics across curriculum). Starting widgets-app-intents.
 
 - **2026-11-10** — Built and published topic `background-tasks` (Background Work): researched official Apple BackgroundTasks framework, BGTaskScheduler, and background URLSession docs, authored lesson in simple English, interactive 4-step BGTaskScheduler lifecycle and execution queue diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/background-tasks/review.html`). All checks passed. Batch 3E progress: 5 of 8 published (101 total published topics across curriculum). Starting deep-links.
 

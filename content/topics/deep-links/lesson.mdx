@@ -1,0 +1,198 @@
+export const meta = {
+  id: "deep-links",
+  summary: "Open screens directly from web and app links using Universal Links and custom URL schemes.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "Supporting universal links in your app (Xcode)", url: "https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app", kind: "official" },
+    { title: "Defining a custom URL scheme for your app", url: "https://developer.apple.com/documentation/xcode/defining-a-custom-url-scheme-for-your-app", kind: "official" },
+    { title: "onOpenURL(perform:) (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/view/onopenurl(perform:)", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why are Universal Links considered much more secure than custom URL schemes like myapp://?</Question>
+  <Guess>
+    <Option id="a">Custom URL schemes require entering a four-digit PIN code every time a link opens.</Option>
+    <Option id="b" correct>Universal Links require a two-way cryptographic verification between the domain and the app.</Option>
+    <Option id="c">Apple encrypts custom URL schemes using obsolete single-DES algorithms.</Option>
+    <Option id="d">Universal Links only work when the device is connected to a Mac through a USB cable.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine two ways to invite someone to your home.
+A custom URL scheme is like giving someone a secret nickname like "BobCastle".
+If a scammer moves into town and also claims the nickname "BobCastle", your guests might knock on the wrong door.
+A Universal Link is like an official street address verified by the city post office.
+Only the real property owner holds the verified title, and if the house is closed, guests can read the note on the door.
+Universal Links act like verified street addresses with an automatic website fallback.
+</Analogy>
+
+A **deep link** takes a user straight to a specific screen inside an app instead of simply opening the home screen.
+iOS supports two main types of links:
+1. **Custom URL schemes**: Use custom protocols like `myapp://products/42`. They are simple to register in `Info.plist`, but any malicious app can claim the same scheme. If your app is not installed, the link fails with an error.
+2. **Universal Links**: Standard HTTPS web links like `https://example.com/products/42`. They are verified between your website and your app. If the app is installed, iOS opens your app directly. If not, it opens the web page in Safari.
+
+Universal Links require a two-way verification:
+- Your web server hosts an `apple-app-site-association` file in its `.well-known` directory.
+- Your app declares the `Associated Domains` entitlement with `applinks:example.com`.
+
+**Universal Links provide verified ownership and a graceful web fallback that custom URL schemes lack.**
+
+## See it
+
+<Diagram id="deep-links-main" caption="How iOS verifies the apple-app-site-association file to route Universal Links to the installed app or Safari.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: User Tapping HTTPS Link, iOS Link Routing Engine, Installed App Node, Safari Browser Fallback Node.
+  - Step 1: User taps https://example.com/products/42 in Messages or Mail.
+  - Step 2: iOS checks its cached Associated Domains database for example.com.
+  - Step 3: Match confirmed; iOS bypasses Safari and routes directly into the app.
+  - Step 4: If app is not installed, iOS opens the destination URL in Safari seamlessly.
+  - Static version (reduced motion): Displays a decision flowchart comparing link tap, domain verification, and final presentation targets.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens when a user without your app installed taps a Universal Link?</Question>
+  <Option id="a">iOS shows a fatal system crash alert on screen.</Option>
+  <Option id="b" correct>The link opens your website gracefully in Safari.</Option>
+  <Option id="c">The phone reboots into recovery mode.</Option>
+  <Explanation>Universal Links use standard HTTPS addresses, so users without your app see your website in Safari without errors.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Parsing path components to route destinations
+
+In SwiftUI, attach `.onOpenURL` to your top-level view.
+Extract path components to navigate to the right destination.
+
+```swift
+import Foundation
+
+enum DeepLinkRoute: Equatable {
+    case home
+    case product(id: Int)
+    case unknown
+
+    static func parse(url: URL) -> DeepLinkRoute {
+        let components = url.pathComponents.filter { $0 != "/" }
+        if components.isEmpty {
+            return .home
+        }
+        if components.first == "products", components.count > 1, let id = Int(components[1]) {
+            return .product(id: id)
+        }
+        return .unknown
+    }
+}
+
+let sampleURL = URL(string: "https://example.com/products/42")!
+let route = DeepLinkRoute.parse(url: sampleURL)
+
+switch route {
+case .product(let id):
+    print("Navigating to product: \(id)")
+case .home:
+    print("Navigating home")
+case .unknown:
+    print("Unknown route")
+}
+```
+
+```output
+Navigating to product: 42
+```
+
+Using an enum prevents invalid states and centralizes your navigation rules.
+
+### Extracting query parameters with URLComponents
+
+Use `URLComponents` to read query parameters like referral codes or search tokens.
+
+```swift
+import Foundation
+
+struct LinkQueryParser {
+    static func queryValue(for key: String, in url: URL) -> String? {
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        return components?.queryItems?.first(where: { $0.name == key })?.value
+    }
+}
+
+let link = URL(string: "myapp://share?code=PROMO99")!
+let code = LinkQueryParser.queryValue(for: "code", in: link)
+print("Code: \(code ?? "none")")
+```
+
+```output
+Code: PROMO99
+```
+
+`URLComponents` decodes percent-encoded characters automatically.
+
+<QuickCheck>
+  <Question>Which SwiftUI modifier receives incoming deep link URLs?</Question>
+  <Option id="a">onReceive(NotificationCenter.default)</Option>
+  <Option id="b" correct>onOpenURL(perform:)</Option>
+  <Option id="c">onChange(of: scenePhase)</Option>
+  <Explanation>The onOpenURL modifier captures incoming URLs from both custom schemes and Universal Links.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open your Xcode project, add a custom URL scheme in the Info tab, and test opening it using the Simulator Safari browser.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Using custom URL schemes for sensitive OAuth callbacks">
+Any app installed on an iPhone can register the same custom scheme, such as `myapp://`.
+If a malicious app registers your scheme, it can hijack OAuth tokens or sensitive parameters.
+Always use Universal Links for authentication callbacks and sensitive data exchanges.
+</Trap>
+
+<Trap title="Serving the association file with HTTP redirects">
+The `apple-app-site-association` file must return HTTP status 200 directly.
+Apple verification tools and CDNs reject 301 or 302 redirects.
+Make sure your server returns the JSON file over HTTPS without redirects.
+</Trap>
+
+<Trap title="Pasting Universal Links into Safari address bar">
+When you paste a URL into Safari's search bar, Safari assumes you want to view the web page.
+Universal Links do not open the native app when entered directly into Safari's URL field.
+To test Universal Links, tap a link inside Notes, Messages, or Mail.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Deep links allow external links to open specific screens inside an app.
+iOS supports custom URL schemes like `myapp://` and Universal Links like `https://example.com`.
+I prefer Universal Links because they are standard HTTPS URLs that open in Safari if the app is not installed.
+In SwiftUI, I handle incoming links using the `.onOpenURL` modifier and parse paths using `URLComponents`.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Universal Links provide a secure, verified deep linking architecture.
+They prevent scheme hijacking through a two-way handshake: the server hosts an `apple-app-site-association` file, and the app declares matching `applinks` in Associated Domains.
+I design a centralized Deep Link Router that maps parsed routes to our navigation coordinators or SwiftUI `NavigationPath`.
+This router supports authentication guards, queuing deep links until a user finishes logging in or completing onboarding.
+Finally, I avoid HTTP redirects on the AASA file and verify associations using Apple CDN validation tools.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Deep links take users directly to specific destinations inside an application.
+- Custom URL schemes (`myapp://`) are insecure because any app can claim the same scheme.
+- Universal Links use standard HTTPS URLs and open in Safari if the app is missing.
+- Universal Links require hosting an `apple-app-site-association` file over HTTPS with no redirects.
+- In SwiftUI, handle incoming URLs using `.onOpenURL(perform:)`.
+- In UIKit, handle Universal Links in `scene(_:continue:userActivity:)` with `NSUserActivityTypeBrowsingWeb`.
+- Use `URLComponents` to safely parse paths and extract query parameters.
+</Recap>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Universal Links Verification and Routing Architecture</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.stage-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-color);
+}
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-color); }
+
+.svg-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.text-sm { font-size: 0.875rem; color: var(--muted); }
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.code-box {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  color: var(--ink);
+  white-space: pre-wrap;
+  margin-top: 12px;
+}
+.fallback-list {
+  display: none;
+  margin-top: 16px;
+  padding-left: 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fallback-list { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host">
+  <div class="diagram-card" role="region" aria-label="Universal Links verification and routing stepper">
+    <div class="header-row">
+      <div>
+        <h2 class="stage-title" id="stageTitle">Step 1: User Taps HTTPS Link</h2>
+        <span class="text-sm" id="stepCounter">Step 1 of 4</span>
+      </div>
+      <span class="badge accent" id="statusBadge">Link Tapped</span>
+    </div>
+
+    <div class="svg-container">
+      <svg viewBox="0 0 800 450" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Interactive diagram illustrating Universal Link verification and routing to native app or Safari">
+        <!-- Node 1: Incoming Link Event (Left) -->
+        <g id="boxLink">
+          <rect x="50" y="80" width="190" height="250" rx="12" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+          <text x="70" y="115" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">User Tap Event</text>
+          
+          <rect x="65" y="135" width="160" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent-color)" />
+          <text x="75" y="160" fill="var(--accent-color)" font-family="var(--font-body)" font-size="11" font-weight="600">Messages / Notes</text>
+          <text x="75" y="180" fill="var(--ink)" font-family="var(--font-code)" font-size="10">https://example.com</text>
+          <text x="75" y="195" fill="var(--ink)" font-family="var(--font-code)" font-size="10">/products/42</text>
+
+          <rect x="65" y="225" width="160" height="85" rx="6" fill="var(--code-bg)" />
+          <text x="75" y="250" fill="var(--muted)" font-family="var(--font-body)" font-size="11">• Standard HTTPS</text>
+          <text x="75" y="270" fill="var(--muted)" font-family="var(--font-body)" font-size="11">• No custom scheme</text>
+          <text x="75" y="290" fill="var(--safe-color)" font-family="var(--font-body)" font-size="11">✓ Hijack-proof</text>
+        </g>
+
+        <!-- Arrow 1: Link -> iOS Resolver -->
+        <path id="arr1" d="M240 170 H 320" stroke="var(--accent-color)" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowhead)" opacity="1" />
+
+        <!-- Node 2: iOS Link Verification Engine (Center) -->
+        <g id="boxResolver">
+          <rect x="330" y="60" width="220" height="290" rx="12" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+          <text x="350" y="95" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">iOS Universal Link Engine</text>
+
+          <rect id="cardAASA" x="345" y="115" width="190" height="100" rx="8" fill="var(--code-bg)" stroke="var(--line)" />
+          <text x="355" y="140" fill="var(--ink)" font-family="var(--font-body)" font-size="11" font-weight="600">AASA Validation Check</text>
+          <text id="lblDomain" x="355" y="160" fill="var(--muted)" font-family="var(--font-code)" font-size="10">domain: example.com</text>
+          <text id="lblEntitlement" x="355" y="180" fill="var(--muted)" font-family="var(--font-code)" font-size="10">applinks: registered</text>
+          <text id="lblMatchResult" x="355" y="200" fill="var(--safe-color)" font-family="var(--font-code)" font-size="10">status: checking</text>
+
+          <rect x="345" y="230" width="190" height="100" rx="8" fill="var(--bg)" stroke="var(--line)" />
+          <text x="355" y="255" fill="var(--ink)" font-family="var(--font-body)" font-size="11" font-weight="600">Routing Decision:</text>
+          <text id="lblDecisionApp" x="355" y="280" fill="var(--muted)" font-family="var(--font-body)" font-size="11">• App Installed: YES</text>
+          <text id="lblDecisionTarget" x="355" y="305" fill="var(--accent-color)" font-family="var(--font-body)" font-size="11">• Route: Target App</text>
+        </g>
+
+        <!-- Dynamic Destination Arrows -->
+        <!-- To Native App (Top Right) -->
+        <path id="arrApp" d="M550 150 Q 580 120 610 120" stroke="var(--safe-color)" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowheadSafe)" opacity="0.1" />
+
+        <!-- To Safari (Bottom Right) -->
+        <path id="arrSafari" d="M550 280 Q 580 310 610 310" stroke="var(--warn-color)" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowheadWarn)" opacity="0.1" />
+
+        <!-- Node 3A: Native App Destination (Top Right) -->
+        <g id="boxApp">
+          <rect id="rectNativeApp" x="610" y="60" width="160" height="130" rx="10" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+          <text x="625" y="90" fill="var(--ink)" font-family="var(--font-body)" font-size="13" font-weight="600">Native iOS App</text>
+          <rect x="620" y="105" width="140" height="70" rx="6" fill="var(--code-bg)" />
+          <text x="630" y="125" fill="var(--safe-color)" font-family="var(--font-code)" font-size="10">.onOpenURL()</text>
+          <text x="630" y="145" fill="var(--ink)" font-family="var(--font-code)" font-size="10">Route: Product(42)</text>
+          <text x="630" y="165" fill="var(--muted)" font-family="var(--font-body)" font-size="9">Opens Screen Directly</text>
+        </g>
+
+        <!-- Node 3B: Safari Web Fallback (Bottom Right) -->
+        <g id="boxSafari">
+          <rect id="rectSafari" x="610" y="240" width="160" height="130" rx="10" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+          <text x="625" y="270" fill="var(--ink)" font-family="var(--font-body)" font-size="13" font-weight="600">Safari Browser</text>
+          <rect x="620" y="285" width="140" height="70" rx="6" fill="var(--code-bg)" />
+          <text x="630" y="305" fill="var(--warn-color)" font-family="var(--font-body)" font-size="10" font-weight="600">Web Fallback</text>
+          <text x="630" y="325" fill="var(--muted)" font-family="var(--font-body)" font-size="9">Loads web storefront</text>
+          <text x="630" y="345" fill="var(--safe-color)" font-family="var(--font-body)" font-size="9">No error dialogs</text>
+        </g>
+
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="var(--accent-color)" />
+          </marker>
+          <marker id="arrowheadSafe" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="var(--safe-color)" />
+          </marker>
+          <marker id="arrowheadWarn" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="var(--warn-color)" />
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <div id="explainerText" class="text-sm">
+      The user taps a standard HTTPS link in Messages, Mail, or Notes.
+    </div>
+
+    <div class="code-box" id="codeSnippet">https://example.com/products/42</div>
+
+    <div class="controls-row">
+      <div class="btn-group">
+        <button id="btnBack" disabled aria-label="Previous step">Back</button>
+        <button id="btnNext" aria-label="Next step">Next</button>
+        <button id="btnReplay" aria-label="Replay animation">Replay</button>
+      </div>
+    </div>
+
+    <ol class="fallback-list">
+      <li><strong>Step 1 (Link Tapped):</strong> User taps a standard HTTPS link like <code>https://example.com/products/42</code>.</li>
+      <li><strong>Step 2 (AASA Verification):</strong> iOS checks its cached <code>apple-app-site-association</code> database for <code>example.com</code>.</li>
+      <li><strong>Step 3 (App Routing):</strong> If the app is installed and claims the path, iOS launches the app directly via <code>.onOpenURL</code>.</li>
+      <li><strong>Step 4 (Safari Fallback):</strong> If the app is not installed, iOS loads the website seamlessly in Safari without error alerts.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(function() {
+  const steps = [
+    {
+      title: "Step 1: User Taps HTTPS Link",
+      badge: "Link Tapped",
+      badgeClass: "accent",
+      explainer: "The user taps an HTTPS URL in Messages, Mail, or Notes. The link points to <code>https://example.com/products/42</code>.",
+      code: "https://example.com/products/42",
+      statusCheck: "status: incoming link",
+      decisionText: "• Route: Evaluating",
+      showAppArrow: false,
+      showSafariArrow: false,
+      highlightApp: false,
+      highlightSafari: false
+    },
+    {
+      title: "Step 2: iOS Checks AASA Verification",
+      badge: "AASA Verified",
+      badgeClass: "warn",
+      explainer: "iOS checks its local cache of the domain <code>apple-app-site-association</code> file and confirms the app has the matching <code>applinks:example.com</code> entitlement.",
+      code: "/* Validates AASA json at https://example.com/.well-known/apple-app-site-association */",
+      statusCheck: "status: AASA verified ✓",
+      decisionText: "• Domain: Verified Ownership",
+      showAppArrow: false,
+      showSafariArrow: false,
+      highlightApp: false,
+      highlightSafari: false
+    },
+    {
+      title: "Step 3: Direct App Route (App Installed)",
+      badge: "Opened in App",
+      badgeClass: "safe",
+      explainer: "Because the app is installed, iOS bypasses Safari completely and delivers the URL into the app via <code>.onOpenURL</code> or <code>UISceneDelegate</code>.",
+      code: ".onOpenURL { url in deepLinkRouter.navigate(to: url) }",
+      statusCheck: "status: App claimed link ✓",
+      decisionText: "• Target: Native App",
+      showAppArrow: true,
+      showSafariArrow: false,
+      highlightApp: true,
+      highlightSafari: false
+    },
+    {
+      title: "Step 4: Graceful Web Fallback (If Not Installed)",
+      badge: "Safari Fallback",
+      badgeClass: "warn",
+      explainer: "If the user does not have your app installed, the HTTPS link opens seamlessly in Safari. Users view the website without broken link error popups.",
+      code: "// Graceful fallback: opens https://example.com/products/42 in Safari",
+      statusCheck: "status: App missing -> Web fallback",
+      decisionText: "• Target: Safari Browser",
+      showAppArrow: false,
+      showSafariArrow: true,
+      highlightApp: false,
+      highlightSafari: true
+    }
+  ];
+
+  let currentStep = 0;
+
+  const stageTitle = document.getElementById("stageTitle");
+  const stepCounter = document.getElementById("stepCounter");
+  const statusBadge = document.getElementById("statusBadge");
+  const explainerText = document.getElementById("explainerText");
+  const codeSnippet = document.getElementById("codeSnippet");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+
+  const lblMatchResult = document.getElementById("lblMatchResult");
+  const lblDecisionTarget = document.getElementById("lblDecisionTarget");
+  const arrApp = document.getElementById("arrApp");
+  const arrSafari = document.getElementById("arrSafari");
+  const rectNativeApp = document.getElementById("rectNativeApp");
+  const rectSafari = document.getElementById("rectSafari");
+
+  function updateView() {
+    const s = steps[currentStep];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${currentStep + 1} of ${steps.length}`;
+    explainerText.innerHTML = s.explainer;
+    codeSnippet.textContent = s.code;
+
+    btnBack.disabled = currentStep === 0;
+    btnNext.disabled = currentStep === steps.length - 1;
+
+    lblMatchResult.textContent = s.statusCheck;
+    lblDecisionTarget.textContent = s.decisionText;
+
+    arrApp.setAttribute("opacity", s.showAppArrow ? "1" : "0.1");
+    arrSafari.setAttribute("opacity", s.showSafariArrow ? "1" : "0.1");
+
+    rectNativeApp.setAttribute("stroke", s.highlightApp ? "var(--safe-color)" : "var(--line)");
+    rectNativeApp.setAttribute("stroke-width", s.highlightApp ? "2.5" : "1.5");
+
+    rectSafari.setAttribute("stroke", s.highlightSafari ? "var(--warn-color)" : "var(--line)");
+    rectSafari.setAttribute("stroke-width", s.highlightSafari ? "2.5" : "1.5");
+  }
+
+  btnNext.addEventListener("click", () => {
+    if (currentStep < steps.length - 1) {
+      currentStep++;
+      updateView();
+    }
+  });
+
+  btnBack.addEventListener("click", () => {
+    if (currentStep > 0) {
+      currentStep--;
+      updateView();
+    }
+  });
+
+  btnReplay.addEventListener("click", () => {
+    currentStep = 0;
+    updateView();
+  });
+
+  updateView();
+})();
+</script>
+</body>
+</html>
