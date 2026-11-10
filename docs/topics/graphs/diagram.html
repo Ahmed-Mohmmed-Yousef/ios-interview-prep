@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Graph Traversal: Topological Sort &amp; In-Degrees</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --graph-color: #0284c7; --graph-soft: #e0f2fe;
+  --done-color: #059669; --done-soft: #d1fae5;
+  --alert-color: #d97706; --alert-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --graph-color: #38bdf8; --graph-soft: #082f49;
+  --done-color: #34d399; --done-soft: #064e3b;
+  --alert-color: #fbbf24; --alert-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.controls {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  padding: 6px 14px; border-radius: 8px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: all 0.2s ease;
+}
+button:hover:not(:disabled) { border-color: var(--graph-color); color: var(--graph-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-weight: 600; font-size: 14px; color: var(--muted); }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-graph .kind { background: var(--graph-soft); color: var(--graph-color); }
+.p-state .kind { background: var(--done-soft); color: var(--done-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-circle { stroke-width: 2.5; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-circle.active-current { stroke: var(--graph-color); fill: var(--graph-soft); stroke-width: 3.5; }
+.node-circle.active-done { stroke: var(--done-color); fill: var(--done-soft); stroke-width: 3.5; }
+.node-text { font-family: var(--font-code); font-weight: 700; font-size: 14px; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; }
+.edge { stroke: var(--line); stroke-width: 2; marker-end: url(#arrow); }
+.edge.active-edge { stroke: var(--graph-color); stroke-width: 2.5; marker-end: url(#arrow-active); }
+
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-badge {
+  display: inline-block; font-family: var(--font-code); font-size: 12px;
+  padding: 4px 8px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-circle { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Animated Graph Topological Sort Diagram">
+  <div class="controls">
+    <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+    <div class="btn-group">
+      <button id="btnBack" type="button" aria-label="Previous step">Back</button>
+      <button id="btnNext" type="button" aria-label="Next step">Next</button>
+      <button id="btnReplay" type="button" aria-label="Replay from start">Replay</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <!-- Graph Visualization Panel -->
+    <div class="panel p-graph">
+      <h3><span>Task Dependency Graph</span><span class="kind">DAG</span></h3>
+      <p class="caption" id="graphCaption">Compute in-degrees. Target 0 has in-degree 0 (no prerequisites).</p>
+      <svg viewBox="0 0 320 200" aria-label="Directed Acyclic Graph View">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--line)" />
+          </marker>
+          <marker id="arrow-active" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--graph-color)" />
+          </marker>
+        </defs>
+
+        <line id="e01" x1="50" y1="100" x2="160" y2="45" class="edge" />
+        <line id="e02" x1="50" y1="100" x2="160" y2="155" class="edge" />
+        <line id="e13" x1="160" y1="45" x2="270" y2="100" class="edge" />
+        <line id="e23" x1="160" y1="155" x2="270" y2="100" class="edge" />
+
+        <!-- Node 0: Foundation -->
+        <circle id="node0" cx="50" cy="100" r="18" class="node-circle active-current" />
+        <text x="50" y="100" class="node-text">0</text>
+
+        <!-- Node 1: Network -->
+        <circle id="node1" cx="160" cy="45" r="18" class="node-circle" />
+        <text x="160" y="45" class="node-text">1</text>
+
+        <!-- Node 2: UI -->
+        <circle id="node2" cx="160" cy="155" r="18" class="node-circle" />
+        <text x="160" y="155" class="node-text">2</text>
+
+        <!-- Node 3: App Target -->
+        <circle id="node3" cx="270" cy="100" r="18" class="node-circle" />
+        <text x="270" y="100" class="node-text">3</text>
+      </svg>
+    </div>
+
+    <!-- State & Queue Panel -->
+    <div class="panel p-state">
+      <h3><span>Kahn Algorithm State</span><span class="kind">In-Degree Queue</span></h3>
+      <p class="caption" id="stateCaption">Nodes with in-degree 0 are ready to compile immediately.</p>
+      <div class="code" id="stateCode">inDegree: [0: 0, 1: 1, 2: 1, 3: 2]<br>queue = [0]</div>
+      <div class="badge-row">
+        <span class="status-badge" id="queueBadge">Queue: [0]</span>
+        <span class="status-badge" id="orderBadge">Build Order: []</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    step: 1,
+    graphCaption: "Step 1: Compute in-degrees. Target 0 has in-degree 0 (no prerequisites).",
+    stateCaption: "Enqueue target 0. It is ready to build first.",
+    stateCode: "inDegree: [0: 0, 1: 1, 2: 1, 3: 2]\nqueue = [0]",
+    queueText: "Queue: [0]",
+    orderText: "Build Order: []",
+    current: [0],
+    done: [],
+    activeEdges: []
+  },
+  {
+    step: 2,
+    graphCaption: "Step 2: Pop 0 into build order. Decrement in-degrees for 1 and 2.",
+    stateCaption: "Targets 1 and 2 reach in-degree 0. Enqueue [1, 2].",
+    stateCode: "pop 0 -> inDegree[1]=0, inDegree[2]=0\nqueue = [1, 2]",
+    queueText: "Queue: [1, 2]",
+    orderText: "Build Order: [0]",
+    current: [1, 2],
+    done: [0],
+    activeEdges: ["e01", "e02"]
+  },
+  {
+    step: 3,
+    graphCaption: "Step 3: Pop 1 and 2 into build order. Decrement in-degree for target 3 twice.",
+    stateCaption: "Target 3 in-degree drops to 0. Enqueue [3].",
+    stateCode: "pop 1, 2 -> inDegree[3]=0\nqueue = [3]",
+    queueText: "Queue: [3]",
+    orderText: "Build Order: [0, 1, 2]",
+    current: [3],
+    done: [0, 1, 2],
+    activeEdges: ["e13", "e23"]
+  },
+  {
+    step: 4,
+    graphCaption: "Step 4: Pop 3. Queue is empty. All 4 targets successfully ordered.",
+    stateCaption: "Build order complete. Count equals 4, confirming no circular dependency.",
+    stateCode: "Build Order: [0, 1, 2, 3]\nCycle: None detected (4 of 4 built)",
+    queueText: "Queue: []",
+    orderText: "Build Order: [0, 1, 2, 3]",
+    current: [],
+    done: [0, 1, 2, 3],
+    activeEdges: []
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${s.step} of ${steps.length}`;
+
+  document.getElementById("graphCaption").textContent = s.graphCaption;
+  document.getElementById("stateCaption").textContent = s.stateCaption;
+  document.getElementById("stateCode").innerHTML = s.stateCode.replace(/\n/g, "<br>");
+  document.getElementById("queueBadge").textContent = s.queueText;
+  document.getElementById("orderBadge").textContent = s.orderText;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  for (let i = 0; i <= 3; i++) {
+    const el = document.getElementById(`node${i}`);
+    el.classList.remove("active-current", "active-done");
+    if (s.done.includes(i)) el.classList.add("active-done");
+    else if (s.current.includes(i)) el.classList.add("active-current");
+  }
+
+  ["e01", "e02", "e13", "e23"].forEach(edgeId => {
+    const el = document.getElementById(edgeId);
+    if (s.activeEdges.includes(edgeId)) el.classList.add("active-edge");
+    else el.classList.remove("active-edge");
+  });
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>

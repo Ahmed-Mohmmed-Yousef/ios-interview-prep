@@ -1,0 +1,192 @@
+export const meta = {
+  id: "graphs",
+  summary: "Model complex relationships with graphs and search them using breadth-first and depth-first search in Swift.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "Graph cheatsheet for coding interviews",
+      url: "https://www.techinterviewhandbook.org/algorithms/graph/"
+    },
+    {
+      title: "Swift Standard Library: Set",
+      url: "https://developer.apple.com/documentation/swift/set"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    Xcode needs to compile four targets where Target A depends on B and C, and C depends on D. Which algorithm finds a valid build order?
+  </Question>
+  <Guess>
+    <Option id="a">Binary search, because build targets have unique integer identifiers.</Option>
+    <Option id="b">Dijkstra algorithm, because target compile times need shortest path weights.</Option>
+    <Option id="c" correct>Topological sort, because dependency requirements form a directed acyclic graph.</Option>
+    <Option id="d">Depth-first search in-order, because trees always keep modules sorted.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+A graph stores items called vertices (or nodes) and the connections between them called edges.
+
+<Analogy>
+  Think of a subway map. Each train station is a vertex. The train tracks between stations are edges. Some tracks run both ways, while others are one-way tracks.
+</Analogy>
+
+Graphs come in several variations:
+
+- **Directed or Undirected**: Directed edges point one way, like a package dependency. Undirected edges connect both ways, like a mutual friend link.
+- **Cyclic or Acyclic**: A cycle exists if you can follow edges back to your starting point. A directed graph without cycles is called a DAG.
+- **Weighted or Unweighted**: Weighted edges hold a cost, such as network latency or travel distance.
+
+Unlike a tree, a graph has no single root. A graph can have cycles. When you search a graph, you must remember visited nodes. A `Set` of visited IDs stops infinite loops.
+
+In Swift, you usually store a graph as an **adjacency list**. A dictionary maps each vertex to an array of its neighboring nodes: `[Int: [Int]]`.
+
+## See it
+
+<Diagram id="graphs" caption="Explore graph traversal and cycle detection step by step." />
+
+## In code
+
+Here is how to find the shortest path between two nodes in an unweighted graph using breadth-first search.
+
+```swift
+func shortestPath(edges: [[Int]], start: Int, target: Int) -> Int {
+    var adj: [Int: [Int]] = [:]
+    for edge in edges {
+        adj[edge[0], default: []].append(edge[1])
+        adj[edge[1], default: []].append(edge[0])
+    }
+
+    var queue: [Int] = [start]
+    var visited: Set<Int> = [start]
+    var distance = 0
+
+    while !queue.isEmpty {
+        let count = queue.count
+        for _ in 0..<count {
+            let curr = queue.removeFirst()
+            if curr == target { return distance }
+            for neighbor in adj[curr, default: []] {
+                if !visited.contains(neighbor) {
+                    visited.insert(neighbor)
+                    queue.append(neighbor)
+                }
+            }
+        }
+        distance += 1
+    }
+    return -1
+}
+
+let connections = [[0, 1], [0, 2], [1, 3], [2, 3], [3, 4]]
+print("Shortest path from 0 to 4: \(shortestPath(edges: connections, start: 0, target: 4))")
+```
+```output
+Shortest path from 0 to 4: 3
+```
+
+Next, here is topological sort using Kahn's algorithm. We compute in-degrees to order build tasks.
+
+```swift
+func buildOrder(numTasks: Int, dependencies: [[Int]]) -> [Int] {
+    var adj: [Int: [Int]] = [:]
+    var inDegree = Array(repeating: 0, count: numTasks)
+
+    for dep in dependencies {
+        let before = dep[1]
+        let after = dep[0]
+        adj[before, default: []].append(after)
+        inDegree[after] += 1
+    }
+
+    var queue: [Int] = []
+    for i in 0..<numTasks where inDegree[i] == 0 {
+        queue.append(i)
+    }
+
+    var order: [Int] = []
+    while !queue.isEmpty {
+        let current = queue.removeFirst()
+        order.append(current)
+        for next in adj[current, default: []] {
+            inDegree[next] -= 1
+            if inDegree[next] == 0 {
+                queue.append(next)
+            }
+        }
+    }
+
+    return order.count == numTasks ? order : []
+}
+
+let deps = [[0, 1], [2, 1], [3, 2]]
+print("Task build order: \(buildOrder(numTasks: 4, dependencies: deps))")
+```
+```output
+Task build order: [1, 0, 2, 3]
+```
+
+<TryIt>
+  Open a Swift Playground. Create a directed graph with a cycle. Run the topological sort and check that it returns an empty array.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    Why does graph search require a visited set while standard tree search does not?
+  </Question>
+  <Option id="a">Tree search stores values in an in-memory database.</Option>
+  <Option id="b" correct>Graphs can have cycles and multiple paths to the same vertex.</Option>
+  <Option id="c">Tree nodes cannot hold optional child references.</Option>
+  <Option id="d">Graph vertices are always sorted in alphabetical order.</Option>
+  <Explanation>
+    Trees have a single root and no cycles. Graphs can have loops that cause infinite search cycles without a visited set.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    What happens in Kahn's topological sort algorithm when the graph contains a directed cycle?
+  </Question>
+  <Option id="a">The queue never becomes empty and runs forever.</Option>
+  <Option id="b">The in-degrees of cyclic nodes become negative numbers.</Option>
+  <Option id="c" correct>Nodes in the cycle never reach in-degree zero, so fewer nodes are processed.</Option>
+  <Option id="d">The function throws a compile-time type mismatch error.</Option>
+  <Explanation>
+    Every node in a cycle depends on another node in the cycle. Their in-degrees never reach zero, so the output count is less than the total node count.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Forgetting bidirectional edges in undirected graphs">
+  In an undirected graph, an edge between A and B means A connects to B AND B connects to A. If you only append to one list, your search misses paths.
+</Trap>
+
+<Trap label="Missing disconnected graph components">
+  A graph can have separate clusters of nodes. If you only start BFS or DFS from node 0, you miss unreached components. Loop through all vertices from 0 to V minus 1.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  I model graph problems using an adjacency list dictionary. For shortest path in unweighted graphs, I choose BFS with a queue and a visited Set. For cycle detection or ordering build steps, I pick topological sort with in-degrees. I always add a visited Set to avoid infinite loops from graph cycles.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I evaluate graph density before choosing a data structure. Sparse graphs use an adjacency list taking O(V plus E) space. Dense graphs benefit from an adjacency matrix taking O(V squared) space with O(1) edge lookups. For dependency resolution, I use Kahn's algorithm or three-color DFS to detect cycles. I also account for disconnected components by iterating over all vertices in an outer loop.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Graphs connect vertices with directed or undirected edges. Use an adjacency list dictionary in Swift for fast neighbor lookups. Always maintain a visited Set to stop cycle loops. BFS finds the shortest path in unweighted graphs. Topological sort orders tasks in a directed acyclic graph.
+</Recap>
+
+## Go deeper
+
+- Tech Interview Handbook: Graph Cheatsheet: https://www.techinterviewhandbook.org/algorithms/graph/
+- Swift Package Manager Dependency Resolution: https://github.com/apple/swift-package-manager
