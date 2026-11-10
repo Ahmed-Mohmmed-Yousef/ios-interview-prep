@@ -1,0 +1,646 @@
+<title>Custom Views and the Layout Pass Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.stage-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-color);
+}
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-color); }
+
+.svg-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.text-sm { font-size: 0.875rem; color: var(--muted); }
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.primary-btn {
+  background: var(--accent-color);
+  color: #ffffff;
+  border-color: var(--accent-color);
+}
+.primary-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.code-box {
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  margin-top: 12px;
+  white-space: pre;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · UIKit · Topic 1 of 1 · Prototype</p>
+    <h1>Custom Views and the Layout Pass</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can build custom views and explain how UIKit lays out views.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>When you change a view frame or Auto Layout constraint in UIKit, why does layoutSubviews not run immediately?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because UIKit moves view calculation to background threads.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because UIKit batches layout requests and updates views together at the end of the run loop.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because Auto Layout requires manual user interaction to start a layout pass.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a postal worker collecting outgoing mail from office desks.</p><p>If the worker ran to the post office every time one person finished a letter, they would waste all day running back and forth.</p><p>Instead, workers drop outgoing letters into a collection box.</p><p>At three in the afternoon, the postal worker collects all letters in the box and delivers them in one efficient trip.</p><p>In UIKit, <code>setNeedsLayout()</code> is dropping a letter into the collection box.</p><p>It marks the view dirty but does not move views right away.</p><p>At the end of the run loop cycle, UIKit processes the whole box during one single layout pass.</p></aside>
+<p>UIKit avoids calculating positions on every property change.</p>
+<p>Recalculating positions repeatedly would freeze animations and waste battery power.</p>
+<p>Instead, UIKit groups layout requests together using the main run loop.</p>
+<p>The update cycle splits into three distinct phases: updating constraints, arranging subviews in the layout pass, and drawing pixels in the display pass.</p>
+<p>Understanding this cycle lets you write smooth custom views and animate constraints correctly.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<h3>Building a custom view subclass</h3>
+<p>To build a custom view, subclass <code>UIView</code>.</p>
+<p>Implement both <code>init(frame:)</code> for programmatic use and <code>init?(coder:)</code> for storyboards.</p>
+<p>Override <code>intrinsicContentSize</code> when your view has a natural size based on its contents.</p>
+<pre class="block swift"><code class="language-swift">import UIKit
+
+class CustomBadgeView: UIView {
+    var title: String = &quot;&quot; {
+        didSet {
+            setNeedsLayout()
+        }
+    }
+
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: 120, height: 40)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+    }
+}
+
+let badge = CustomBadgeView(frame: CGRect(x: 0, y: 0, width: 120, height: 40))
+badge.title = &quot;Verified&quot;
+print(&quot;Intrinsic width: \(badge.intrinsicContentSize.width), height: \(badge.intrinsicContentSize.height)&quot;)
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Intrinsic width: 120.0, height: 40.0
+</code></pre>
+<p>When internal content changes, call <code>invalidateIntrinsicContentSize()</code> so Auto Layout recalculates container constraints.</p>
+<h3>Controlling the layout pass with setNeedsLayout and layoutIfNeeded</h3>
+<p>UIKit provides two complementary methods to request layout updates.</p>
+<p>Call <code>setNeedsLayout()</code> to flag a view as dirty.</p>
+<p>This call returns immediately and waits for the next run loop cycle.</p>
+<p>Call <code>layoutIfNeeded()</code> to force an immediate synchronous layout pass if the view is marked dirty.</p>
+<pre class="block swift"><code class="language-swift">import UIKit
+
+class LayoutCycleSimulator {
+    var isDirty = false
+    var layoutPassCount = 0
+
+    func setNeedsLayout() {
+        isDirty = true
+    }
+
+    func layoutIfNeeded() {
+        if isDirty {
+            layoutPassCount += 1
+            isDirty = false
+        }
+    }
+}
+
+let sim = LayoutCycleSimulator()
+sim.setNeedsLayout()
+sim.setNeedsLayout()
+sim.layoutIfNeeded()
+print(&quot;Executed layout passes: \(sim.layoutPassCount), Dirty: \(sim.isDirty)&quot;)
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Executed layout passes: 1, Dirty: false
+</code></pre>
+<p>Multiple calls to <code>setNeedsLayout()</code> coalesce into a single layout pass.</p>
+<p>When animating constraint changes, update the constraint constant, then call <code>view.layoutIfNeeded()</code> inside <code>UIView.animate</code>.</p>
+<p class="try-it"><p>Open an iOS Xcode playground. Create a custom UIView with two subviews. Animate a constraint change by calling layoutIfNeeded() inside UIView.animate.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>Why should you never call layoutSubviews() directly in your code?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because layoutSubviews is a private Objective-C method.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because layoutSubviews is a system callback; you should call setNeedsLayout or layoutIfNeeded instead.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because calling layoutSubviews directly causes the device to reboot.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Because layoutSubviews can only be called from background worker threads.</span></button><p class="qc-explain" hidden=""><p>layoutSubviews is invoked by the UIKit layout engine. Use setNeedsLayout for deferred updates or layoutIfNeeded for immediate layout.</p></p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Never call <code>layoutSubviews()</code> directly. Call <code>setNeedsLayout()</code> to schedule a pass or <code>layoutIfNeeded()</code> to force an immediate update.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>When overriding <code>layoutSubviews()</code>, always call <code>super.layoutSubviews()</code>. Omitting this call prevents Auto Layout from positioning subviews properly.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Mutating constraints inside <code>layoutSubviews()</code> triggers another layout pass. Without careful guards, this mistake leads to infinite layout loops and app freezes.</p></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>How do you smoothly animate an Auto Layout constraint change in UIKit?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Call layoutSubviews() inside a Task block.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Change the frame directly and call setNeedsDisplay().</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">Update constraint constant values, then call layoutIfNeeded() inside UIView.animate.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Subclass UIWindow and disable the run loop layout pass.</span></button><p class="qc-explain" hidden=""><p>Updating the constraint and calling layoutIfNeeded() inside the animation closure forces UIKit to animate the resulting frame changes.</p></p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>In UIKit, layout occurs in three phases: constraints update, layout pass, and render pass. When view properties change, we call <code>setNeedsLayout()</code> to mark the view dirty. UIKit coalesces these requests and calls <code>layoutSubviews()</code> at the end of the run loop. If we need an immediate layout, such as inside a <code>UIView.animate</code> block, we call <code>layoutIfNeeded()</code>. When creating custom views, we implement <code>init(frame:)</code> and <code>init?(coder:)</code>, override <code>intrinsicContentSize</code>, and call <code>super.layoutSubviews()</code> when overriding subview layouts.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>UIKit optimizes performance through a run loop coalescing mechanism. The update cycle consists of constraint resolution via <code>updateConstraints()</code>, frame calculation via <code>layoutSubviews()</code>, and drawing via <code>draw(_:)</code>. Calling <code>setNeedsLayout()</code> is asynchronous and sets a dirty flag, allowing multiple layout invalidations to batch into a single pass. Conversely, <code>layoutIfNeeded()</code> is synchronous, immediately executing <code>layoutSubviews()</code> if the dirty bit is set. This distinction is critical for Auto Layout animations: we alter constraint constants outside the animation block and call <code>parentView.layoutIfNeeded()</code> inside <code>UIView.animate</code> to interpolate frame geometries. When subclassing <code>UIView</code>, we guard against mutating constraints inside <code>layoutSubviews</code> to prevent recursive re-entrancy. We also override <code>intrinsicContentSize</code> and call <code>invalidateIntrinsicContentSize()</code> to participate cleanly in parent Auto Layout passes.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><p>UIKit groups layout passes at the end of the run loop to avoid redundant calculations. Call setNeedsLayout() to flag views dirty and layoutIfNeeded() to force immediate layout. Override layoutSubviews() for custom frame positioning and always call super.layoutSubviews(). Never call layoutSubviews() directly. To animate constraints, update constants and invoke layoutIfNeeded() inside UIView.animate. Use intrinsicContentSize to define natural dimensions for custom views.</p></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/uikit/uiview/layoutsubviews()">layoutSubviews() (UIKit)</a></li>
+<li><a href="https://developer.apple.com/documentation/uikit/uiview/setneedslayout()">setNeedsLayout() (UIKit)</a></li>
+<li><a href="https://developer.apple.com/documentation/uikit/uiview/layoutifneeded()">layoutIfNeeded() (UIKit)</a></li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2018/220/">High Performance Auto Layout (WWDC18)</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+(function() {
+  const steps = [
+    {
+      title: "Step 1: Invalidation (setNeedsLayout)",
+      badge: "INVALIDATE",
+      badgeClass: "accent",
+      explainer: "Changing bounds, adding subviews, or mutating properties calls setNeedsLayout(). This sets an internal dirty bit and returns immediately.",
+      code: "var title: String = \"\" {\n    didSet {\n        setNeedsLayout() // Asynchronous: batches updates\n    }\n}",
+      activePaths: ["pathStep1", "lblStep1"],
+      highlightNodes: ["flagNode"]
+    },
+    {
+      title: "Step 2: Constraints Update Phase",
+      badge: "CONSTRAINTS",
+      badgeClass: "safe",
+      explainer: "Before positioning views, the system resolves Auto Layout constraints. Views update inequality and priority equations.",
+      code: "override func updateConstraints() {\n    // Resolve Auto Layout equations\n    super.updateConstraints()\n}",
+      activePaths: ["pathStep2", "lblStep2"],
+      highlightNodes: ["constraintsNode"]
+    },
+    {
+      title: "Step 3: Layout Subviews Phase",
+      badge: "LAYOUT PASS",
+      badgeClass: "warn",
+      explainer: "UIKit invokes layoutSubviews() on dirty views. Subviews are positioned within allocated bounds. Always call super.layoutSubviews().",
+      code: "override func layoutSubviews() {\n    super.layoutSubviews() // Crucial for subview positioning\n    iconView.frame = CGRect(x: 8, y: 8, width: 24, height: 24)\n}",
+      activePaths: ["pathStep3", "lblStep3"],
+      highlightNodes: ["layoutNode"]
+    },
+    {
+      title: "Step 4: Display & Render Pass",
+      badge: "RENDER",
+      badgeClass: "accent",
+      explainer: "With all subview frames positioned, UIKit rasterizes vector paths and commits CALayer render trees to the GPU display buffer.",
+      code: "// Display pass commits:\n// Subview geometries locked\n// Pixels rendered to screen cleanly\n// Dirty bit reset to false",
+      activePaths: ["pathStep4", "lblStep4"],
+      highlightNodes: ["displayNode"]
+    }
+  ];
+
+  let currentStep = 0;
+  const stageTitle = document.getElementById("stageTitle");
+  const statusBadge = document.getElementById("statusBadge");
+  const stepCounter = document.getElementById("stepCounter");
+  const explainerText = document.getElementById("explainerText");
+  const codeSnippet = document.getElementById("codeSnippet");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+
+  const allPathIds = ["pathStep1", "lblStep1", "pathStep2", "lblStep2", "pathStep3", "lblStep3", "pathStep4", "lblStep4"];
+  const allNodeIds = ["flagNode", "constraintsNode", "layoutNode", "displayNode"];
+
+  function updateView() {
+    const s = steps[currentStep];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${currentStep + 1} of ${steps.length}`;
+    explainerText.innerHTML = s.explainer;
+    codeSnippet.textContent = s.code;
+
+    btnBack.disabled = currentStep === 0;
+    btnNext.disabled = currentStep === steps.length - 1;
+
+    allPathIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute("opacity", s.activePaths.includes(id) ? "1" : "0.1");
+    });
+
+    allNodeIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        const rect = el.querySelector("rect");
+        if (rect) {
+          rect.setAttribute("stroke-width", s.highlightNodes.includes(id) ? "2.5" : "1.5");
+          rect.setAttribute("stroke", s.highlightNodes.includes(id) ? "var(--accent-color)" : "var(--line)");
+        }
+      }
+    });
+  }
+
+  btnNext.addEventListener("click", () => {
+    if (currentStep < steps.length - 1) {
+      currentStep++;
+      updateView();
+    }
+  });
+
+  btnBack.addEventListener("click", () => {
+    if (currentStep > 0) {
+      currentStep--;
+      updateView();
+    }
+  });
+
+  btnReplay.addEventListener("click", () => {
+    currentStep = 0;
+    updateView();
+  });
+
+  updateView();
+})();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"custom-views-layout-pass","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"cvl-q01","type":"mcq","difficulty":1,"prompt":"What is the primary purpose of setNeedsLayout() on a UIView?","answer":"a","options":[{"id":"a","text":"It marks the view dirty and schedules an asynchronous layout pass.","explanation":"setNeedsLayout flags the view so the system lays it out on the next cycle."},{"id":"b","text":"It forces an immediate synchronous execution of layoutSubviews().","explanation":"layoutIfNeeded performs immediate layout, whereas setNeedsLayout schedules it."},{"id":"c","text":"It deletes all existing Auto Layout constraints from the view.","explanation":"setNeedsLayout does not remove or alter constraint definitions."},{"id":"d","text":"It reallocates the underlying Core Animation layer on the GPU.","explanation":"setNeedsLayout updates coordinates, not layer memory allocation."}]},{"id":"cvl-q02","type":"mcq","difficulty":1,"prompt":"Why does UIKit coalesce multiple layout requests at the end of the run loop?","answer":"b","options":[{"id":"a","text":"Because UIKit views cannot calculate layouts while receiving user touches.","explanation":"Touches and layout both run on the main thread, but batching optimizes CPU."},{"id":"b","text":"To prevent redundant calculations and avoid freezing the main thread.","explanation":"Batching requests avoids performing repetitive frame math for intermediate updates."},{"id":"c","text":"Because the iOS kernel limits each application to five layout passes per day.","explanation":"There is no daily layout limit; layout runs many times per second."},{"id":"d","text":"To force all view coordinates to round down to whole integer values.","explanation":"Coordinates can be fractional points on Retina screens."}]},{"id":"cvl-q03","type":"mcq","difficulty":1,"prompt":"What are the three main phases of the UIKit update cycle in chronological order?","answer":"c","options":[{"id":"a","text":"Draw vector paths, update constraints, and allocate subviews.","explanation":"Constraints update first, followed by layout, and finally drawing."},{"id":"b","text":"Layout subviews, commit animations, and remove controllers.","explanation":"This does not represent the three-phase run loop cycle."},{"id":"c","text":"Update constraints, layout subviews, and render display contents.","explanation":"UIKit first resolves constraints, then positions frames, then draws pixels."},{"id":"d","text":"Parse storyboards, execute touches, and deallocate memory.","explanation":"Storyboard parsing happens during bundle loading, not the run loop cycle."}]},{"id":"cvl-q04","type":"mcq","difficulty":1,"prompt":"Which method is invoked by the UIKit system to position subviews within allocated bounds?","answer":"d","options":[{"id":"a","text":"setNeedsDisplay()","explanation":"setNeedsDisplay triggers pixel drawing via draw(_ rect:), not frame layout."},{"id":"b","text":"updateConstraints()","explanation":"updateConstraints calculates constraint equations, not final subview frames."},{"id":"c","text":"sizeThatFits(_:)","explanation":"sizeThatFits measures desired dimensions rather than positioning children."},{"id":"d","text":"layoutSubviews()","explanation":"layoutSubviews is the system callback that positions and sizes child subviews."}]},{"id":"cvl-q05","type":"mcq","difficulty":1,"prompt":"Which two initializers must you typically support when building a custom UIView subclass?","answer":"a","options":[{"id":"a","text":"init(frame:) for code and init?(coder:) for storyboards and XIBs.","explanation":"These are the two standard initializers required for complete UIView subclasses."},{"id":"b","text":"init(nibName:bundle:) and init(style:reuseIdentifier:).","explanation":"nibName belongs to UIViewController and reuseIdentifier to UITableViewCell."},{"id":"c","text":"init(window:) and init(applicationTag:identifier:).","explanation":"These are not standard initializers on UIView."},{"id":"d","text":"init(cgSize:) and init(autoLayoutAnchor:margin:).","explanation":"No such initializers exist in UIKit."}]},{"id":"cvl-q06","type":"mcq","difficulty":1,"prompt":"What property should a custom view override if it has a natural size based on its contents?","answer":"b","options":[{"id":"a","text":"preferredScreenResolution","explanation":"No such property exists on UIView."},{"id":"b","text":"intrinsicContentSize","explanation":"intrinsicContentSize communicates a view natural dimensions to Auto Layout."},{"id":"c","text":"defaultBoundingBox","explanation":"defaultBoundingBox is not an Apple framework property."},{"id":"d","text":"autoLayoutDimensions","explanation":"autoLayoutDimensions is not a real UIKit API."}]},{"id":"cvl-q07","type":"mcq","difficulty":2,"prompt":"What method must be called to tell Auto Layout that a custom view intrinsic size has changed?","answer":"c","options":[{"id":"a","text":"reloadInputViews()","explanation":"reloadInputViews reloads keyboard accessory views, not intrinsic layout sizes."},{"id":"b","text":"setNeedsDisplay()","explanation":"setNeedsDisplay schedules drawing, not Auto Layout constraint resolution."},{"id":"c","text":"invalidateIntrinsicContentSize()","explanation":"This method informs the layout system to re-read intrinsicContentSize."},{"id":"d","text":"resetConstraintConstants()","explanation":"resetConstraintConstants is not an Apple UIKit method."}]},{"id":"cvl-q08","type":"mcq","difficulty":2,"prompt":"How does layoutIfNeeded() differ in behavior from setNeedsLayout()?","answer":"d","options":[{"id":"a","text":"layoutIfNeeded is asynchronous while setNeedsLayout runs synchronously.","explanation":"The opposite is true: layoutIfNeeded is synchronous, while setNeedsLayout is async."},{"id":"b","text":"layoutIfNeeded requires background multithreading permissions.","explanation":"Both methods execute on the main thread in UIKit."},{"id":"c","text":"layoutIfNeeded deletes subviews before recalculating frames.","explanation":"Neither method deletes subviews."},{"id":"d","text":"layoutIfNeeded forces an immediate layout pass if dirty, while setNeedsLayout schedules one.","explanation":"layoutIfNeeded executes immediately, making it ideal for animations."}]},{"id":"cvl-q09","type":"mcq","difficulty":2,"prompt":"What mistake occurs if you call layoutSubviews() directly in application code?","answer":"a","options":[{"id":"a","text":"It bypasses the system layout lifecycle and fails to update dirty ancestor views.","explanation":"Direct invocation disrupts the run loop layout coalescing architecture."},{"id":"b","text":"The Swift compiler throws a fatal syntax diagnostic preventing compilation.","explanation":"Direct invocation compiles, but produces incorrect runtime behavior."},{"id":"c","text":"The device automatically uninstalls the application bundle.","explanation":"No bundle uninstallation occurs."},{"id":"d","text":"The view permanently converts into an uneditable storyboard file.","explanation":"UIKit views cannot convert into storyboard XML at runtime."}]},{"id":"cvl-q10","type":"mcq","difficulty":2,"prompt":"Why is it mandatory to call super.layoutSubviews() when overriding layoutSubviews()?","answer":"b","options":[{"id":"a","text":"To clear device GPU memory caches before the next draw call.","explanation":"Clearing GPU memory is not related to super.layoutSubviews()."},{"id":"b","text":"To allow the Auto Layout engine to compute and assign frames to subviews.","explanation":"The superclass implementation resolves constraint equations into concrete frames."},{"id":"c","text":"Because omitting the super call causes a mandatory runtime fatal error.","explanation":"UIKit does not crash, but child views fail to lay out properly."},{"id":"d","text":"To notify the view controller that viewDidAppear has finished executing.","explanation":"View controller appearance callbacks are not managed by layoutSubviews."}]},{"id":"cvl-q11","type":"mcq","difficulty":2,"prompt":"What problem happens if you modify Auto Layout constraints inside layoutSubviews without guards?","answer":"c","options":[{"id":"a","text":"The view color palette is replaced with high contrast accessibility colors.","explanation":"Constraint changes do not affect color themes."},{"id":"b","text":"The constraint constants revert automatically to default values.","explanation":"Constants remain set, but cause repeated passes."},{"id":"c","text":"Modifying constraints triggers another layout pass, causing an infinite layout loop.","explanation":"Mutating constraints inside layoutSubviews triggers recursive layout passes."},{"id":"d","text":"The touch response latency increases by exactly thirty seconds.","explanation":"Infinite recursion freezes the main thread completely."}]},{"id":"cvl-q12","type":"mcq","difficulty":3,"prompt":"How do you animate an Auto Layout constraint change properly with UIView.animate?","answer":"d","options":[{"id":"a","text":"Call setNeedsLayout() repeatedly inside a while loop within UIView.animate.","explanation":"Calling setNeedsLayout in a loop blocks the thread without animating."},{"id":"b","text":"Re-create all NSLayoutConstraint objects inside the animation closure.","explanation":"Re-creating constraints is expensive and unnecessary."},{"id":"c","text":"Call layoutSubviews() directly on the animated view inside the animation closure.","explanation":"Never call layoutSubviews directly; call layoutIfNeeded instead."},{"id":"d","text":"Update the constraint constant, then call layoutIfNeeded() inside UIView.animate.","explanation":"layoutIfNeeded forces immediate layout during animation interpolation."}]},{"id":"cvl-q13","type":"mcq","difficulty":3,"prompt":"When is it appropriate to override layoutSubviews instead of relying strictly on Auto Layout?","answer":"a","options":[{"id":"a","text":"When calculating frames based on complex math, dynamic corner radii, or CAShapeLayer paths.","explanation":"layoutSubviews provides exact bounds for path drawing and custom math."},{"id":"b","text":"Whenever an app has more than five views on screen simultaneously.","explanation":"Auto Layout handles hundreds of views without requiring manual layout."},{"id":"c","text":"Only when targeting iOS versions older than iPhone OS 2.0.","explanation":"layoutSubviews is actively used in modern iOS codebases."},{"id":"d","text":"To bypass the main thread and run interface layout on background queues.","explanation":"layoutSubviews always runs on the main thread."}]},{"id":"cvl-q14","type":"mcq","difficulty":3,"prompt":"What happens if you update constraint constants but forget to call layoutIfNeeded() inside UIView.animate?","answer":"b","options":[{"id":"a","text":"The view layout remains frozen permanently until the app restarts.","explanation":"The layout will still update on the next turn of the run loop."},{"id":"b","text":"The view jumps instantly to its new frame on the next run loop turn without animation.","explanation":"Without layoutIfNeeded in the animation block, frame interpolation is skipped."},{"id":"c","text":"UIKit throws a missing constraint exception on the main thread.","explanation":"No exception is thrown; the transition is merely un-animated."},{"id":"d","text":"The view hierarchy is converted automatically into a SwiftUI view.","explanation":"UIKit views are not converted to SwiftUI automatically."}]},{"id":"cvl-q15","type":"mcq","difficulty":1,"prompt":"Which summary statement accurately reflects UIKit layout pass best practices?","answer":"c","options":[{"id":"a","text":"Call layoutSubviews() directly, omit super calls, and mutate constraints in body.","explanation":"These are dangerous anti-patterns that cause bugs and recursion."},{"id":"b","text":"Never use setNeedsLayout() because asynchronous layout is deprecated in iOS.","explanation":"setNeedsLayout is foundational to the UIKit run loop architecture."},{"id":"c","text":"Use setNeedsLayout to flag changes, layoutIfNeeded for animations, and call super in layoutSubviews.","explanation":"This summarizes proper UIKit layout pass mechanics."},{"id":"d","text":"Convert all UIKit layouts into manual drawRect commands for optimal performance.","explanation":"Auto Layout and layoutSubviews provide robust layout without raw drawing."}]},{"id":"cvl-q16","type":"code-reading","difficulty":1,"prompt":"What does this intrinsic sizing helper print when queried?","code":"import Foundation\n\nstruct IntrinsicMetric {\n    let paddingHorizontal: Double\n    let contentWidth: Double\n\n    var totalWidth: Double {\n        contentWidth + (paddingHorizontal * 2)\n    }\n}\n\nlet metric = IntrinsicMetric(paddingHorizontal: 16.0, contentWidth: 100.0)\nprint(\"Width: \\(metric.totalWidth)\")","answer":"d","options":[{"id":"a","text":"Width: 100.0","explanation":"totalWidth adds horizontal padding on both sides."},{"id":"b","text":"Width: 116.0","explanation":"Padding is multiplied by 2 (16.0 * 2 = 32.0)."},{"id":"c","text":"Width: 140.0","explanation":"100.0 + 32.0 equals 132.0."},{"id":"d","text":"Width: 132.0","explanation":"100.0 plus 2 * 16.0 equals 132.0."}]},{"id":"cvl-q17","type":"code-reading","difficulty":1,"prompt":"What does this layout pass simulator print after triggering layout requests?","code":"import Foundation\n\nclass SimpleLayoutSimulator {\n    var isDirty = false\n    var passes = 0\n\n    func requestLayout() {\n        isDirty = true\n    }\n\n    func performLayout() {\n        if isDirty {\n            passes += 1\n            isDirty = false\n        }\n    }\n}\n\nlet sim = SimpleLayoutSimulator()\nsim.requestLayout()\nsim.requestLayout()\nsim.performLayout()\nprint(\"Passes: \\(sim.passes), Dirty: \\(sim.isDirty)\")","answer":"a","options":[{"id":"a","text":"Passes: 1, Dirty: false","explanation":"The two requests coalesced into one layout pass, resetting isDirty to false."},{"id":"b","text":"Passes: 2, Dirty: true","explanation":"Multiple dirty flags batch together, resulting in only 1 pass."},{"id":"c","text":"Passes: 1, Dirty: true","explanation":"performLayout sets isDirty back to false after running."},{"id":"d","text":"Passes: 0, Dirty: false","explanation":"performLayout was executed once with isDirty true."}]},{"id":"cvl-q18","type":"code-reading","difficulty":1,"prompt":"What does this frame centering calculator print for subview X position?","code":"import Foundation\n\nstruct FrameCenteringHelper {\n    let containerWidth: Double\n    let subviewWidth: Double\n\n    var centeredX: Double {\n        (containerWidth - subviewWidth) / 2.0\n    }\n}\n\nlet helper = FrameCenteringHelper(containerWidth: 300.0, subviewWidth: 100.0)\nprint(\"Centered X: \\(helper.centeredX)\")","answer":"b","options":[{"id":"a","text":"Centered X: 150.0","explanation":"150.0 is half of container width, without subtracting subview width."},{"id":"b","text":"Centered X: 100.0","explanation":"(300.0 - 100.0) / 2.0 = 200.0 / 2.0 = 100.0."},{"id":"c","text":"Centered X: 50.0","explanation":"The formula yields 100.0, not 50.0."},{"id":"d","text":"Centered X: 200.0","explanation":"200.0 is the remaining width before dividing by 2."}]},{"id":"cvl-q19","type":"code-reading","difficulty":2,"prompt":"What does this multi-call coalescing tracker print when evaluated?","code":"import Foundation\n\nclass LayoutBatchTracker {\n    var requestCount = 0\n    var executedPasses = 0\n\n    func invalidate() {\n        requestCount += 1\n    }\n\n    func flush() {\n        if requestCount > 0 {\n            executedPasses += 1\n            requestCount = 0\n        }\n    }\n}\n\nlet tracker = LayoutBatchTracker()\ntracker.invalidate()\ntracker.invalidate()\ntracker.invalidate()\ntracker.flush()\nprint(\"Executed: \\(tracker.executedPasses)\")","answer":"c","options":[{"id":"a","text":"Executed: 3","explanation":"Three invalidations are batched into one single flush call."},{"id":"b","text":"Executed: 0","explanation":"flush was invoked once with requestCount greater than zero."},{"id":"c","text":"Executed: 1","explanation":"flush was called once, incrementing executedPasses to 1."},{"id":"d","text":"Executed: 2","explanation":"Only a single flush call occurred."}]},{"id":"cvl-q20","type":"code-reading","difficulty":2,"prompt":"What does this custom subview positioner print when positioning elements?","code":"import Foundation\n\nstruct SubviewPositioner {\n    var subviewCount: Int\n    var itemHeight: Double\n\n    func totalContentHeight() -> Double {\n        Double(subviewCount) * itemHeight\n    }\n}\n\nlet positioner = SubviewPositioner(subviewCount: 4, itemHeight: 30.0)\nprint(\"Content Height: \\(positioner.totalContentHeight())\")","answer":"d","options":[{"id":"a","text":"Content Height: 30.0","explanation":"There are 4 subviews, so the total height is 4 * 30.0."},{"id":"b","text":"Content Height: 60.0","explanation":"4 multiplied by 30.0 is 120.0."},{"id":"c","text":"Content Height: 90.0","explanation":"90.0 would be the height for 3 subviews."},{"id":"d","text":"Content Height: 120.0","explanation":"4 items of height 30.0 yield 120.0."}]},{"id":"cvl-q21","type":"code-reading","difficulty":2,"prompt":"What does this layout phase sequence tracker print after executing a cycle?","code":"import Foundation\n\nclass UpdatePhaseRecorder {\n    var sequence: [String] = []\n\n    func recordConstraints() {\n        sequence.append(\"constraints\")\n    }\n\n    func recordLayout() {\n        sequence.append(\"layout\")\n    }\n\n    func recordDraw() {\n        sequence.append(\"draw\")\n    }\n}\n\nlet recorder = UpdatePhaseRecorder()\nrecorder.recordConstraints()\nrecorder.recordLayout()\nrecorder.recordDraw()\nprint(recorder.sequence.joined(separator: \"->\"))","answer":"a","options":[{"id":"a","text":"constraints->layout->draw","explanation":"The methods were recorded in the standard update cycle order."},{"id":"b","text":"layout->constraints->draw","explanation":"Constraints update runs before layoutSubviews."},{"id":"c","text":"draw->layout->constraints","explanation":"Drawing is the final phase of the update cycle."},{"id":"d","text":"constraints->draw->layout","explanation":"Layout precedes the display drawing phase."}]},{"id":"cvl-q22","type":"code-reading","difficulty":2,"prompt":"What does this constraint animation simulator print for target constant values?","code":"import Foundation\n\nclass AnimationSimulator {\n    var constant: Double = 50.0\n    var didAnimate = false\n\n    func updateConstant(to newConstant: Double, animate: Bool) {\n        constant = newConstant\n        didAnimate = animate\n    }\n}\n\nlet sim = AnimationSimulator()\nsim.updateConstant(to: 120.0, animate: true)\nprint(\"Constant: \\(sim.constant), Animated: \\(sim.didAnimate)\")","answer":"b","options":[{"id":"a","text":"Constant: 50.0, Animated: false","explanation":"The constant was updated to 120.0 with animate true."},{"id":"b","text":"Constant: 120.0, Animated: true","explanation":"The method updated constant to 120.0 and didAnimate to true."},{"id":"c","text":"Constant: 120.0, Animated: false","explanation":"didAnimate was passed true."},{"id":"d","text":"Constant: 50.0, Animated: true","explanation":"The constant was assigned 120.0."}]},{"id":"cvl-q23","type":"code-reading","difficulty":3,"prompt":"What does this subview margin calculator print for total span?","code":"import Foundation\n\nstruct MarginCalculator {\n    let leftMargin: Double\n    let rightMargin: Double\n    let spacing: Double\n    let columns: Int\n    let colWidth: Double\n\n    var totalWidth: Double {\n        leftMargin + rightMargin + (Double(columns) * colWidth) + (Double(columns - 1) * spacing)\n    }\n}\n\nlet calc = MarginCalculator(leftMargin: 10.0, rightMargin: 10.0, spacing: 8.0, columns: 2, colWidth: 100.0)\nprint(\"Span: \\(calc.totalWidth)\")","answer":"c","options":[{"id":"a","text":"Span: 200.0","explanation":"Margins and spacing must be included in the total span."},{"id":"b","text":"Span: 220.0","explanation":"The 8.0 spacing between the 2 columns is omitted here."},{"id":"c","text":"Span: 228.0","explanation":"10.0 + 10.0 + (2 * 100.0) + (1 * 8.0) = 20.0 + 200.0 + 8.0 = 228.0."},{"id":"d","text":"Span: 240.0","explanation":"The calculation gives 228.0."}]},{"id":"cvl-q24","type":"written","difficulty":1,"prompt":"Explain the difference between setNeedsLayout() and layoutIfNeeded() in UIKit. Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that setNeedsLayout is asynchronous and marks the view dirty for the next run loop pass","weight":50,"key":true},{"criterion":"Explains that layoutIfNeeded is synchronous and forces immediate layout execution if the dirty flag is set","weight":50,"key":true}],"modelAnswer":"In UIKit, setNeedsLayout() is an asynchronous method. It flags a view as dirty and schedules a layout pass on the next run loop turn. It returns immediately and allows multiple layout requests to coalesce. In contrast, layoutIfNeeded() is synchronous; if the view is marked dirty, it immediately calls layoutSubviews() without waiting. This makes layoutIfNeeded() essential for animating Auto Layout changes inside animation blocks."},{"id":"cvl-q25","type":"written","difficulty":2,"prompt":"Why should you never call layoutSubviews() directly in your custom view code? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that layoutSubviews is a system callback managed by the UIKit layout engine","weight":50,"key":true},{"criterion":"Explains to call setNeedsLayout to request layout or layoutIfNeeded to force immediate execution","weight":50,"key":true}],"modelAnswer":"You should never invoke `layoutSubviews()` directly because it is a system-level lifecycle callback managed by the UIKit layout engine. Calling it manually bypasses the run loop coalescing mechanism and does not properly update dirty ancestor or descendant views. Instead, call `setNeedsLayout()` to request an asynchronous pass or `layoutIfNeeded()` when an immediate synchronous update is required."},{"id":"cvl-q26","type":"written","difficulty":2,"prompt":"What is the purpose of intrinsicContentSize and how do you inform the layout system when it changes? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that intrinsicContentSize defines a view natural size based on its contents","weight":50,"key":true},{"criterion":"Explains that calling invalidateIntrinsicContentSize tells Auto Layout to recalculate constraints","weight":50,"key":true}],"modelAnswer":"The `intrinsicContentSize` property defines the natural, intrinsic dimensions of a view derived from its content, such as text length or image dimensions. This allows Auto Layout to measure and position views without requiring explicit width or height constraints. Whenever content changes and alters these natural dimensions, you must call `invalidateIntrinsicContentSize()` so the layout engine knows to recalculate parent and sibling constraints."},{"id":"cvl-q27","type":"written","difficulty":3,"prompt":"Explain how to properly animate an Auto Layout constraint change using UIView.animate. Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains updating the constraint constant property","weight":50,"key":true},{"criterion":"Explains calling layoutIfNeeded on the container view inside the UIView.animate block","weight":50,"key":true}],"modelAnswer":"To animate a constraint change, you first update the constraint constant property on the main thread. Next, inside the UIView.animate block, you call layoutIfNeeded() on the container view. Calling layoutIfNeeded() inside the animation closure forces UIKit to recalculate subview frames immediately. Core Animation then smoothly interpolates the geometric changes."},{"id":"cvl-q28","type":"written","difficulty":2,"prompt":"Why is calling super.layoutSubviews() mandatory when overriding layoutSubviews in a custom view? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that super.layoutSubviews executes the Auto Layout engine subview positioning pass","weight":50,"key":true},{"criterion":"Explains that omitting super.layoutSubviews prevents subviews from receiving their calculated frames","weight":50,"key":true}],"modelAnswer":"Calling `super.layoutSubviews()` is mandatory because it invokes the underlying Auto Layout engine pass to compute and apply frames to all managed subviews. If you omit the `super` call, constraint equations will not resolve into concrete subview geometries, leaving subviews misplaced or with zero frames. Always call `super.layoutSubviews()` at the beginning of your custom implementation before performing additional manual adjustments."},{"id":"cvl-q29","type":"code-write","difficulty":1,"prompt":"Write a struct IntrinsicDimension with properties width: Double and height: Double. Add a method isLarger(than other: IntrinsicDimension) -> Bool that returns true if (width * height) exceeds (other.width * other.height). In testDimension(), compare dimension with width: 50.0, height: 40.0 against width: 30.0, height: 30.0, and print 'Larger: {isLarger}'. Call testDimension().","starterCode":"struct IntrinsicDimension {\n    // Implement properties and isLarger\n}\n\nfunc testDimension() {\n    // Test and print\n}\n\ntestDimension()","rubric":[{"criterion":"Declares IntrinsicDimension with width and height properties","weight":35,"key":true},{"criterion":"Implements isLarger method comparing area calculations","weight":35,"key":true},{"criterion":"Prints exact output 'Larger: true'","weight":30,"key":true}],"modelAnswer":"struct IntrinsicDimension {\n    let width: Double\n    let height: Double\n\n    func isLarger(than other: IntrinsicDimension) -> Bool {\n        (width * height) > (other.width * other.height)\n    }\n}\n\nfunc testDimension() {\n    let d1 = IntrinsicDimension(width: 50.0, height: 40.0)\n    let d2 = IntrinsicDimension(width: 30.0, height: 30.0)\n    print(\"Larger: \\(d1.isLarger(than: d2))\")\n}\n\ntestDimension()"},{"id":"cvl-q30","type":"code-write","difficulty":2,"prompt":"Write a struct LayoutPassTracker with stored property var isDirty: Bool = false and var executedPasses: Int = 0. Add a mutating method markDirty() setting isDirty to true. Add a mutating method flushIfNeeded() that increments executedPasses and resets isDirty to false if isDirty is true. In testTracker(), call markDirty() twice, call flushIfNeeded(), and print 'Passes: {executedPasses}'. Call testTracker().","starterCode":"struct LayoutPassTracker {\n    // Implement properties, markDirty, and flushIfNeeded\n}\n\nfunc testTracker() {\n    // Test and print\n}\n\ntestTracker()","rubric":[{"criterion":"Declares LayoutPassTracker with isDirty and executedPasses properties","weight":35,"key":true},{"criterion":"Implements markDirty and flushIfNeeded correctly coalescing passes","weight":35,"key":true},{"criterion":"Prints exact output 'Passes: 1'","weight":30,"key":true}],"modelAnswer":"struct LayoutPassTracker {\n    var isDirty: Bool = false\n    var executedPasses: Int = 0\n\n    mutating func markDirty() {\n        isDirty = true\n    }\n\n    mutating func flushIfNeeded() {\n        if isDirty {\n            executedPasses += 1\n            isDirty = false\n        }\n    }\n}\n\nfunc testTracker() {\n    var tracker = LayoutPassTracker()\n    tracker.markDirty()\n    tracker.markDirty()\n    tracker.flushIfNeeded()\n    print(\"Passes: \\(tracker.executedPasses)\")\n}\n\ntestTracker()"},{"id":"cvl-q31","type":"code-write","difficulty":3,"prompt":"Write a struct SubviewLayoutPlacer with stored property containerBounds: Double = 400.0. Add computeOriginX(itemWidth: Double, alignment: String) -> Double returning 0.0 for 'leading', containerBounds - itemWidth for 'trailing', and (containerBounds - itemWidth) / 2.0 for 'center'. In testPlacer(), test with itemWidth: 100.0, alignment: 'center', and print 'Origin: {computeOriginX}'. Call testPlacer().","starterCode":"struct SubviewLayoutPlacer {\n    // Implement containerBounds and computeOriginX\n}\n\nfunc testPlacer() {\n    // Test and print\n}\n\ntestPlacer()","rubric":[{"criterion":"Declares SubviewLayoutPlacer with containerBounds property initialized to 400.0","weight":35,"key":true},{"criterion":"Implements computeOriginX handling leading, trailing, and center alignments","weight":35,"key":true},{"criterion":"Prints exact output 'Origin: 150.0'","weight":30,"key":true}],"modelAnswer":"struct SubviewLayoutPlacer {\n    var containerBounds: Double = 400.0\n\n    func computeOriginX(itemWidth: Double, alignment: String) -> Double {\n        switch alignment {\n        case \"leading\":\n            return 0.0\n        case \"trailing\":\n            return containerBounds - itemWidth\n        case \"center\":\n            return (containerBounds - itemWidth) / 2.0\n        default:\n            return 0.0\n        }\n    }\n}\n\nfunc testPlacer() {\n    let placer = SubviewLayoutPlacer()\n    let origin = placer.computeOriginX(itemWidth: 100.0, alignment: \"center\")\n    print(\"Origin: \\(origin)\")\n}\n\ntestPlacer()"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

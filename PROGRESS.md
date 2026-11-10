@@ -156,7 +156,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (28 of 53 published: 21 main + 7 bonus)
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (29 of 53 published: 22 main + 7 bonus)
   - ✅ **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)** — completed (7 of 7 published)
     - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
     - ✅ **generics-associated-types** (Generics: Associated Types and Where Clauses) — published (lesson, diagram, 31 questions) → [docs/topics/generics-associated-types/review.html](docs/topics/generics-associated-types/review.html)
@@ -182,14 +182,14 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **sendable-data-races** (Sendable and Data Races) — published (lesson, diagram, 31 questions) → [docs/topics/sendable-data-races/review.html](docs/topics/sendable-data-races/review.html)
     - ✅ **swift-6-strict-concurrency** (Swift 6 Strict Concurrency) — published (lesson, diagram, 31 questions) → [docs/topics/swift-6-strict-concurrency/review.html](docs/topics/swift-6-strict-concurrency/review.html)
     - ✅ **approachable-concurrency** (Approachable Concurrency) — published (lesson, diagram, 31 questions) → [docs/topics/approachable-concurrency/review.html](docs/topics/approachable-concurrency/review.html)
-  - 🔄 **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)** — in progress (6 of 7 published)
+  - ✅ **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)** — completed (7 of 7 published)
     - ✅ **swiftui-loading-data** (Loading Data in SwiftUI) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-loading-data/review.html](docs/topics/swiftui-loading-data/review.html)
     - ✅ **view-identity-lifetime** (View Identity and Lifetime) — published (lesson, diagram, 31 questions) → [docs/topics/view-identity-lifetime/review.html](docs/topics/view-identity-lifetime/review.html)
     - ✅ **swiftui-animations** (Animations and Transitions) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-animations/review.html](docs/topics/swiftui-animations/review.html)
     - ✅ **custom-layouts** (Custom Layouts) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/custom-layouts/review.html](docs/topics/custom-layouts/review.html)
     - ✅ **swiftui-uikit-interop** (SwiftUI and UIKit Together) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-uikit-interop/review.html](docs/topics/swiftui-uikit-interop/review.html)
     - ✅ **swiftui-performance** (SwiftUI Performance) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-performance/review.html](docs/topics/swiftui-performance/review.html)
-    - ⬜ **custom-views-layout-pass** (Custom Views and the Layout Pass)
+    - ✅ **custom-views-layout-pass** (Custom Views and the Layout Pass) — published (lesson, diagram, 31 questions) → [docs/topics/custom-views-layout-pass/review.html](docs/topics/custom-views-layout-pass/review.html)
   - ⬜ **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
   - ⬜ **Batch 3F: Data Persistence & Networking (5 topics)**
   - ⬜ **Batch 3G: Architecture & Testing Strategy (8 topics)**
@@ -361,6 +361,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `custom-views-layout-pass` (Custom Views and the Layout Pass): researched official UIKit layoutSubviews, setNeedsLayout, layoutIfNeeded, and WWDC18 Auto Layout docs, authored lesson in simple English, interactive 4-step run loop layout cycle diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/custom-views-layout-pass/review.html`). All checks passed. Batch 3D (SwiftUI & UIKit Advanced) is now 100% COMPLETE (7 of 7 published)! Mid level progress: 29 of 53 published (96 total published topics across curriculum).
 
 - **2026-11-10** — Built and published topic `swiftui-performance` (SwiftUI Performance): researched official WWDC23 and WWDC21 SwiftUI performance docs, authored lesson in simple English, interactive 4-step render loop and dependency graph diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/swiftui-performance/review.html`). All checks passed. Batch 3D progress: 6 of 7 published. Starting custom-views-layout-pass.
 

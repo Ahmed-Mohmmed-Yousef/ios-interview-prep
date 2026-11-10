@@ -1,0 +1,215 @@
+export const meta = {
+  id: "custom-views-layout-pass",
+  summary: "Master UIKit custom view creation, intrinsic content sizing, and the three phases of the run loop layout pass.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "layoutSubviews() (UIKit)",
+      url: "https://developer.apple.com/documentation/uikit/uiview/layoutsubviews()"
+    },
+    {
+      title: "setNeedsLayout() (UIKit)",
+      url: "https://developer.apple.com/documentation/uikit/uiview/setneedslayout()"
+    }
+  ]
+}
+
+<InterviewHook>
+  <Question>
+    When you change a view frame or Auto Layout constraint in UIKit, why does layoutSubviews not run immediately?
+  </Question>
+  <Guess>
+    <Option id="a">Because UIKit moves view calculation to background threads.</Option>
+    <Option id="b" correct>Because UIKit batches layout requests and updates views together at the end of the run loop.</Option>
+    <Option id="c">Because Auto Layout requires manual user interaction to start a layout pass.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a postal worker collecting outgoing mail from office desks.
+
+If the worker ran to the post office every time one person finished a letter, they would waste all day running back and forth.
+
+Instead, workers drop outgoing letters into a collection box.
+
+At three in the afternoon, the postal worker collects all letters in the box and delivers them in one efficient trip.
+
+In UIKit, `setNeedsLayout()` is dropping a letter into the collection box.
+
+It marks the view dirty but does not move views right away.
+
+At the end of the run loop cycle, UIKit processes the whole box during one single layout pass.
+</Analogy>
+
+UIKit avoids calculating positions on every property change.
+
+Recalculating positions repeatedly would freeze animations and waste battery power.
+
+Instead, UIKit groups layout requests together using the main run loop.
+
+The update cycle splits into three distinct phases: updating constraints, arranging subviews in the layout pass, and drawing pixels in the display pass.
+
+Understanding this cycle lets you write smooth custom views and animate constraints correctly.
+
+## See it
+
+<Diagram>
+1. Property mutation or constraint change calls setNeedsLayout() to mark the view dirty.
+2. The run loop reaches the update phase and resolves Auto Layout constraints.
+3. The layout pass invokes layoutSubviews() to position subviews within allocated bounds.
+4. The render pass draws visual contents and commits layer trees to the screen.
+</Diagram>
+
+## In code
+
+### Building a custom view subclass
+
+To build a custom view, subclass `UIView`.
+
+Implement both `init(frame:)` for programmatic use and `init?(coder:)` for storyboards.
+
+Override `intrinsicContentSize` when your view has a natural size based on its contents.
+
+```swift
+import UIKit
+
+class CustomBadgeView: UIView {
+    var title: String = "" {
+        didSet {
+            setNeedsLayout()
+        }
+    }
+
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: 120, height: 40)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+    }
+}
+
+let badge = CustomBadgeView(frame: CGRect(x: 0, y: 0, width: 120, height: 40))
+badge.title = "Verified"
+print("Intrinsic width: \(badge.intrinsicContentSize.width), height: \(badge.intrinsicContentSize.height)")
+```
+
+```output
+Intrinsic width: 120.0, height: 40.0
+```
+
+When internal content changes, call `invalidateIntrinsicContentSize()` so Auto Layout recalculates container constraints.
+
+### Controlling the layout pass with setNeedsLayout and layoutIfNeeded
+
+UIKit provides two complementary methods to request layout updates.
+
+Call `setNeedsLayout()` to flag a view as dirty.
+
+This call returns immediately and waits for the next run loop cycle.
+
+Call `layoutIfNeeded()` to force an immediate synchronous layout pass if the view is marked dirty.
+
+```swift
+import UIKit
+
+class LayoutCycleSimulator {
+    var isDirty = false
+    var layoutPassCount = 0
+
+    func setNeedsLayout() {
+        isDirty = true
+    }
+
+    func layoutIfNeeded() {
+        if isDirty {
+            layoutPassCount += 1
+            isDirty = false
+        }
+    }
+}
+
+let sim = LayoutCycleSimulator()
+sim.setNeedsLayout()
+sim.setNeedsLayout()
+sim.layoutIfNeeded()
+print("Executed layout passes: \(sim.layoutPassCount), Dirty: \(sim.isDirty)")
+```
+
+```output
+Executed layout passes: 1, Dirty: false
+```
+
+Multiple calls to `setNeedsLayout()` coalesce into a single layout pass.
+
+When animating constraint changes, update the constraint constant, then call `view.layoutIfNeeded()` inside `UIView.animate`.
+
+<TryIt>
+  Open an iOS Xcode playground. Create a custom UIView with two subviews. Animate a constraint change by calling layoutIfNeeded() inside UIView.animate.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    Why should you never call layoutSubviews() directly in your code?
+  </Question>
+  <Option id="a">Because layoutSubviews is a private Objective-C method.</Option>
+  <Option id="b" correct>Because layoutSubviews is a system callback; you should call setNeedsLayout or layoutIfNeeded instead.</Option>
+  <Option id="c">Because calling layoutSubviews directly causes the device to reboot.</Option>
+  <Option id="d">Because layoutSubviews can only be called from background worker threads.</Option>
+  <Explanation>
+    layoutSubviews is invoked by the UIKit layout engine. Use setNeedsLayout for deferred updates or layoutIfNeeded for immediate layout.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Do not call layoutSubviews directly">
+  Never call `layoutSubviews()` directly. Call `setNeedsLayout()` to schedule a pass or `layoutIfNeeded()` to force an immediate update.
+</Trap>
+
+<Trap label="Always call super.layoutSubviews">
+  When overriding `layoutSubviews()`, always call `super.layoutSubviews()`. Omitting this call prevents Auto Layout from positioning subviews properly.
+</Trap>
+
+<Trap label="Do not modify constraints inside layoutSubviews without guards">
+  Mutating constraints inside `layoutSubviews()` triggers another layout pass. Without careful guards, this mistake leads to infinite layout loops and app freezes.
+</Trap>
+
+<QuickCheck>
+  <Question>
+    How do you smoothly animate an Auto Layout constraint change in UIKit?
+  </Question>
+  <Option id="a">Call layoutSubviews() inside a Task block.</Option>
+  <Option id="b">Change the frame directly and call setNeedsDisplay().</Option>
+  <Option id="c" correct>Update constraint constant values, then call layoutIfNeeded() inside UIView.animate.</Option>
+  <Option id="d">Subclass UIWindow and disable the run loop layout pass.</Option>
+  <Explanation>
+    Updating the constraint and calling layoutIfNeeded() inside the animation closure forces UIKit to animate the resulting frame changes.
+  </Explanation>
+</QuickCheck>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  In UIKit, layout occurs in three phases: constraints update, layout pass, and render pass. When view properties change, we call `setNeedsLayout()` to mark the view dirty. UIKit coalesces these requests and calls `layoutSubviews()` at the end of the run loop. If we need an immediate layout, such as inside a `UIView.animate` block, we call `layoutIfNeeded()`. When creating custom views, we implement `init(frame:)` and `init?(coder:)`, override `intrinsicContentSize`, and call `super.layoutSubviews()` when overriding subview layouts.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  UIKit optimizes performance through a run loop coalescing mechanism. The update cycle consists of constraint resolution via `updateConstraints()`, frame calculation via `layoutSubviews()`, and drawing via `draw(_:)`. Calling `setNeedsLayout()` is asynchronous and sets a dirty flag, allowing multiple layout invalidations to batch into a single pass. Conversely, `layoutIfNeeded()` is synchronous, immediately executing `layoutSubviews()` if the dirty bit is set. This distinction is critical for Auto Layout animations: we alter constraint constants outside the animation block and call `parentView.layoutIfNeeded()` inside `UIView.animate` to interpolate frame geometries. When subclassing `UIView`, we guard against mutating constraints inside `layoutSubviews` to prevent recursive re-entrancy. We also override `intrinsicContentSize` and call `invalidateIntrinsicContentSize()` to participate cleanly in parent Auto Layout passes.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  UIKit groups layout passes at the end of the run loop to avoid redundant calculations. Call setNeedsLayout() to flag views dirty and layoutIfNeeded() to force immediate layout. Override layoutSubviews() for custom frame positioning and always call super.layoutSubviews(). Never call layoutSubviews() directly. To animate constraints, update constants and invoke layoutIfNeeded() inside UIView.animate. Use intrinsicContentSize to define natural dimensions for custom views.
+</Recap>
+
+## Go deeper
+
+- [layoutSubviews() (UIKit)](https://developer.apple.com/documentation/uikit/uiview/layoutsubviews())
+- [setNeedsLayout() (UIKit)](https://developer.apple.com/documentation/uikit/uiview/setneedslayout())
+- [layoutIfNeeded() (UIKit)](https://developer.apple.com/documentation/uikit/uiview/layoutifneeded())
+- [High Performance Auto Layout (WWDC18)](https://developer.apple.com/videos/play/wwdc2018/220/)
