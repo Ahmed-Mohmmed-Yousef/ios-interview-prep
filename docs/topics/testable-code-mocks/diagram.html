@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Test Doubles Architecture Stepper</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --ink: #0f172a;
+  --muted: #475569;
+  --line: #cbd5e1;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --active-node: #3b82f6;
+  --danger-color: #ef4444;
+  --danger-soft: #fee2e2;
+  --safe-color: #10b981;
+  --safe-soft: #d1fae5;
+  --card-bg: #f1f5f9;
+  --code-bg: #e2e8f0;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f17;
+    --surface: #131b26;
+    --ink: #f1f5f9;
+    --muted: #94a3b8;
+    --line: #2d3748;
+    --accent-color: #3b82f6;
+    --accent-soft: #1e293b;
+    --active-node: #60a5fa;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --card-bg: #1a2230;
+    --code-bg: #0d121c;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.diagram-container {
+  max-width: 820px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+.subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+.stepper-nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  background: var(--code-bg);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.step-indicator {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--muted);
+  min-width: 85px;
+  text-align: center;
+}
+.canvas {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 220px;
+}
+.block {
+  flex: 1;
+  max-width: 220px;
+  padding: 1.25rem 1rem;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+.block.active {
+  border-color: var(--active-node);
+  background: var(--accent-soft);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(37,99,235,0.15);
+}
+.block.danger {
+  border-color: var(--danger-color);
+  background: var(--danger-soft);
+}
+.block.safe {
+  border-color: var(--safe-color);
+  background: var(--safe-soft);
+}
+.block-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 0.35rem;
+}
+.block-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.connector {
+  flex: 0 0 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.arrow {
+  font-size: 1.5rem;
+  color: var(--line);
+  font-weight: 700;
+  transition: color 0.3s ease;
+}
+.connector.active .arrow {
+  color: var(--active-node);
+}
+.step-details {
+  background: var(--surface);
+  border-left: 4px solid var(--accent-color);
+  padding: 1rem 1.25rem;
+  border-radius: 0 8px 8px 0;
+  margin-top: 1rem;
+}
+.step-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 0 0 0.35rem 0;
+  color: var(--ink);
+}
+.step-explanation {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 0.75rem;
+  font-family: var(--font-code);
+  font-size: 0.825rem;
+  background: var(--code-bg);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.reduced-motion-view {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas, .stepper-nav, .step-details {
+    display: none;
+  }
+  .reduced-motion-view {
+    display: block;
+    margin-top: 1rem;
+  }
+  .reduced-motion-step {
+    padding: 0.75rem 1rem;
+    border-left: 3px solid var(--accent-color);
+    background: var(--card-bg);
+    margin-bottom: 0.75rem;
+    border-radius: 0 6px 6px 0;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-container" role="region" aria-label="Test Doubles Architecture Stepper">
+  <div class="header">
+    <div>
+      <h2 class="title">Test Doubles in Swift Testing</h2>
+      <div class="subtitle">Isolating tests with Stubs, Spies, and Fakes</div>
+    </div>
+    <div class="stepper-nav">
+      <button id="prevBtn" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+      <span class="step-indicator" id="stepIndicator">Step 1 of 4</span>
+      <button id="nextBtn" onclick="nextStep()" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="canvas" id="canvas">
+    <div class="block active" id="sutBlock">
+      <div class="block-title">System Under Test</div>
+      <div class="block-desc">Presenter / ViewModel<br>Executing business logic</div>
+    </div>
+    <div class="connector active" id="conn1">
+      <span class="arrow" id="arrow1">&rarr;</span>
+    </div>
+    <div class="block" id="doubleBlock">
+      <div class="block-title">Collaborator</div>
+      <div class="block-desc">Service boundary<br>Real vs Test Double</div>
+    </div>
+    <div class="connector active" id="conn2">
+      <span class="arrow" id="arrow2">&rarr;</span>
+    </div>
+    <div class="block" id="verifyBlock">
+      <div class="block-title">Verification</div>
+      <div class="block-desc">Assertion check<br>State vs Behavior</div>
+    </div>
+  </div>
+
+  <div class="step-details" id="stepDetails" aria-live="polite">
+    <div class="step-title" id="stepTitle">1. Real Production Dependency</div>
+    <p class="step-explanation" id="stepExplanation">
+      In production, the System Under Test connects to real network APIs or disk storage.
+      Running tests against live services causes network flakiness, latency, and unpredictable failures.
+    </p>
+    <div class="code-preview" id="codePreview">// Production: slow and non-deterministic\nlet sut = ProfilePresenter(repo: LiveAPIRepository())</div>
+  </div>
+
+  <div class="reduced-motion-view">
+    <div class="reduced-motion-step">
+      <strong>Step 1: Production Service:</strong> Real network clients introduce latency and test flakiness.
+    </div>
+    <div class="reduced-motion-step">
+      <strong>Step 2: Stub Double:</strong> Returns pre-programmed canned data immediately for state verification.
+    </div>
+    <div class="reduced-motion-step">
+      <strong>Step 3: Spy Double:</strong> Records call counts and passed parameters for behavior verification.
+    </div>
+    <div class="reduced-motion-step">
+      <strong>Step 4: Fake Double:</strong> Provides a working in-memory shortcut that behaves like a database without disk I/O.
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "1. Real Production Dependency",
+    desc: "In production, the System Under Test connects to real network APIs or disk storage. Running tests against live services causes network flakiness, latency, and unpredictable failures.",
+    code: "// Production: slow and non-deterministic\nlet sut = ProfilePresenter(repo: LiveAPIRepository())",
+    sutClass: "block danger",
+    doubleClass: "block danger",
+    doubleTitle: "Live API Client",
+    doubleDesc: "Hits real remote network",
+    verifyClass: "block",
+    verifyTitle: "Flaky Tests",
+    verifyDesc: "Fails on network drops",
+    conn1Active: true,
+    conn2Active: true
+  },
+  {
+    title: "2. Stub: Canned Data for State Verification",
+    desc: "A Stub replaces the real service with canned, pre-programmed data. The SUT processes the canned response, and the test asserts on the final returned state.",
+    code: "struct StubRepo: UserRepository {\n    func fetchUsername(id: Int) -> String { 'Alice' }\n}\n#expect(sut.loadProfile(id: 42) == 'User: Alice')",
+    sutClass: "block safe",
+    doubleClass: "block active safe",
+    doubleTitle: "Stub Double",
+    doubleDesc: "Returns fixed 'Alice'",
+    verifyClass: "block safe",
+    verifyTitle: "State Verification",
+    verifyDesc: "Asserts on output string",
+    conn1Active: true,
+    conn2Active: true
+  },
+  {
+    title: "3. Spy: Recording Calls for Behavior Verification",
+    desc: "A Spy records method calls, frequencies, and captured arguments. The test asserts that the SUT correctly invoked the collaborator with the expected parameters.",
+    code: "final class AnalyticsSpy: AnalyticsTracker {\n    var loggedEvents: [String] = []\n    func track(event: String) { loggedEvents.append(event) }\n}\n#expect(spy.loggedEvents == ['profile_viewed_42'])",
+    sutClass: "block safe",
+    doubleClass: "block active safe",
+    doubleTitle: "Spy Double",
+    doubleDesc: "Records loggedEvents array",
+    verifyClass: "block active safe",
+    verifyTitle: "Behavior Verification",
+    verifyDesc: "Asserts call counts & args",
+    conn1Active: true,
+    conn2Active: true
+  },
+  {
+    title: "4. Fake: Lightweight In-Memory Implementation",
+    desc: "A Fake provides a working implementation using an in-memory shortcut (such as a dictionary or array). It mimics persistent database behavior without disk overhead.",
+    code: "final class FakeStore: NoteStore {\n    var storage: [String] = []\n    func save(note: String) { storage.append(note) }\n}\n#expect(fake.getAll().count == 2)",
+    sutClass: "block safe",
+    doubleClass: "block active safe",
+    doubleTitle: "Fake Double",
+    doubleDesc: "In-memory dictionary store",
+    verifyClass: "block safe",
+    verifyTitle: "Functional State",
+    verifyDesc: "Instant CRUD assertions",
+    conn1Active: true,
+    conn2Active: true
+  }
+];
+
+let currentStep = 0;
+
+function updateStep() {
+  const step = steps[currentStep];
+  document.getElementById("stepIndicator").textContent = `Step ${currentStep + 1} of ${steps.length}`;
+  document.getElementById("stepTitle").textContent = step.title;
+  document.getElementById("stepExplanation").textContent = step.desc;
+  document.getElementById("codePreview").textContent = step.code;
+
+  document.getElementById("prevBtn").disabled = currentStep === 0;
+  document.getElementById("nextBtn").disabled = currentStep === steps.length - 1;
+
+  document.getElementById("sutBlock").className = step.sutClass;
+  document.getElementById("doubleBlock").className = step.doubleClass;
+  document.getElementById("verifyBlock").className = step.verifyClass;
+
+  document.querySelector("#doubleBlock .block-title").textContent = step.doubleTitle;
+  document.querySelector("#doubleBlock .block-desc").textContent = step.doubleDesc;
+
+  document.querySelector("#verifyBlock .block-title").textContent = step.verifyTitle;
+  document.querySelector("#verifyBlock .block-desc").textContent = step.verifyDesc;
+
+  document.getElementById("conn1").classList.toggle("active", step.conn1Active);
+  document.getElementById("conn2").classList.toggle("active", step.conn2Active);
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateStep();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateStep();
+  }
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateStep();
+</script>
+</body>
+</html>

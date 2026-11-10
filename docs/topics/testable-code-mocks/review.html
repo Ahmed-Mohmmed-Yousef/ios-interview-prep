@@ -1,0 +1,750 @@
+<title>Testable Code and Mocks Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --ink: #0f172a;
+  --muted: #475569;
+  --line: #cbd5e1;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --active-node: #3b82f6;
+  --danger-color: #ef4444;
+  --danger-soft: #fee2e2;
+  --safe-color: #10b981;
+  --safe-soft: #d1fae5;
+  --card-bg: #f1f5f9;
+  --code-bg: #e2e8f0;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f17;
+    --surface: #131b26;
+    --ink: #f1f5f9;
+    --muted: #94a3b8;
+    --line: #2d3748;
+    --accent-color: #3b82f6;
+    --accent-soft: #1e293b;
+    --active-node: #60a5fa;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --card-bg: #1a2230;
+    --code-bg: #0d121c;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.diagram-container {
+  max-width: 820px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+.subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+.stepper-nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  background: var(--code-bg);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.step-indicator {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--muted);
+  min-width: 85px;
+  text-align: center;
+}
+.canvas {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 220px;
+}
+.block {
+  flex: 1;
+  max-width: 220px;
+  padding: 1.25rem 1rem;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+.block.active {
+  border-color: var(--active-node);
+  background: var(--accent-soft);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(37,99,235,0.15);
+}
+.block.danger {
+  border-color: var(--danger-color);
+  background: var(--danger-soft);
+}
+.block.safe {
+  border-color: var(--safe-color);
+  background: var(--safe-soft);
+}
+.block-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 0.35rem;
+}
+.block-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.connector {
+  flex: 0 0 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.arrow {
+  font-size: 1.5rem;
+  color: var(--line);
+  font-weight: 700;
+  transition: color 0.3s ease;
+}
+.connector.active .arrow {
+  color: var(--active-node);
+}
+.step-details {
+  background: var(--surface);
+  border-left: 4px solid var(--accent-color);
+  padding: 1rem 1.25rem;
+  border-radius: 0 8px 8px 0;
+  margin-top: 1rem;
+}
+.step-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 0 0 0.35rem 0;
+  color: var(--ink);
+}
+.step-explanation {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 0.75rem;
+  font-family: var(--font-code);
+  font-size: 0.825rem;
+  background: var(--code-bg);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.reduced-motion-view {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas, .stepper-nav, .step-details {
+    display: none;
+  }
+  .reduced-motion-view {
+    display: block;
+    margin-top: 1rem;
+  }
+  .reduced-motion-step {
+    padding: 0.75rem 1rem;
+    border-left: 3px solid var(--accent-color);
+    background: var(--card-bg);
+    margin-bottom: 0.75rem;
+    border-radius: 0 6px 6px 0;
+  }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Testing and Release · Topic 1 of 4 · Prototype</p>
+    <h1>Testable Code and Mocks</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can write code that is easy to test and use mocks.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>What is the difference between a Stub and a Spy in automated testing?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A stub crashes your test target, while a spy records memory leaks</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">A stub provides canned answers, while a spy also records how its methods were called</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">A stub runs only on physical iPhones, while a spy runs in Xcode previews</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">A stub uses Objective-C runtime method swizzling</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<p>Unit tests must be fast, reliable, and isolated.
+If your code talks to real web servers or disk databases, tests run slowly and fail whenever Wi-Fi drops.
+To make code testable, we replace real external services with test doubles.</p>
+<p>A test double is any helper object you use in place of a real production collaborator during a test.</p>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a movie stunt double.
+When an action movie scene requires jumping off a moving train, the director does not risk the lead actor.
+Instead, the director uses a stunt double who dresses like the actor.
+The stunt double performs the specific stunt safely.
+In software testing, test doubles stand in for real network and database systems so your tests run safely and quickly.</p></aside>
+<h3>The 5 types of test doubles</h3>
+<p>Martin Fowler categorized test doubles into five distinct types:</p>
+<ol>
+<li><strong>Dummy</strong>: An object passed to fill a required parameter, but never used in the test.</li>
+<li><strong>Stub</strong>: An object that provides canned, pre-programmed answers to calls during the test.</li>
+<li><strong>Spy</strong>: A stub that also records how it was called (such as call counts and arguments).</li>
+<li><strong>Mock</strong>: An object pre-programmed with expected calls that verifies communication behavior.</li>
+<li><strong>Fake</strong>: A working implementation that uses a shortcut not suitable for production, such as an in-memory dictionary.</li>
+</ol>
+<h3>State verification versus behavior verification</h3>
+<ul>
+<li><strong>State verification</strong>: You check the final outcome or property value of your class after calling a method.</li>
+<li><strong>Behavior verification</strong>: You check that your class called specific collaborator methods with exact arguments.</li>
+</ul>
+<p>Prefer state verification whenever possible.
+Checking final state makes your tests resilient when internal implementation details change.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which test double provides a working, lightweight in-memory shortcut instead of a real database?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Dummy</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Stub</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">Fake</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Mock</span></button><p class="qc-explain" hidden="">A Fake has a working implementation, such as an in-memory storage dictionary, that simplifies testing without database overhead.</p></div>
+<h2>In code</h2>
+<p>Let us look at how to implement a Stub, a Spy, and a Fake in Swift using protocol abstractions.</p>
+<figure class="code-example"><figcaption>Using a Stub for data and a Spy for behavior verification</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+// Protocols defining collaborator contracts
+protocol UserRepository: Sendable {
+    func fetchUsername(id: Int) -&gt; String
+}
+
+protocol AnalyticsTracker: AnyObject {
+    func track(event: String)
+}
+
+// 1. Stub: Returns canned data
+struct StubUserRepository: UserRepository {
+    let cannedName: String
+    func fetchUsername(id: Int) -&gt; String { cannedName }
+}
+
+// 2. Spy: Records calls for behavior verification
+final class AnalyticsSpy: AnalyticsTracker {
+    var loggedEvents: [String] = []
+    func track(event: String) {
+        loggedEvents.append(event)
+    }
+}
+
+// 3. System Under Test (SUT)
+final class ProfilePresenter {
+    private let repo: UserRepository
+    private let tracker: AnalyticsTracker
+
+    init(repo: UserRepository, tracker: AnalyticsTracker) {
+        self.repo = repo
+        self.tracker = tracker
+    }
+
+    func loadProfile(id: Int) -&gt; String {
+        let name = repo.fetchUsername(id: id)
+        tracker.track(event: &quot;profile_viewed_\(id)&quot;)
+        return &quot;User: \(name)&quot;
+    }
+}
+
+// Test execution
+let stubRepo = StubUserRepository(cannedName: &quot;Alice&quot;)
+let spyTracker = AnalyticsSpy()
+let presenter = ProfilePresenter(repo: stubRepo, tracker: spyTracker)
+
+let result = presenter.loadProfile(id: 42)
+print(&quot;Result: \(result)&quot;)
+print(&quot;Logged: \(spyTracker.loggedEvents.joined(separator: &quot;, &quot;))&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Result: User: Alice
+Logged: profile_viewed_42
+</code></pre></figure>
+<figure class="code-example"><figcaption>Implementing a Fake in-memory storage object</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+protocol NoteStore: AnyObject {
+    func save(note: String)
+    func getAll() -&gt; [String]
+}
+
+// Fake: A fast in-memory implementation replacing Core Data or SQLite
+final class FakeNoteStore: NoteStore {
+    private var storage: [String] = []
+
+    func save(note: String) {
+        storage.append(note)
+    }
+
+    func getAll() -&gt; [String] {
+        return storage
+    }
+}
+
+let fake = FakeNoteStore()
+fake.save(note: &quot;Buy milk&quot;)
+fake.save(note: &quot;Write unit tests&quot;)
+print(&quot;Total notes: \(fake.getAll().count)&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Total notes: 2
+</code></pre></figure>
+<p class="try-it"><p>Open Swift Playground and modify the StubUserRepository to simulate an empty user name.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why should you prefer state verification over behavior verification when writing unit tests?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">State verification runs in kernel space</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">State verification tests outcomes, so tests do not break when you refactor private helper methods</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Behavior verification cannot test protocols</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">State verification deletes test targets automatically</span></button><p class="qc-explain" hidden="">State verification focuses on outputs and final states. This allows you to refactor internal code without breaking tests.</p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> The Over-Mocking Anti-Pattern</p><p>Mocking every private collaborator couples your tests to exact implementation details.
+If you rename an internal helper method, your tests break even though the feature works.
+Only mock external boundaries like network, disk, or device hardware.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Hardcoding Real System Clocks and UUIDs</p><p>Calling <code>Date()</code> or <code>UUID()</code> directly inside business logic makes tests non-deterministic.
+Inject a date provider closure like <code>dateProvider: () -&gt; Date = { Date() }</code>.
+In tests, pass a fixed date so assertions never fail due to timezone or timing differences.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Junior answer</p><p>To write testable code, we use dependency injection and protocols instead of hardcoding services.
+In unit tests, we pass test doubles like stubs and mocks.
+A stub returns canned data, while a mock verifies that certain methods were called.</p></div>
+<div class="answer"><p class="label">Mid answer</p><p>Testable code relies on loose coupling, single responsibility, and protocol abstractions.
+I use the classic test double taxonomy: Dummies fill parameters, Stubs provide canned data, Spies record method calls, and Fakes provide in-memory implementations.
+I favor state verification over behavior verification because asserting on final state keeps tests resilient during internal refactoring.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>In production iOS architecture, testability directly reflects system design.
+Over-mocking is a common pitfall that makes test suites brittle.
+I reserve test doubles for true external boundaries like network clients, persistence stores, and system clocks.
+For domain logic, I prefer testing pure functions and state transitions.
+By injecting protocols with sensible defaults, production code stays clean while unit tests run deterministically in milliseconds.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Testable code decouples external dependencies through protocols and initializer injection.</li>
+<li>Test doubles include Dummies, Stubs, Spies, Mocks, and Fakes.</li>
+<li>Stubs provide canned responses; Spies record call counts and parameters; Fakes provide working in-memory shortcuts.</li>
+<li>Prefer state verification over behavior verification to avoid brittle tests.</li>
+<li>Avoid over-mocking internal collaborators and inject date providers to keep tests deterministic.</li>
+</ul></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/documentation/xcode/testing">Testing in Xcode (Apple Developer Documentation)</a></li>
+<li><a href="https://martinfowler.com/articles/mocksArentStubs.html">Mocks Are Not Stubs (Martin Fowler)</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    title: "1. Real Production Dependency",
+    desc: "In production, the System Under Test connects to real network APIs or disk storage. Running tests against live services causes network flakiness, latency, and unpredictable failures.",
+    code: "// Production: slow and non-deterministic\nlet sut = ProfilePresenter(repo: LiveAPIRepository())",
+    sutClass: "block danger",
+    doubleClass: "block danger",
+    doubleTitle: "Live API Client",
+    doubleDesc: "Hits real remote network",
+    verifyClass: "block",
+    verifyTitle: "Flaky Tests",
+    verifyDesc: "Fails on network drops",
+    conn1Active: true,
+    conn2Active: true
+  },
+  {
+    title: "2. Stub: Canned Data for State Verification",
+    desc: "A Stub replaces the real service with canned, pre-programmed data. The SUT processes the canned response, and the test asserts on the final returned state.",
+    code: "struct StubRepo: UserRepository {\n    func fetchUsername(id: Int) -> String { 'Alice' }\n}\n#expect(sut.loadProfile(id: 42) == 'User: Alice')",
+    sutClass: "block safe",
+    doubleClass: "block active safe",
+    doubleTitle: "Stub Double",
+    doubleDesc: "Returns fixed 'Alice'",
+    verifyClass: "block safe",
+    verifyTitle: "State Verification",
+    verifyDesc: "Asserts on output string",
+    conn1Active: true,
+    conn2Active: true
+  },
+  {
+    title: "3. Spy: Recording Calls for Behavior Verification",
+    desc: "A Spy records method calls, frequencies, and captured arguments. The test asserts that the SUT correctly invoked the collaborator with the expected parameters.",
+    code: "final class AnalyticsSpy: AnalyticsTracker {\n    var loggedEvents: [String] = []\n    func track(event: String) { loggedEvents.append(event) }\n}\n#expect(spy.loggedEvents == ['profile_viewed_42'])",
+    sutClass: "block safe",
+    doubleClass: "block active safe",
+    doubleTitle: "Spy Double",
+    doubleDesc: "Records loggedEvents array",
+    verifyClass: "block active safe",
+    verifyTitle: "Behavior Verification",
+    verifyDesc: "Asserts call counts & args",
+    conn1Active: true,
+    conn2Active: true
+  },
+  {
+    title: "4. Fake: Lightweight In-Memory Implementation",
+    desc: "A Fake provides a working implementation using an in-memory shortcut (such as a dictionary or array). It mimics persistent database behavior without disk overhead.",
+    code: "final class FakeStore: NoteStore {\n    var storage: [String] = []\n    func save(note: String) { storage.append(note) }\n}\n#expect(fake.getAll().count == 2)",
+    sutClass: "block safe",
+    doubleClass: "block active safe",
+    doubleTitle: "Fake Double",
+    doubleDesc: "In-memory dictionary store",
+    verifyClass: "block safe",
+    verifyTitle: "Functional State",
+    verifyDesc: "Instant CRUD assertions",
+    conn1Active: true,
+    conn2Active: true
+  }
+];
+
+let currentStep = 0;
+
+function updateStep() {
+  const step = steps[currentStep];
+  document.getElementById("stepIndicator").textContent = `Step ${currentStep + 1} of ${steps.length}`;
+  document.getElementById("stepTitle").textContent = step.title;
+  document.getElementById("stepExplanation").textContent = step.desc;
+  document.getElementById("codePreview").textContent = step.code;
+
+  document.getElementById("prevBtn").disabled = currentStep === 0;
+  document.getElementById("nextBtn").disabled = currentStep === steps.length - 1;
+
+  document.getElementById("sutBlock").className = step.sutClass;
+  document.getElementById("doubleBlock").className = step.doubleClass;
+  document.getElementById("verifyBlock").className = step.verifyClass;
+
+  document.querySelector("#doubleBlock .block-title").textContent = step.doubleTitle;
+  document.querySelector("#doubleBlock .block-desc").textContent = step.doubleDesc;
+
+  document.querySelector("#verifyBlock .block-title").textContent = step.verifyTitle;
+  document.querySelector("#verifyBlock .block-desc").textContent = step.verifyDesc;
+
+  document.getElementById("conn1").classList.toggle("active", step.conn1Active);
+  document.getElementById("conn2").classList.toggle("active", step.conn2Active);
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateStep();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateStep();
+  }
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateStep();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"testable-code-mocks","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"testable-code-mocks-q01","type":"mcq","difficulty":1,"prompt":"What is the primary definition of a test double in automated software testing?","options":[{"id":"a","text":"A replacement object used in place of a real production collaborator during a test","explanation":"A test double stands in for a production dependency (such as a database or API client) during testing."},{"id":"b","text":"A 64-bit floating point number used in graphic shader calculations","explanation":"This describes the Double numeric type, not a test double."},{"id":"c","text":"A duplicate Xcode target that runs UI automation","explanation":"A test target is a project build product, not an individual test double."},{"id":"d","text":"A tool that copies database rows from production to testing","explanation":"Database migration scripts copy rows, which is unrelated to test doubles."}],"answer":"a"},{"id":"testable-code-mocks-q02","type":"mcq","difficulty":1,"prompt":"Which type of test double provides pre-programmed canned answers to calls without recording history?","options":[{"id":"a","text":"Dummy","explanation":"A dummy is only passed to satisfy parameters and is never called."},{"id":"b","text":"Stub","explanation":"A stub returns pre-configured canned values or errors when invoked."},{"id":"c","text":"Spy","explanation":"A spy records information such as call counts and arguments."},{"id":"d","text":"Fake","explanation":"A fake has a working in-memory implementation."}],"answer":"b"},{"id":"testable-code-mocks-q03","type":"mcq","difficulty":1,"prompt":"What key feature distinguishes a Spy from a simple Stub?","options":[{"id":"a","text":"A spy compiles into machine code while a stub compiles into bytecode","explanation":"All Swift code compiles into native machine code."},{"id":"b","text":"A spy only runs on macOS test runners","explanation":"Test doubles run across all Apple testing platforms."},{"id":"c","text":"A spy records method call counts and captured arguments for later verification","explanation":"A spy extends a stub by keeping a record of interactions for behavior verification."},{"id":"d","text":"A spy can only be created using Objective-C swizzling","explanation":"Spies are standard Swift classes or structs conforming to protocols."}],"answer":"c"},{"id":"testable-code-mocks-q04","type":"mcq","difficulty":1,"prompt":"What is a Fake in the test double taxonomy?","options":[{"id":"a","text":"A test that passes even when assertions fail","explanation":"This describes a false positive test result."},{"id":"b","text":"A parameter passed as nil to satisfy an initializer","explanation":"Passing nil is a parameter choice, not a fake."},{"id":"c","text":"A compiler warning that is ignored during debug builds","explanation":"Warnings are build diagnostics."},{"id":"d","text":"A working implementation that uses a shortcut not suitable for production, such as an in-memory dictionary","explanation":"A fake implements genuine business operations using lightweight in-memory storage."}],"answer":"d"},{"id":"testable-code-mocks-q05","type":"mcq","difficulty":1,"prompt":"What is state verification in automated testing?","options":[{"id":"a","text":"Asserting on the final output values or properties of the system under test","explanation":"State verification checks the final resulting values after an operation executes."},{"id":"b","text":"Counting how many times each private method was called","explanation":"Verifying method call counts is behavior verification."},{"id":"c","text":"Checking if battery state is above twenty percent","explanation":"Hardware battery state is unrelated to software state verification."},{"id":"d","text":"Verifying that the Xcode license agreement was accepted","explanation":"License verification is a system setup task."}],"answer":"a"},{"id":"testable-code-mocks-q06","type":"mcq","difficulty":1,"prompt":"What is a Dummy object in testing?","options":[{"id":"a","text":"A crash report generator","explanation":"Crash reporting tools collect stack traces, not dummy test doubles."},{"id":"b","text":"An object passed solely to fill a required parameter that is never invoked during the test","explanation":"Dummies satisfy compiler type requirements when the test does not interact with that collaborator."},{"id":"c","text":"A mock that records every network request on disk","explanation":"Recording requests is characteristic of network spies or proxies."},{"id":"d","text":"A protocol that has no methods","explanation":"An empty protocol is a marker protocol, not necessarily a dummy object."}],"answer":"b"},{"id":"testable-code-mocks-q07","type":"mcq","difficulty":2,"prompt":"Why is state verification generally preferred over behavior verification in unit tests?","options":[{"id":"a","text":"Because behavior verification is forbidden in Swift Testing","explanation":"Behavior verification is fully supported in both Swift Testing and XCTest."},{"id":"b","text":"Because state verification runs in separate background processes","explanation":"Both forms of verification run in the same test process."},{"id":"c","text":"Because state verification tests outcomes, preventing tests from breaking during internal refactoring","explanation":"Testing final state allows engineers to alter private methods without breaking existing tests."},{"id":"d","text":"Because state verification does not require assertions","explanation":"State verification requires assertions on output values."}],"answer":"c"},{"id":"testable-code-mocks-q08","type":"mcq","difficulty":2,"prompt":"How can you make code that depends on the current date and time testable?","options":[{"id":"a","text":"By manually changing the system time in macOS Settings before every test","explanation":"Modifying system settings is brittle and cannot run concurrently in CI."},{"id":"b","text":"By pausing the test runner thread for 24 hours","explanation":"Pausing tests causes timeouts and slow builds."},{"id":"c","text":"By calling Date() repeatedly until the expected timestamp appears","explanation":"Polling real time leads to flaky and non-deterministic tests."},{"id":"d","text":"By injecting a date provider closure or clock protocol with a default value of { Date() }","explanation":"Injecting a date closure allows unit tests to supply a fixed, deterministic timestamp."}],"answer":"d"},{"id":"testable-code-mocks-q09","type":"mcq","difficulty":2,"prompt":"How does a test stub allow you to verify error handling logic in a consumer class?","options":[{"id":"a","text":"By throwing a pre-configured error when its protocol method is invoked","explanation":"Configuring a stub to throw forces the consumer into its catch block, testing error paths."},{"id":"b","text":"By causing a fatalError crash in the test suite","explanation":"fatalError terminates the process rather than testing graceful error handling."},{"id":"c","text":"By corrupting memory inside the test process","explanation":"Memory corruption causes test runner aborts."},{"id":"d","text":"By disconnecting the Mac from the internet","explanation":"Disconnecting hardware is slow and impractical."}],"answer":"a"},{"id":"testable-code-mocks-q10","type":"mcq","difficulty":2,"prompt":"What is the over-mocking anti-pattern in software testing?","options":[{"id":"a","text":"Writing unit tests that run in less than one second","explanation":"Fast execution is a goal of unit testing."},{"id":"b","text":"Mocking every internal helper class, making tests brittle when implementation details change","explanation":"Over-mocking ties tests to private implementation details rather than external boundaries."},{"id":"c","text":"Using protocols for network services","explanation":"Using protocols on architectural boundaries is a recognized best practice."},{"id":"d","text":"Running tests concurrently on multiple simulator instances","explanation":"Parallel testing is an Xcode feature that improves suite performance."}],"answer":"b"},{"id":"testable-code-mocks-q11","type":"mcq","difficulty":2,"prompt":"Why is calling UUID() directly inside a presenter or view model an impediment to testing?","options":[{"id":"a","text":"Because UUID generation leaks memory on iOS devices","explanation":"UUID generation is memory safe in Swift."},{"id":"b","text":"Because UUIDs cannot be stored in Swift structs","explanation":"UUID is a standard Hashable struct in Foundation."},{"id":"c","text":"Because each call creates a new random value, preventing deterministic equality assertions","explanation":"Direct random generation makes comparing expected model objects in test assertions difficult."},{"id":"d","text":"Because UUIDs are disabled in Xcode test schemes","explanation":"UUIDs function identically in test and app targets."}],"answer":"c"},{"id":"testable-code-mocks-q12","type":"mcq","difficulty":2,"prompt":"What is a common sign that a unit test is asserting on the mock rather than the system under test?","options":[{"id":"a","text":"The test passes in under five milliseconds","explanation":"Fast test execution is desirable."},{"id":"b","text":"The test uses Swift Testing #expect macros","explanation":"#expect is standard modern Swift syntax."},{"id":"c","text":"The test file is located in the test target directory","explanation":"All tests belong in the test target."},{"id":"d","text":"The test only asserts on mock internal flags without verifying any output from the SUT","explanation":"Tests should verify the output or state change of the class being tested, not just collaborator flags."}],"answer":"d"},{"id":"testable-code-mocks-q13","type":"mcq","difficulty":3,"prompt":"When should an iOS engineer decide to use a Fake instead of a Stub in unit tests?","options":[{"id":"a","text":"When the test requires realistic data persistence and retrieval across multiple sequential operations","explanation":"Fakes maintain working state (like saving and retrieving items from a dictionary) without real storage overhead."},{"id":"b","text":"When testing a pure mathematical calculation function","explanation":"Pure calculations do not require collaborators or fakes."},{"id":"c","text":"When testing static strings in a SwiftUI label","explanation":"Static strings do not need test doubles."},{"id":"d","text":"Only when testing Objective-C legacy frameworks","explanation":"Fakes are widely used across modern Swift codebases."}],"answer":"a"},{"id":"testable-code-mocks-q14","type":"mcq","difficulty":3,"prompt":"How do protocol-oriented design and Swift 6 Sendable requirements affect mock creation?","options":[{"id":"a","text":"Mock objects cannot conform to protocols in Swift 6","explanation":"Mocks conform to protocols as standard practice."},{"id":"b","text":"Mocks passed across concurrency domains must conform to Sendable or be actor-isolated","explanation":"Swift 6 strict concurrency requires thread-safe or actor-isolated test doubles when crossing task boundaries."},{"id":"c","text":"All test doubles must be declared as global mutable singletons","explanation":"Global mutable singletons are anti-patterns and trigger concurrency diagnostics in Swift 6."},{"id":"d","text":"Test targets are exempt from Sendable validation","explanation":"Swift 6 enforces concurrency checks across all targets including tests."}],"answer":"b"},{"id":"testable-code-mocks-q15","type":"mcq","difficulty":3,"prompt":"What are the core characteristics of high-quality, testable iOS code?","options":[{"id":"a","text":"Large view controllers with private embedded networking calls","explanation":"Embedded networking creates massive view controllers that cannot be tested in isolation."},{"id":"b","text":"Direct references to singleton shared properties throughout UI logic","explanation":"Direct singleton references couple code and create test pollution."},{"id":"c","text":"Loose coupling through protocol abstractions, explicit dependency injection, and deterministic inputs","explanation":"These practices allow rapid, isolated unit testing without external side effects."},{"id":"d","text":"Total reliance on manual testing by QA engineers","explanation":"Manual QA testing does not replace automated, testable architecture."}],"answer":"c"},{"id":"testable-code-mocks-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"protocol AccountService { func getBalance() -> Int }\nstruct StubAccount: AccountService {\n    let balance: Int\n    func getBalance() -> Int { balance }\n}\nlet stub = StubAccount(balance: 250)\nprint(stub.getBalance())","options":[{"id":"a","text":"0","explanation":"The stub was initialized with balance: 250."},{"id":"b","text":"StubAccount","explanation":"The return value of getBalance() is printed."},{"id":"c","text":"nil","explanation":"getBalance returns a non-optional Int."},{"id":"d","text":"250","explanation":"The stub returns its configured canned balance of 250."}],"answer":"d"},{"id":"testable-code-mocks-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"protocol LogService: AnyObject { func logEvent() }\nfinal class SpyLog: LogService {\n    var callCount = 0\n    func logEvent() { callCount += 1 }\n}\nlet spy = SpyLog()\nspy.logEvent()\nspy.logEvent()\nprint(spy.callCount)","options":[{"id":"a","text":"2","explanation":"logEvent() was called twice on the spy, incrementing callCount to 2."},{"id":"b","text":"1","explanation":"Two calls were made, not one."},{"id":"c","text":"0","explanation":"The call count is incremented on each invocation."},{"id":"d","text":"SpyLog","explanation":"The integer property callCount is printed."}],"answer":"a"},{"id":"testable-code-mocks-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"protocol KeyValueCache: AnyObject {\n    func set(_ key: String, _ value: String)\n    func get(_ key: String) -> String?\n}\nfinal class FakeCache: KeyValueCache {\n    private var dict: [String: String] = [:]\n    func set(_ key: String, _ value: String) { dict[key] = value }\n    func get(_ key: String) -> String? { dict[key] }\n}\nlet fake = FakeCache()\nfake.set(\"token\", \"xyz\")\nprint(fake.get(\"token\") ?? \"\")","options":[{"id":"a","text":"token","explanation":"'token' was the key, 'xyz' was the value."},{"id":"b","text":"xyz","explanation":"The fake store saved and retrieved 'xyz' under the key 'token'."},{"id":"c","text":"empty string","explanation":"The dictionary contains 'xyz' for 'token'."},{"id":"d","text":"nil","explanation":"The nil coalescing operator un緻wraps the optional."}],"answer":"b"},{"id":"testable-code-mocks-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"protocol FormatterProtocol {}\nstruct DummyFormatter: FormatterProtocol {}\nfinal class BillingManager {\n    let formatter: FormatterProtocol\n    init(formatter: FormatterProtocol) { self.formatter = formatter }\n    var status: String { \"Ready\" }\n}\nlet bm = BillingManager(formatter: DummyFormatter())\nprint(bm.status)","options":[{"id":"a","text":"DummyFormatter","explanation":"status returns the string 'Ready'."},{"id":"b","text":"BillingManager","explanation":"The status property value is printed."},{"id":"c","text":"Ready","explanation":"DummyFormatter satisfies the required initializer parameter, and status evaluates to 'Ready'."},{"id":"d","text":"nil","explanation":"status is a non-optional String."}],"answer":"c"},{"id":"testable-code-mocks-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"final class VerificationMock {\n    var wasCalled = false\n    func execute() { wasCalled = true }\n    func verify() -> String { wasCalled ? \"All expectations met\" : \"Failed\" }\n}\nlet mock = VerificationMock()\nmock.execute()\nprint(mock.verify())","options":[{"id":"a","text":"Failed","explanation":"execute() set wasCalled to true, so verify returns the success message."},{"id":"b","text":"true","explanation":"verify() returns a formatted description string, not a boolean."},{"id":"c","text":"VerificationMock","explanation":"The output is the string returned by verify()."},{"id":"d","text":"All expectations met","explanation":"Because execute() was called, wasCalled is true, returning 'All expectations met'."}],"answer":"d"},{"id":"testable-code-mocks-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"protocol TimeProvider { func currentYear() -> Int }\nstruct FixedYearProvider: TimeProvider { func currentYear() -> Int { 2026 } }\nfinal class TimeDependentService {\n    let provider: TimeProvider\n    init(provider: TimeProvider = FixedYearProvider()) { self.provider = provider }\n    func currentYearText() -> String { \"Year: \\(provider.currentYear())\" }\n}\nlet s = TimeDependentService(provider: FixedYearProvider())\nprint(s.currentYearText())","options":[{"id":"a","text":"Year: 2026","explanation":"The injected provider returns 2026, which is interpolated into 'Year: 2026'."},{"id":"b","text":"2026","explanation":"The prefix 'Year: ' is included in the output."},{"id":"c","text":"Year: 0","explanation":"The injected closure supplies 2026."},{"id":"d","text":"TimeDependentService","explanation":"The result of currentYearText() is printed."}],"answer":"a"},{"id":"testable-code-mocks-q22","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"enum ServiceError: Error { case connectionFailed }\nprotocol DataFetcher { func fetchData() throws -> String }\nstruct FailingStub: DataFetcher {\n    func fetchData() throws -> String { throw ServiceError.connectionFailed }\n}\nfinal class DataPresenter {\n    let fetcher: DataFetcher\n    init(fetcher: DataFetcher) { self.fetcher = fetcher }\n    func render() -> String {\n        do { return try fetcher.fetchData() }\n        catch { return \"Handled error\" }\n    }\n}\nlet p = DataPresenter(fetcher: FailingStub())\nprint(p.render())","options":[{"id":"a","text":"connectionFailed","explanation":"The catch block catches the error and returns 'Handled error'."},{"id":"b","text":"Handled error","explanation":"The failing stub throws connectionFailed, which is caught and returns 'Handled error'."},{"id":"c","text":"DataPresenter","explanation":"The render method string output is printed."},{"id":"d","text":"nil","explanation":"render() returns a non-optional String."}],"answer":"b"},{"id":"testable-code-mocks-q23","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"protocol MessageSender: AnyObject { func send(message: String) }\nfinal class MessageSpy: MessageSender {\n    var capturedMessages: [String] = []\n    func send(message: String) { capturedMessages.append(message) }\n}\nlet spy = MessageSpy()\nspy.send(message: \"Alert\")\nprint(spy.capturedMessages.first ?? \"\")","options":[{"id":"a","text":"empty string","explanation":"The message 'Alert' was captured by the spy."},{"id":"b","text":"MessageSpy","explanation":"The first captured string message is printed."},{"id":"c","text":"Alert","explanation":"The spy recorded 'Alert' into capturedMessages, which is printed as 'Alert'."},{"id":"d","text":"nil","explanation":"The nil coalescing operator unwraps the captured message."}],"answer":"c"},{"id":"testable-code-mocks-q24","type":"written","difficulty":1,"prompt":"Explain what a Test Double is and name three specific types of test doubles. Write 2 to 5 sentences.","rubric":[{"criterion":"Defines a test double as a generic term for any replacement object used in place of a production collaborator during testing","weight":50,"key":true},{"criterion":"Correctly names three specific types such as Dummy, Stub, Spy, Mock, or Fake","weight":50}]},{"id":"testable-code-mocks-q25","type":"written","difficulty":1,"prompt":"Explain the difference between state verification and behavior verification. Which is generally preferred, and why? Write 2 to 5 sentences.","rubric":[{"criterion":"Contrasts state verification (asserting on final outcomes/properties) with behavior verification (asserting on method calls and arguments)","weight":50,"key":true},{"criterion":"Identifies that state verification is preferred because it remains resilient when internal implementation details are refactored","weight":50}]},{"id":"testable-code-mocks-q26","type":"written","difficulty":2,"prompt":"What is the over-mocking anti-pattern, and what negative impact does it have on a test suite? Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that over-mocking means replacing every internal collaborator with mocks rather than just external boundaries","weight":50,"key":true},{"criterion":"Describes the negative impact: brittle tests that break upon private refactorings even when functionality remains intact","weight":50}]},{"id":"testable-code-mocks-q27","type":"written","difficulty":2,"prompt":"How does injecting system dependencies like clocks, dates, and UUIDs improve unit test reliability? Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that calling Date() or UUID() directly causes non-deterministic tests due to changing times or random values","weight":50,"key":true},{"criterion":"Describes injecting a date provider closure or clock protocol so tests can supply fixed, predictable values","weight":50}]},{"id":"testable-code-mocks-q28","type":"written","difficulty":3,"prompt":"In what testing scenarios would you use a Fake implementation rather than a simple Stub? Write 2 to 5 sentences.","rubric":[{"criterion":"Explains that a Fake provides a functional in-memory shortcut that maintains realistic state across multiple sequential operations","weight":50,"key":true},{"criterion":"Contrasts with a Stub which only provides fixed canned responses and cannot simulate complex store-and-retrieve workflows","weight":50}]},{"id":"testable-code-mocks-q29","type":"code-write","difficulty":1,"prompt":"Declare a `TemperatureProvider` protocol with `func currentTemp() -> Int`. Create a `TemperatureStub: TemperatureProvider` struct initialized with a `temp: Int` property that returns it. Implement a `WeatherReporter` class with initializer injection of `TemperatureProvider` and a `report: String` property returning 'Temp: X'. Instantiate with 25 and print 'Temp: 25'.","modelAnswer":"protocol TemperatureProvider {\n    func currentTemp() -> Int\n}\n\nstruct TemperatureStub: TemperatureProvider {\n    let temp: Int\n    func currentTemp() -> Int {\n        return temp\n    }\n}\n\nfinal class WeatherReporter {\n    let provider: TemperatureProvider\n    init(provider: TemperatureProvider) {\n        self.provider = provider\n    }\n    var report: String {\n        return \"Temp: \\(provider.currentTemp())\"\n    }\n}\n\nlet reporter = WeatherReporter(provider: TemperatureStub(temp: 25))\nprint(reporter.report)","rubric":[{"criterion":"Declares TemperatureProvider protocol and TemperatureStub struct","weight":30},{"criterion":"Implements WeatherReporter with initializer injection of the protocol","weight":40,"key":true},{"criterion":"Instantiates and outputs 'Temp: 25'","weight":30}]},{"id":"testable-code-mocks-q30","type":"code-write","difficulty":2,"prompt":"Define an `AnalyticsProtocol: AnyObject` protocol with `func logEvent(_ name: String)`. Implement an `AnalyticsSpy: AnalyticsProtocol` class that records logged event names into a `var events: [String] = []` array. Implement a `UserTracker` class that calls `logEvent` twice ('open' and 'click'). Track events and print 'Logged: 2'.","modelAnswer":"protocol AnalyticsProtocol: AnyObject {\n    func logEvent(_ name: String)\n}\n\nfinal class AnalyticsSpy: AnalyticsProtocol {\n    var events: [String] = []\n    func logEvent(_ name: String) {\n        events.append(name)\n    }\n}\n\nfinal class UserTracker {\n    let analytics: AnalyticsProtocol\n    init(analytics: AnalyticsProtocol) {\n        self.analytics = analytics\n    }\n    func trackUserActions() {\n        analytics.logEvent(\"open\")\n        analytics.logEvent(\"click\")\n    }\n}\n\nlet spy = AnalyticsSpy()\nlet tracker = UserTracker(analytics: spy)\ntracker.trackUserActions()\nprint(\"Logged: \\(spy.events.count)\")","rubric":[{"criterion":"Declares AnalyticsProtocol and AnalyticsSpy class recording events","weight":30},{"criterion":"Implements UserTracker with initializer injection and actions method","weight":40,"key":true},{"criterion":"Executes tracking and outputs 'Logged: 2'","weight":30}]},{"id":"testable-code-mocks-q31","type":"code-write","difficulty":3,"prompt":"Declare a `UserDatabaseProtocol: AnyObject` protocol with `func saveUser(id: Int, name: String)` and `func findUser(id: Int) -> String?`. Implement a `FakeUserDatabase: UserDatabaseProtocol` class storing users in a private `[Int: String]` dictionary. Save user 1 as 'Alice', find user 1, and print 'Found: Alice'.","modelAnswer":"protocol UserDatabaseProtocol: AnyObject {\n    func saveUser(id: Int, name: String)\n    func findUser(id: Int) -> String?\n}\n\nfinal class FakeUserDatabase: UserDatabaseProtocol {\n    private var users: [Int: String] = [:]\n    func saveUser(id: Int, name: String) {\n        users[id] = name\n    }\n    func findUser(id: Int) -> String? {\n        return users[id]\n    }\n}\n\nlet db = FakeUserDatabase()\ndb.saveUser(id: 1, name: \"Alice\")\nprint(\"Found: \\(db.findUser(id: 1) ?? \"none\")\")","rubric":[{"criterion":"Declares UserDatabaseProtocol with saveUser and findUser methods","weight":30},{"criterion":"Implements FakeUserDatabase with in-memory dictionary storage","weight":40,"key":true},{"criterion":"Saves and finds user 1, outputting 'Found: Alice'","weight":30}]}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

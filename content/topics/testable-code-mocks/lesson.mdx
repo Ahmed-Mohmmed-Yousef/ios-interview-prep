@@ -1,0 +1,245 @@
+export const meta = {
+  id: "testable-code-mocks",
+  title: "Testable Code and Mocks",
+  summary: "Write testable Swift code and use test doubles like stubs, spies, and mocks to build fast, isolated unit tests.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "Testing (Xcode)",
+      url: "https://developer.apple.com/documentation/xcode/testing",
+      kind: "official"
+    },
+    {
+      title: "Mocks Aren't Stubs",
+      url: "https://martinfowler.com/articles/mocksArentStubs.html",
+      kind: "community"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    What is the difference between a Stub and a Spy in automated testing?
+  </Question>
+  <Guess>
+    <Option id="a">A stub crashes your test target, while a spy records memory leaks</Option>
+    <Option id="b" correct>A stub provides canned answers, while a spy also records how its methods were called</Option>
+    <Option id="c">A stub runs only on physical iPhones, while a spy runs in Xcode previews</Option>
+    <Option id="d">A stub uses Objective-C runtime method swizzling</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+Unit tests must be fast, reliable, and isolated.
+If your code talks to real web servers or disk databases, tests run slowly and fail whenever Wi-Fi drops.
+To make code testable, we replace real external services with test doubles.
+
+A test double is any helper object you use in place of a real production collaborator during a test.
+
+<Analogy>
+  Think of a movie stunt double.
+  When an action movie scene requires jumping off a moving train, the director does not risk the lead actor.
+  Instead, the director uses a stunt double who dresses like the actor.
+  The stunt double performs the specific stunt safely.
+  In software testing, test doubles stand in for real network and database systems so your tests run safely and quickly.
+</Analogy>
+
+### The 5 types of test doubles
+
+Martin Fowler categorized test doubles into five distinct types:
+
+1. **Dummy**: An object passed to fill a required parameter, but never used in the test.
+2. **Stub**: An object that provides canned, pre-programmed answers to calls during the test.
+3. **Spy**: A stub that also records how it was called (such as call counts and arguments).
+4. **Mock**: An object pre-programmed with expected calls that verifies communication behavior.
+5. **Fake**: A working implementation that uses a shortcut not suitable for production, such as an in-memory dictionary.
+
+### State verification versus behavior verification
+
+- **State verification**: You check the final outcome or property value of your class after calling a method.
+- **Behavior verification**: You check that your class called specific collaborator methods with exact arguments.
+
+Prefer state verification whenever possible.
+Checking final state makes your tests resilient when internal implementation details change.
+
+## See it
+
+<Diagram id="mocks-flow" caption="How test doubles replace real production dependencies with deterministic stubs, spies, and fakes.">
+{/*
+  Interactive stepper:
+  Step 1: Production Dependency: System Under Test (SUT) calls real network client.
+  Step 2: Stub Double: SUT receives pre-programmed canned data instantly.
+  Step 3: Spy Double: SUT triggers actions, and the spy records call counts and arguments.
+  Step 4: Fake Double: SUT reads and writes to a fast in-memory store instead of disk.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which test double provides a working, lightweight in-memory shortcut instead of a real database?</Question>
+  <Option id="a">Dummy</Option>
+  <Option id="b">Stub</Option>
+  <Option id="c" correct>Fake</Option>
+  <Option id="d">Mock</Option>
+  <Explanation>A Fake has a working implementation, such as an in-memory storage dictionary, that simplifies testing without database overhead.</Explanation>
+</QuickCheck>
+
+## In code
+
+Let us look at how to implement a Stub, a Spy, and a Fake in Swift using protocol abstractions.
+
+<CodeExample title="Using a Stub for data and a Spy for behavior verification">
+```swift
+import Foundation
+
+// Protocols defining collaborator contracts
+protocol UserRepository: Sendable {
+    func fetchUsername(id: Int) -> String
+}
+
+protocol AnalyticsTracker: AnyObject {
+    func track(event: String)
+}
+
+// 1. Stub: Returns canned data
+struct StubUserRepository: UserRepository {
+    let cannedName: String
+    func fetchUsername(id: Int) -> String { cannedName }
+}
+
+// 2. Spy: Records calls for behavior verification
+final class AnalyticsSpy: AnalyticsTracker {
+    var loggedEvents: [String] = []
+    func track(event: String) {
+        loggedEvents.append(event)
+    }
+}
+
+// 3. System Under Test (SUT)
+final class ProfilePresenter {
+    private let repo: UserRepository
+    private let tracker: AnalyticsTracker
+
+    init(repo: UserRepository, tracker: AnalyticsTracker) {
+        self.repo = repo
+        self.tracker = tracker
+    }
+
+    func loadProfile(id: Int) -> String {
+        let name = repo.fetchUsername(id: id)
+        tracker.track(event: "profile_viewed_\(id)")
+        return "User: \(name)"
+    }
+}
+
+// Test execution
+let stubRepo = StubUserRepository(cannedName: "Alice")
+let spyTracker = AnalyticsSpy()
+let presenter = ProfilePresenter(repo: stubRepo, tracker: spyTracker)
+
+let result = presenter.loadProfile(id: 42)
+print("Result: \(result)")
+print("Logged: \(spyTracker.loggedEvents.joined(separator: ", "))")
+```
+```output
+Result: User: Alice
+Logged: profile_viewed_42
+```
+</CodeExample>
+
+<CodeExample title="Implementing a Fake in-memory storage object">
+```swift
+import Foundation
+
+protocol NoteStore: AnyObject {
+    func save(note: String)
+    func getAll() -> [String]
+}
+
+// Fake: A fast in-memory implementation replacing Core Data or SQLite
+final class FakeNoteStore: NoteStore {
+    private var storage: [String] = []
+
+    func save(note: String) {
+        storage.append(note)
+    }
+
+    func getAll() -> [String] {
+        return storage
+    }
+}
+
+let fake = FakeNoteStore()
+fake.save(note: "Buy milk")
+fake.save(note: "Write unit tests")
+print("Total notes: \(fake.getAll().count)")
+```
+```output
+Total notes: 2
+```
+</CodeExample>
+
+<TryIt>
+  Open Swift Playground and modify the StubUserRepository to simulate an empty user name.
+</TryIt>
+
+<QuickCheck>
+  <Question>Why should you prefer state verification over behavior verification when writing unit tests?</Question>
+  <Option id="a">State verification runs in kernel space</Option>
+  <Option id="b" correct>State verification tests outcomes, so tests do not break when you refactor private helper methods</Option>
+  <Option id="c">Behavior verification cannot test protocols</Option>
+  <Option id="d">State verification deletes test targets automatically</Option>
+  <Explanation>State verification focuses on outputs and final states. This allows you to refactor internal code without breaking tests.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="The Over-Mocking Anti-Pattern">
+  Mocking every private collaborator couples your tests to exact implementation details.
+  If you rename an internal helper method, your tests break even though the feature works.
+  Only mock external boundaries like network, disk, or device hardware.
+</Trap>
+
+<Trap title="Hardcoding Real System Clocks and UUIDs">
+  Calling `Date()` or `UUID()` directly inside business logic makes tests non-deterministic.
+  Inject a date provider closure like `dateProvider: () -> Date = { Date() }`.
+  In tests, pass a fixed date so assertions never fail due to timezone or timing differences.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="junior">
+  To write testable code, we use dependency injection and protocols instead of hardcoding services.
+  In unit tests, we pass test doubles like stubs and mocks.
+  A stub returns canned data, while a mock verifies that certain methods were called.
+</InterviewAnswer>
+
+<InterviewAnswer level="mid">
+  Testable code relies on loose coupling, single responsibility, and protocol abstractions.
+  I use the classic test double taxonomy: Dummies fill parameters, Stubs provide canned data, Spies record method calls, and Fakes provide in-memory implementations.
+  I favor state verification over behavior verification because asserting on final state keeps tests resilient during internal refactoring.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  In production iOS architecture, testability directly reflects system design.
+  Over-mocking is a common pitfall that makes test suites brittle.
+  I reserve test doubles for true external boundaries like network clients, persistence stores, and system clocks.
+  For domain logic, I prefer testing pure functions and state transitions.
+  By injecting protocols with sensible defaults, production code stays clean while unit tests run deterministically in milliseconds.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  - Testable code decouples external dependencies through protocols and initializer injection.
+  - Test doubles include Dummies, Stubs, Spies, Mocks, and Fakes.
+  - Stubs provide canned responses; Spies record call counts and parameters; Fakes provide working in-memory shortcuts.
+  - Prefer state verification over behavior verification to avoid brittle tests.
+  - Avoid over-mocking internal collaborators and inject date providers to keep tests deterministic.
+</Recap>
+
+## Go deeper
+
+- [Testing in Xcode (Apple Developer Documentation)](https://developer.apple.com/documentation/xcode/testing)
+- [Mocks Are Not Stubs (Martin Fowler)](https://martinfowler.com/articles/mocksArentStubs.html)

@@ -205,13 +205,13 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **caching** (Caching) — published (lesson, diagram, 31 questions) → [docs/topics/caching/review.html](docs/topics/caching/review.html)
     - ✅ **pagination** (Pagination) — published (lesson, diagram, 31 questions) → [docs/topics/pagination/review.html](docs/topics/pagination/review.html)
     - ✅ **combine-basics** (Combine Basics) — published (lesson, diagram, 31 questions) → [docs/topics/combine-basics/review.html](docs/topics/combine-basics/review.html)
-  - 🔄 **Batch 3G: Architecture & Testing Strategy (8 topics) — (4 of 8 published)**
+  - 🔄 **Batch 3G: Architecture & Testing Strategy (8 topics) — (5 of 8 published)**
     - ✅ **mvvm** (MVVM) — published (lesson, diagram, 31 questions) → [docs/topics/mvvm/review.html](docs/topics/mvvm/review.html)
     - ✅ **dependency-injection** (Dependency Injection) — published (lesson, diagram, 31 questions) → [docs/topics/dependency-injection/review.html](docs/topics/dependency-injection/review.html)
     - ✅ **design-patterns** (Design Patterns) — published (lesson, diagram, 31 questions) → [docs/topics/design-patterns/review.html](docs/topics/design-patterns/review.html)
     - ✅ **navigation-patterns** (Navigation Patterns) — published (lesson, diagram, 31 questions) → [docs/topics/navigation-patterns/review.html](docs/topics/navigation-patterns/review.html)
-    - 🔄 **testable-code-mocks** (Testable Code and Mocks) — starting research
-    - ⬜ **testing-async-code** (Testing Async Code)
+    - ✅ **testable-code-mocks** (Testable Code and Mocks) — published (lesson, diagram, 31 questions) → [docs/topics/testable-code-mocks/review.html](docs/topics/testable-code-mocks/review.html)
+    - 🔄 **testing-async-code** (Testing Async Code) — starting research
     - ⬜ **ui-testing** (UI Tests)
     - ⬜ **code-review** (Code Review)
   - ⬜ **Batch 3H: Performance & System Design Foundations (3 topics)**
@@ -382,6 +382,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `testable-code-mocks` (Testable Code and Mocks): researched official Apple Xcode Testing docs and Martin Fowler test double taxonomy, authored lesson in simple English, interactive 4-step Stubs, Spies, and Fakes architecture diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/testable-code-mocks/review.html`). All checks passed. Batch 3G progress: 5 of 8 published (Mid: 47 of 53, total: 114 of 164 published curriculum topics). Starting testing-async-code.
 
 - **2026-11-10** — Built and published topic `navigation-patterns` (Navigation Patterns): researched official Apple NavigationStack, UINavigationController, and WWDC22 navigation cookbook docs, authored lesson in simple English, interactive 4-step Coordinator and Router architecture diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/navigation-patterns/review.html`). All checks passed. Batch 3G progress: 4 of 8 published (Mid: 46 of 53, total: 113 of 164 published curriculum topics). Starting testable-code-mocks.
 
