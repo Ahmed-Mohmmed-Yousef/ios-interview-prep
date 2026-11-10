@@ -1,0 +1,211 @@
+export const meta = {
+  id: "caching",
+  summary: "Cache network responses and in-memory assets efficiently using URLCache and NSCache.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.0", xcode: "16.0", ios: "17.0" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "URLCache", url: "https://developer.apple.com/documentation/foundation/urlcache", kind: "official" },
+    { title: "Accessing cached data", url: "https://developer.apple.com/documentation/foundation/accessing-cached-data", kind: "official" },
+    { title: "NSCache", url: "https://developer.apple.com/documentation/foundation/nscache", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why should you use NSCache instead of a standard Swift Dictionary when caching decoded images in memory?</Question>
+  <Guess>
+    <Option id="a">Swift dictionaries cannot store class references or binary data.</Option>
+    <Option id="b" correct>NSCache automatically evicts stored items when the system experiences memory pressure, preventing out-of-memory crashes.</Option>
+    <Option id="c">NSCache encrypts all stored images with hardware Face ID keys.</Option>
+    <Option id="d">Dictionaries automatically delete all entries after exactly five seconds.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a chef preparing meals in a restaurant kitchen.
+The chef keeps chopped onions right on the cutting board.
+That cutting board is **NSCache**: fast to reach, but if the counter gets crowded, the chef clears space at once.
+In the pantry downstairs, the restaurant keeps sealed cans of tomato sauce on shelves.
+That pantry is **URLCache**: it holds raw ingredients on disk and in memory according to expiration labels stamped on each can.
+</Analogy>
+
+**Caching** stores expensive data temporarily so future requests can reuse it without repeating network calls or computations.
+iOS provides two distinct caching layers:
+
+1. **`URLCache`**: Manages HTTP network responses. It stores raw response bytes in RAM and on disk, obeying HTTP headers like `Cache-Control`.
+2. **`NSCache`**: An in-memory key-value container designed for decoded objects like images and parsed data models.
+
+### How URLCache works
+
+When your app issues a network request via `URLSession`, the system checks `URLCache.shared`:
+
+- **Tiered Storage**: `URLCache` maintains both memory capacity and disk capacity.
+- **Cache-Control Headers**: Server headers like `max-age=3600` tell the cache how long a response stays fresh.
+- **Validation**: Headers like `ETag` allow the server to return HTTP `304 Not Modified`, skipping redownloads of identical data.
+
+### Request cache policies
+
+You configure cache behavior per request using `URLRequest.CachePolicy`:
+
+- **`.useProtocolCachePolicy`**: The default policy. It follows standard HTTP rules and server directives.
+- **`.reloadIgnoringLocalCacheData`**: Bypasses local cache data and forces a fresh network call.
+- **`.returnCacheDataElseLoad`**: Uses cached data if available, regardless of expiration; fetches from network only if missing.
+- **`.returnCacheDataDontLoad`**: Offline mode. Returns cached data or fails immediately without touching the network.
+
+### In-memory caching with NSCache
+
+Unlike a standard Swift `Dictionary`, `NSCache` provides critical safety features:
+
+- **Automatic Eviction**: The system automatically discards cached items when memory pressure rises, avoiding out-of-memory crashes.
+- **Cost and Count Limits**: You can set `countLimit` and `totalCostLimit` to bound cache growth.
+- **Thread Safety**: `NSCache` is thread-safe by default, allowing concurrent reads and writes without manual lock synchronization.
+- **Encapsulation**: Keep your cache property `private` inside an image loader service to protect it from outside changes.
+
+**Smart caching balances network efficiency with memory safety by combining URLCache on disk with NSCache in memory.**
+
+## See it
+
+<Diagram id="caching-pipeline" caption="How iOS coordinates network caching between URLRequest policies, URLCache, NSCache, and the UI.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: UI Request, In-Memory NSCache (Decoded Bitmaps), URLCache (Disk + RAM), Remote Web Server.
+  - Step 1: UI checks NSCache for a decoded image; if present, renders instantly with zero decompression cost.
+  - Step 2: On cache miss, app issues URLRequest through URLSession to inspect URLCache.
+  - Step 3: If URLCache has a fresh response, it returns raw data; otherwise, request routes to remote server.
+  - Step 4: Server responds; response saves into URLCache, decodes into bitmap, and populates NSCache for future reads.
+  - Static version (reduced motion): Shows tiered caching pipeline comparing memory-speed hit against disk and network fallbacks.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which cache policy should you choose for an offline-only mode that must never make network requests?</Question>
+  <Option id="a">.useProtocolCachePolicy</Option>
+  <Option id="b" correct>.returnCacheDataDontLoad</Option>
+  <Option id="c">.reloadIgnoringLocalCacheData</Option>
+  <Explanation>.returnCacheDataDontLoad returns cached data if present, or fails immediately without attempting any network connection.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Caching decoded assets safely with NSCache
+
+Use `NSCache` to store transient data in memory with an automatic count limit.
+
+```swift
+import Foundation
+
+let imageCache = NSCache<NSString, NSData>()
+imageCache.countLimit = 50
+
+let imageKey = "profile-avatar" as NSString
+let samplePayload = "PixelBytes".data(using: .utf8)! as NSData
+imageCache.setObject(samplePayload, forKey: imageKey)
+
+if let cachedData = imageCache.object(forKey: imageKey) {
+    let size = cachedData.count
+    print("Found cached bytes: \(size)")
+}
+```
+
+```output
+Found cached bytes: 10
+```
+
+`NSCache` automatically purges stored objects during low-memory conditions to protect app stability.
+
+### Storing and reading network responses with URLCache
+
+Configure a `URLCache` with memory and disk limits, and read stored responses manually.
+
+```swift
+import Foundation
+
+let memoryBytes = 10 * 1024 * 1024
+let diskBytes = 50 * 1024 * 1024
+let cache = URLCache(memoryCapacity: memoryBytes, diskCapacity: diskBytes, diskPath: "demo_cache")
+
+let endpoint = URL(string: "https://api.example.com/status")!
+let request = URLRequest(url: endpoint)
+
+let headers = ["Cache-Control": "max-age=600"]
+let response = HTTPURLResponse(url: endpoint, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers)!
+let body = "OK".data(using: .utf8)!
+
+let item = CachedURLResponse(response: response, data: body)
+cache.storeCachedResponse(item, for: request)
+
+if let hit = cache.cachedResponse(for: request) {
+    let text = String(data: hit.data, encoding: .utf8) ?? ""
+    print("Stored status: \(text)")
+}
+```
+
+```output
+Stored status: OK
+```
+
+`URLCache` stores responses on disk so data persists across application restarts when headers permit.
+
+<QuickCheck>
+  <Question>What HTTP response code indicates that cached data remains valid and does not need to be downloaded again?</Question>
+  <Option id="a">200 OK</Option>
+  <Option id="b" correct>304 Not Modified</Option>
+  <Option id="c">404 Not Found</Option>
+  <Explanation>A 304 Not Modified response tells the client to use its existing cached payload without re-downloading bytes.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open Terminal, inspect URLCache directory inside your app sandbox in the simulator, and test clearing cached files.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Using a standard Swift Dictionary as an image cache">
+Standard Swift dictionaries never evict entries on their own.
+As users scroll through lists with hundreds of images, a dictionary continues growing until the system terminates your app.
+Always use `NSCache` for in-memory object caching because it responds automatically to system memory pressure warnings.
+</Trap>
+
+<Trap title="Storing raw compressed image Data in memory">
+Compressed image formats like PNG or JPEG require CPU decompression each time you draw them on screen.
+If your cache only stores compressed `Data`, the CPU decompresses the image during every scroll frame, causing frame drops.
+Cache decoded bitmap images directly in `NSCache` so rendering is instantaneous.
+</Trap>
+
+<Trap title="Ignoring HTTP Cache-Control server headers">
+Developers often build custom file caching systems when `URLCache` already handles persistence automatically.
+If the backend returns proper `Cache-Control` headers, `URLSession` caches responses on disk without extra code.
+Always inspect server response headers before building custom disk caching logic.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Caching stores frequently needed data to make apps faster and save battery and network bandwidth.
+For network responses, iOS provides `URLCache`, which automatically stores responses in memory and on disk according to HTTP headers.
+For in-memory assets like images, we use `NSCache` instead of a dictionary because `NSCache` automatically evicts items under memory pressure.
+We can also customize request behavior using cache policies like `.returnCacheDataElseLoad` for offline support.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+A production iOS caching architecture separates network payload caching from runtime object caching.
+At the network layer, I configure `URLCache` with appropriate memory and disk capacities, allowing `URLSession` to handle ETags and 304 validations.
+At the presentation layer, I use a dedicated `NSCache` to hold decoded bitmap images, avoiding repeated main-thread decompressions during scrolling.
+I manage eviction policies using `countLimit` and `totalCostLimit`, and use request cache policies to enable resilient offline experiences.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Caching saves network bandwidth and CPU cycles by reusing stored data.
+- `URLCache` stores raw HTTP responses in memory and on disk based on HTTP headers.
+- `NSCache` stores in-memory objects and automatically evicts items under memory pressure.
+- Standard Swift dictionaries do not auto-evict, risking out-of-memory crashes.
+- `.useProtocolCachePolicy` relies on server directives like `Cache-Control`.
+- `.returnCacheDataElseLoad` enables fast offline-first loading from local cache.
+- `.returnCacheDataDontLoad` restricts requests strictly to offline cached data.
+- HTTP `304 Not Modified` validates that existing cached bytes remain fresh.
+- Cache decoded bitmap images in `NSCache` to prevent scroll hitching from repeated decompression.
+</Recap>

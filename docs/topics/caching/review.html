@@ -1,0 +1,608 @@
+<title>Caching Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.diagram-container {
+  max-width: 840px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+.subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+.stepper-nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  background: var(--code-bg);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.counter {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-family: var(--font-code);
+  min-width: 85px;
+  text-align: center;
+}
+.svg-wrapper {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+  margin: 1rem 0;
+}
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.node-box {
+  transition: all 0.3s ease;
+}
+.dimmed {
+  opacity: 0.25;
+}
+.highlighted {
+  opacity: 1;
+}
+.step-description {
+  background: var(--code-bg);
+  border-left: 4px solid var(--accent-color);
+  padding: 1rem;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  min-height: 4.5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-box {
+    transition: none !important;
+  }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Data and Networking · Topic 3 of 5 · Prototype</p>
+    <h1>Caching</h1>
+    <p class="meta-line"><span>About 12 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can cache network responses and images.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">Why should you use NSCache instead of a standard Swift Dictionary when caching decoded images in memory?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Swift dictionaries cannot store class references or binary data.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">NSCache automatically evicts stored items when the system experiences memory pressure, preventing out-of-memory crashes.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">NSCache encrypts all stored images with hardware Face ID keys.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Dictionaries automatically delete all entries after exactly five seconds.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine a chef preparing meals in a restaurant kitchen.
+The chef keeps chopped onions right on the cutting board.
+That cutting board is <strong>NSCache</strong>: fast to reach, but if the counter gets crowded, the chef clears space at once.
+In the pantry downstairs, the restaurant keeps sealed cans of tomato sauce on shelves.
+That pantry is <strong>URLCache</strong>: it holds raw ingredients on disk and in memory according to expiration labels stamped on each can.</p></aside>
+<p><strong>Caching</strong> stores expensive data temporarily so future requests can reuse it without repeating network calls or computations.
+iOS provides two distinct caching layers:</p>
+<ol>
+<li><strong><code>URLCache</code></strong>: Manages HTTP network responses. It stores raw response bytes in RAM and on disk, obeying HTTP headers like <code>Cache-Control</code>.</li>
+<li><strong><code>NSCache</code></strong>: An in-memory key-value container designed for decoded objects like images and parsed data models.</li>
+</ol>
+<h3>How URLCache works</h3>
+<p>When your app issues a network request via <code>URLSession</code>, the system checks <code>URLCache.shared</code>:</p>
+<ul>
+<li><strong>Tiered Storage</strong>: <code>URLCache</code> maintains both memory capacity and disk capacity.</li>
+<li><strong>Cache-Control Headers</strong>: Server headers like <code>max-age=3600</code> tell the cache how long a response stays fresh.</li>
+<li><strong>Validation</strong>: Headers like <code>ETag</code> allow the server to return HTTP <code>304 Not Modified</code>, skipping redownloads of identical data.</li>
+</ul>
+<h3>Request cache policies</h3>
+<p>You configure cache behavior per request using <code>URLRequest.CachePolicy</code>:</p>
+<ul>
+<li><strong><code>.useProtocolCachePolicy</code></strong>: The default policy. It follows standard HTTP rules and server directives.</li>
+<li><strong><code>.reloadIgnoringLocalCacheData</code></strong>: Bypasses local cache data and forces a fresh network call.</li>
+<li><strong><code>.returnCacheDataElseLoad</code></strong>: Uses cached data if available, regardless of expiration; fetches from network only if missing.</li>
+<li><strong><code>.returnCacheDataDontLoad</code></strong>: Offline mode. Returns cached data or fails immediately without touching the network.</li>
+</ul>
+<h3>In-memory caching with NSCache</h3>
+<p>Unlike a standard Swift <code>Dictionary</code>, <code>NSCache</code> provides critical safety features:</p>
+<ul>
+<li><strong>Automatic Eviction</strong>: The system automatically discards cached items when memory pressure rises, avoiding out-of-memory crashes.</li>
+<li><strong>Cost and Count Limits</strong>: You can set <code>countLimit</code> and <code>totalCostLimit</code> to bound cache growth.</li>
+<li><strong>Thread Safety</strong>: <code>NSCache</code> is thread-safe by default, allowing concurrent reads and writes without manual lock synchronization.</li>
+<li><strong>Encapsulation</strong>: Keep your cache property <code>private</code> inside an image loader service to protect it from outside changes.</li>
+</ul>
+<p><strong>Smart caching balances network efficiency with memory safety by combining URLCache on disk with NSCache in memory.</strong></p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which cache policy should you choose for an offline-only mode that must never make network requests?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">.useProtocolCachePolicy</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">.returnCacheDataDontLoad</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">.reloadIgnoringLocalCacheData</span></button><p class="qc-explain" hidden="">.returnCacheDataDontLoad returns cached data if present, or fails immediately without attempting any network connection.</p></div>
+<h2>In code</h2>
+<h3>Caching decoded assets safely with NSCache</h3>
+<p>Use <code>NSCache</code> to store transient data in memory with an automatic count limit.</p>
+<pre class="block swift"><code class="language-swift">import Foundation
+
+let imageCache = NSCache&lt;NSString, NSData&gt;()
+imageCache.countLimit = 50
+
+let imageKey = &quot;profile-avatar&quot; as NSString
+let samplePayload = &quot;PixelBytes&quot;.data(using: .utf8)! as NSData
+imageCache.setObject(samplePayload, forKey: imageKey)
+
+if let cachedData = imageCache.object(forKey: imageKey) {
+    let size = cachedData.count
+    print(&quot;Found cached bytes: \(size)&quot;)
+}
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Found cached bytes: 10
+</code></pre>
+<p><code>NSCache</code> automatically purges stored objects during low-memory conditions to protect app stability.</p>
+<h3>Storing and reading network responses with URLCache</h3>
+<p>Configure a <code>URLCache</code> with memory and disk limits, and read stored responses manually.</p>
+<pre class="block swift"><code class="language-swift">import Foundation
+
+let memoryBytes = 10 * 1024 * 1024
+let diskBytes = 50 * 1024 * 1024
+let cache = URLCache(memoryCapacity: memoryBytes, diskCapacity: diskBytes, diskPath: &quot;demo_cache&quot;)
+
+let endpoint = URL(string: &quot;https://api.example.com/status&quot;)!
+let request = URLRequest(url: endpoint)
+
+let headers = [&quot;Cache-Control&quot;: &quot;max-age=600&quot;]
+let response = HTTPURLResponse(url: endpoint, statusCode: 200, httpVersion: &quot;HTTP/1.1&quot;, headerFields: headers)!
+let body = &quot;OK&quot;.data(using: .utf8)!
+
+let item = CachedURLResponse(response: response, data: body)
+cache.storeCachedResponse(item, for: request)
+
+if let hit = cache.cachedResponse(for: request) {
+    let text = String(data: hit.data, encoding: .utf8) ?? &quot;&quot;
+    print(&quot;Stored status: \(text)&quot;)
+}
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Stored status: OK
+</code></pre>
+<p><code>URLCache</code> stores responses on disk so data persists across application restarts when headers permit.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What HTTP response code indicates that cached data remains valid and does not need to be downloaded again?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">200 OK</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">304 Not Modified</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">404 Not Found</span></button><p class="qc-explain" hidden="">A 304 Not Modified response tells the client to use its existing cached payload without re-downloading bytes.</p></div>
+<p class="try-it"><p>Open Terminal, inspect URLCache directory inside your app sandbox in the simulator, and test clearing cached files.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using a standard Swift Dictionary as an image cache</p><p>Standard Swift dictionaries never evict entries on their own.
+As users scroll through lists with hundreds of images, a dictionary continues growing until the system terminates your app.
+Always use <code>NSCache</code> for in-memory object caching because it responds automatically to system memory pressure warnings.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Storing raw compressed image Data in memory</p><p>Compressed image formats like PNG or JPEG require CPU decompression each time you draw them on screen.
+If your cache only stores compressed <code>Data</code>, the CPU decompresses the image during every scroll frame, causing frame drops.
+Cache decoded bitmap images directly in <code>NSCache</code> so rendering is instantaneous.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Ignoring HTTP Cache-Control server headers</p><p>Developers often build custom file caching systems when <code>URLCache</code> already handles persistence automatically.
+If the backend returns proper <code>Cache-Control</code> headers, <code>URLSession</code> caches responses on disk without extra code.
+Always inspect server response headers before building custom disk caching logic.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Fresh answer</p><p>Caching stores frequently needed data to make apps faster and save battery and network bandwidth.
+For network responses, iOS provides <code>URLCache</code>, which automatically stores responses in memory and on disk according to HTTP headers.
+For in-memory assets like images, we use <code>NSCache</code> instead of a dictionary because <code>NSCache</code> automatically evicts items under memory pressure.
+We can also customize request behavior using cache policies like <code>.returnCacheDataElseLoad</code> for offline support.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>A production iOS caching architecture separates network payload caching from runtime object caching.
+At the network layer, I configure <code>URLCache</code> with appropriate memory and disk capacities, allowing <code>URLSession</code> to handle ETags and 304 validations.
+At the presentation layer, I use a dedicated <code>NSCache</code> to hold decoded bitmap images, avoiding repeated main-thread decompressions during scrolling.
+I manage eviction policies using <code>countLimit</code> and <code>totalCostLimit</code>, and use request cache policies to enable resilient offline experiences.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Caching saves network bandwidth and CPU cycles by reusing stored data.</li>
+<li><code>URLCache</code> stores raw HTTP responses in memory and on disk based on HTTP headers.</li>
+<li><code>NSCache</code> stores in-memory objects and automatically evicts items under memory pressure.</li>
+<li>Standard Swift dictionaries do not auto-evict, risking out-of-memory crashes.</li>
+<li><code>.useProtocolCachePolicy</code> relies on server directives like <code>Cache-Control</code>.</li>
+<li><code>.returnCacheDataElseLoad</code> enables fast offline-first loading from local cache.</li>
+<li><code>.returnCacheDataDontLoad</code> restricts requests strictly to offline cached data.</li>
+<li>HTTP <code>304 Not Modified</code> validates that existing cached bytes remain fresh.</li>
+<li>Cache decoded bitmap images in <code>NSCache</code> to prevent scroll hitching from repeated decompression.</li>
+</ul></div></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    title: "Step 1: In-Memory NSCache Check",
+    text: "When a view needs an image or decoded asset, it first checks <strong>NSCache</strong>. If the decoded bitmap is present, it returns with <strong>zero latency and zero decompression overhead</strong>.",
+    highlight: ["step1Group", "arrow1to2", "step2Group"]
+  },
+  {
+    title: "Step 2: URLCache Inspection on Miss",
+    text: "If missing from NSCache, the app creates a URLRequest. <strong>URLSession</strong> checks <strong>URLCache</strong>, which holds raw network responses across RAM and persistent disk storage.",
+    highlight: ["step2Group", "arrow2to3", "step3Group"]
+  },
+  {
+    title: "Step 3: Evaluating HTTP Cache Headers",
+    text: "If URLCache contains a valid response and the server <strong>Cache-Control max-age</strong> has not expired, URLCache delivers the stored raw Data immediately without network traffic.",
+    highlight: ["step3Group"]
+  },
+  {
+    title: "Step 4: Network Fetch and Cache Population",
+    text: "On a complete cache miss or expiration, URLSession queries the <strong>remote server</strong>. The fresh payload commits to URLCache on disk, decodes into a bitmap, and populates NSCache for future reads.",
+    highlight: ["step4Group", "step3Group", "step2Group"]
+  }
+];
+
+let currentStep = 0;
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const stepCounter = document.getElementById("stepCounter");
+const stepDescription = document.getElementById("stepDescription");
+
+const allGroups = ["step1Group", "arrow1to2", "step2Group", "arrow2to3", "step3Group", "arrow3to4", "step4Group"];
+
+function renderStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  stepDescription.innerHTML = `<strong>${s.title}:</strong> ${s.text}`;
+  
+  prevBtn.disabled = (idx === 0);
+  nextBtn.disabled = (idx === steps.length - 1);
+
+  allGroups.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (s.highlight.includes(id)) {
+      el.classList.remove("dimmed");
+      el.classList.add("highlighted");
+    } else {
+      el.classList.remove("highlighted");
+      el.classList.add("dimmed");
+    }
+  });
+}
+
+prevBtn.addEventListener("click", () => {
+  if (currentStep > 0) renderStep(currentStep - 1);
+});
+
+nextBtn.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) renderStep(currentStep + 1);
+});
+
+renderStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"caching","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"caching-q01","type":"mcq","difficulty":1,"prompt":"What primary class manages HTTP response caching in memory and on disk in Foundation?","answer":"a","options":[{"id":"a","text":"URLCache","explanation":"URLCache stores HTTP requests and cached responses in RAM and on disk."},{"id":"b","text":"NSFileManager","explanation":"FileManager manages the general filesystem, not HTTP response caching."},{"id":"c","text":"UserDefaults","explanation":"UserDefaults stores small user preferences, not network responses."},{"id":"d","text":"HTTPCookieStorage","explanation":"HTTPCookieStorage manages cookies, not cached response payloads."}]},{"id":"caching-q02","type":"mcq","difficulty":1,"prompt":"Why is NSCache preferred over a standard Swift Dictionary for caching in-memory assets?","answer":"b","options":[{"id":"a","text":"Swift dictionaries cannot store binary data or class references.","explanation":"Dictionaries can store any type, including classes and binary data."},{"id":"b","text":"NSCache automatically purges items when the system experiences memory pressure.","explanation":"Automatic eviction prevents out-of-memory terminations under memory pressure."},{"id":"c","text":"NSCache writes all objects to persistent flash storage automatically.","explanation":"NSCache is an in-memory collection and does not write to disk."},{"id":"d","text":"Dictionaries consume twice as much network data as NSCache.","explanation":"Neither collection directly manages network traffic."}]},{"id":"caching-q03","type":"mcq","difficulty":1,"prompt":"Which HTTP header directive tells clients how many seconds a response remains fresh?","answer":"c","options":[{"id":"a","text":"Content-Type","explanation":"Content-Type specifies the MIME type of the payload, not freshness."},{"id":"b","text":"User-Agent","explanation":"User-Agent identifies the client software, not caching duration."},{"id":"c","text":"Cache-Control: max-age","explanation":"Cache-Control max-age defines the freshness lifetime in seconds."},{"id":"d","text":"Accept-Encoding","explanation":"Accept-Encoding indicates compression formats like gzip."}]},{"id":"caching-q04","type":"mcq","difficulty":1,"prompt":"Which cache policy forces URLSession to bypass local caches and fetch from the origin server?","answer":"d","options":[{"id":"a","text":".useProtocolCachePolicy","explanation":"useProtocolCachePolicy reads from cache if fresh headers exist."},{"id":"b","text":".returnCacheDataElseLoad","explanation":"returnCacheDataElseLoad uses cached data first."},{"id":"c","text":".returnCacheDataDontLoad","explanation":"returnCacheDataDontLoad fails if data is not cached."},{"id":"d","text":".reloadIgnoringLocalCacheData","explanation":"reloadIgnoringLocalCacheData ignores local caches and queries the network directly."}]},{"id":"caching-q05","type":"mcq","difficulty":1,"prompt":"What HTTP status code indicates that cached data is still valid, skipping a redownload?","answer":"a","options":[{"id":"a","text":"304 Not Modified","explanation":"304 Not Modified signals that the cached payload matches the server version."},{"id":"b","text":"200 OK","explanation":"200 OK returns a new payload across the network."},{"id":"c","text":"404 Not Found","explanation":"404 Not Found indicates that the requested resource does not exist."},{"id":"d","text":"500 Internal Server Error","explanation":"500 indicates a server failure, not cache validation."}]},{"id":"caching-q06","type":"mcq","difficulty":1,"prompt":"Which cache policy returns cached data or fails immediately without attempting network access?","answer":"b","options":[{"id":"a","text":".useProtocolCachePolicy","explanation":"useProtocolCachePolicy falls back to network when cache expires."},{"id":"b","text":".returnCacheDataDontLoad","explanation":"returnCacheDataDontLoad acts as an offline mode and never initiates network traffic."},{"id":"c","text":".reloadIgnoringLocalCacheData","explanation":"reloadIgnoringLocalCacheData always uses the network."},{"id":"d","text":".returnCacheDataElseLoad","explanation":"returnCacheDataElseLoad contacts the network if the cache is empty."}]},{"id":"caching-q07","type":"mcq","difficulty":2,"prompt":"Why should apps cache decoded bitmap images in NSCache rather than raw compressed Data bytes?","answer":"c","options":[{"id":"a","text":"NSCache refuses to store Data instances in memory.","explanation":"NSCache can store Data or NSData objects without restriction."},{"id":"b","text":"Raw Data bytes consume more storage than uncompressed bitmap pixels.","explanation":"Compressed Data is smaller in bytes, but requires CPU decompression."},{"id":"c","text":"Decompressing image bytes on each scroll frame causes CPU hitches and frame drops.","explanation":"Caching decoded bitmaps avoids repeated CPU decompression during list scrolling."},{"id":"d","text":"UIKit cannot display images that originate from network requests.","explanation":"UIKit displays network images once decompressed into UIImage."}]},{"id":"caching-q08","type":"mcq","difficulty":2,"prompt":"Which properties on NSCache limit the maximum number of items and memory cost?","answer":"d","options":[{"id":"a","text":"maxElements and maxBytes","explanation":"These are not property names on NSCache."},{"id":"b","text":"capacityLimit and memoryCeiling","explanation":"NSCache does not use capacityLimit or memoryCeiling."},{"id":"c","text":"thresholdCount and byteAllowance","explanation":"These property names do not exist on NSCache."},{"id":"d","text":"countLimit and totalCostLimit","explanation":"NSCache provides countLimit and totalCostLimit to bound storage."}]},{"id":"caching-q09","type":"mcq","difficulty":2,"prompt":"What object pairs a URLResponse with raw data inside URLCache?","answer":"a","options":[{"id":"a","text":"CachedURLResponse","explanation":"CachedURLResponse encapsulates the URLResponse metadata and raw Data."},{"id":"b","text":"HTTPDataBundle","explanation":"HTTPDataBundle is not a Foundation framework type."},{"id":"c","text":"URLSessionRecord","explanation":"URLSessionRecord does not exist in Foundation."},{"id":"d","text":"NetworkResponseStore","explanation":"Foundation uses CachedURLResponse."}]},{"id":"caching-q10","type":"mcq","difficulty":2,"prompt":"What HTTP header does a client send to validate a cached response using an ETag hash?","answer":"b","options":[{"id":"a","text":"If-Modified-Since","explanation":"If-Modified-Since checks date timestamps, whereas ETag uses If-None-Match."},{"id":"b","text":"If-None-Match","explanation":"The client passes the ETag value in the If-None-Match header for validation."},{"id":"c","text":"Cache-Control: refresh","explanation":"Cache-Control: refresh is not the validation header for ETags."},{"id":"d","text":"Content-Encoding","explanation":"Content-Encoding specifies body compression format, not cache validation."}]},{"id":"caching-q11","type":"mcq","difficulty":2,"prompt":"Which cache policy returns cached data regardless of expiration, and only hits the network when missing?","answer":"c","options":[{"id":"a","text":".reloadIgnoringLocalCacheData","explanation":"reloadIgnoringLocalCacheData never uses the cache."},{"id":"b","text":".useProtocolCachePolicy","explanation":"useProtocolCachePolicy respects expiration headers and validates with the server."},{"id":"c","text":".returnCacheDataElseLoad","explanation":"returnCacheDataElseLoad uses existing cache data first, loading remotely only if absent."},{"id":"d","text":".returnCacheDataDontLoad","explanation":"returnCacheDataDontLoad never accesses the network if missing."}]},{"id":"caching-q12","type":"mcq","difficulty":2,"prompt":"How does NSCache handle concurrent thread access?","answer":"d","options":[{"id":"a","text":"It throws fatal runtime exceptions if accessed off the main thread.","explanation":"NSCache is designed to support concurrent thread access safely."},{"id":"b","text":"It requires callers to manually wrap all reads in an actor.","explanation":"NSCache provides built-in internal locking without mandatory actors."},{"id":"c","text":"It freezes all background threads during writes.","explanation":"NSCache uses efficient internal synchronization rather than freezing threads."},{"id":"d","text":"It is thread-safe by default and allows concurrent operations without manual locks.","explanation":"NSCache implements internal locking, making reads and writes thread-safe."}]},{"id":"caching-q13","type":"mcq","difficulty":3,"prompt":"What happens when a server response contains Cache-Control: no-store?","answer":"a","options":[{"id":"a","text":"URLCache refuses to store the response in memory or on disk.","explanation":"no-store forbids clients and caches from saving any part of the response."},{"id":"b","text":"URLCache saves the response but deletes it after one second.","explanation":"no-store stops the cache from saving the response entirely."},{"id":"c","text":"URLSession cancels the network task and returns an error.","explanation":"The network task succeeds; only caching is disallowed."},{"id":"d","text":"The response is saved permanently with infinite lifetime.","explanation":"no-store prevents storage, which is the opposite of permanent caching."}]},{"id":"caching-q14","type":"mcq","difficulty":3,"prompt":"What method removes all cached entries from a URLCache instance?","answer":"b","options":[{"id":"a","text":"clearAllDiskFiles()","explanation":"clearAllDiskFiles is not a method on URLCache."},{"id":"b","text":"removeAllCachedResponses()","explanation":"removeAllCachedResponses purges all in-memory and on-disk responses in that cache."},{"id":"c","text":"flushStorageMemory()","explanation":"flushStorageMemory is not an Apple URLCache API."},{"id":"d","text":"deleteCacheDirectory()","explanation":"URLCache provides removeAllCachedResponses()."}]},{"id":"caching-q15","type":"mcq","difficulty":3,"prompt":"How does setting a custom URLCache on a URLSessionConfiguration affect tasks created from it?","answer":"c","options":[{"id":"a","text":"It forces all network tasks to execute synchronously on the main thread.","explanation":"URLSession tasks remain asynchronous regardless of the cache used."},{"id":"b","text":"It restricts URLSession to plain text HTTP without TLS encryption.","explanation":"Cache configuration does not alter network transport security."},{"id":"c","text":"Tasks created by that session use the custom cache instead of URLCache.shared.","explanation":"Configuring urlCache on the session configuration scopes cache storage to that session."},{"id":"d","text":"It deletes all system files stored in the Documents directory.","explanation":"Session caches operate strictly inside their assigned cache storage sandbox."}]},{"id":"caching-q16","type":"code-reading","difficulty":1,"prompt":"What does this code snippet print after retrieving the value from NSCache?","code":"import Foundation\n\nlet cache = NSCache\u003cNSString, NSString>()\nlet key = \"username\" as NSString\ncache.setObject(\"Alex\" as NSString, forKey: key)\nlet result = cache.object(forKey: key)\nprint(\"Cached: \\(result ?? \"none\")\")","answer":"d","options":[{"id":"a","text":"Cached: none","explanation":"The value Alex was stored and is retrieved."},{"id":"b","text":"Cached: Optional(Alex)","explanation":"The string interpolation unwraps the value with nil-coalescing."},{"id":"c","text":"Cached: username","explanation":"username is the key, whereas Alex is the stored value."},{"id":"d","text":"Cached: Alex","explanation":"object(forKey:) retrieves the stored NSString Alex."}]},{"id":"caching-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print after removing the token from the cache?","code":"import Foundation\n\nlet cache = NSCache\u003cNSString, NSString>()\nlet key = \"token\" as NSString\ncache.setObject(\"xyz\" as NSString, forKey: key)\ncache.removeObject(forKey: key)\nlet result = cache.object(forKey: key)\nprint(\"Token: \\(result ?? \"empty\")\")","answer":"a","options":[{"id":"a","text":"Token: empty","explanation":"removeObject removes the entry, causing object(forKey:) to return nil and fallback to empty."},{"id":"b","text":"Token: xyz","explanation":"The object was removed before querying."},{"id":"c","text":"Token: nil","explanation":"The fallback string in nil-coalescing is empty."},{"id":"d","text":"Token: token","explanation":"token was the lookup key, not the output."}]},{"id":"caching-q18","type":"code-reading","difficulty":1,"prompt":"What does this snippet print after setting three items in an NSCache with countLimit 2?","code":"import Foundation\n\nlet cache = NSCache\u003cNSString, NSString>()\ncache.countLimit = 2\ncache.setObject(\"One\" as NSString, forKey: \"1\" as NSString)\ncache.setObject(\"Two\" as NSString, forKey: \"2\" as NSString)\ncache.setObject(\"Three\" as NSString, forKey: \"3\" as NSString)\nlet hasThree = cache.object(forKey: \"3\" as NSString) != nil\nprint(\"Three exists: \\(hasThree)\")","answer":"b","options":[{"id":"a","text":"Three exists: false","explanation":"The most recently inserted object Three is present in the cache."},{"id":"b","text":"Three exists: true","explanation":"The newly inserted item Three is retained, printing true."},{"id":"c","text":"Three exists: nil","explanation":"hasThree is a Bool, not an optional."},{"id":"d","text":"Three exists: 3","explanation":"hasThree evaluates to a boolean value."}]},{"id":"caching-q19","type":"code-reading","difficulty":1,"prompt":"What does this snippet print when verifying the request cache policy?","code":"import Foundation\n\nlet url = URL(string: \"https://example.com/items\")!\nlet req = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 15)\nlet isElseLoad = req.cachePolicy == .returnCacheDataElseLoad\nprint(\"Policy matched: \\(isElseLoad)\")","answer":"c","options":[{"id":"a","text":"Policy matched: nil","explanation":"isElseLoad is a non-optional Bool."},{"id":"b","text":"Policy matched: false","explanation":"The request was initialized with returnCacheDataElseLoad, so the comparison is true."},{"id":"c","text":"Policy matched: true","explanation":"The configured cachePolicy matches .returnCacheDataElseLoad, printing true."},{"id":"d","text":"Policy matched: error","explanation":"Comparing cachePolicy enums is completely valid Swift code."}]},{"id":"caching-q20","type":"code-reading","difficulty":2,"prompt":"What boolean does this snippet output after storing a response in URLCache?","code":"import Foundation\n\nlet cache = URLCache(memoryCapacity: 5000, diskCapacity: 5000, diskPath: nil)\nlet url = URL(string: \"https://example.com/hello\")!\nlet request = URLRequest(url: url)\nlet response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!\nlet item = CachedURLResponse(response: response, data: \"Hi\".data(using: .utf8)!)\ncache.storeCachedResponse(item, for: request)\nlet hasData = cache.cachedResponse(for: request) != nil\nprint(\"Stored: \\(hasData)\")","answer":"d","options":[{"id":"a","text":"Stored: false","explanation":"The cached response was stored successfully."},{"id":"b","text":"Stored: nil","explanation":"hasData is a Bool, not an optional."},{"id":"c","text":"Stored: 200","explanation":"hasData checks existence, returning a boolean."},{"id":"d","text":"Stored: true","explanation":"cachedResponse(for:) finds the stored item, so hasData is true."}]},{"id":"caching-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print after calling removeAllObjects on the cache?","code":"import Foundation\n\nlet cache = NSCache\u003cNSString, NSString>()\nlet key = \"tempToken\" as NSString\ncache.setObject(\"alpha\" as NSString, forKey: key)\ncache.removeAllObjects()\nlet isCleared = cache.object(forKey: key) == nil\nprint(\"Cleared: \\(isCleared)\")","answer":"a","options":[{"id":"a","text":"Cleared: true","explanation":"removeAllObjects empties the cache, so querying the key returns nil."},{"id":"b","text":"Cleared: false","explanation":"All entries were removed, making object(forKey:) return nil."},{"id":"c","text":"Cleared: Optional(true)","explanation":"isCleared is a non-optional Bool."},{"id":"d","text":"Cleared: nil","explanation":"Comparing against nil produces true, not nil."}]},{"id":"caching-q22","type":"code-reading","difficulty":2,"prompt":"What byte count does this snippet print for the cached payload?","code":"import Foundation\n\nlet url = URL(string: \"https://example.com/bytes\")!\nlet response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!\nlet payload = \"12345\".data(using: .utf8)!\nlet cached = CachedURLResponse(response: response, data: payload)\nprint(\"Bytes: \\(cached.data.count)\")","answer":"b","options":[{"id":"a","text":"Bytes: 0","explanation":"The payload string 12345 has 5 UTF-8 bytes."},{"id":"b","text":"Bytes: 5","explanation":"The UTF-8 representation of 12345 contains 5 bytes."},{"id":"c","text":"Bytes: 10","explanation":"Five ASCII characters occupy 5 bytes in UTF-8."},{"id":"d","text":"Bytes: 200","explanation":"200 is the HTTP status code, not the data count."}]},{"id":"caching-q23","type":"code-reading","difficulty":3,"prompt":"What HTTP status code does this code extract and print from the CachedURLResponse?","code":"import Foundation\n\nlet url = URL(string: \"https://example.com/api\")!\nlet response = HTTPURLResponse(url: url, statusCode: 304, httpVersion: nil, headerFields: nil)!\nlet cached = CachedURLResponse(response: response, data: Data())\nlet httpCode = (cached.response as? HTTPURLResponse)?.statusCode ?? 0\nprint(\"Status code: \\(httpCode)\")","answer":"c","options":[{"id":"a","text":"Status code: 200","explanation":"The response was initialized with status code 304."},{"id":"b","text":"Status code: 0","explanation":"The response casts successfully to HTTPURLResponse."},{"id":"c","text":"Status code: 304","explanation":"The statusCode property of the response is 304 (Not Modified)."},{"id":"d","text":"Status code: 404","explanation":"The initialized code is 304, not 404."}]},{"id":"caching-q24","type":"written","difficulty":1,"prompt":"Explain the difference between NSCache and URLCache in iOS apps. Answer in 2–5 sentences.","rubric":[{"criterion":"Explains that URLCache handles raw HTTP network responses across memory and disk according to HTTP headers","weight":50,"key":true},{"criterion":"Explains that NSCache stores in-memory objects like images and automatically purges items under memory pressure","weight":50,"key":true}],"modelAnswer":"URLCache manages HTTP network responses by storing raw data in memory and on disk according to web headers like Cache-Control. In contrast, NSCache is an in-memory key-value collection designed for decoded runtime objects such as images and view models. NSCache automatically purges cached items when the system experiences memory pressure, preventing application crashes."},{"id":"caching-q25","type":"written","difficulty":1,"prompt":"Explain what HTTP 304 Not Modified means and how it benefits mobile applications. Answer in 2–5 sentences.","rubric":[{"criterion":"Explains that 304 Not Modified tells the client that the cached response is still fresh and has not changed on the server","weight":50,"key":true},{"criterion":"Explains that it saves mobile network bandwidth and battery by skipping redundant payload downloads","weight":50,"key":true}],"modelAnswer":"A 304 Not Modified response tells the client that the requested resource has not changed since the last request. The server sends this status without a response body when validation headers like ETag match. This allows the app to reuse its cached payload, saving cellular bandwidth and battery life."},{"id":"caching-q26","type":"written","difficulty":2,"prompt":"Why should developers avoid using a standard Swift Dictionary as an image cache, and what should be used instead? Answer in 2–5 sentences.","rubric":[{"criterion":"Identifies that standard dictionaries never auto-evict items on memory pressure, leading to out-of-memory app terminations","weight":50,"key":true},{"criterion":"Explains that NSCache should be used instead because it responds automatically to low memory warnings and provides thread safety","weight":50,"key":true}],"modelAnswer":"A standard Swift Dictionary retains all inserted objects indefinitely and does not respond to system memory warnings. In image-heavy apps, this unmanaged memory growth causes the operating system to terminate the application. Developers should use NSCache instead because it automatically purges items under memory pressure and provides thread-safe access."},{"id":"caching-q27","type":"written","difficulty":2,"prompt":"Explain the difference between URLRequest cache policies useProtocolCachePolicy and returnCacheDataElseLoad. Answer in 2–5 sentences.","rubric":[{"criterion":"Explains that useProtocolCachePolicy respects server headers like Cache-Control and validates with the server when expired","weight":50,"key":true},{"criterion":"Explains that returnCacheDataElseLoad returns cached data regardless of expiration, querying the network only if no cache exists","weight":50,"key":true}],"modelAnswer":"The default useProtocolCachePolicy strictly follows HTTP caching rules and server Cache-Control directives, contacting the server when cached data expires. On the other hand, returnCacheDataElseLoad uses existing local cache data regardless of expiration or age. It only initiates a network connection if no cached response exists locally."},{"id":"caching-q28","type":"written","difficulty":3,"prompt":"Why is caching decoded bitmap images in memory more efficient during list scrolling than caching raw compressed Data? Answer in 2–5 sentences.","rubric":[{"criterion":"Explains that decompressing raw image formats like PNG or JPEG requires heavy CPU processing on each frame","weight":50,"key":true},{"criterion":"Explains that storing decoded bitmaps in NSCache allows instant GPU rendering without repeated decompression hitches","weight":50,"key":true}],"modelAnswer":"Compressed image formats like JPEG or PNG must be decompressed into raw pixel bitmaps before they can be rendered on screen. If only raw Data is cached, the CPU must decompress the image every time a cell scrolls into view, leading to dropped frames. Storing decoded bitmap images in NSCache allows immediate GPU drawing and smooth 60 or 120 FPS scrolling."},{"id":"caching-q29","type":"code-write","difficulty":2,"prompt":"Create a class SimpleImageCache with methods store(data: Data, for key: String) and retrieve(key: String) -> Data? using NSCache.","starterCode":"import Foundation\n\nclass SimpleImageCache {\n    // Initialize NSCache and implement store and retrieve\n}","rubric":[{"criterion":"Declares an internal NSCache instance with appropriate key and value types","weight":40,"key":true},{"criterion":"Implements store(data:for:) storing NSData into the cache","weight":30,"key":true},{"criterion":"Implements retrieve(key:) returning Data? from the cache","weight":30,"key":false}],"modelAnswer":"import Foundation\n\nfinal class SimpleImageCache {\n    private let cache = NSCache\u003cNSString, NSData>()\n\n    func store(data: Data, for key: String) {\n        cache.setObject(data as NSData, forKey: key as NSString)\n    }\n\n    func retrieve(key: String) -> Data? {\n        return cache.object(forKey: key as NSString) as Data?\n    }\n}\n\nlet imageCache = SimpleImageCache()\nlet raw = \"Pixels\".data(using: .utf8)!\nimageCache.store(data: raw, for: \"avatar\")\nlet fetched = imageCache.retrieve(key: \"avatar\")\nprint(\"Found: \\(fetched != nil)\")"},{"id":"caching-q30","type":"code-write","difficulty":2,"prompt":"Write a function createOfflineRequest(url: URL) -> URLRequest that configures a URLRequest with cache policy .returnCacheDataElseLoad and a 60 second timeout.","starterCode":"import Foundation\n\nfunc createOfflineRequest(url: URL) -> URLRequest {\n    // Return configured URLRequest\n}","rubric":[{"criterion":"Initializes URLRequest with the supplied URL","weight":30,"key":true},{"criterion":"Sets cachePolicy to .returnCacheDataElseLoad","weight":40,"key":true},{"criterion":"Sets timeoutInterval to 60 seconds","weight":30,"key":false}],"modelAnswer":"import Foundation\n\nfunc createOfflineRequest(url: URL) -> URLRequest {\n    return URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 60)\n}\n\nlet sampleURL = URL(string: \"https://example.com/feed\")!\nlet req = createOfflineRequest(url: sampleURL)\nprint(\"Timeout: \\(Int(req.timeoutInterval))\")"},{"id":"caching-q31","type":"code-write","difficulty":3,"prompt":"Write a function isResponseFresh(cached: CachedURLResponse) -> Bool that inspects Cache-Control on HTTPURLResponse and returns false if it contains \"no-store\", and true otherwise.","starterCode":"import Foundation\n\nfunc isResponseFresh(cached: CachedURLResponse) -> Bool {\n    // Inspect header and return boolean\n}","rubric":[{"criterion":"Casts cached.response to HTTPURLResponse","weight":40,"key":true},{"criterion":"Checks if Cache-Control header contains \"no-store\"","weight":40,"key":true},{"criterion":"Returns false when \"no-store\" is present and true otherwise","weight":20,"key":false}],"modelAnswer":"import Foundation\n\nfunc isResponseFresh(cached: CachedURLResponse) -> Bool {\n    guard let http = cached.response as? HTTPURLResponse,\n          let control = http.value(forHTTPHeaderField: \"Cache-Control\") else {\n        return true\n    }\n    return !control.contains(\"no-store\")\n}\n\nlet url = URL(string: \"https://example.com\")!\nlet headers = [\"Cache-Control\": \"max-age=3600\"]\nlet resp = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: headers)!\nlet cached = CachedURLResponse(response: resp, data: Data())\nlet fresh = isResponseFresh(cached: cached)\nprint(\"Fresh: \\(fresh)\")"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
