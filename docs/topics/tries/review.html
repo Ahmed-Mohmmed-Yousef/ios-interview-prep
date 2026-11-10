@@ -1,0 +1,624 @@
+<title>Tries Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --trie-color: #0284c7; --trie-soft: #e0f2fe;
+  --done-color: #059669; --done-soft: #d1fae5;
+  --alert-color: #d97706; --alert-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --trie-color: #38bdf8; --trie-soft: #082f49;
+  --done-color: #34d399; --done-soft: #064e3b;
+  --alert-color: #fbbf24; --alert-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.controls {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  padding: 6px 14px; border-radius: 8px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: all 0.2s ease;
+}
+button:hover:not(:disabled) { border-color: var(--trie-color); color: var(--trie-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-weight: 600; font-size: 14px; color: var(--muted); }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-tree .kind { background: var(--trie-soft); color: var(--trie-color); }
+.p-state .kind { background: var(--done-soft); color: var(--done-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-circle { stroke-width: 2.5; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-circle.active-current { stroke: var(--trie-color); fill: var(--trie-soft); stroke-width: 3.5; }
+.node-circle.active-word { stroke: var(--done-color); fill: var(--done-soft); stroke-width: 3.5; }
+.node-circle.active-alert { stroke: var(--alert-color); fill: var(--alert-soft); stroke-width: 3.5; }
+.node-text { font-family: var(--font-code); font-weight: 700; font-size: 14px; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; }
+.edge { stroke: var(--line); stroke-width: 2; }
+.edge.active-edge { stroke: var(--trie-color); stroke-width: 3; }
+
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-badge {
+  display: inline-block; font-family: var(--font-code); font-size: 12px;
+  padding: 4px 8px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-circle { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Coding Interview · Topic 5 of 7 · Prototype</p>
+    <h1>Tries</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can store and search words with a trie.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>Your iOS app needs an instant search bar that suggests contact names as the user types each letter. Which data structure searches prefixes without scanning every name?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A hash table Set that filters all entries with the hasPrefix method.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">A binary heap that pops the minimum name on every keystroke.</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">A trie prefix tree that traverses only the typed characters in linear time.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">An unsorted array that scans every contact name from first to last.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<p>A trie (pronounced &quot;try&quot;) is a tree data structure used to store and search strings. It is also called a prefix tree.</p>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a paper address book organized by tabs. You open tab A, then look down the AP column, then APP. Shared prefixes share the same path.</p></aside>
+<p>In a standard tree, each node holds an entire value. In a trie, each node represents a single character or edge.</p>
+<p>The root node is empty. Words with common starting letters share the same ancestral path.</p>
+<p>For example, the words &quot;app&quot; and &quot;apple&quot; share the nodes for &#x27;a&#x27;, &#x27;p&#x27;, and &#x27;p&#x27;. The node for the second &#x27;p&#x27; has a flag marked <code>isEndOfWord = true</code>. This marks that &quot;app&quot; is a complete word.</p>
+<p>Children then continue down to &#x27;l&#x27; and &#x27;e&#x27;. The &#x27;e&#x27; node also has <code>isEndOfWord = true</code>.</p>
+<p>Key operations include:</p>
+<ul>
+<li><strong>Insert</strong>: Walk character by character from the root. Create missing nodes along the way. Mark the final node as the end of a word.</li>
+<li><strong>Search</strong>: Follow the characters of the target word. If any character link is missing, return false. If found, check that <code>isEndOfWord</code> is true.</li>
+<li><strong>StartsWith</strong>: Follow the prefix characters. If all exist in the trie, return true immediately.</li>
+</ul>
+<p>All three operations take $O(L)$ time, where $L$ is the length of the word or prefix. This search time is independent of how many words exist in the dictionary.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<p>Here is an idiomatic trie implementation in Swift using a class-based node with a character dictionary.</p>
+<pre class="block swift"><code class="language-swift">final class TrieNode {
+    var children: [Character: TrieNode] = [:]
+    var isEndOfWord = false
+}
+
+final class Trie {
+    private let root = TrieNode()
+
+    func insert(_ word: String) {
+        var current = root
+        for char in word {
+            if let next = current.children[char] {
+                current = next
+            } else {
+                let newNode = TrieNode()
+                current.children[char] = newNode
+                current = newNode
+            }
+        }
+        current.isEndOfWord = true
+    }
+
+    func search(_ word: String) -&gt; Bool {
+        var current = root
+        for char in word {
+            guard let next = current.children[char] else { return false }
+            current = next
+        }
+        return current.isEndOfWord
+    }
+
+    func startsWith(_ prefix: String) -&gt; Bool {
+        var current = root
+        for char in prefix {
+            guard let next = current.children[char] else { return false }
+            current = next
+        }
+        return true
+    }
+}
+
+let trie = Trie()
+trie.insert(&quot;apple&quot;)
+trie.insert(&quot;app&quot;)
+
+print(&quot;Search apple: \(trie.search(&quot;apple&quot;))&quot;)
+print(&quot;Search app: \(trie.search(&quot;app&quot;))&quot;)
+print(&quot;Search appl: \(trie.search(&quot;appl&quot;))&quot;)
+print(&quot;StartsWith appl: \(trie.startsWith(&quot;appl&quot;))&quot;)
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Search apple: true
+Search app: true
+Search appl: false
+StartsWith appl: true
+</code></pre>
+<p>Next, here is how to implement autocomplete suggestions. We find the prefix node and collect all descendant words using depth-first search.</p>
+<pre class="block swift"><code class="language-swift">final class TrieNode {
+    var children: [Character: TrieNode] = [:]
+    var isEndOfWord = false
+}
+
+final class AutocompleteTrie {
+    private let root = TrieNode()
+
+    func insert(_ word: String) {
+        var current = root
+        for char in word {
+            if let next = current.children[char] {
+                current = next
+            } else {
+                let newNode = TrieNode()
+                current.children[char] = newNode
+                current = newNode
+            }
+        }
+        current.isEndOfWord = true
+    }
+
+    func wordsMatching(prefix: String) -&gt; [String] {
+        var current = root
+        for char in prefix {
+            guard let next = current.children[char] else { return [] }
+            current = next
+        }
+        var results: [String] = []
+        dfs(node: current, prefix: prefix, results: &amp;results)
+        return results.sorted()
+    }
+
+    private func dfs(node: TrieNode, prefix: String, results: inout [String]) {
+        if node.isEndOfWord {
+            results.append(prefix)
+        }
+        for (char, child) in node.children {
+            dfs(node: child, prefix: prefix + String(char), results: &amp;results)
+        }
+    }
+}
+
+let searchIndex = AutocompleteTrie()
+searchIndex.insert(&quot;swift&quot;)
+searchIndex.insert(&quot;swiftui&quot;)
+searchIndex.insert(&quot;swiftpm&quot;)
+searchIndex.insert(&quot;string&quot;)
+
+print(&quot;Matches for swift: \(searchIndex.wordsMatching(prefix: &quot;swift&quot;))&quot;)
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Matches for swift: [&quot;swift&quot;, &quot;swiftpm&quot;, &quot;swiftui&quot;]
+</code></pre>
+<p class="try-it"><p>Open a Swift Playground. Insert names into a trie. Implement a delete method that removes words without deleting prefixes shared by other words.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>What is the difference between the search method and the startsWith method in a trie?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The search method runs in quadratic time while startsWith runs in linear time.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The search method requires isEndOfWord to be true, while startsWith only checks that prefix nodes exist.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The startsWith method reorders trie nodes into a binary search tree.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">The search method only works on ASCII strings with fewer than four letters.</span></button><p class="qc-explain" hidden=""><p>A prefix may exist in the trie without being a complete word. The search method checks the end-of-word flag at the final node.</p></p></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>Why is a trie faster than a hash set for prefix autocomplete queries?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Hash sets can not store strings that contain vowel letters.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Tries store all words in a single continuous memory byte buffer.</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">A trie traverses only the prefix characters in O(P) time, while a hash set must scan all N words.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Hash set lookups take exponential time for all string searches.</span></button><p class="qc-explain" hidden=""><p>Checking if any word starts with a prefix in a hash set requires scanning every word. A trie walks down directly in prefix-length time.</p></p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>In the search method, reaching the final node is not enough. You must verify that <code>isEndOfWord</code> is true. Otherwise, searching for prefix &quot;app&quot; when only &quot;apple&quot; exists wrongly returns true.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>In Swift, strings can include accents, spaces, and emoji. Using an array of size 26 crashes when non-ASCII letters arrive. Use <code>[Character: TrieNode]</code> for safe Unicode support.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>I use a trie when an application requires prefix queries, typeahead autocomplete, or dictionary lookups. Unlike a hash table, which takes O(N) to check prefixes across all words, a trie matches a prefix of length P in O(P) time. In Swift, I implement nodes using a class with a dictionary mapping characters to child nodes and an end-of-word Boolean flag.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>I select a trie for string dictionary tasks where prefix lookups dominate. A trie bounds operations to O(L) time regardless of dataset size. To optimize memory in mobile apps, I consider compact representations like Radix Trees or Patricia Tries that collapse single-child chains. For autocomplete, I store top completion scores directly on nodes so queries avoid deep tree traversals during fast keystrokes.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><p>A trie stores strings by sharing common prefix paths. Operations run in time proportional to word length, independent of dictionary size. Use <code>isEndOfWord</code> to distinguish full words from prefixes. In Swift, use a reference-type node with a <code>[Character: TrieNode]</code> dictionary for Unicode support.</p></div>
+<h2>Go deeper</h2>
+<ul>
+<li>Tech Interview Handbook: Trie Cheatsheet: <a href="https://www.techinterviewhandbook.org/algorithms/trie/">https://www.techinterviewhandbook.org/algorithms/trie/</a></li>
+<li>Swift Standard Library: String: <a href="https://developer.apple.com/documentation/swift/string">https://developer.apple.com/documentation/swift/string</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    counter: "Step 1 of 4",
+    treeCap: "Insert 'app': Walk down root -> a -> p -> p. Mark the second 'p' with isEndOfWord = true (*).",
+    stateCap: "Each node represents one character. An asterisk (*) marks a complete word.",
+    code: "trie.insert(\"app\")\npath: root -> a -> p -> p\np2.isEndOfWord = true",
+    words: "Stored: [\"app\"]",
+    query: "Operation: Insert",
+    showApple: false,
+    classes: {
+      root: "node-circle", nA: "node-circle active-current", nP1: "node-circle active-current",
+      nP2: "node-circle active-word", nL: "node-circle", nE: "node-circle"
+    }
+  },
+  {
+    counter: "Step 2 of 4",
+    treeCap: "Insert 'apple': Reuses existing prefix 'a-p-p'! Only adds new child nodes 'l' and 'e*'.",
+    stateCap: "Prefix sharing saves memory: 'app' and 'apple' share the first 3 nodes.",
+    code: "trie.insert(\"apple\")\nreuses: 'a', 'p', 'p'\nappends: 'l' -> 'e'\ne.isEndOfWord = true",
+    words: "Stored: [\"app\", \"apple\"]",
+    query: "Prefix Reused: 'app'",
+    showApple: true,
+    classes: {
+      root: "node-circle", nA: "node-circle", nP1: "node-circle",
+      nP2: "node-circle active-word", nL: "node-circle active-current", nE: "node-circle active-word"
+    }
+  },
+  {
+    counter: "Step 3 of 4",
+    treeCap: "Search 'apple': Traverses a -> p -> p -> l -> e. Node 'e' has isEndOfWord = true. Returns true!",
+    stateCap: "Exact word search requires following all letters and finding isEndOfWord == true.",
+    code: "trie.search(\"apple\")\ntraverse: a -> p -> p -> l -> e\ne.isEndOfWord == true -> RETURN TRUE",
+    words: "Result: true",
+    query: "Query: search(\"apple\")",
+    showApple: true,
+    classes: {
+      root: "node-circle", nA: "node-circle active-current", nP1: "node-circle active-current",
+      nP2: "node-circle", nL: "node-circle active-current", nE: "node-circle active-word"
+    }
+  },
+  {
+    counter: "Step 4 of 4",
+    treeCap: "Search 'appl' vs startsWith('appl'): Path exists, but 'l' is NOT end of word. search -> false, startsWith -> true!",
+    stateCap: "search() requires isEndOfWord == true. startsWith() only needs the path to exist.",
+    code: "search(\"appl\")     -> FALSE (l.isEndOfWord is false)\nstartsWith(\"appl\") -> TRUE  (prefix path exists)",
+    words: "Distinct query semantics",
+    query: "O(P) prefix lookup",
+    showApple: true,
+    classes: {
+      root: "node-circle", nA: "node-circle active-current", nP1: "node-circle active-current",
+      nP2: "node-circle", nL: "node-circle active-alert", nE: "node-circle"
+    }
+  }
+];
+
+let curr = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+const treeCap = document.getElementById("treeCaption");
+const stateCap = document.getElementById("stateCaption");
+const stateCode = document.getElementById("stateCode");
+const wordBadge = document.getElementById("wordBadge");
+const queryBadge = document.getElementById("queryBadge");
+
+const nRoot = document.getElementById("nRoot");
+const nA = document.getElementById("nA");
+const nP1 = document.getElementById("nP1");
+const nP2 = document.getElementById("nP2");
+const nL = document.getElementById("nL"), tL = document.getElementById("tL");
+const nE = document.getElementById("nE"), tE = document.getElementById("tE");
+const eP2L = document.getElementById("eP2L");
+const eLE = document.getElementById("eLE");
+
+function render() {
+  const s = steps[curr];
+  stepCounter.textContent = s.counter;
+  btnBack.disabled = curr === 0;
+  btnNext.disabled = curr === steps.length - 1;
+
+  treeCap.textContent = s.treeCap;
+  stateCap.textContent = s.stateCap;
+  stateCode.innerHTML = s.code.replace(/\n/g, "<br>");
+  wordBadge.textContent = s.words;
+  queryBadge.textContent = s.query;
+
+  if (s.showApple) {
+    nL.style.display = "block";
+    tL.style.display = "block";
+    nE.style.display = "block";
+    tE.style.display = "block";
+    eP2L.style.display = "block";
+    eLE.style.display = "block";
+  } else {
+    nL.style.display = "none";
+    tL.style.display = "none";
+    nE.style.display = "none";
+    tE.style.display = "none";
+    eP2L.style.display = "none";
+    eLE.style.display = "none";
+  }
+
+  nRoot.className.baseVal = s.classes.root;
+  nA.className.baseVal = s.classes.nA;
+  nP1.className.baseVal = s.classes.nP1;
+  nP2.className.baseVal = s.classes.nP2;
+  nL.className.baseVal = s.classes.nL;
+  nE.className.baseVal = s.classes.nE;
+}
+
+btnBack.addEventListener("click", () => { if (curr > 0) { curr--; render(); } });
+btnNext.addEventListener("click", () => { if (curr < steps.length - 1) { curr++; render(); } });
+btnReplay.addEventListener("click", () => { curr = 0; render(); });
+
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"tries","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"tri-q1","type":"mcq","difficulty":1,"prompt":"What is another name commonly used in computer science for a trie data structure?","options":[{"id":"a","text":"Prefix tree, because descendant nodes share common prefix string paths.","explanation":"Tries are called prefix trees because keys sharing prefixes branch from the same parent nodes."},{"id":"b","text":"Suffix heap, because values are sorted by their trailing characters.","explanation":"Tries do not organize characters as heaps or prioritize suffixes by default."},{"id":"c","text":"Binary bloom filter, because lookups rely on probabilistic bit vectors.","explanation":"A trie is a deterministic tree, not a probabilistic Bloom filter."},{"id":"d","text":"Indexed ring buffer, because nodes wrap sequentially in circular arrays.","explanation":"Tries use hierarchical branching paths rather than circular ring buffers."}],"answer":"a"},{"id":"tri-q2","type":"mcq","difficulty":1,"prompt":"What does each node in a standard trie typically store?","options":[{"id":"a","text":"The entire full word string from root to leaf.","explanation":"Storing full strings on every node wastes memory and duplicates prefix data."},{"id":"b","text":"A dictionary of child nodes and an end of word Boolean flag.","explanation":"Each node maps outgoing characters to child nodes and marks whether a word finishes there."},{"id":"c","text":"The total count of all prime numbers found in the dictionary.","explanation":"Tries index characters, not numerical prime attributes."},{"id":"d","text":"A raw pointer to the operating system file allocation table.","explanation":"Trie nodes live in application heap memory as standard Swift objects."}],"answer":"b"},{"id":"tri-q3","type":"mcq","difficulty":1,"prompt":"What is the time complexity to insert a word of length L into a trie?","options":[{"id":"a","text":"O(1)","explanation":"O(1) is impossible because all L characters must be processed."},{"id":"b","text":"O(N log N)","explanation":"O(N log N) describes comparison sorting, not trie insertion."},{"id":"c","text":"O(L)","explanation":"Insertion walks through each of the L characters exactly once, taking O(L) time."},{"id":"d","text":"O(2 to the power L)","explanation":"Insertion does not branch exponentially; it follows a single linear path of length L."}],"answer":"c"},{"id":"tri-q4","type":"mcq","difficulty":1,"prompt":"What is the time complexity to search for a word of length L in a trie containing N total words?","options":[{"id":"a","text":"O(N)","explanation":"A linear scan takes O(N), but a trie avoids scanning all N words."},{"id":"b","text":"O(N * L)","explanation":"O(N * L) would scan every character of every word in the dictionary."},{"id":"c","text":"O(log N)","explanation":"O(log N) is binary search tree lookup, not trie lookup."},{"id":"d","text":"O(L)","explanation":"Trie search follows L character links, completely independent of the total word count N."}],"answer":"d"},{"id":"tri-q5","type":"mcq","difficulty":1,"prompt":"What is the primary operational difference between the search method and the startsWith method in a trie?","options":[{"id":"a","text":"Search checks isEndOfWord on the final node, while startsWith only verifies path existence.","explanation":"Search requires that the characters form a registered complete word; startsWith only requires that the prefix path exists."},{"id":"b","text":"StartsWith mutates the trie structure while search leaves nodes unchanged.","explanation":"Neither query method mutates the trie."},{"id":"c","text":"Search runs in constant time while startsWith runs in exponential time.","explanation":"Both methods run in time proportional to string length."},{"id":"d","text":"StartsWith converts all characters to lowercase while search requires uppercase letters.","explanation":"Casing is determined by caller data, not method semantics."}],"answer":"a"},{"id":"tri-q6","type":"mcq","difficulty":2,"prompt":"Why is a trie faster than a hash set for prefix autocomplete in a search bar?","options":[{"id":"a","text":"Hash sets only store numbers and cannot index character strings in Swift.","explanation":"Swift Set supports any Hashable type including strings."},{"id":"b","text":"A trie walks down prefix characters directly in O(P) time instead of scanning all N entries.","explanation":"A hash set must inspect every word to check prefixes taking O(N * L) time. A trie jumps directly to the prefix node in O(P) time."},{"id":"c","text":"A trie automatically compresses image assets inside the app bundle.","explanation":"Tries are text data structures, not image compression tools."},{"id":"d","text":"Hash set hashing operations fail on words with more than ten characters.","explanation":"Swift hashing works on strings of any length."}],"answer":"b"},{"id":"tri-q7","type":"mcq","difficulty":2,"prompt":"What happens when you insert the words app and apple into an empty trie?","options":[{"id":"a","text":"Two independent disconnected trees are allocated with zero shared memory.","explanation":"Tries share nodes for common prefix paths."},{"id":"b","text":"The trie throws a runtime exception because duplicate prefixes collide.","explanation":"Duplicate prefixes are supported by design in a trie."},{"id":"c","text":"They share the first three nodes for a, p, and p, with app marked as an end of word.","explanation":"Shared characters share nodes; the second p has isEndOfWord true for app, and branches down to l and e for apple."},{"id":"d","text":"The word apple overwrites app and deletes the shorter word.","explanation":"Both words remain accessible because isEndOfWord flags preserve word boundaries."}],"answer":"c"},{"id":"tri-q8","type":"mcq","difficulty":2,"prompt":"Why should you prefer [Character: TrieNode] over a 26-element array [TrieNode?] in Swift?","options":[{"id":"a","text":"Swift arrays cannot store reference types without explicit pointer casting.","explanation":"Swift arrays store reference types without issues."},{"id":"b","text":"Dictionaries allocate zero heap memory when empty compared to fixed arrays.","explanation":"Dictionaries allocate standard container structures."},{"id":"c","text":"Fixed arrays require compiling in legacy Objective-C compatibility mode.","explanation":"Fixed-size arrays work in pure Swift."},{"id":"d","text":"A dictionary safely supports Unicode letters, accents, and emoji without crashing.","explanation":"Fixed 26-element arrays assume lowercase ASCII letters a through z and crash when non-ASCII Unicode characters arrive."}],"answer":"d"},{"id":"tri-q9","type":"mcq","difficulty":1,"prompt":"What does the root node of a trie represent?","options":[{"id":"a","text":"The empty string prefix common to all possible words.","explanation":"The root holds no character value itself and represents the starting empty string prefix."},{"id":"b","text":"The single most frequently searched word in the application.","explanation":"The root is not a word node; it is the entry anchor."},{"id":"c","text":"The total byte size of all stored characters combined.","explanation":"The root is a trie node, not an integer byte counter."},{"id":"d","text":"The first character of the English alphabet.","explanation":"The letter a is a child of the root, not the root itself."}],"answer":"a"},{"id":"tri-q10","type":"mcq","difficulty":2,"prompt":"How can you return all words stored in a trie in alphabetical order?","options":[{"id":"a","text":"By sorting all internal heap addresses in descending numerical memory order.","explanation":"Memory addresses bear no relationship to alphabetical order."},{"id":"b","text":"By traversing the trie with depth-first search while visiting child keys in sorted character order.","explanation":"Because prefixes precede suffixes and child branches are sorted alphabetically, in-order DFS produces words in exact alphabetical order."},{"id":"c","text":"By executing breadth-first search across all leaf nodes in parallel batches.","explanation":"BFS visits by word length rather than lexicographical order."},{"id":"d","text":"By reversing the underlying character dictionaries on every query lookup.","explanation":"Reversing dictionaries does not generate sorted word sequences."}],"answer":"b"},{"id":"tri-q11","type":"mcq","difficulty":2,"prompt":"When deleting a word from a trie, when is a node safe to remove from memory?","options":[{"id":"a","text":"As soon as the target word has fewer than three letters.","explanation":"Word length does not govern node pruning safety."},{"id":"b","text":"Whenever its parent node has at least two sibling branches.","explanation":"Nodes can only be removed if they are not needed by any word."},{"id":"c","text":"When the node has no other children and is not marked as the end of another word.","explanation":"If a node has children or represents another word, deleting it would destroy valid words sharing that prefix."},{"id":"d","text":"Only when the app receives a low memory warning from iOS.","explanation":"Trie pruning is part of standard deletion logic."}],"answer":"c"},{"id":"tri-q12","type":"mcq","difficulty":2,"prompt":"What is a compact variant of a trie that merges chains of single-child nodes to save memory?","options":[{"id":"a","text":"Red-Black balanced binary tree.","explanation":"A Red-Black tree is a binary search tree, not a compressed trie."},{"id":"b","text":"Fibonacci min-priority heap.","explanation":"A Fibonacci heap is a priority queue structure."},{"id":"c","text":"Disjoint set union forest.","explanation":"Disjoint sets manage connected components, not strings."},{"id":"d","text":"Radix tree or Patricia trie.","explanation":"Radix trees and Patricia tries compress single-child node sequences into composite multi-character edges."}],"answer":"d"},{"id":"tri-q13","type":"mcq","difficulty":1,"prompt":"Why should TrieNode be implemented as a class rather than a struct in Swift?","options":[{"id":"a","text":"Reference semantics allow mutating deep child nodes in place without copying parent trees.","explanation":"Classes provide reference semantics; mutating a deep struct trie triggers recursive copy-on-write overhead."},{"id":"b","text":"Swift structs cannot conform to the standard Equatable protocol in iOS applications.","explanation":"Structs can conform to Equatable without restriction."},{"id":"c","text":"Classes execute on the graphics processing unit automatically without thread dispatch.","explanation":"Classes execute on standard CPU threads."},{"id":"d","text":"Structs in Swift cannot contain Dictionary properties or any nested reference types.","explanation":"Structs frequently store Dictionary values in Swift."}],"answer":"a"},{"id":"tri-q14","type":"mcq","difficulty":2,"prompt":"How can you optimize an autocomplete trie so it responds instantly during fast typing in an iOS search bar?","options":[{"id":"a","text":"By rebuilding the entire trie from disk on each keystroke.","explanation":"Rebuilding on every keystroke causes frame drops and severe latency."},{"id":"b","text":"By caching top search suggestion strings directly on each prefix node during insertion.","explanation":"Caching top completions on nodes allows keystrokes to read results in O(P) time without traversing subtree descendants."},{"id":"c","text":"By replacing the trie with a linear array scan on the main thread.","explanation":"A linear scan on the main thread blocks UI rendering."},{"id":"d","text":"By converting all user search terms into Roman numerals.","explanation":"Roman numerals do not optimize text search."}],"answer":"b"},{"id":"tri-q15","type":"mcq","difficulty":2,"prompt":"What is the worst-case space complexity of storing N words of maximum length L in a trie?","options":[{"id":"a","text":"O(1)","explanation":"O(1) space cannot store arbitrary word collections."},{"id":"b","text":"O(log N)","explanation":"Logarithmic space is insufficient for character nodes."},{"id":"c","text":"O(N * L)","explanation":"If no words share any common prefixes, every character requires a distinct node, resulting in O(N * L) space."},{"id":"d","text":"O(2 to the power N)","explanation":"Space is bounded by total character count, not exponential word count."}],"answer":"c"},{"id":"tri-q16","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"final class Node { var isEnd = false }\nlet root = Node()\nprint(root.isEnd)","options":[{"id":"a","text":"true, because root is initialized as a complete word.","explanation":"The root is initialized with isEnd = false."},{"id":"b","text":"nil, because isEnd is not assigned a default value.","explanation":"isEnd is a non-optional Boolean."},{"id":"c","text":"0, because isEnd represents an integer byte flag.","explanation":"Swift Booleans print true or false, not numbers."},{"id":"d","text":"false, because isEnd defaults to false on creation.","explanation":"Default value for isEnd on a freshly created node is false."}],"answer":"d"},{"id":"tri-q17","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"final class SimpleTrie {\n    var words: [String] = []\n    func insert(_ w: String) { words.append(w) }\n    func startsWith(_ p: String) -> Bool {\n        return words.contains { $0.hasPrefix(p) }\n    }\n}\nlet t = SimpleTrie()\nt.insert(\"swift\")\nprint(t.startsWith(\"sw\"))","options":[{"id":"a","text":"true","explanation":"The word swift starts with prefix sw, so startsWith returns true."},{"id":"b","text":"false","explanation":"sw is a valid prefix of swift."},{"id":"c","text":"swift","explanation":"startsWith returns a Bool, not the matched string."},{"id":"d","text":"1","explanation":"The return type is Bool, printing true."}],"answer":"a"},{"id":"tri-q18","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"final class TrieNode {\n    var children: [Character: TrieNode] = [:]\n    var isEnd = false\n}\nlet root = TrieNode()\nlet child = TrieNode()\nchild.isEnd = true\nroot.children[\"a\"] = child\nprint(\"\\(root.children[\"a\"]?.isEnd ?? false) \\(root.children[\"b\"] != nil)\")","options":[{"id":"a","text":"false false","explanation":"root.children[\"a\"] has isEnd equal to true."},{"id":"b","text":"true false","explanation":"Child node a exists with isEnd true, while child b is nil, printing true false."},{"id":"c","text":"true true","explanation":"Child b was never inserted, so it is nil."},{"id":"d","text":"nil nil","explanation":"The nil-coalescing and equality checks produce concrete Booleans."}],"answer":"b"},{"id":"tri-q19","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"func countLetters(in word: String) -> Int {\n    return word.count\n}\nprint(countLetters(in: \"apple\"))","options":[{"id":"a","text":"4","explanation":"apple has five letters, not four."},{"id":"b","text":"6","explanation":"apple has five characters."},{"id":"c","text":"5","explanation":"The string apple consists of 5 characters."},{"id":"d","text":"1","explanation":"1 is the word count, but the function returns letter count."}],"answer":"c"},{"id":"tri-q20","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"final class TrieNode {\n    var children: [Character: TrieNode] = [:]\n    var isEnd = false\n}\nfunc insert(_ word: String, into root: TrieNode) {\n    var curr = root\n    for ch in word {\n        if curr.children[ch] == nil { curr.children[ch] = TrieNode() }\n        curr = curr.children[ch]!\n    }\n    curr.isEnd = true\n}\nlet root = TrieNode()\ninsert(\"cat\", into: root)\ninsert(\"car\", into: root)\nprint(root.children[\"c\"]?.children[\"a\"]?.children.count ?? 0)","options":[{"id":"a","text":"0","explanation":"Node a has children t and r."},{"id":"b","text":"1","explanation":"Node a has two children branching to t and r."},{"id":"c","text":"3","explanation":"Only two words were inserted, branching to two children."},{"id":"d","text":"2","explanation":"cat and car share prefix ca. Node a has two child nodes: t and r, so count is 2."}],"answer":"d"},{"id":"tri-q21","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"final class TrieNode {\n    var children: [Character: TrieNode] = [:]\n    var isEnd = false\n}\nlet r = TrieNode()\nvar c = r\nfor ch in \"app\" {\n    c.children[ch] = TrieNode()\n    c = c.children[ch]!\n}\nc.isEnd = true\nfunc search(_ w: String, in root: TrieNode) -> Bool {\n    var curr = root\n    for ch in w {\n        guard let next = curr.children[ch] else { return false }\n        curr = next\n    }\n    return curr.isEnd\n}\nprint(search(\"ap\", in: r))","options":[{"id":"a","text":"false","explanation":"ap exists as a prefix path, but its node has isEnd equal to false, so search returns false."},{"id":"b","text":"true","explanation":"ap is not marked as a completed word."},{"id":"c","text":"nil","explanation":"search returns a non-optional Bool."},{"id":"d","text":"app","explanation":"The search function returns a Bool, not string values."}],"answer":"a"},{"id":"tri-q22","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"final class TrieNode {\n    var children: [Character: TrieNode] = [:]\n    var isEnd = false\n}\nlet r = TrieNode()\nvar curr = r\nfor ch in \"hi\" {\n    curr.children[ch] = TrieNode()\n    curr = curr.children[ch]!\n}\ncurr.isEnd = true\nprint(r.children[\"h\"]?.children[\"i\"]?.isEnd ?? false)","options":[{"id":"a","text":"false","explanation":"The node for i was marked with isEnd = true."},{"id":"b","text":"true","explanation":"Traversing through h and i reaches the terminal node where isEnd is true."},{"id":"c","text":"hi","explanation":"The print statement prints the Boolean value of isEnd."},{"id":"d","text":"nil","explanation":"Both child lookups succeed, so nil-coalescing is not used."}],"answer":"b"},{"id":"tri-q23","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"let words = [\"go\", \"goal\", \"gone\"]\nlet prefix = \"go\"\nlet matched = words.filter { $0.hasPrefix(prefix) }\nprint(matched.count)","options":[{"id":"a","text":"1","explanation":"Only matching go itself ignores goal and gone."},{"id":"b","text":"2","explanation":"All three words start with go."},{"id":"c","text":"3","explanation":"All three words go, goal, and gone begin with prefix go, so matched count is 3."},{"id":"d","text":"0","explanation":"The prefix matches all elements in the input list."}],"answer":"c"},{"id":"tri-q24","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain why a trie is superior to a hash set for autocomplete prefix lookups. Mention the time complexity of both approaches.","rubric":[{"criterion":"Explains that a hash set requires scanning all N words taking O(N * L) time to find prefix matches","weight":40,"key":true},{"criterion":"Explains that a trie reaches the prefix node in O(P) time independent of dictionary size N","weight":40,"key":true},{"criterion":"Notes that common prefixes share storage in a trie","weight":20}],"modelAnswer":"A hash set cannot perform prefix lookups directly because hash codes scramble string structures. Finding words starting with a prefix in a hash set requires scanning all N entries in O(N * L) time. A trie walks down prefix characters directly in O(P) time, completely independent of the dictionary size."},{"id":"tri-q25","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, describe the difference between the search and startsWith operations on a trie. Give an example showing when their results differ.","rubric":[{"criterion":"Explains that search requires isEndOfWord to be true on the target node","weight":35,"key":true},{"criterion":"Explains that startsWith only requires that the character path exists in the trie","weight":35,"key":true},{"criterion":"Provides a clear concrete example (such as app when only apple is stored)","weight":30}],"modelAnswer":"The search operation returns true only if every character exists and the final node has isEndOfWord set to true. The startsWith operation returns true as soon as the full prefix path exists, regardless of the isEndOfWord flag. For example, if only apple is inserted, startsWith(app) returns true while search(app) returns false."},{"id":"tri-q26","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain why TrieNode should be a class rather than a struct in Swift. Discuss memory mutation and tree traversal.","rubric":[{"criterion":"Explains that classes have reference semantics allowing in-place mutation of child nodes","weight":40,"key":true},{"criterion":"Explains that structs have value semantics which trigger recursive copy-on-write during tree updates","weight":35,"key":true},{"criterion":"Mentions that reference pointers allow multiple paths or parent references without full copies","weight":25}],"modelAnswer":"TrieNode must be a class because classes provide reference semantics in Swift. When inserting characters down a tree path, reference semantics allow modifying child nodes directly in place. If TrieNode were a struct, mutating a child would trigger copy-on-write across parent nodes, creating significant memory allocation overhead."},{"id":"tri-q27","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain how word deletion works in a trie. State when child nodes can be pruned safely.","rubric":[{"criterion":"Explains unsetting the isEndOfWord flag at the target word node","weight":35,"key":true},{"criterion":"States pruning condition: node can be deleted only if it has no children and isEndOfWord is false","weight":40,"key":true},{"criterion":"Mentions bottom-up recursive pruning so shared prefixes are preserved","weight":25}],"modelAnswer":"To delete a word, traverse recursively to the final character node and set isEndOfWord to false. As recursion unwinds, check if the current node has any other children and whether its isEndOfWord flag is false. If it has no children and is not the end of another word, prune the node safely to reclaim memory."},{"id":"tri-q28","type":"written","difficulty":3,"prompt":"In 2 to 5 sentences, describe how you would design an iOS search suggestion feature that responds in under 16 milliseconds using a trie.","rubric":[{"criterion":"Describes storing precomputed top suggestions or frequency scores on prefix nodes","weight":40,"key":true},{"criterion":"Explains that precomputing avoids deep DFS subtree traversals during live keystrokes","weight":35,"key":true},{"criterion":"Mentions keeping operations off the main thread or debouncing rapid user input","weight":25}],"modelAnswer":"To respond within a 16-millisecond frame budget, each trie node can store a precomputed array of top completion strings. When the user types a character, the search jumps directly to the matching node and returns suggestions in O(P) time without deep subtree traversal. In addition, keystrokes can be debounced and queried on a background queue."},{"id":"tri-q29","type":"code-write","difficulty":1,"prompt":"Write a Trie class with insert(_ word: String) and search(_ word: String) -> Bool. Insert the word swift. Test search(swift) and search(sw). Print both results separated by a space.","starterCode":"final class TrieNode {\n    var children: [Character: TrieNode] = [:]\n    var isEnd = false\n}\n\nfinal class Trie {\n    // Implement insert and search\n}\n\n// Test with word \"swift\"\n// Print search(\"swift\") and search(\"sw\")","rubric":[{"criterion":"Inserts word characters into child nodes and sets isEnd to true at the final node","weight":40,"key":true},{"criterion":"Search returns false if any character is missing","weight":30,"key":true},{"criterion":"Search returns node.isEnd ensuring exact word matching","weight":30}],"modelAnswer":"final class TrieNode {\n    var children: [Character: TrieNode] = [:]\n    var isEnd = false\n}\nfinal class Trie {\n    let root = TrieNode()\n    func insert(_ w: String) {\n        var c = root\n        for ch in w {\n            if c.children[ch] == nil { c.children[ch] = TrieNode() }\n            c = c.children[ch]!\n        }\n        c.isEnd = true\n    }\n    func search(_ w: String) -> Bool {\n        var c = root\n        for ch in w {\n            guard let next = c.children[ch] else { return false }\n            c = next\n        }\n        return c.isEnd\n    }\n}\nlet t = Trie()\nt.insert(\"swift\")\nprint(\"\\(t.search(\"swift\")) \\(t.search(\"sw\"))\")"},{"id":"tri-q30","type":"code-write","difficulty":2,"prompt":"Write a function countWordsWithPrefix(_ words: [String], _ prefix: String) -> Int that inserts words into a trie and counts how many words start with prefix. Test with [dog, door, dot, cat] and prefix do. Print the result.","starterCode":"func countWordsWithPrefix(_ words: [String], _ prefix: String) -> Int {\n    // Build trie and count words with matching prefix\n}\n\n// Test with [\"dog\", \"door\", \"dot\", \"cat\"] and prefix \"do\"\n// Print countWordsWithPrefix(words, \"do\")","rubric":[{"criterion":"Constructs trie nodes and inserts words with end-of-word markers","weight":35,"key":true},{"criterion":"Navigates to the node matching the prefix string","weight":35,"key":true},{"criterion":"Counts all descendant words starting from the prefix node using DFS or BFS","weight":30}],"modelAnswer":"final class TrieNode {\n    var children: [Character: TrieNode] = [:]\n    var isEnd = false\n}\nfunc countWordsWithPrefix(_ words: [String], _ prefix: String) -> Int {\n    let root = TrieNode()\n    for w in words {\n        var curr = root\n        for ch in w {\n            if curr.children[ch] == nil { curr.children[ch] = TrieNode() }\n            curr = curr.children[ch]!\n        }\n        curr.isEnd = true\n    }\n    var curr: TrieNode? = root\n    for ch in prefix {\n        curr = curr?.children[ch]\n    }\n    guard let start = curr else { return 0 }\n    func dfs(_ n: TrieNode) -> Int {\n        var count = n.isEnd ? 1 : 0\n        for (_, child) in n.children {\n            count += dfs(child)\n        }\n        return count\n    }\n    return dfs(start)\n}\nlet words = [\"dog\", \"door\", \"dot\", \"cat\"]\nprint(countWordsWithPrefix(words, \"do\"))"},{"id":"tri-q31","type":"code-write","difficulty":1,"prompt":"Write a function longestCommonPrefix(_ words: [String]) -> String that finds the longest shared prefix among an array of strings. Test with [flower, flow, flight] and print the result.","starterCode":"func longestCommonPrefix(_ words: [String]) -> String {\n    // Find longest common prefix among strings\n}\n\n// Test with [\"flower\", \"flow\", \"flight\"]\n// Print longestCommonPrefix([\"flower\", \"flow\", \"flight\"])","rubric":[{"criterion":"Handles empty arrays and single string edge cases","weight":20},{"criterion":"Compares character prefixes across all words","weight":40,"key":true},{"criterion":"Returns the longest prefix string present in all input words","weight":40,"key":true}],"modelAnswer":"func longestCommonPrefix(_ words: [String]) -> String {\n    guard let first = words.first, !words.isEmpty else { return \"\" }\n    var prefix = first\n    for word in words.dropFirst() {\n        while !word.hasPrefix(prefix) {\n            prefix = String(prefix.dropLast())\n            if prefix.isEmpty { return \"\" }\n        }\n    }\n    return prefix\n}\nlet input = [\"flower\", \"flow\", \"flight\"]\nprint(longestCommonPrefix(input))"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

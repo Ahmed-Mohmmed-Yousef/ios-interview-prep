@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Trie (Prefix Tree): Insertion &amp; Search</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --trie-color: #0284c7; --trie-soft: #e0f2fe;
+  --done-color: #059669; --done-soft: #d1fae5;
+  --alert-color: #d97706; --alert-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --trie-color: #38bdf8; --trie-soft: #082f49;
+  --done-color: #34d399; --done-soft: #064e3b;
+  --alert-color: #fbbf24; --alert-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.controls {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  padding: 6px 14px; border-radius: 8px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: all 0.2s ease;
+}
+button:hover:not(:disabled) { border-color: var(--trie-color); color: var(--trie-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-weight: 600; font-size: 14px; color: var(--muted); }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-tree .kind { background: var(--trie-soft); color: var(--trie-color); }
+.p-state .kind { background: var(--done-soft); color: var(--done-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-circle { stroke-width: 2.5; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-circle.active-current { stroke: var(--trie-color); fill: var(--trie-soft); stroke-width: 3.5; }
+.node-circle.active-word { stroke: var(--done-color); fill: var(--done-soft); stroke-width: 3.5; }
+.node-circle.active-alert { stroke: var(--alert-color); fill: var(--alert-soft); stroke-width: 3.5; }
+.node-text { font-family: var(--font-code); font-weight: 700; font-size: 14px; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; }
+.edge { stroke: var(--line); stroke-width: 2; }
+.edge.active-edge { stroke: var(--trie-color); stroke-width: 3; }
+
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-badge {
+  display: inline-block; font-family: var(--font-code); font-size: 12px;
+  padding: 4px 8px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-circle { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Animated Trie Diagram">
+  <div class="controls">
+    <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+    <div class="btn-group">
+      <button id="btnBack" type="button" aria-label="Previous step">Back</button>
+      <button id="btnNext" type="button" aria-label="Next step">Next</button>
+      <button id="btnReplay" type="button" aria-label="Replay from start">Replay</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <!-- Tree View Panel -->
+    <div class="panel p-tree">
+      <h3><span>Prefix Tree View</span><span class="kind">Trie</span></h3>
+      <p class="caption" id="treeCaption">Insert "app": create path root &rarr; a &rarr; p &rarr; p. Mark second 'p' with isEndOfWord = true.</p>
+      <svg viewBox="0 0 320 220" aria-label="Trie Tree Structure">
+        <line id="eRootA" x1="160" y1="25" x2="160" y2="65" class="edge" />
+        <line id="eAP1" x1="160" y1="65" x2="160" y2="105" class="edge" />
+        <line id="eP1P2" x1="160" y1="105" x2="160" y2="145" class="edge" />
+        <line id="eP2L" x1="160" y1="145" x2="160" y2="185" class="edge" style="display:none;" />
+        <line id="eLE" x1="160" y1="185" x2="240" y2="185" class="edge" style="display:none;" />
+
+        <!-- Root -->
+        <circle id="nRoot" cx="160" cy="25" r="14" class="node-circle" />
+        <text x="160" y="25" class="node-text" style="font-size: 11px;">&empty;</text>
+
+        <!-- Node A -->
+        <circle id="nA" cx="160" cy="65" r="14" class="node-circle active-current" />
+        <text x="160" y="65" class="node-text">a</text>
+
+        <!-- Node P1 -->
+        <circle id="nP1" cx="160" cy="105" r="14" class="node-circle active-current" />
+        <text x="160" y="105" class="node-text">p</text>
+
+        <!-- Node P2 (End of "app") -->
+        <circle id="nP2" cx="160" cy="145" r="14" class="node-circle active-word" />
+        <text x="160" y="145" class="node-text">p*</text>
+
+        <!-- Node L (for "apple") -->
+        <circle id="nL" cx="160" cy="185" r="14" class="node-circle" style="display:none;" />
+        <text id="tL" x="160" y="185" class="node-text" style="display:none;">l</text>
+
+        <!-- Node E (for "apple", end of word) -->
+        <circle id="nE" cx="240" cy="185" r="14" class="node-circle" style="display:none;" />
+        <text id="tE" x="240" y="185" class="node-text" style="display:none;">e*</text>
+      </svg>
+    </div>
+
+    <!-- State & Search Panel -->
+    <div class="panel p-state">
+      <h3><span>Operation State</span><span class="kind">Trace</span></h3>
+      <p class="caption" id="stateCaption">The asterisk (*) marks isEndOfWord = true.</p>
+      <div class="code" id="stateCode">trie.insert("app")<br>created: a -> p -> p<br>node['p'].isEndOfWord = true</div>
+      <div class="badge-row">
+        <span class="status-badge" id="wordBadge">Stored: ["app"]</span>
+        <span class="status-badge" id="queryBadge">Complexity: O(L)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    counter: "Step 1 of 4",
+    treeCap: "Insert 'app': Walk down root -> a -> p -> p. Mark the second 'p' with isEndOfWord = true (*).",
+    stateCap: "Each node represents one character. An asterisk (*) marks a complete word.",
+    code: "trie.insert(\"app\")\npath: root -> a -> p -> p\np2.isEndOfWord = true",
+    words: "Stored: [\"app\"]",
+    query: "Operation: Insert",
+    showApple: false,
+    classes: {
+      root: "node-circle", nA: "node-circle active-current", nP1: "node-circle active-current",
+      nP2: "node-circle active-word", nL: "node-circle", nE: "node-circle"
+    }
+  },
+  {
+    counter: "Step 2 of 4",
+    treeCap: "Insert 'apple': Reuses existing prefix 'a-p-p'! Only adds new child nodes 'l' and 'e*'.",
+    stateCap: "Prefix sharing saves memory: 'app' and 'apple' share the first 3 nodes.",
+    code: "trie.insert(\"apple\")\nreuses: 'a', 'p', 'p'\nappends: 'l' -> 'e'\ne.isEndOfWord = true",
+    words: "Stored: [\"app\", \"apple\"]",
+    query: "Prefix Reused: 'app'",
+    showApple: true,
+    classes: {
+      root: "node-circle", nA: "node-circle", nP1: "node-circle",
+      nP2: "node-circle active-word", nL: "node-circle active-current", nE: "node-circle active-word"
+    }
+  },
+  {
+    counter: "Step 3 of 4",
+    treeCap: "Search 'apple': Traverses a -> p -> p -> l -> e. Node 'e' has isEndOfWord = true. Returns true!",
+    stateCap: "Exact word search requires following all letters and finding isEndOfWord == true.",
+    code: "trie.search(\"apple\")\ntraverse: a -> p -> p -> l -> e\ne.isEndOfWord == true -> RETURN TRUE",
+    words: "Result: true",
+    query: "Query: search(\"apple\")",
+    showApple: true,
+    classes: {
+      root: "node-circle", nA: "node-circle active-current", nP1: "node-circle active-current",
+      nP2: "node-circle", nL: "node-circle active-current", nE: "node-circle active-word"
+    }
+  },
+  {
+    counter: "Step 4 of 4",
+    treeCap: "Search 'appl' vs startsWith('appl'): Path exists, but 'l' is NOT end of word. search -> false, startsWith -> true!",
+    stateCap: "search() requires isEndOfWord == true. startsWith() only needs the path to exist.",
+    code: "search(\"appl\")     -> FALSE (l.isEndOfWord is false)\nstartsWith(\"appl\") -> TRUE  (prefix path exists)",
+    words: "Distinct query semantics",
+    query: "O(P) prefix lookup",
+    showApple: true,
+    classes: {
+      root: "node-circle", nA: "node-circle active-current", nP1: "node-circle active-current",
+      nP2: "node-circle", nL: "node-circle active-alert", nE: "node-circle"
+    }
+  }
+];
+
+let curr = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+const treeCap = document.getElementById("treeCaption");
+const stateCap = document.getElementById("stateCaption");
+const stateCode = document.getElementById("stateCode");
+const wordBadge = document.getElementById("wordBadge");
+const queryBadge = document.getElementById("queryBadge");
+
+const nRoot = document.getElementById("nRoot");
+const nA = document.getElementById("nA");
+const nP1 = document.getElementById("nP1");
+const nP2 = document.getElementById("nP2");
+const nL = document.getElementById("nL"), tL = document.getElementById("tL");
+const nE = document.getElementById("nE"), tE = document.getElementById("tE");
+const eP2L = document.getElementById("eP2L");
+const eLE = document.getElementById("eLE");
+
+function render() {
+  const s = steps[curr];
+  stepCounter.textContent = s.counter;
+  btnBack.disabled = curr === 0;
+  btnNext.disabled = curr === steps.length - 1;
+
+  treeCap.textContent = s.treeCap;
+  stateCap.textContent = s.stateCap;
+  stateCode.innerHTML = s.code.replace(/\n/g, "<br>");
+  wordBadge.textContent = s.words;
+  queryBadge.textContent = s.query;
+
+  if (s.showApple) {
+    nL.style.display = "block";
+    tL.style.display = "block";
+    nE.style.display = "block";
+    tE.style.display = "block";
+    eP2L.style.display = "block";
+    eLE.style.display = "block";
+  } else {
+    nL.style.display = "none";
+    tL.style.display = "none";
+    nE.style.display = "none";
+    tE.style.display = "none";
+    eP2L.style.display = "none";
+    eLE.style.display = "none";
+  }
+
+  nRoot.className.baseVal = s.classes.root;
+  nA.className.baseVal = s.classes.nA;
+  nP1.className.baseVal = s.classes.nP1;
+  nP2.className.baseVal = s.classes.nP2;
+  nL.className.baseVal = s.classes.nL;
+  nE.className.baseVal = s.classes.nE;
+}
+
+btnBack.addEventListener("click", () => { if (curr > 0) { curr--; render(); } });
+btnNext.addEventListener("click", () => { if (curr < steps.length - 1) { curr++; render(); } });
+btnReplay.addEventListener("click", () => { curr = 0; render(); });
+
+render();
+</script>
+</body>
+</html>

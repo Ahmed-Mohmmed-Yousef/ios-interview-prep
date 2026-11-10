@@ -1,0 +1,237 @@
+export const meta = {
+  id: "tries",
+  summary: "Store strings in a prefix tree to enable fast autocomplete, spell checking, and prefix search in Swift.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "Trie cheatsheet for coding interviews",
+      url: "https://www.techinterviewhandbook.org/algorithms/trie/"
+    },
+    {
+      title: "Swift Standard Library: String",
+      url: "https://developer.apple.com/documentation/swift/string"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    Your iOS app needs an instant search bar that suggests contact names as the user types each letter. Which data structure searches prefixes without scanning every name?
+  </Question>
+  <Guess>
+    <Option id="a">A hash table Set that filters all entries with the hasPrefix method.</Option>
+    <Option id="b">A binary heap that pops the minimum name on every keystroke.</Option>
+    <Option id="c" correct>A trie prefix tree that traverses only the typed characters in linear time.</Option>
+    <Option id="d">An unsorted array that scans every contact name from first to last.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+A trie (pronounced "try") is a tree data structure used to store and search strings. It is also called a prefix tree.
+
+<Analogy>
+  Think of a paper address book organized by tabs. You open tab A, then look down the AP column, then APP. Shared prefixes share the same path.
+</Analogy>
+
+In a standard tree, each node holds an entire value. In a trie, each node represents a single character or edge.
+
+The root node is empty. Words with common starting letters share the same ancestral path.
+
+For example, the words "app" and "apple" share the nodes for 'a', 'p', and 'p'. The node for the second 'p' has a flag marked `isEndOfWord = true`. This marks that "app" is a complete word.
+
+Children then continue down to 'l' and 'e'. The 'e' node also has `isEndOfWord = true`.
+
+Key operations include:
+
+- **Insert**: Walk character by character from the root. Create missing nodes along the way. Mark the final node as the end of a word.
+- **Search**: Follow the characters of the target word. If any character link is missing, return false. If found, check that `isEndOfWord` is true.
+- **StartsWith**: Follow the prefix characters. If all exist in the trie, return true immediately.
+
+All three operations take $O(L)$ time, where $L$ is the length of the word or prefix. This search time is independent of how many words exist in the dictionary.
+
+## See it
+
+<Diagram id="tries" caption="Trace how words share prefix nodes and how searches find exact words and prefixes." />
+
+## In code
+
+Here is an idiomatic trie implementation in Swift using a class-based node with a character dictionary.
+
+```swift
+final class TrieNode {
+    var children: [Character: TrieNode] = [:]
+    var isEndOfWord = false
+}
+
+final class Trie {
+    private let root = TrieNode()
+
+    func insert(_ word: String) {
+        var current = root
+        for char in word {
+            if let next = current.children[char] {
+                current = next
+            } else {
+                let newNode = TrieNode()
+                current.children[char] = newNode
+                current = newNode
+            }
+        }
+        current.isEndOfWord = true
+    }
+
+    func search(_ word: String) -> Bool {
+        var current = root
+        for char in word {
+            guard let next = current.children[char] else { return false }
+            current = next
+        }
+        return current.isEndOfWord
+    }
+
+    func startsWith(_ prefix: String) -> Bool {
+        var current = root
+        for char in prefix {
+            guard let next = current.children[char] else { return false }
+            current = next
+        }
+        return true
+    }
+}
+
+let trie = Trie()
+trie.insert("apple")
+trie.insert("app")
+
+print("Search apple: \(trie.search("apple"))")
+print("Search app: \(trie.search("app"))")
+print("Search appl: \(trie.search("appl"))")
+print("StartsWith appl: \(trie.startsWith("appl"))")
+```
+```output
+Search apple: true
+Search app: true
+Search appl: false
+StartsWith appl: true
+```
+
+Next, here is how to implement autocomplete suggestions. We find the prefix node and collect all descendant words using depth-first search.
+
+```swift
+final class TrieNode {
+    var children: [Character: TrieNode] = [:]
+    var isEndOfWord = false
+}
+
+final class AutocompleteTrie {
+    private let root = TrieNode()
+
+    func insert(_ word: String) {
+        var current = root
+        for char in word {
+            if let next = current.children[char] {
+                current = next
+            } else {
+                let newNode = TrieNode()
+                current.children[char] = newNode
+                current = newNode
+            }
+        }
+        current.isEndOfWord = true
+    }
+
+    func wordsMatching(prefix: String) -> [String] {
+        var current = root
+        for char in prefix {
+            guard let next = current.children[char] else { return [] }
+            current = next
+        }
+        var results: [String] = []
+        dfs(node: current, prefix: prefix, results: &results)
+        return results.sorted()
+    }
+
+    private func dfs(node: TrieNode, prefix: String, results: inout [String]) {
+        if node.isEndOfWord {
+            results.append(prefix)
+        }
+        for (char, child) in node.children {
+            dfs(node: child, prefix: prefix + String(char), results: &results)
+        }
+    }
+}
+
+let searchIndex = AutocompleteTrie()
+searchIndex.insert("swift")
+searchIndex.insert("swiftui")
+searchIndex.insert("swiftpm")
+searchIndex.insert("string")
+
+print("Matches for swift: \(searchIndex.wordsMatching(prefix: "swift"))")
+```
+```output
+Matches for swift: ["swift", "swiftpm", "swiftui"]
+```
+
+<TryIt>
+  Open a Swift Playground. Insert names into a trie. Implement a delete method that removes words without deleting prefixes shared by other words.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    What is the difference between the search method and the startsWith method in a trie?
+  </Question>
+  <Option id="a">The search method runs in quadratic time while startsWith runs in linear time.</Option>
+  <Option id="b" correct>The search method requires isEndOfWord to be true, while startsWith only checks that prefix nodes exist.</Option>
+  <Option id="c">The startsWith method reorders trie nodes into a binary search tree.</Option>
+  <Option id="d">The search method only works on ASCII strings with fewer than four letters.</Option>
+  <Explanation>
+    A prefix may exist in the trie without being a complete word. The search method checks the end-of-word flag at the final node.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    Why is a trie faster than a hash set for prefix autocomplete queries?
+  </Question>
+  <Option id="a">Hash sets can not store strings that contain vowel letters.</Option>
+  <Option id="b">Tries store all words in a single continuous memory byte buffer.</Option>
+  <Option id="c" correct>A trie traverses only the prefix characters in O(P) time, while a hash set must scan all N words.</Option>
+  <Option id="d">Hash set lookups take exponential time for all string searches.</Option>
+  <Explanation>
+    Checking if any word starts with a prefix in a hash set requires scanning every word. A trie walks down directly in prefix-length time.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Returning true for prefixes that are not words">
+  In the search method, reaching the final node is not enough. You must verify that `isEndOfWord` is true. Otherwise, searching for prefix "app" when only "apple" exists wrongly returns true.
+</Trap>
+
+<Trap label="Using fixed-size 26-element arrays for Unicode strings">
+  In Swift, strings can include accents, spaces, and emoji. Using an array of size 26 crashes when non-ASCII letters arrive. Use `[Character: TrieNode]` for safe Unicode support.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  I use a trie when an application requires prefix queries, typeahead autocomplete, or dictionary lookups. Unlike a hash table, which takes O(N) to check prefixes across all words, a trie matches a prefix of length P in O(P) time. In Swift, I implement nodes using a class with a dictionary mapping characters to child nodes and an end-of-word Boolean flag.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I select a trie for string dictionary tasks where prefix lookups dominate. A trie bounds operations to O(L) time regardless of dataset size. To optimize memory in mobile apps, I consider compact representations like Radix Trees or Patricia Tries that collapse single-child chains. For autocomplete, I store top completion scores directly on nodes so queries avoid deep tree traversals during fast keystrokes.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  A trie stores strings by sharing common prefix paths. Operations run in time proportional to word length, independent of dictionary size. Use `isEndOfWord` to distinguish full words from prefixes. In Swift, use a reference-type node with a `[Character: TrieNode]` dictionary for Unicode support.
+</Recap>
+
+## Go deeper
+
+- Tech Interview Handbook: Trie Cheatsheet: https://www.techinterviewhandbook.org/algorithms/trie/
+- Swift Standard Library: String: https://developer.apple.com/documentation/swift/string
