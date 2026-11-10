@@ -1,0 +1,183 @@
+export const meta = {
+  id: "intervals",
+  summary: "Sort and process overlapping ranges in Swift to solve scheduling, calendar conflicts, and timeline problems.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "Interval cheatsheet for coding interviews",
+      url: "https://www.techinterviewhandbook.org/algorithms/interval/"
+    },
+    {
+      title: "Swift Standard Library: ClosedRange",
+      url: "https://developer.apple.com/documentation/swift/closedrange"
+    },
+    {
+      title: "Apple Developer Documentation: DateInterval",
+      url: "https://developer.apple.com/documentation/foundation/dateinterval"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    Your calendar app receives four meeting slots: 9 to 11, 10 to 12, 13 to 14, and 13 to 15. What are the combined busy time blocks?
+  </Question>
+  <Guess>
+    <Option id="a">Four separate time blocks because each meeting has a distinct title.</Option>
+    <Option id="b" correct>Two busy blocks: 9 to 12 and 13 to 15, because overlapping intervals merge together.</Option>
+    <Option id="c">One single continuous busy block from 9 to 15 without lunch breaks.</Option>
+    <Option id="d">Three blocks: 9 to 10, 11 to 12, and 14 to 15, keeping only non-conflicting gaps.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+An interval is a range with a start value and an end value, such as `[start, end]`.
+
+<Analogy>
+  Think of reserving meeting rooms on a shared calendar. If one person books 1 PM to 3 PM and another books 2 PM to 4 PM, they overlap. The combined busy span is 1 PM to 4 PM.
+</Analogy>
+
+Two intervals A and B overlap if one begins before the other finishes:
+
+- If intervals are sorted by start time, interval B overlaps with A when `B.start <= A.end`.
+- When they overlap, their merged interval starts at `min(A.start, B.start)` and ends at `max(A.end, B.end)`.
+
+Sorting is the key to solving interval problems. When intervals are sorted by start time, you only need to compare each interval with the last merged interval.
+
+This reduces a quadratic problem to an $O(N \log N)$ algorithm.
+
+In Apple frameworks, intervals appear frequently:
+
+- `ClosedRange` in the Swift standard library models ranges like `1...5`.
+- `DateInterval` in Foundation represents spans between two calendar dates.
+- `CMTimeRange` in AVFoundation defines start times and durations for audio and video tracks.
+
+## See it
+
+<Diagram id="intervals" caption="Follow how sorting and comparing endpoints merges overlapping intervals step by step." />
+
+## In code
+
+Here is how to merge overlapping intervals in Swift by sorting by start time.
+
+```swift
+func mergeIntervals(_ intervals: [[Int]]) -> [[Int]] {
+    guard intervals.count > 1 else { return intervals }
+    let sorted = intervals.sorted { $0[0] < $1[0] }
+    var merged: [[Int]] = [sorted[0]]
+
+    for current in sorted.dropFirst() {
+        var last = merged[merged.count - 1]
+        if current[0] <= last[1] {
+            last[1] = max(last[1], current[1])
+            merged[merged.count - 1] = last
+        } else {
+            merged.append(current)
+        }
+    }
+    return merged
+}
+
+let meetings = [[1, 3], [2, 6], [8, 10], [15, 18]]
+print("Merged intervals: \(mergeIntervals(meetings))")
+```
+```output
+Merged intervals: [[1, 6], [8, 10], [15, 18]]
+```
+
+Next, here is how to calculate the minimum number of conference rooms needed for concurrent meetings using a two-pointer sweep-line approach.
+
+```swift
+func minMeetingRooms(_ intervals: [[Int]]) -> Int {
+    guard !intervals.isEmpty else { return 0 }
+    let starts = intervals.map { $0[0] }.sorted()
+    let ends = intervals.map { $0[1] }.sorted()
+
+    var startPointer = 0
+    var endPointer = 0
+    var roomsUsed = 0
+    var maxRooms = 0
+
+    while startPointer < starts.count {
+        if starts[startPointer] < ends[endPointer] {
+            roomsUsed += 1
+            maxRooms = max(maxRooms, roomsUsed)
+            startPointer += 1
+        } else {
+            roomsUsed -= 1
+            endPointer += 1
+        }
+    }
+    return maxRooms
+}
+
+let schedule = [[0, 30], [5, 10], [15, 20]]
+print("Minimum rooms needed: \(minMeetingRooms(schedule))")
+```
+```output
+Minimum rooms needed: 2
+```
+
+<TryIt>
+  Open a Swift Playground. Write a function that takes a sorted list of non-overlapping intervals and inserts a new interval into the correct position.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    Why is sorting intervals by start time necessary before merging overlapping ranges?
+  </Question>
+  <Option id="a">Sorting converts negative start numbers into positive integers.</Option>
+  <Option id="b" correct>Sorting guarantees that potential overlaps appear consecutively, avoiding quadratic pairwise comparisons.</Option>
+  <Option id="c">Swift arrays can not be iterated with for-in loops unless elements are pre-sorted.</Option>
+  <Option id="d">Sorting removes all duplicate numbers from memory automatically.</Option>
+  <Explanation>
+    Without sorting, an interval early in the array might overlap with an interval at the end. Sorting by start time keeps overlapping candidates adjacent.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    When merging overlapping interval B into interval A, why must the new end point be calculated as max(A.end, B.end)?
+  </Question>
+  <Option id="a">Because end points in Swift must always be prime numbers.</Option>
+  <Option id="b">Because interval B might have a negative length in standard time coordinates.</Option>
+  <Option id="c" correct>Because interval A might completely enclose interval B, so B.end could be smaller than A.end.</Option>
+  <Option id="d">Because the Swift compiler rejects assignment operations without max function calls.</Option>
+  <Explanation>
+    Consider interval A [1, 10] and interval B [2, 5]. Setting the end to B.end would wrongly shrink the span to 5 instead of 10.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Overwriting end point instead of taking max(last.end, current.end)">
+  If one interval completely covers another, such as [1, 8] and [2, 4], blindly assigning `last[1] = current[1]` shrinks your interval. Always use `max(last.end, current.end)`.
+</Trap>
+
+<Trap label="Sorting by the wrong endpoint for the problem">
+  Merging intervals requires sorting by start time. Greedy scheduling to find the maximum non-overlapping intervals requires sorting by end time. Know which endpoint to sort by.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  I solve interval problems by sorting first. For merging intervals, I sort by start time in O(N log N). Then I iterate through the sorted list, comparing each interval with the last merged entry. If the start is less than or equal to the previous end, I merge them by taking the maximum end. Otherwise, I append the new interval.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I classify interval questions into merge problems, sweep-line problems, or greedy scheduling. For merge tasks, sorting by start time gives an O(N log N) solution. For concurrent room allocation, I use a sweep-line with two pointers or a min-heap tracking active end times. For maximum disjoint intervals, I sort greedily by end time. In iOS apps, this models calendar collisions and video track composition.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Interval problems represent spans as start and end pairs. Sort by start time to detect overlaps in a single linear pass. Merge overlapping intervals by taking the maximum end point. Use two-pointer sweep-line or min-heaps to count concurrent resources.
+</Recap>
+
+## Go deeper
+
+- Tech Interview Handbook: Interval Cheatsheet: https://www.techinterviewhandbook.org/algorithms/interval/
+- Swift Standard Library: ClosedRange: https://developer.apple.com/documentation/swift/closedrange
+- Apple Developer Documentation: DateInterval: https://developer.apple.com/documentation/foundation/dateinterval

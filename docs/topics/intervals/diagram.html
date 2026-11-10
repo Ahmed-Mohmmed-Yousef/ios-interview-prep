@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Merge Overlapping Intervals Timeline</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --int-color: #0284c7; --int-soft: #e0f2fe;
+  --done-color: #059669; --done-soft: #d1fae5;
+  --alert-color: #d97706; --alert-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --int-color: #38bdf8; --int-soft: #082f49;
+  --done-color: #34d399; --done-soft: #064e3b;
+  --alert-color: #fbbf24; --alert-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.controls {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  padding: 6px 14px; border-radius: 8px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: all 0.2s ease;
+}
+button:hover:not(:disabled) { border-color: var(--int-color); color: var(--int-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-weight: 600; font-size: 14px; color: var(--muted); }
+
+.panels { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-timeline .kind { background: var(--int-soft); color: var(--int-color); }
+.p-state .kind { background: var(--done-soft); color: var(--done-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.axis-line { stroke: var(--line); stroke-width: 1.5; }
+.tick-text { font-family: var(--font-code); font-size: 10px; fill: var(--muted); text-anchor: middle; }
+.bar { rx: 5; ry: 5; transition: all 0.3s ease; }
+.bar-input { fill: var(--int-soft); stroke: var(--int-color); stroke-width: 1.5; }
+.bar-merged { fill: var(--done-soft); stroke: var(--done-color); stroke-width: 2; }
+.bar-alert { fill: var(--alert-soft); stroke: var(--alert-color); stroke-width: 2; }
+.bar-text { font-family: var(--font-code); font-weight: 600; font-size: 11px; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; }
+
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-badge {
+  display: inline-block; font-family: var(--font-code); font-size: 12px;
+  padding: 4px 8px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Animated Merge Intervals Diagram">
+  <div class="controls">
+    <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+    <div class="btn-group">
+      <button id="btnBack" type="button" aria-label="Previous step">Back</button>
+      <button id="btnNext" type="button" aria-label="Next step">Next</button>
+      <button id="btnReplay" type="button" aria-label="Replay from start">Replay</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <!-- Timeline Panel -->
+    <div class="panel p-timeline">
+      <h3><span>Interval Timeline</span><span class="kind">Sorted Axis</span></h3>
+      <p class="caption" id="timeCaption">Sorted inputs: [1, 3], [2, 6], [8, 10], [15, 18]. Seed merged = [[1, 3]].</p>
+      <svg viewBox="0 0 340 180" aria-label="Interval Timeline Visualization">
+        <!-- Axis line (0 to 20 scale, mapped to x: 20 to 320, width 300 / 20 = 15 px per unit) -->
+        <line x1="20" y1="150" x2="320" y2="150" class="axis-line" />
+        <!-- Ticks -->
+        <text x="20" y="165" class="tick-text">0</text>
+        <text x="95" y="165" class="tick-text">5</text>
+        <text x="170" y="165" class="tick-text">10</text>
+        <text x="245" y="165" class="tick-text">15</text>
+        <text x="320" y="165" class="tick-text">20</text>
+
+        <!-- Input Interval 1: [1, 3] -> x: 35, w: 30 -->
+        <rect id="barIn1" x="35" y="25" width="30" height="20" class="bar bar-input" />
+        <text x="50" y="36" class="bar-text">[1,3]</text>
+
+        <!-- Input Interval 2: [2, 6] -> x: 50, w: 60 -->
+        <rect id="barIn2" x="50" y="55" width="60" height="20" class="bar bar-input" />
+        <text x="80" y="66" class="bar-text">[2,6]</text>
+
+        <!-- Input Interval 3: [8, 10] -> x: 140, w: 30 -->
+        <rect id="barIn3" x="140" y="25" width="30" height="20" class="bar bar-input" />
+        <text x="155" y="36" class="bar-text">[8,10]</text>
+
+        <!-- Input Interval 4: [15, 18] -> x: 245, w: 45 -->
+        <rect id="barIn4" x="245" y="25" width="45" height="20" class="bar bar-input" />
+        <text x="267" y="36" class="bar-text">[15,18]</text>
+
+        <!-- Merged Output Row (y: 105) -->
+        <rect id="barOut1" x="35" y="105" width="30" height="24" class="bar bar-merged" />
+        <text id="textOut1" x="50" y="118" class="bar-text">[1,3]</text>
+
+        <rect id="barOut2" x="140" y="105" width="30" height="24" class="bar bar-merged" style="display:none;" />
+        <text id="textOut2" x="155" y="118" class="bar-text" style="display:none;">[8,10]</text>
+
+        <rect id="barOut3" x="245" y="105" width="45" height="24" class="bar bar-merged" style="display:none;" />
+        <text id="textOut3" x="267" y="118" class="bar-text" style="display:none;">[15,18]</text>
+      </svg>
+    </div>
+
+    <!-- State Panel -->
+    <div class="panel p-state">
+      <h3><span>Merge State</span><span class="kind">Trace</span></h3>
+      <p class="caption" id="stateCaption">Initialize merged array with the first sorted interval.</p>
+      <div class="code" id="stateCode">merged = [[1, 3]]<br>next = [2, 6]</div>
+      <div class="badge-row">
+        <span class="status-badge" id="opBadge">Status: Initialized</span>
+        <span class="status-badge" id="overlapBadge">Overlap: Checking</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    counter: "Step 1 of 4",
+    timeCap: "Sorted intervals: [1, 3], [2, 6], [8, 10], [15, 18]. Seed merged = [[1, 3]].",
+    stateCap: "First interval [1, 3] is placed in merged. Next candidate to inspect is [2, 6].",
+    code: "merged = [[1, 3]]\ninspecting: current = [2, 6]\ncondition: current.start (2) <= last.end (3)",
+    op: "Status: Seed First Interval",
+    overlap: "Candidate: [2, 6]",
+    out1Width: 30, out1Text: "[1,3]",
+    show2: false, show3: false,
+    barIn2Class: "bar bar-input"
+  },
+  {
+    counter: "Step 2 of 4",
+    timeCap: "Overlap detected! [2, 6] starts at 2 <= 3. Merge: new end = max(3, 6) = 6.",
+    stateCap: "Merged interval expands from [1, 3] to [1, 6], absorbing both intervals.",
+    code: "2 <= 3 -> OVERLAP TRUE\nmerged[0].end = max(3, 6) -> 6\nmerged = [[1, 6]]",
+    op: "Operation: Merge [1,3] & [2,6]",
+    overlap: "Merged into [1, 6]",
+    out1Width: 75, out1Text: "[1,6]",
+    show2: false, show3: false,
+    barIn2Class: "bar bar-alert"
+  },
+  {
+    counter: "Step 3 of 4",
+    timeCap: "Inspect [8, 10]: start 8 > previous end 6. No overlap! Append [8, 10].",
+    stateCap: "A gap exists between 6 and 8. The new interval cannot merge; append as a distinct range.",
+    code: "8 > 6 -> OVERLAP FALSE\nmerged.append([8, 10])\nmerged = [[1, 6], [8, 10]]",
+    op: "Operation: Append [8, 10]",
+    overlap: "Disjoint Interval",
+    out1Width: 75, out1Text: "[1,6]",
+    show2: true, show3: false,
+    barIn2Class: "bar bar-input"
+  },
+  {
+    counter: "Step 4 of 4",
+    timeCap: "Inspect [15, 18]: start 15 > previous end 10. No overlap! Append [15, 18]. Done!",
+    stateCap: "Final merged result: [[1, 6], [8, 10], [15, 18]]. Completed in O(N log N) time.",
+    code: "15 > 10 -> OVERLAP FALSE\nmerged.append([15, 18])\nFinal: [[1, 6], [8, 10], [15, 18]]",
+    op: "Status: Merge Complete",
+    overlap: "Result: 3 Intervals",
+    out1Width: 75, out1Text: "[1,6]",
+    show2: true, show3: true,
+    barIn2Class: "bar bar-input"
+  }
+];
+
+let curr = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+const timeCap = document.getElementById("timeCaption");
+const stateCap = document.getElementById("stateCaption");
+const stateCode = document.getElementById("stateCode");
+const opBadge = document.getElementById("opBadge");
+const overlapBadge = document.getElementById("overlapBadge");
+
+const barIn2 = document.getElementById("barIn2");
+const barOut1 = document.getElementById("barOut1");
+const textOut1 = document.getElementById("textOut1");
+const barOut2 = document.getElementById("barOut2");
+const textOut2 = document.getElementById("textOut2");
+const barOut3 = document.getElementById("barOut3");
+const textOut3 = document.getElementById("textOut3");
+
+function render() {
+  const s = steps[curr];
+  stepCounter.textContent = s.counter;
+  btnBack.disabled = curr === 0;
+  btnNext.disabled = curr === steps.length - 1;
+
+  timeCap.textContent = s.timeCap;
+  stateCap.textContent = s.stateCap;
+  stateCode.innerHTML = s.code.replace(/\n/g, "<br>");
+  opBadge.textContent = s.op;
+  overlapBadge.textContent = s.overlap;
+
+  barIn2.className.baseVal = s.barIn2Class;
+  barOut1.setAttribute("width", s.out1Width);
+  textOut1.textContent = s.out1Text;
+  textOut1.setAttribute("x", 35 + s.out1Width / 2);
+
+  barOut2.style.display = s.show2 ? "block" : "none";
+  textOut2.style.display = s.show2 ? "block" : "none";
+
+  barOut3.style.display = s.show3 ? "block" : "none";
+  textOut3.style.display = s.show3 ? "block" : "none";
+}
+
+btnBack.addEventListener("click", () => { if (curr > 0) { curr--; render(); } });
+btnNext.addEventListener("click", () => { if (curr < steps.length - 1) { curr++; render(); } });
+btnReplay.addEventListener("click", () => { curr = 0; render(); });
+
+render();
+</script>
+</body>
+</html>
