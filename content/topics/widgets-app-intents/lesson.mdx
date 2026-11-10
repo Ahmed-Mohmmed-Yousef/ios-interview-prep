@@ -1,0 +1,220 @@
+export const meta = {
+  id: "widgets-app-intents",
+  summary: "Build Home Screen widgets using WidgetKit timelines and enable interactive actions with App Intents.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.0", xcode: "16.0", ios: "17.0" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "WidgetKit", url: "https://developer.apple.com/documentation/widgetkit", kind: "official" },
+    { title: "App Intents", url: "https://developer.apple.com/documentation/appintents", kind: "official" },
+    { title: "AppIntentTimelineProvider", url: "https://developer.apple.com/documentation/widgetkit/appintenttimelineprovider", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Can an iOS Home Screen widget continuously run live timers or background network loops?</Question>
+  <Guess>
+    <Option id="a">Yes, widgets run standard foreground run loops continuously in system memory.</Option>
+    <Option id="b" correct>No, widgets display pre-calculated views from a timeline generated in a brief extension process.</Option>
+    <Option id="c">Yes, if the widget enables the audio background execution mode.</Option>
+    <Option id="d">No, widgets can only show static text saved in user preferences during app launch.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a digital bus timetable billboard at a street corner.
+The transit agency does not pay a person to stand by the billboard and shout updates every minute.
+Instead, the agency generates a schedule for the entire morning and loads it onto the billboard.
+When the clock strikes eight, the billboard shows the eight-o'clock departure.
+When a commuter taps the request button, a message sends to the dispatch center to update the bus schedule.
+WidgetKit works like this timetable billboard by rendering pre-scheduled entries along a timeline.
+</Analogy>
+
+A **widget** gives users glanceable, timely information on their Home Screen, Lock Screen, or Mac desktop.
+Widgets run in a separate extension process rather than inside your main application.
+They do not stay alive continuously in device memory.
+Instead, WidgetKit asks your widget extension for a **timeline** of entries.
+Each entry contains a timestamp and the data model required to render a SwiftUI view.
+
+### Timeline reload policies
+
+When providing a timeline, your provider specifies a reload policy:
+- `.atEnd`: iOS asks for a new timeline after the date of the last entry passes.
+- `.after(Date)`: iOS schedules a timeline reload at or after a specific future date.
+- `.never`: iOS does not automatically refresh the timeline. The widget updates only when your app or a push notification triggers a reload.
+
+### The reload budget
+
+iOS manages a daily **reload budget** for each widget to protect battery health.
+Typically, iOS allows forty to seventy background updates each day.
+Tapping interactive buttons or using the main app recharges this budget.
+
+### App Intents for configuration and interactivity
+
+Before iOS 17, widgets were read-only displays.
+Tapping a widget opened the main app through a URL link.
+With **App Intents**, you define Swift structs that represent user actions.
+In iOS 17 and later, widgets support interactive buttons and toggles using `Button(intent:)`.
+When tapped, the system runs the intent in the background without bringing your app to the foreground.
+Users can also configure widget settings by selecting an intent that conforms to `WidgetConfigurationIntent`.
+
+**Widgets display pre-rendered timelines, and App Intents allow users to configure data and trigger instant actions.**
+
+## See it
+
+<Diagram id="widgets-app-intents-main" caption="How WidgetKit schedules timeline entries, displays pre-rendered views over time, and executes interactive App Intents.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: WidgetKit Extension, Timeline Entries Array, Home Screen Display Node, Interactive Button Tap, AppIntent Execution Handler.
+  - Step 1: Widget extension generates a timeline with entries for 9:00, 10:00, and 11:00.
+  - Step 2: iOS caches views and switches displayed content at each scheduled timestamp without running code.
+  - Step 3: User taps an interactive button on the widget at 10:30.
+  - Step 4: iOS launches the App Intent in the background, updates shared data, and reloads the timeline.
+  - Static version (reduced motion): Displays a timeline axis showing scheduled entry points, active screen display, and intent callback path.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What happens when a user taps an interactive button inside an iOS 17 widget?</Question>
+  <Option id="a">The main app launches into the foreground and displays the root view controller.</Option>
+  <Option id="b" correct>The system executes the App Intent in the background without opening the main app.</Option>
+  <Option id="c">The iPhone displays a mandatory confirmation alert before taking action.</Option>
+  <Explanation>Interactive widgets run AppIntent actions in the background extension process without interrupting the user.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Creating a timeline of entries
+
+In your timeline provider, generate a collection of `TimelineEntry` objects across future intervals.
+
+```swift
+import Foundation
+
+struct WeatherEntry {
+    let date: Date
+    let temperature: Int
+}
+
+struct WeatherTimeline {
+    static func generateHourlyEntries(startDate: Date, temperatures: [Int]) -> [WeatherEntry] {
+        var entries: [WeatherEntry] = []
+        for (index, temp) in temperatures.enumerated() {
+            let entryDate = startDate.addingTimeInterval(Double(index * 3600))
+            entries.append(WeatherEntry(date: entryDate, temperature: temp))
+        }
+        return entries
+    }
+}
+
+let base = Date(timeIntervalSince1970: 1700000000)
+let timeline = WeatherTimeline.generateHourlyEntries(startDate: base, temperatures: [68, 72, 70])
+
+for entry in timeline {
+    print("Temp: \(entry.temperature)")
+}
+```
+
+```output
+Temp: 68
+Temp: 72
+Temp: 70
+```
+
+iOS renders each entry automatically when its scheduled date arrives.
+
+### Handling interactive buttons with AppIntent
+
+Define an `AppIntent` to perform an action when the user taps a button in your widget.
+
+```swift
+import Foundation
+
+struct CounterIntent {
+    static func perform(currentCount: Int, step: Int) -> Int {
+        let updated = currentCount + step
+        print("Updated count: \(updated)")
+        return updated
+    }
+}
+
+let initialCount = 5
+let newCount = CounterIntent.perform(currentCount: initialCount, step: 1)
+print("Finished: \(newCount)")
+```
+
+```output
+Updated count: 6
+Finished: 6
+```
+
+In your widget view, attach this intent using `Button(intent:)`.
+After changing shared data, call `WidgetCenter.shared.reloadTimelines(ofKind:)` to refresh the interface.
+
+<QuickCheck>
+  <Question>Which reload policy tells iOS not to schedule automatic background refreshes?</Question>
+  <Option id="a">.after(Date.distantPast)</Option>
+  <Option id="b" correct>.never</Option>
+  <Option id="c">.atEnd</Option>
+  <Explanation>The .never policy waits for your application or a push notification to request a timeline reload.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open Xcode, add a Widget Extension target to your project, and inspect the default TimelineProvider implementation.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Treating widgets like mini-apps">
+Widgets do not support continuous loops, video playback, or touch gesture recognizers.
+A `List` in a widget does not scroll like a normal iOS list.
+If you need a live countdown timer, do not run a timer in code.
+Instead, use `Text(date, style: .timer)`, which renders countdowns client-side in the system process.
+</Trap>
+
+<Trap title="Using UserDefaults.standard across extension boundaries">
+Your widget extension runs in a separate sandbox container from your main app.
+Reading `UserDefaults.standard` inside a widget returns empty values because it accesses a different storage file.
+To share data between your main app and widget, configure an App Group in Xcode.
+Then access your shared storage using `UserDefaults(suiteName: "group.com.example")`.
+</Trap>
+
+<Trap title="Exhausting the daily reload budget">
+Requesting timeline reloads every minute quickly drains your daily budget.
+Once the budget runs out, iOS ignores further background reload requests until the next day.
+Always generate future timeline entries ahead of time instead of repeatedly requesting immediate reloads.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Widgets provide glanceable information on the Home Screen using SwiftUI views.
+They do not run continuously in memory.
+Instead, a widget extension creates a timeline of entries containing timestamps and model data.
+iOS displays each entry when its scheduled date arrives.
+In iOS 17 and later, widgets support interactive buttons and toggles powered by App Intents.
+Data is shared between the main app and the widget using an App Group container.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+WidgetKit uses an asynchronous, timeline-driven architecture designed to minimize battery drain.
+Widgets render static snapshots from a `Timeline` using `.atEnd`, `.after(date)`, or `.never` reload policies.
+Because iOS enforces a daily reload budget of forty to seventy updates, I design providers to generate multi-hour forecast entries upfront.
+For interactivity, I use modern `AppIntent` implementations where `perform()` mutates shared SwiftData or App Group storage and calls `WidgetCenter.shared.reloadTimelines`.
+For dynamic countdowns, I use `Text(..., style: .timer)` rather than triggering expensive timeline reloads.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Widgets run in an independent extension process and do not stay in memory continuously.
+- WidgetKit uses timelines composed of `TimelineEntry` objects with timestamps and data models.
+- Reload policies include `.atEnd`, `.after(Date)`, and `.never`.
+- iOS enforces a daily reload budget to protect battery life and system performance.
+- In iOS 17+, `Button(intent:)` and `Toggle(isOn:intent:)` enable interactive widgets without launching the app.
+- Interactive actions execute `AppIntent.perform()` in the background to update data.
+- The main app and widget share data through an App Group container using `UserDefaults(suiteName:)`.
+- Live countdowns should use `Text(date, style: .timer)` rather than frequent timeline reloads.
+</Recap>
