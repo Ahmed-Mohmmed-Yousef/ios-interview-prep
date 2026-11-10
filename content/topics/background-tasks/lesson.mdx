@@ -1,0 +1,196 @@
+export const meta = {
+  id: "background-tasks",
+  summary: "Perform background work responsibly using short execution tasks, BGTaskScheduler, and background download sessions.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "Background Tasks (Apple)", url: "https://developer.apple.com/documentation/backgroundtasks", kind: "official" },
+    { title: "BGTaskScheduler (Apple)", url: "https://developer.apple.com/documentation/backgroundtasks/bgtaskscheduler", kind: "official" },
+    { title: "Extending your app background execution time", url: "https://developer.apple.com/documentation/uikit/uiapplication/1623031-beginbackgroundtask", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does iOS terminate an app that forgets to call endBackgroundTask after requesting background execution time?</Question>
+  <Guess>
+    <Option id="a">The kernel treats unclosed tasks as unauthorized cryptocurrency mining activities.</Option>
+    <Option id="b" correct>The system watchdog timer expires to protect battery life and terminates unresponsive processes.</Option>
+    <Option id="c">Apple revokes the developer team certificate whenever a background task exceeds ten seconds.</Option>
+    <Option id="d">The flash memory storage controller locks read access until the device connects to power.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine an office building where the security guard locks the front doors each evening at six.
+If you have a letter on your desk, you ask the guard for ten extra minutes to seal and mail it.
+The guard grants you a temporary badge, but you must check out before the clock runs out.
+If you need hours of heavy filing, you schedule a night maintenance crew while the building is closed.
+In iOS, short background tasks give you those extra minutes, while BGTaskScheduler coordinates the night crew.
+</Analogy>
+
+To preserve battery life and keep devices fast, iOS suspends apps shortly after the user returns to the Home Screen.
+Suspended apps cannot execute code unless they ask the system for explicit background time.
+
+iOS offers three distinct ways to handle background work:
+1. **Short background execution**: `beginBackgroundTask` gives your app around 30 seconds to finish in-flight work before suspension.
+2. **Scheduled background tasks**: `BGTaskScheduler` schedules work that runs opportunistically when the device is idle or charging.
+3. **Background transfers**: Background `URLSession` hands file uploads and downloads to a system daemon that continues even if your app closes.
+
+`BGTaskScheduler` provides two main task classes:
+- **`BGAppRefreshTask`**: Short tasks of roughly 30 seconds to fetch fresh feed items or update content.
+- **`BGProcessingTask`**: Longer tasks that can run for several minutes to do database cleanup, backup files, or train machine learning models.
+
+**Never expect background tasks to run on an exact schedule; iOS schedules work opportunistically based on battery and usage patterns.**
+
+## See it
+
+<Diagram id="background-tasks-main" caption="How iOS schedules, launches, and expires background tasks using BGTaskScheduler.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: App Process, BGTaskScheduler Engine, System Battery & Power Monitor, Execution Window.
+  - Step 1: App registers task identifier and submits BGTaskRequest with earliestBeginDate.
+  - Step 2: System suspends app and monitors device idle state, charging, and network.
+  - Step 3: Conditions are met; system wakes app process and calls task launchHandler.
+  - Step 4: App completes work, calls setTaskCompleted(success: true), and system suspends app again.
+  - Static version (reduced motion): Displays a lifecycle flow chart comparing submission, waiting state, execution window, and task completion.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>When must you register task handlers with BGTaskScheduler.shared.register?</Question>
+  <Option id="a">Only when the device battery level reaches one hundred percent.</Option>
+  <Option id="b" correct>Before the app finishes launching in didFinishLaunchingWithOptions.</Option>
+  <Option id="c">Every time a network request completes successfully.</Option>
+  <Explanation>BGTaskScheduler requires handlers to be registered before app launch completes so the system can wake tasks properly.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Tracking background execution lifecycle
+
+Whenever you run background work, you must track state and inform the system when execution finishes.
+
+```swift
+import Foundation
+
+struct BackgroundTaskTracker {
+    var isRunning: Bool = false
+    var taskCompleted: Bool = false
+
+    mutating func startTask() {
+        isRunning = true
+    }
+
+    mutating func completeTask(success: Bool) {
+        isRunning = false
+        taskCompleted = success
+    }
+}
+
+var tracker = BackgroundTaskTracker()
+tracker.startTask()
+tracker.completeTask(success: true)
+print("Running: \(tracker.isRunning), Completed: \(tracker.taskCompleted)")
+```
+
+```output
+Running: false, Completed: true
+```
+
+Always call `setTaskCompleted(success:)` on your `BGTask` instance so iOS knows your task finished.
+
+### Configuring scheduled background requests
+
+You specify task requirements such as network availability and power connections when submitting requests.
+
+```swift
+import Foundation
+
+struct ScheduledTaskDescriptor {
+    let identifier: String
+    let earliestDelaySeconds: Double
+    let requiresNetwork: Bool
+
+    func plannedSummary() -> String {
+        "Task: \(identifier), Delay: \(Int(earliestDelaySeconds))s, Network: \(requiresNetwork)"
+    }
+}
+
+let descriptor = ScheduledTaskDescriptor(
+    identifier: "com.example.refresh",
+    earliestDelaySeconds: 900,
+    requiresNetwork: true
+)
+
+print(descriptor.plannedSummary())
+```
+
+```output
+Task: com.example.refresh, Delay: 900s, Network: true
+```
+
+The system uses `earliestBeginDate` as a lower bound hint; it will not run before that date, but may run much later.
+
+<QuickCheck>
+  <Question>What is the primary purpose of setting task.expirationHandler on a BGTask?</Question>
+  <Option id="a">To delete old files from the user Photos library automatically.</Option>
+  <Option id="b" correct>To cancel active work gracefully before the system terminates the app.</Option>
+  <Option id="c">To request an extra hour of execution time from the kernel.</Option>
+  <Explanation>If time runs out, iOS calls your expirationHandler so you can cancel async tasks and save progress cleanly.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open Xcode, add Background Modes in Signing and Capabilities, and use the debugger command to simulate task execution.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Forgetting task identifiers in Info.plist">
+You must add every background task identifier to `Info.plist` under `BGTaskSchedulerPermittedIdentifiers`.
+If you submit a task request with an unregistered identifier, the call throws an error.
+Double-check spelling between your Swift code constants and your `Info.plist` entries.
+</Trap>
+
+<Trap title="Assuming earliestBeginDate acts as a timer">
+`earliestBeginDate` is not an exact alarm clock.
+It only guarantees that iOS will not start the task before that timestamp.
+The actual execution time depends on battery level, charging status, and how often the user opens your app.
+</Trap>
+
+<Trap title="Forgetting to call endBackgroundTask on short tasks">
+When you call `beginBackgroundTask`, you enter an agreement with the system.
+If your code finishes or times out without calling `endBackgroundTask`, the system watchdog kills your process.
+Always wrap execution in a defer block or call `endBackgroundTask` inside your expiration handler.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+iOS suspends apps in the background to preserve battery life.
+For quick tasks like saving user data when leaving the app, I use `beginBackgroundTask` to get about 30 seconds of execution time.
+I always call `endBackgroundTask` when finished to prevent watchdog crashes.
+For long-term scheduled tasks, I use `BGTaskScheduler` with `BGAppRefreshTask` or `BGProcessingTask`.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+A reliable background architecture balances system constraints with data integrity.
+I register task identifiers in `Info.plist` and set up handlers before launch finishes.
+For heavy processing, I set `requiresExternalPower` and `requiresNetworkConnectivity` on `BGProcessingTaskRequest` so jobs run when the phone charges overnight.
+Every task sets an `expirationHandler` to cancel ongoing async work cleanly and calls `setTaskCompleted`.
+Finally, for large file transfers, I use background `URLSession` so transfers continue in the system daemon even if our app process is evicted from memory.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- iOS suspends background apps to protect battery life and system responsiveness.
+- Use `beginBackgroundTask` for short, immediate tasks (~30 seconds) and always call `endBackgroundTask`.
+- `BGTaskScheduler` manages scheduled tasks: `BGAppRefreshTask` for quick feeds and `BGProcessingTask` for heavy jobs.
+- Register permitted task identifiers in `Info.plist` under `BGTaskSchedulerPermittedIdentifiers`.
+- Register task handlers early in app launch before `didFinishLaunchingWithOptions` finishes.
+- Always implement `task.expirationHandler` and call `task.setTaskCompleted(success:)` when done.
+- Delegate large file transfers to background `URLSession` handled by the system daemon.
+</Recap>

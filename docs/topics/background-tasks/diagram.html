@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BGTaskScheduler Lifecycle and Execution Queue</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.stage-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-color);
+}
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-color); }
+
+.svg-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.text-sm { font-size: 0.875rem; color: var(--muted); }
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.code-box {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  color: var(--ink);
+  white-space: pre-wrap;
+  margin-top: 12px;
+}
+.fallback-list {
+  display: none;
+  margin-top: 16px;
+  padding-left: 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fallback-list { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host">
+  <div class="diagram-card" role="region" aria-label="BGTaskScheduler execution lifecycle stepper">
+    <div class="header-row">
+      <div>
+        <h2 class="stage-title" id="stageTitle">Step 1: Submit Task Request</h2>
+        <span class="text-sm" id="stepCounter">Step 1 of 4</span>
+      </div>
+      <span class="badge accent" id="statusBadge">Request Queued</span>
+    </div>
+
+    <div class="svg-container">
+      <svg viewBox="0 0 800 450" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Interactive diagram illustrating BGTaskScheduler scheduling, evaluation, launch, and completion">
+        <!-- Node 1: App Process (Left) -->
+        <g id="boxApp">
+          <rect x="50" y="70" width="200" height="260" rx="12" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+          <text x="70" y="105" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">App Process</text>
+          
+          <rect id="appStateRect" x="65" y="125" width="170" height="35" rx="6" fill="var(--accent-soft)" />
+          <text id="appStateText" x="80" y="147" fill="var(--accent-color)" font-family="var(--font-body)" font-size="12" font-weight="600">Active (Foreground)</text>
+
+          <rect x="65" y="175" width="170" height="135" rx="6" fill="var(--code-bg)" />
+          <text x="75" y="200" fill="var(--ink)" font-family="var(--font-code)" font-size="11">BGTaskScheduler</text>
+          <text id="lblHandler" x="75" y="225" fill="var(--muted)" font-family="var(--font-code)" font-size="10">handler: registered</text>
+          <text id="lblTaskStatus" x="75" y="250" fill="var(--muted)" font-family="var(--font-code)" font-size="10">status: submitting</text>
+          <text id="lblWork" x="75" y="280" fill="var(--accent-color)" font-family="var(--font-code)" font-size="10">task.setCompleted()</text>
+        </g>
+
+        <!-- Arrow 1: Submit to Scheduler -->
+        <path id="arrSubmit" d="M250 140 H 330" stroke="var(--accent-color)" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowhead)" opacity="1" />
+        <text id="txtSubmit" x="255" y="130" fill="var(--accent-color)" font-family="var(--font-code)" font-size="10">submit()</text>
+
+        <!-- Node 2: iOS BGTaskScheduler Queue (Center) -->
+        <g id="boxScheduler">
+          <rect x="340" y="60" width="220" height="280" rx="12" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+          <text x="360" y="95" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">BGTaskScheduler Queue</text>
+
+          <rect id="reqCard" x="355" y="115" width="190" height="85" rx="8" fill="var(--code-bg)" stroke="var(--line)" />
+          <text x="365" y="140" fill="var(--ink)" font-family="var(--font-code)" font-size="11">com.example.refresh</text>
+          <text x="365" y="160" fill="var(--muted)" font-family="var(--font-code)" font-size="10">earliestBegin: +15m</text>
+          <text id="lblReqPower" x="365" y="180" fill="var(--muted)" font-family="var(--font-code)" font-size="10">power: not required</text>
+
+          <!-- Conditions Evaluator Panel -->
+          <rect x="355" y="215" width="190" height="110" rx="8" fill="var(--bg)" stroke="var(--line)" />
+          <text x="365" y="235" fill="var(--ink)" font-family="var(--font-body)" font-size="11" font-weight="600">System Conditions:</text>
+          <text id="condBattery" x="365" y="255" fill="var(--muted)" font-family="var(--font-body)" font-size="10">• Battery: Sufficient</text>
+          <text id="condNetwork" x="365" y="275" fill="var(--muted)" font-family="var(--font-body)" font-size="10">• Network: Connected</text>
+          <text id="condState" x="365" y="295" fill="var(--muted)" font-family="var(--font-body)" font-size="10">• Device Idle: Waiting</text>
+        </g>
+
+        <!-- Node 3: Execution Engine / Wakeup (Right) -->
+        <g id="boxExecution">
+          <rect x="600" y="70" width="160" height="260" rx="12" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+          <text x="615" y="105" fill="var(--ink)" font-family="var(--font-body)" font-size="13" font-weight="600">OS Wake Engine</text>
+
+          <rect id="wakeIndicator" x="615" y="130" width="130" height="60" rx="8" fill="var(--code-bg)" stroke="var(--line)" />
+          <text id="txtWakeTitle" x="625" y="155" fill="var(--muted)" font-family="var(--font-body)" font-size="11" font-weight="600">Wake Status</text>
+          <text id="txtWakeSub" x="625" y="175" fill="var(--muted)" font-family="var(--font-body)" font-size="10">App Suspended</text>
+
+          <rect x="615" y="210" width="130" height="100" rx="8" fill="var(--code-bg)" stroke="var(--line)" />
+          <text x="625" y="235" fill="var(--ink)" font-family="var(--font-body)" font-size="11" font-weight="600">Timer Limit</text>
+          <text id="lblTimeLimit" x="625" y="260" fill="var(--muted)" font-family="var(--font-code)" font-size="10">~30 seconds</text>
+          <text id="lblExpireHandler" x="625" y="285" fill="var(--muted)" font-family="var(--font-code)" font-size="9">expirationHandler</text>
+        </g>
+
+        <!-- Dynamic Arrows -->
+        <path id="arrLaunch" d="M545 150 Q 580 150 600 150" stroke="var(--safe-color)" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowheadSafe)" opacity="0.1" />
+        <path id="arrReturnWake" d="M600 240 Q 420 380 250 250" stroke="var(--safe-color)" stroke-width="2.5" stroke-dasharray="6 4" fill="none" marker-end="url(#arrowheadSafe)" opacity="0.1" />
+
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="var(--accent-color)" />
+          </marker>
+          <marker id="arrowheadSafe" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="var(--safe-color)" />
+          </marker>
+          <marker id="arrowheadWarn" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="var(--warn-color)" />
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <div id="explainerText" class="text-sm">
+      The app registers permitted identifiers in <code>Info.plist</code> and submits a <code>BGAppRefreshTaskRequest</code> with an earliest begin date.
+    </div>
+
+    <div class="code-box" id="codeSnippet">BGTaskScheduler.shared.submit(refreshRequest)</div>
+
+    <div class="controls-row">
+      <div class="btn-group">
+        <button id="btnBack" disabled aria-label="Previous step">Back</button>
+        <button id="btnNext" aria-label="Next step">Next</button>
+        <button id="btnReplay" aria-label="Replay animation">Replay</button>
+      </div>
+    </div>
+
+    <ol class="fallback-list">
+      <li><strong>Step 1 (Submit Request):</strong> App submits a <code>BGTaskRequest</code> to <code>BGTaskScheduler</code> specifying an earliest begin date.</li>
+      <li><strong>Step 2 (System Monitoring):</strong> App enters suspended state. iOS monitors battery status, charging state, network connectivity, and user habits.</li>
+      <li><strong>Step 3 (Opportunistic Launch):</strong> When conditions are optimal, iOS wakes the app in the background and executes the registered launch handler.</li>
+      <li><strong>Step 4 (Complete & Resuspend):</strong> App sets <code>expirationHandler</code>, executes async work, calls <code>setTaskCompleted(success: true)</code>, and returns to suspended state.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(function() {
+  const steps = [
+    {
+      title: "Step 1: Submit Task Request",
+      badge: "Request Queued",
+      badgeClass: "accent",
+      explainer: "The app registers task identifiers in <code>Info.plist</code> and calls <code>BGTaskScheduler.shared.submit(request)</code> before entering the background.",
+      code: "BGTaskScheduler.shared.submit(refreshRequest)",
+      appState: "Active (Foreground)",
+      appStateColor: "var(--accent-color)",
+      appStateBg: "var(--accent-soft)",
+      statusText: "status: submitting",
+      wakeSub: "App Active",
+      condStateText: "• Device Idle: Waiting",
+      condStateColor: "var(--muted)",
+      showSubmitArrow: true,
+      showLaunchArrow: false,
+      showReturnArrow: false
+    },
+    {
+      title: "Step 2: App Suspended & Conditions Evaluated",
+      badge: "Evaluating Conditions",
+      badgeClass: "warn",
+      explainer: "iOS suspends the app. The system power budget manager monitors battery level, charging status, network connection, and user app habits.",
+      code: "// App suspended. iOS evaluates battery, power, and usage patterns",
+      appState: "Suspended (Sleeping)",
+      appStateColor: "var(--warn-color)",
+      appStateBg: "var(--warn-soft)",
+      statusText: "status: suspended",
+      wakeSub: "Evaluating OS Budget",
+      condStateText: "• Device Idle: Ready (Optimal)",
+      condStateColor: "var(--safe-color)",
+      showSubmitArrow: false,
+      showLaunchArrow: false,
+      showReturnArrow: false
+    },
+    {
+      title: "Step 3: Background Wake & Launch Handler",
+      badge: "App Woken",
+      badgeClass: "safe",
+      explainer: "Conditions are met! iOS wakes the app process in the background. The registered launch handler receives the <code>BGTask</code> instance and sets an <code>expirationHandler</code>.",
+      code: "task.expirationHandler = { cancelOngoingSync() }",
+      appState: "Background (Running)",
+      appStateColor: "var(--safe-color)",
+      appStateBg: "var(--safe-soft)",
+      statusText: "status: executing work",
+      wakeSub: "WAKING APP PROCESS",
+      condStateText: "• Execution Window: Active",
+      condStateColor: "var(--safe-color)",
+      showSubmitArrow: false,
+      showLaunchArrow: true,
+      showReturnArrow: true
+    },
+    {
+      title: "Step 4: Completion & Resuspension",
+      badge: "Task Completed",
+      badgeClass: "safe",
+      explainer: "When async work finishes, the app invokes <code>task.setTaskCompleted(success: true)</code> and schedules the next refresh request. iOS suspends the app again cleanly.",
+      code: "task.setTaskCompleted(success: true) // Schedule next & suspend",
+      appState: "Suspended (Clean)",
+      appStateColor: "var(--muted)",
+      appStateBg: "var(--code-bg)",
+      statusText: "status: complete",
+      wakeSub: "Sleeping Cleanly",
+      condStateText: "• Completed: Success",
+      condStateColor: "var(--safe-color)",
+      showSubmitArrow: false,
+      showLaunchArrow: false,
+      showReturnArrow: false
+    }
+  ];
+
+  let currentStep = 0;
+
+  const stageTitle = document.getElementById("stageTitle");
+  const stepCounter = document.getElementById("stepCounter");
+  const statusBadge = document.getElementById("statusBadge");
+  const explainerText = document.getElementById("explainerText");
+  const codeSnippet = document.getElementById("codeSnippet");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+
+  const appStateRect = document.getElementById("appStateRect");
+  const appStateText = document.getElementById("appStateText");
+  const lblTaskStatus = document.getElementById("lblTaskStatus");
+  const txtWakeSub = document.getElementById("txtWakeSub");
+  const condState = document.getElementById("condState");
+  const arrSubmit = document.getElementById("arrSubmit");
+  const txtSubmit = document.getElementById("txtSubmit");
+  const arrLaunch = document.getElementById("arrLaunch");
+  const arrReturnWake = document.getElementById("arrReturnWake");
+
+  function updateView() {
+    const s = steps[currentStep];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${currentStep + 1} of ${steps.length}`;
+    explainerText.innerHTML = s.explainer;
+    codeSnippet.textContent = s.code;
+
+    btnBack.disabled = currentStep === 0;
+    btnNext.disabled = currentStep === steps.length - 1;
+
+    appStateRect.setAttribute("fill", s.appStateBg);
+    appStateText.textContent = s.appState;
+    appStateText.setAttribute("fill", s.appStateColor);
+    lblTaskStatus.textContent = s.statusText;
+    txtWakeSub.textContent = s.wakeSub;
+    condState.textContent = s.condStateText;
+    condState.setAttribute("fill", s.condStateColor);
+
+    arrSubmit.setAttribute("opacity", s.showSubmitArrow ? "1" : "0.1");
+    txtSubmit.setAttribute("opacity", s.showSubmitArrow ? "1" : "0.1");
+    arrLaunch.setAttribute("opacity", s.showLaunchArrow ? "1" : "0.1");
+    arrReturnWake.setAttribute("opacity", s.showReturnArrow ? "1" : "0.1");
+  }
+
+  btnNext.addEventListener("click", () => {
+    if (currentStep < steps.length - 1) {
+      currentStep++;
+      updateView();
+    }
+  });
+
+  btnBack.addEventListener("click", () => {
+    if (currentStep > 0) {
+      currentStep--;
+      updateView();
+    }
+  });
+
+  btnReplay.addEventListener("click", () => {
+    currentStep = 0;
+    updateView();
+  });
+
+  updateView();
+})();
+</script>
+</body>
+</html>
