@@ -1,0 +1,253 @@
+export const meta = {
+  id: "design-patterns",
+  title: "Design Patterns",
+  summary: "Master essential iOS design patterns including Factory, Adapter, and Observer, while avoiding common singleton pitfalls.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "Managing a Shared Resource Using a Singleton (Swift)",
+      url: "https://developer.apple.com/documentation/swift/managing-a-shared-resource-using-a-singleton",
+      kind: "official"
+    },
+    {
+      title: "Cocoa Design Patterns",
+      url: "https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/CocoaFundamentals/CocoaDesignPatterns/CocoaDesignPatterns.html",
+      kind: "official"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    Why do experienced iOS engineers often consider singletons an anti-pattern when overused?
+  </Question>
+  <Guess>
+    <Option id="a">Singletons are slower to initialize than normal structs</Option>
+    <Option id="b" correct>Singletons introduce global mutable state, hide dependencies, and make unit testing difficult</Option>
+    <Option id="c">Apple platforms deprecated singletons in iOS 16</Option>
+    <Option id="d">Swift classes cannot store static properties</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+Software design patterns are proven solutions to common programming problems.
+They give developers a shared language to build clear, maintainable systems.
+
+In iOS development, patterns fall into three main groups:
+
+1. **Creational Patterns** (like Singleton and Factory): Deal with how objects are instantiated.
+2. **Structural Patterns** (like Adapter and Facade): Organize relationships between classes and protocols.
+3. **Behavioral Patterns** (like Observer and Delegation): Manage communication between components.
+
+<Analogy>
+  Think of electrical adapters when traveling internationally.
+  Your laptop charger expects a standard two-pin plug.
+  The hotel wall in another country provides a three-prong triangular outlet.
+  You do not tear open the hotel wall or rewire your laptop charger.
+  Instead, you plug an adapter in between them.
+  The adapter translates the foreign outlet into the interface your charger understands.
+  This is exactly how the Adapter pattern works in software.
+</Analogy>
+
+### The Singleton: Use with care
+
+A singleton is a class that allows only one instance throughout the entire application lifecycle.
+Apple uses singletons for genuine system-wide resources like `UIApplication.shared` and `FileManager.default`.
+
+In Swift, creating a singleton is straightforward:
+You declare a `static let shared` constant and make the initializer `private`.
+Swift initializes static constants lazily and guarantees thread safety during creation.
+
+However, overusing singletons creates serious problems:
+- **Global mutable state**: Any part of the app can change values at any time, leading to subtle bugs.
+- **Hidden dependencies**: Classes use the singleton directly without declaring it in their initializers.
+- **Testing friction**: Tests run in unpredictable order. If one test changes shared state, subsequent tests can fail randomly.
+
+## See it
+
+<Diagram id="design-patterns-flow" caption="Comparing the Singleton anti-pattern with the Factory and Adapter architectural patterns.">
+{/*
+  Interactive stepper:
+  Step 1: Singleton Pattern: Direct global coupling between multiple consumers and one shared instance.
+  Step 2: Singleton Problems: Shared mutable state leaks across tests and creates hidden dependencies.
+  Step 3: Factory Pattern: Decoupling creation logic behind a centralized factory returning protocols.
+  Step 4: Adapter Pattern: Wrapping an incompatible third-party or legacy class to conform to an internal protocol.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>How do you prevent other files from instantiating a singleton class directly in Swift?</Question>
+  <Option id="a">Mark the class as file private</Option>
+  <Option id="b" correct>Declare a private initializer inside the singleton class</Option>
+  <Option id="c">Make all properties inside the class static</Option>
+  <Option id="d">Inherit from the Singleton base class</Option>
+  <Explanation>Declaring a private init() prevents external callers from creating separate instances, enforcing the single shared instance rule.</Explanation>
+</QuickCheck>
+
+## In code
+
+Let us look at two powerful patterns: Factory and Adapter.
+We also see how wrapping a singleton behind a protocol keeps our code testable.
+
+<CodeExample title="Implementing a Factory and a testable Singleton wrapper">
+```swift
+import Foundation
+
+// Protocol enables test mocking
+protocol AnalyticsEngine: Sendable {
+    func log(event: String)
+}
+
+final class AppAnalytics: AnalyticsEngine {
+    static let shared = AppAnalytics()
+    private init() {}
+
+    func log(event: String) {
+        print("Analytics: \(event)")
+    }
+}
+
+// Factory Pattern: Decouples creation from concrete types
+protocol PaymentProcessor {
+    func pay(amount: Int) -> String
+}
+
+struct CreditCardPayment: PaymentProcessor {
+    func pay(amount: Int) -> String { "Paid $\(amount) with Credit Card" }
+}
+
+struct ApplePayPayment: PaymentProcessor {
+    func pay(amount: Int) -> String { "Paid $\(amount) with Apple Pay" }
+}
+
+enum PaymentMethod {
+    case creditCard
+    case applePay
+}
+
+enum PaymentFactory {
+    static func makeProcessor(for method: PaymentMethod) -> PaymentProcessor {
+        switch method {
+        case .creditCard:
+            return CreditCardPayment()
+        case .applePay:
+            return ApplePayPayment()
+        }
+    }
+}
+
+let processor = PaymentFactory.makeProcessor(for: .applePay)
+print(processor.pay(amount: 50))
+AppAnalytics.shared.log(event: "checkout_complete")
+```
+```output
+Paid $50 with Apple Pay
+Analytics: checkout_complete
+```
+</CodeExample>
+
+<CodeExample title="Bridging incompatible types with the Adapter pattern">
+```swift
+import Foundation
+
+// Legacy or third-party SDK class with an incompatible interface
+struct LegacyThermalPrinter {
+    func printOldReceipt(text: String) {
+        print("PRINTER: \(text)")
+    }
+}
+
+// Our modern domain protocol
+protocol ModernPrinter {
+    func printDocument(_ content: String)
+}
+
+// The Adapter converts the modern call into the legacy method
+struct PrinterAdapter: ModernPrinter {
+    private let legacyPrinter: LegacyThermalPrinter
+
+    init(legacyPrinter: LegacyThermalPrinter) {
+        self.legacyPrinter = legacyPrinter
+    }
+
+    func printDocument(_ content: String) {
+        legacyPrinter.printOldReceipt(text: content)
+    }
+}
+
+let legacy = LegacyThermalPrinter()
+let modern: ModernPrinter = PrinterAdapter(legacyPrinter: legacy)
+modern.printDocument("Order #1042")
+```
+```output
+PRINTER: Order #1042
+```
+</CodeExample>
+
+<TryIt>
+  Open Swift Playground and experiment with adding a new payment type to the PaymentFactory.
+</TryIt>
+
+<QuickCheck>
+  <Question>Which design pattern converts the interface of an existing class into another interface expected by clients?</Question>
+  <Option id="a">Singleton</Option>
+  <Option id="b">Observer</Option>
+  <Option id="c" correct>Adapter</Option>
+  <Option id="d">Builder</Option>
+  <Explanation>The Adapter pattern translates one interface into another so incompatible classes can work together cleanly.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Overusing Singletons as Global Bags">
+  Treating singletons as convenient global storage bags tightly couples your entire codebase.
+  If an object needs a service, inject it through the initializer.
+  You can supply `AppAnalytics.shared` as a default parameter while still allowing unit tests to pass a mock.
+</Trap>
+
+<Trap title="Conflating Adapter and Facade">
+  Developers often confuse Adapter with Facade.
+  An Adapter converts one specific interface to match an existing protocol.
+  A Facade provides a simplified high-level interface over an entire complex subsystem.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="junior">
+  Design patterns are standard templates for solving common architecture problems.
+  Common examples in iOS include Singletons for shared services, Delegation for one-to-one communication, and Observers for state updates.
+  We must be careful with singletons because they introduce global state and make unit testing tricky.
+</InterviewAnswer>
+
+<InterviewAnswer level="mid">
+  In modern iOS, we balance classic object-oriented design patterns with Swift protocol-oriented programming.
+  For creational needs, Factories decouple instantiation logic from consumer views.
+  For structural needs, Adapters let us isolate third-party libraries behind clean app protocols.
+  While singletons offer thread-safe lazy loading via `static let`, we avoid calling them directly inside business logic.
+  Instead, we back singletons with protocols and inject them via initializers to preserve testability.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  Design patterns are communication tools, not dogmatic rules.
+  When evaluating singletons, I treat them as an implementation detail rather than an architecture.
+  Singletons introduce implicit dependencies, order-dependent test pollution, and concurrency hazards when storing mutable state.
+  In large-scale codebases, we prefer composition roots with explicit dependency injection.
+  We use Structural patterns like Facades and Adapters to enforce architectural boundaries between feature modules and external SDKs.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  - Design patterns provide standard architectural solutions across Creational, Structural, and Behavioral categories.
+  - Swift singletons use `static let shared` and a `private init()` for thread-safe lazy creation.
+  - Singletons risk global mutable state, hidden dependencies, and test pollution.
+  - The Factory pattern centralizes object creation and returns protocol abstractions.
+  - The Adapter pattern bridges incompatible interfaces without altering existing source code.
+</Recap>
+
+## Go deeper
+
+- [Managing a Shared Resource Using a Singleton (Apple Developer Documentation)](https://developer.apple.com/documentation/swift/managing-a-shared-resource-using-a-singleton)
+- [Cocoa Design Patterns (Apple Developer Documentation Archive)](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/CocoaFundamentals/CocoaDesignPatterns/CocoaDesignPatterns.html)
