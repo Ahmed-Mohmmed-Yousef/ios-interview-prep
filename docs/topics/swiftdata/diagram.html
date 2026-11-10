@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftData Architecture: Container, Context, and Views</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.diagram-container {
+  max-width: 840px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+.subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+.stepper-nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  background: var(--code-bg);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.counter {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-family: var(--font-code);
+  min-width: 85px;
+  text-align: center;
+}
+.svg-wrapper {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+  margin: 1rem 0;
+}
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.node-box {
+  transition: all 0.3s ease;
+}
+.dimmed {
+  opacity: 0.25;
+}
+.highlighted {
+  opacity: 1;
+}
+.step-description {
+  background: var(--code-bg);
+  border-left: 4px solid var(--accent-color);
+  padding: 1rem;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  min-height: 4.5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-box {
+    transition: none !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-container" role="region" aria-label="SwiftData Persistence Flow Diagram">
+  <div class="header">
+    <div>
+      <h1 class="title">SwiftData Storage Pipeline</h1>
+      <div class="subtitle">How ModelContainer, ModelContext, and @Query coordinate data persistence</div>
+    </div>
+    <div class="stepper-nav">
+      <button id="prevBtn" aria-label="Previous Step">Back</button>
+      <span class="counter" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+      <button id="nextBtn" aria-label="Next Step">Next</button>
+    </div>
+  </div>
+
+  <div class="svg-wrapper">
+    <svg viewBox="0 0 800 360" role="img" aria-label="Interactive SwiftData component diagram">
+      <defs>
+        <marker id="arrowActive" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent-color)" />
+        </marker>
+        <marker id="arrowSafe" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--safe-color)" />
+        </marker>
+        <marker id="arrowWarn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--warn-color)" />
+        </marker>
+      </defs>
+
+      <!-- Step 1: ModelContainer and Database Store -->
+      <g id="step1Group" class="node-box">
+        <rect x="40" y="80" width="200" height="190" rx="10" fill="var(--code-bg)" stroke="var(--accent-color)" stroke-width="2"/>
+        <text x="140" y="110" text-anchor="middle" font-weight="700" font-size="13" fill="var(--ink)">ModelContainer</text>
+        <text x="140" y="130" text-anchor="middle" font-size="11" fill="var(--muted)">Database Manager</text>
+        
+        <rect x="60" y="150" width="160" height="100" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+        <text x="140" y="175" text-anchor="middle" font-weight="600" font-size="11" fill="var(--ink)">Storage File</text>
+        <text x="140" y="195" text-anchor="middle" font-size="10" fill="var(--safe-color)">SQLite / Disk Store</text>
+        <text x="140" y="215" text-anchor="middle" font-size="10" fill="var(--muted)">Schema Migrations</text>
+        <text x="140" y="235" text-anchor="middle" font-size="10" fill="var(--muted)">In-Memory Option</text>
+      </g>
+
+      <!-- Connection 1 -> 2 -->
+      <path id="arrow1to2" d="M 240 175 L 290 175" stroke="var(--accent-color)" stroke-width="2" marker-end="url(#arrowActive)" fill="none"/>
+
+      <!-- Step 2: ModelContext (In-Memory Scratchpad) -->
+      <g id="step2Group" class="node-box">
+        <rect x="290" y="80" width="220" height="190" rx="10" fill="var(--accent-soft)" stroke="var(--accent-color)" stroke-width="2"/>
+        <text x="400" y="110" text-anchor="middle" font-weight="700" font-size="13" fill="var(--accent-color)">ModelContext</text>
+        <text x="400" y="130" text-anchor="middle" font-size="11" fill="var(--ink)">In-Memory Scratchpad</text>
+
+        <rect x="310" y="150" width="180" height="100" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+        <text x="400" y="175" text-anchor="middle" font-weight="600" font-size="11" fill="var(--ink)">Change Tracker</text>
+        <text x="400" y="195" text-anchor="middle" font-size="10" fill="var(--accent-color)">context.insert(item)</text>
+        <text x="400" y="215" text-anchor="middle" font-size="10" fill="var(--danger-color)">context.delete(item)</text>
+        <text x="400" y="235" text-anchor="middle" font-size="10" fill="var(--safe-color)">try context.save()</text>
+      </g>
+
+      <!-- Connection 2 -> 3 -->
+      <path id="arrow2to3" d="M 510 175 L 560 175" stroke="var(--safe-color)" stroke-width="2" marker-end="url(#arrowSafe)" fill="none"/>
+
+      <!-- Step 3: SwiftUI View (@Query) -->
+      <g id="step3Group" class="node-box">
+        <rect x="560" y="80" width="200" height="190" rx="10" fill="var(--safe-soft)" stroke="var(--safe-color)" stroke-width="2"/>
+        <text x="660" y="110" text-anchor="middle" font-weight="700" font-size="13" fill="var(--safe-color)">SwiftUI View</text>
+        <text x="660" y="130" text-anchor="middle" font-size="11" fill="var(--ink)">Declarative UI</text>
+
+        <rect x="580" y="150" width="160" height="100" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+        <text x="660" y="175" text-anchor="middle" font-weight="600" font-size="11" fill="var(--safe-color)">@Query Properties</text>
+        <text x="660" y="195" text-anchor="middle" font-size="10" fill="var(--ink)">Auto-refreshes List</text>
+        <text x="660" y="215" text-anchor="middle" font-size="10" fill="var(--muted)">SortDescriptors</text>
+        <text x="660" y="235" text-anchor="middle" font-size="10" fill="var(--muted)">#Predicate Filtering</text>
+      </g>
+
+      <!-- Step 4: Mutation Flow (Backwards arrow from View / Context to Container) -->
+      <g id="step4Group" class="node-box">
+        <path id="arrowSave" d="M 400 270 L 400 310 L 140 310 L 140 270" stroke="var(--warn-color)" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrowWarn)" fill="none"/>
+        <rect x="220" y="295" width="160" height="30" rx="6" fill="var(--warn-soft)" stroke="var(--warn-color)" stroke-width="1"/>
+        <text x="300" y="315" text-anchor="middle" font-weight="600" font-size="11" fill="var(--warn-color)">Save writes changes to disk</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="step-description" id="stepDescription">
+    <!-- Populated by JavaScript -->
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Step 1: ModelContainer Setup",
+    text: "The app creates a <strong>ModelContainer</strong> for your @Model entities. It connects to the SQLite database file on disk, prepares schemas, and handles data migrations.",
+    highlight: ["step1Group", "arrow1to2"]
+  },
+  {
+    title: "Step 2: ModelContext Scratchpad",
+    text: "The container provides an in-memory <strong>ModelContext</strong>. You use this context to track changes, insert new items, and delete existing items before committing.",
+    highlight: ["step2Group", "arrow2to3"]
+  },
+  {
+    title: "Step 3: SwiftUI View @Query",
+    text: "SwiftUI views read data using the <strong>@Query</strong> property wrapper. When the underlying database records change, @Query automatically updates view state and refreshes the UI.",
+    highlight: ["step3Group"]
+  },
+  {
+    title: "Step 4: Persisting Changes",
+    text: "When a user adds or edits records, mutations happen inside the context. Calling <strong>context.save()</strong> writes changes back into the ModelContainer and SQLite file on disk.",
+    highlight: ["step4Group", "step2Group", "step1Group"]
+  }
+];
+
+let currentStep = 0;
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const stepCounter = document.getElementById("stepCounter");
+const stepDescription = document.getElementById("stepDescription");
+
+const allGroups = ["step1Group", "arrow1to2", "step2Group", "arrow2to3", "step3Group", "step4Group"];
+
+function renderStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  stepDescription.innerHTML = `<strong>${s.title}:</strong> ${s.text}`;
+  
+  prevBtn.disabled = (idx === 0);
+  nextBtn.disabled = (idx === steps.length - 1);
+
+  allGroups.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (s.highlight.includes(id)) {
+      el.classList.remove("dimmed");
+      el.classList.add("highlighted");
+    } else {
+      el.classList.remove("highlighted");
+      el.classList.add("dimmed");
+    }
+  });
+}
+
+prevBtn.addEventListener("click", () => {
+  if (currentStep > 0) renderStep(currentStep - 1);
+});
+
+nextBtn.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) renderStep(currentStep + 1);
+});
+
+renderStep(0);
+</script>
+
+</body>
+</html>

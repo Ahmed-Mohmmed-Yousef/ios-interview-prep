@@ -1,0 +1,233 @@
+export const meta = {
+  id: "swiftdata",
+  summary: "Save, query, and manage persistent data in modern iOS apps using SwiftData macros and containers.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.0", xcode: "16.0", ios: "17.0" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "SwiftData", url: "https://developer.apple.com/documentation/swiftdata", kind: "official" },
+    { title: "ModelContainer", url: "https://developer.apple.com/documentation/swiftdata/modelcontainer", kind: "official" },
+    { title: "ModelContext", url: "https://developer.apple.com/documentation/swiftdata/modelcontext", kind: "official" },
+    { title: "WWDC23: Meet SwiftData", url: "https://developer.apple.com/videos/play/wwdc2023/10187/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why must every SwiftData model be declared as a class rather than a struct?</Question>
+  <Guess>
+    <Option id="a">Structs take up too much disk space inside SQLite tables.</Option>
+    <Option id="b" correct>SwiftData requires reference identity so the context can track changes and coordinate saves across views.</Option>
+    <Option id="c">Swift compiler macros only work when attached to classes or enums.</Option>
+    <Option id="d">Structs cannot store String or Date properties in Swift.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a busy office warehouse.
+The **ModelContainer** is the heavy steel building with shelves and filing cabinets where records rest safely on disk.
+The **ModelContext** is the desk where a clerk works on open files.
+The clerk takes documents out of the cabinets, edits numbers on paper, or adds new folders.
+None of those edits reach the permanent cabinets until the clerk files them away into storage.
+In SwiftUI, **@Query** is a window on the office wall: whenever files in the cabinet change, the view on the wall updates at once.
+</Analogy>
+
+**SwiftData** is Apple modern framework for saving data permanently on Apple devices.
+It replaces complex XML configuration files with native Swift code and Swift macros.
+Underneath, SwiftData uses the proven SQLite storage engine from Core Data.
+
+The framework is built around four primary parts:
+
+1. **`@Model`**: A macro that decorates a standard Swift class. It turns the class into a stored entity. It tracks changes to properties and provides identity.
+2. **`ModelContainer`**: The manager for your database storage. It handles the database schema, migration rules, and the storage file on disk.
+3. **`ModelContext`**: The in-memory scratchpad. You insert new models, delete unwanted models, and save updates through this context.
+4. **`@Query`**: A SwiftUI property wrapper that fetches models directly into views. It watches the context and refreshes the view when data changes.
+
+### Modeling data and relationships
+
+You define your data schema with standard Swift types:
+
+- **Attributes**: Properties store simple types like `String`, `Int`, or `Date`. You can add `@Attribute(.unique)` to require unique values across all rows.
+- **Relationships**: A model can link to another model. You can write `@Relationship(deleteRule: .cascade)` so deleting a parent also deletes child items.
+- **Predicates**: You write search filters with the `#Predicate` macro. The Swift compiler checks these filters at compile time.
+
+### Concurrency and actors
+
+Persistent models are reference types and do not conform to `Sendable`.
+You must never pass a model instance across different threads or actors.
+To do work in the background, use a **`ModelActor`** or pass the model's **`PersistentIdentifier`**.
+The background task uses the identifier to fetch its own copy inside its isolated context.
+
+**SwiftData combines the power of Core Data with the safety and simplicity of modern Swift.**
+
+## See it
+
+<Diagram id="swiftdata-main" caption="How SwiftData coordinates storage between the ModelContainer, ModelContext, and SwiftUI views.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: ModelContainer (Disk/SQLite), ModelContext (Scratchpad), Model Instance (Item), SwiftUI View (@Query).
+  - Step 1: ModelContainer initializes the schema and connects to the SQLite file on disk.
+  - Step 2: ModelContext opens in memory as the working scratchpad for CRUD operations.
+  - Step 3: View uses @Query to read models from the context and show them in a List.
+  - Step 4: User adds a model; context inserts and saves it back into the ModelContainer.
+  - Static version (reduced motion): Shows clear relationship diagram linking SQLite Disk -> ModelContainer -> ModelContext -> SwiftUI @Query.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which component acts as the in-memory scratchpad for inserting and deleting models in SwiftData?</Question>
+  <Option id="a">ModelContainer</Option>
+  <Option id="b" correct>ModelContext</Option>
+  <Option id="c">FetchDescriptor</Option>
+  <Explanation>ModelContext tracks all unsaved changes and manages CRUD operations before writing to the container.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Creating a model and saving data in memory
+
+Set up an in-memory `ModelContainer`, create a `ModelContext`, insert an item, and fetch it with `FetchDescriptor`.
+
+```swift
+import Foundation
+import SwiftData
+
+@Model
+final class TaskItem {
+    var title: String
+    var isDone: Bool
+
+    init(title: String, isDone: Bool = false) {
+        self.title = title
+        self.isDone = isDone
+    }
+}
+
+let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+let container = try ModelContainer(for: TaskItem.self, configurations: configuration)
+let context = ModelContext(container)
+
+let task = TaskItem(title: "Build app", isDone: true)
+context.insert(task)
+try context.save()
+
+let descriptor = FetchDescriptor<TaskItem>()
+let items = try context.fetch(descriptor)
+print("Saved count: \(items.count)")
+```
+
+```output
+Saved count: 1
+```
+
+Setting `isStoredInMemoryOnly` to `true` is helpful for unit tests and SwiftUI previews because it creates no disk files.
+
+### Filtering records with compile-time predicates
+
+Use the `#Predicate` macro to create type-safe search filters.
+
+```swift
+import Foundation
+import SwiftData
+
+@Model
+final class TaskItem {
+    var title: String
+    var isDone: Bool
+
+    init(title: String, isDone: Bool = false) {
+        self.title = title
+        self.isDone = isDone
+    }
+}
+
+let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+let container = try ModelContainer(for: TaskItem.self, configurations: configuration)
+let context = ModelContext(container)
+
+context.insert(TaskItem(title: "Write tests", isDone: true))
+context.insert(TaskItem(title: "Ship build", isDone: false))
+try context.save()
+
+let predicate = #Predicate<TaskItem> { item in
+    item.isDone == true
+}
+let descriptor = FetchDescriptor<TaskItem>(predicate: predicate)
+let completedTasks = try context.fetch(descriptor)
+
+for item in completedTasks {
+    print("Done: \(item.title)")
+}
+```
+
+```output
+Done: Write tests
+```
+
+The `#Predicate` macro checks property names and types when building, stopping syntax errors before your app runs.
+
+<QuickCheck>
+  <Question>How does SwiftData verify query conditions written with the #Predicate macro?</Question>
+  <Option id="a">At app launch by scanning raw text strings in SQLite.</Option>
+  <Option id="b" correct>At compile time through Swift macro type-checking.</Option>
+  <Option id="c">By sending queries to an Apple cloud verification server.</Option>
+  <Explanation>The #Predicate macro validates expressions during compilation, preventing runtime crashes from typos.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Create a new SwiftUI project in Xcode, check Use SwiftData, and inspect how @Query loads items into ContentView.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Passing @Model instances across actors or threads">
+SwiftData models are classes and do not conform to `Sendable`.
+If you pass a model instance from the main thread into a background task, you create a data race.
+This pattern can crash your app or corrupt your database.
+Instead, pass the `PersistentIdentifier` of the model to the background actor, and fetch the object inside the actor's context.
+</Trap>
+
+<Trap title="Declaring SwiftData models as structs">
+SwiftData requires reference identity so the context can track changes to properties.
+If you attach `@Model` to a struct, the Swift compiler emits an error.
+Always declare your persistent models as classes.
+</Trap>
+
+<Trap title="Confusing ModelContainer with ModelContext">
+Developers often confuse the store manager with the working scratchpad.
+The `ModelContainer` configures the database on disk and handles migrations.
+The `ModelContext` performs day-to-day work like inserting, deleting, and saving objects.
+You can have multiple contexts backed by a single container.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+SwiftData is Apple modern persistence framework introduced in iOS 17.
+It uses the `@Model` macro to turn standard Swift classes into stored database tables.
+We set up a `ModelContainer` to manage database storage on disk, and we use a `ModelContext` as a scratchpad to insert, delete, and save items.
+In SwiftUI, the `@Query` property wrapper fetches models and automatically refreshes views when the data changes.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+SwiftData modernizes data persistence by replacing Core Data managed object models with native Swift macros and compile-time predicates.
+The architecture separates storage configuration in `ModelContainer` from transactional mutations inside `ModelContext`.
+Because `@Model` entities are non-Sendable reference types, concurrent applications must use `ModelActor` for background workloads.
+Background actors should receive a `PersistentIdentifier` rather than a live model instance to avoid data races.
+For schema management, SwiftData provides `@Attribute(.unique)` and `@Relationship(deleteRule:)`, with automatic migrations backed by SQLite.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- SwiftData is Apple modern persistence framework for iOS 17 and later.
+- The `@Model` macro converts Swift classes into persistent entities.
+- Persistent models must be classes because the framework requires reference identity.
+- `ModelContainer` manages physical storage on disk and database schemas.
+- `ModelContext` acts as the in-memory scratchpad for insert, delete, and save actions.
+- `@Query` fetches models in SwiftUI views and refreshes the view on data changes.
+- The `#Predicate` macro checks query expressions at compile time.
+- Models are not Sendable; pass `PersistentIdentifier` across actors and background tasks.
+- In-memory containers allow fast testing and previews without writing files to disk.
+</Recap>
