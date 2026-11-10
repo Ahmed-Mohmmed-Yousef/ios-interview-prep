@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI Update Lifecycle and Performance Loop</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.stage-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-color);
+}
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-color); }
+
+.svg-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.text-sm { font-size: 0.875rem; color: var(--muted); }
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.primary-btn {
+  background: var(--accent-color);
+  color: #ffffff;
+  border-color: var(--accent-color);
+}
+.primary-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.code-box {
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  margin-top: 12px;
+  white-space: pre;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host">
+  <div class="diagram-card" role="region" aria-label="SwiftUI Performance Lifecycle Stepper">
+    <div class="header-row">
+      <h2 class="stage-title" id="stageTitle">Step 1: State Mutation</h2>
+      <span class="badge accent" id="statusBadge">INPUT</span>
+    </div>
+
+    <div class="svg-container">
+      <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram of SwiftUI render loop">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--muted)"/>
+          </marker>
+          <marker id="arrow-active" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent-color)"/>
+          </marker>
+        </defs>
+
+        <!-- Node 1: State Property -->
+        <g id="stateNode" transform="translate(60, 60)">
+          <rect width="180" height="90" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="90" y="38" text-anchor="middle" font-family="var(--font-body)" font-weight="600" font-size="14" fill="var(--ink)">State / @Observable</text>
+          <text x="90" y="62" text-anchor="middle" font-family="var(--font-code)" font-size="12" fill="var(--muted)">count += 1</text>
+        </g>
+
+        <!-- Node 2: Dependency Graph -->
+        <g id="graphNode" transform="translate(310, 60)">
+          <rect width="180" height="90" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="90" y="38" text-anchor="middle" font-family="var(--font-body)" font-weight="600" font-size="14" fill="var(--ink)">Dependency Graph</text>
+          <text x="90" y="62" text-anchor="middle" font-family="var(--font-code)" font-size="12" fill="var(--muted)">Track body dependencies</text>
+        </g>
+
+        <!-- Node 3: View Body Execution -->
+        <g id="bodyNode" transform="translate(560, 60)">
+          <rect width="180" height="90" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="90" y="38" text-anchor="middle" font-family="var(--font-body)" font-weight="600" font-size="14" fill="var(--ink)">var body: some View</text>
+          <text x="90" y="62" text-anchor="middle" font-family="var(--font-code)" font-size="12" fill="var(--muted)">Compute new view struct</text>
+        </g>
+
+        <!-- Node 4: Render Tree Diff -->
+        <g id="diffNode" transform="translate(310, 280)">
+          <rect width="180" height="90" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="90" y="38" text-anchor="middle" font-family="var(--font-body)" font-weight="600" font-size="14" fill="var(--ink)">Render Tree Diff</text>
+          <text x="90" y="62" text-anchor="middle" font-family="var(--font-code)" font-size="12" fill="var(--muted)">Draw changes to screen</text>
+        </g>
+
+        <!-- Connecting Paths -->
+        <path id="pathStep1" d="M 240 105 L 310 105" stroke="var(--line)" stroke-width="2" marker-end="url(#arrow)" fill="none" opacity="0.2"/>
+        <text id="lblStep1" x="275" y="95" text-anchor="middle" font-size="11" fill="var(--accent-color)" font-family="var(--font-body)" opacity="0.2">Notify</text>
+
+        <path id="pathStep2" d="M 490 105 L 560 105" stroke="var(--line)" stroke-width="2" marker-end="url(#arrow)" fill="none" opacity="0.2"/>
+        <text id="lblStep2" x="525" y="95" text-anchor="middle" font-size="11" fill="var(--accent-color)" font-family="var(--font-body)" opacity="0.2">Invalidate</text>
+
+        <path id="pathStep3" d="M 650 150 L 650 325 L 490 325" stroke="var(--line)" stroke-width="2" marker-end="url(#arrow)" fill="none" opacity="0.2"/>
+        <text id="lblStep3" x="655" y="240" text-anchor="start" font-size="11" fill="var(--accent-color)" font-family="var(--font-body)" opacity="0.2">Return View</text>
+
+        <path id="pathStep4" d="M 310 325 L 150 325 L 150 150" stroke="var(--line)" stroke-width="2" marker-end="url(#arrow)" fill="none" opacity="0.2"/>
+        <text id="lblStep4" x="145" y="240" text-anchor="end" font-size="11" fill="var(--accent-color)" font-family="var(--font-body)" opacity="0.2">Stable Loop</text>
+      </svg>
+    </div>
+
+    <div class="explainer" id="explainerText">
+      State changes trigger SwiftUI dependency evaluation. Heavy operations must stay out of the view body.
+    </div>
+
+    <div class="code-box" id="codeSnippet">// Step 1 code preview</div>
+
+    <div class="controls-row">
+      <span class="text-sm" id="stepCounter">Step 1 of 4</span>
+      <div class="btn-group">
+        <button id="btnBack" aria-label="Previous step" disabled>Back</button>
+        <button id="btnNext" class="primary-btn" aria-label="Next step">Next</button>
+        <button id="btnReplay" aria-label="Restart animation">Replay</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const steps = [
+    {
+      title: "Step 1: State Mutation",
+      badge: "MUTATION",
+      badgeClass: "accent",
+      explainer: "User interaction or asynchronous data triggers a change in a @State or @Observable model property on the main thread.",
+      code: "@Observable class FeedModel {\n    var items: [String] = []\n    func addItem(_ item: String) {\n        items.append(item) // Triggers observation\n    }\n}",
+      activePaths: ["pathStep1", "lblStep1"],
+      highlightNodes: ["stateNode"]
+    },
+    {
+      title: "Step 2: Dependency Graph Lookup",
+      badge: "GRAPH",
+      badgeClass: "safe",
+      explainer: "SwiftUI inspects its internal dependency graph. With @Observable, only view bodies that read the modified property are marked dirty.",
+      code: "// Dependency check:\n// SubviewA reads `items` -> Marked dirty (invalidated)\n// SubviewB reads `title` -> Kept unchanged (skipped!)",
+      activePaths: ["pathStep2", "lblStep2"],
+      highlightNodes: ["graphNode"]
+    },
+    {
+      title: "Step 3: Body Property Execution",
+      badge: "EXECUTION",
+      badgeClass: "warn",
+      explainer: "SwiftUI invokes `var body: some View` on invalidated views. The body must be pure and instantaneous, returning lightweight view structs.",
+      code: "var body: some View {\n    List(model.items, id: \\.self) { item in\n        Text(item)\n    }\n    // Fast: No sorting or date formatting in body\n}",
+      activePaths: ["pathStep3", "lblStep3"],
+      highlightNodes: ["bodyNode"]
+    },
+    {
+      title: "Step 4: Render Tree Diff & Commit",
+      badge: "DIFF & RENDER",
+      badgeClass: "accent",
+      explainer: "SwiftUI compares old and new view structs. It applies minimal visual updates to render layers without destroying underlying identity.",
+      code: "// SwiftUI diff:\n// Identified 1 appended row\n// Animations committed at 60/120 FPS without hitching",
+      activePaths: ["pathStep4", "lblStep4"],
+      highlightNodes: ["diffNode"]
+    }
+  ];
+
+  let currentStep = 0;
+  const stageTitle = document.getElementById("stageTitle");
+  const statusBadge = document.getElementById("statusBadge");
+  const stepCounter = document.getElementById("stepCounter");
+  const explainerText = document.getElementById("explainerText");
+  const codeSnippet = document.getElementById("codeSnippet");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+
+  const allPathIds = ["pathStep1", "lblStep1", "pathStep2", "lblStep2", "pathStep3", "lblStep3", "pathStep4", "lblStep4"];
+  const allNodeIds = ["stateNode", "graphNode", "bodyNode", "diffNode"];
+
+  function updateView() {
+    const s = steps[currentStep];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${currentStep + 1} of ${steps.length}`;
+    explainerText.innerHTML = s.explainer;
+    codeSnippet.textContent = s.code;
+
+    btnBack.disabled = currentStep === 0;
+    btnNext.disabled = currentStep === steps.length - 1;
+
+    allPathIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute("opacity", s.activePaths.includes(id) ? "1" : "0.1");
+    });
+
+    allNodeIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        const rect = el.querySelector("rect");
+        if (rect) {
+          rect.setAttribute("stroke-width", s.highlightNodes.includes(id) ? "2.5" : "1.5");
+          rect.setAttribute("stroke", s.highlightNodes.includes(id) ? "var(--accent-color)" : "var(--line)");
+        }
+      }
+    });
+  }
+
+  btnNext.addEventListener("click", () => {
+    if (currentStep < steps.length - 1) {
+      currentStep++;
+      updateView();
+    }
+  });
+
+  btnBack.addEventListener("click", () => {
+    if (currentStep > 0) {
+      currentStep--;
+      updateView();
+    }
+  });
+
+  btnReplay.addEventListener("click", () => {
+    currentStep = 0;
+    updateView();
+  });
+
+  updateView();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+export const meta = {
+  id: "swiftui-performance",
+  summary: "Identify and resolve SwiftUI performance bottlenecks by optimizing view body evaluation, stabilizing identity, and scoping state dependencies.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "WWDC23: Demystify SwiftUI performance",
+      url: "https://developer.apple.com/videos/play/wwdc2023/10160/"
+    },
+    {
+      title: "WWDC21: Demystify SwiftUI",
+      url: "https://developer.apple.com/videos/play/wwdc2021/10022/"
+    }
+  ]
+}
+
+<InterviewHook>
+  <Question>
+    What is the most common cause of stuttering and dropped frames during scrolling in a SwiftUI app?
+  </Question>
+  <Guess>
+    <Option id="a">Using structs instead of reference classes for custom views.</Option>
+    <Option id="b" correct>Executing expensive computations and data formatting directly inside view body properties.</Option>
+    <Option id="c">Applying more than two modifiers to a single primitive view.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a restaurant kitchen during a busy dinner service.
+
+The chef must assemble plates quickly when an order arrives.
+
+If the chef must chop vegetables and bake bread from scratch for every single plate, orders will slow to a crawl.
+
+Instead, the chef preps ingredients ahead of time.
+
+During service, the chef only combines prepped ingredients.
+
+In SwiftUI, the `body` property is the chef assembling plates.
+
+It must run fast and combine pre-calculated data.
+
+Heavy sorting, filtering, and data parsing belong in background tasks or data models before the view body executes.
+</Analogy>
+
+SwiftUI evaluates view bodies frequently.
+
+When state changes, SwiftUI re-evaluates the bodies of dependent views and computes a diff.
+
+If a view body is fast and lightweight, SwiftUI runs at a smooth 60 or 120 frames per second.
+
+If a view body performs heavy work, the main thread locks and scrolling drops frames.
+
+Good SwiftUI performance relies on three principles: lightweight view bodies, stable view identities, and narrow state dependencies.
+
+## See it
+
+<Diagram>
+1. State mutation occurs in a model or parent view.
+2. SwiftUI checks dependency graphs to identify invalidated views.
+3. SwiftUI executes body properties for invalidated views to produce new view values.
+4. SwiftUI diffs the new view tree and renders only visual changes to the screen.
+</Diagram>
+
+## In code
+
+### Avoiding heavy computations inside body
+
+A view body should only configure and return view descriptions.
+
+Never perform heavy operations like array sorting, date formatting, or regular expression parsing inside `var body`.
+
+Compute derived data inside models or cache results ahead of time.
+
+```swift
+import Foundation
+
+struct HeavyFeedCalculator {
+    let rawItems: [Int]
+
+    func sortedFeed() -> [Int] {
+        rawItems.sorted()
+    }
+}
+
+let calculator = HeavyFeedCalculator(rawItems: [5, 2, 8, 1, 9])
+let result = calculator.sortedFeed()
+print("Sorted count: \(result.count), First item: \(result[0])")
+```
+
+```output
+Sorted count: 5, First item: 1
+```
+
+Pre-computing values allows the `body` property to execute in microseconds without stalling the main thread.
+
+### Skipping redundant body evaluations with Equatable
+
+SwiftUI re-evaluates a view when parent state changes unless it can prove the view inputs did not change.
+
+Conforming a subview to `Equatable` and applying the `.equatable()` modifier lets SwiftUI compare properties.
+
+If old and new properties match, SwiftUI skips the view body completely.
+
+```swift
+import Foundation
+
+struct UserProfile: Equatable {
+    let id: Int
+    let name: String
+    let status: String
+}
+
+func shouldEvaluateBody(oldProfile: UserProfile, newProfile: UserProfile) -> Bool {
+    return oldProfile != newProfile
+}
+
+let p1 = UserProfile(id: 1, name: "Alice", status: "Active")
+let p2 = UserProfile(id: 1, name: "Alice", status: "Active")
+let p3 = UserProfile(id: 1, name: "Alice", status: "Away")
+
+print("Equal profiles re-evaluate: \(shouldEvaluateBody(oldProfile: p1, newProfile: p2))")
+print("Changed profiles re-evaluate: \(shouldEvaluateBody(oldProfile: p1, newProfile: p3))")
+```
+
+```output
+Equal profiles re-evaluate: false
+Changed profiles re-evaluate: true
+```
+
+By conforming types to `Equatable`, child views skip unnecessary body evaluations when irrelevant parent data changes.
+
+### Scoping observation with modern @Observable
+
+On iOS 17 and later, the Observation framework tracks individual property access inside each view body.
+
+With older `ObservableObject` and `@Published`, changing any property invalidates every view observing that object.
+
+With `@Observable`, changing property A only re-evaluates views that read property A.
+
+Views that only read property B remain untouched, eliminating wasted body evaluations across your app.
+
+<TryIt>
+  Open a Swift Playground. Create a SwiftUI view with a list. Call Self._printChanges() inside body to observe which state changes trigger redraws.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    What happens if you generate a random UUID() inside a view body for a ForEach id parameter?
+  </Question>
+  <Option id="a">SwiftUI caches the UUID automatically to preserve performance.</Option>
+  <Option id="b" correct>SwiftUI generates a new identity every pass, destroying and re-creating subviews on every render.</Option>
+  <Option id="c">The Swift compiler raises a syntax error preventing compilation.</Option>
+  <Option id="d">The list smoothly animates changes between random identifiers.</Option>
+  <Explanation>
+    Generating dynamic identifiers inside body destroys view identity. SwiftUI cannot match old and new views, forcing full reconstruction.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Do not perform date formatting or sorting in body">
+  DateFormatter allocation and array sorting are expensive operations. Executing them inside `body` causes visible scrolling hitches. Always pre-format dates in your view models.
+</Trap>
+
+<Trap label="Do not create new StateObject instances inside body">
+  Never initialize `@StateObject` with dynamic dependencies inside `var body`. Doing so can leak memory or reset object state unexpectedly.
+</Trap>
+
+<Trap label="Do not use unstable IDs in ForEach">
+  Using `ForEach(items, id: \.self)` with non-unique items or generating IDs inside `body` breaks view identity. SwiftUI loses animation state and re-creates cell trees.
+</Trap>
+
+<QuickCheck>
+  <Question>
+    What built-in debug method logs the exact property that caused a SwiftUI view body to re-evaluate?
+  </Question>
+  <Option id="a">`print(view.debugDescription)`</Option>
+  <Option id="b">`ViewDebugger.inspectHierarchy()`</Option>
+  <Option id="c" correct>`Self._printChanges()`</Option>
+  <Option id="d">`SwiftUI.dumpLayoutTrace()`</Option>
+  <Explanation>
+    Calling Self._printChanges() inside a view body prints the specific state, binding, or environment change that triggered the update.
+  </Explanation>
+</QuickCheck>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  SwiftUI performance depends on fast view body execution, stable identity, and scoped state dependencies. We keep `body` pure and lightweight by doing heavy operations, like sorting or date formatting, in view models beforehand. We make sure `ForEach` elements have stable and unique identities to prevent view re-creation. In modern apps, we use `@Observable` so that views only re-evaluate when the specific properties they access change. When debugging hitches, we use `Self._printChanges()` and the SwiftUI template in Xcode Instruments.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  SwiftUI performance is governed by the dependency graph, identity preservation, and render tree diffing. View bodies must be deterministic, pure functions that execute in sub-millisecond timeframes. To avoid unnecessary invalidations, we scope dependencies tightly using `@Observable`, which provides granular property-level observation rather than the coarse object-level invalidation of `ObservableObject`. We maintain stable explicit identities in lists to protect view state and eliminate layout thrashing. For complex hierarchies with frequent parent updates, we implement `Equatable` conformance on subviews to skip body evaluation passes. When optimizing in production, we use Instruments with the Time Profiler and SwiftUI View Body tracks to pinpoint expensive body evaluations and identify invalidation storms.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Keep SwiftUI view bodies pure and fast. Move data sorting, network calls, and expensive formatting out of body into models. Preserve stable view identity in ForEach to avoid tearing down view hierarchies. Use @Observable on iOS 17+ for granular property-level invalidation. Conform leaf views to Equatable to skip redundant evaluations. Use Self._printChanges() and Xcode Instruments to detect and fix bottlenecks.
+</Recap>
+
+## Go deeper
+
+- [WWDC23: Demystify SwiftUI performance](https://developer.apple.com/videos/play/wwdc2023/10160/)
+- [WWDC21: Demystify SwiftUI](https://developer.apple.com/videos/play/wwdc2021/10022/)
+- [WWDC20: Data Essentials in SwiftUI](https://developer.apple.com/videos/play/wwdc2020/10040/)

@@ -1,0 +1,636 @@
+<title>SwiftUI Performance Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.stage-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-color);
+}
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-color); }
+
+.svg-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.text-sm { font-size: 0.875rem; color: var(--muted); }
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.primary-btn {
+  background: var(--accent-color);
+  color: #ffffff;
+  border-color: var(--accent-color);
+}
+.primary-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.code-box {
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  margin-top: 12px;
+  white-space: pre;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · SwiftUI · Topic 5 of 6 · Prototype</p>
+    <h1>SwiftUI Performance</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can find and fix slow SwiftUI views.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>What is the most common cause of stuttering and dropped frames during scrolling in a SwiftUI app?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Using structs instead of reference classes for custom views.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Executing expensive computations and data formatting directly inside view body properties.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Applying more than two modifiers to a single primitive view.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a restaurant kitchen during a busy dinner service.</p><p>The chef must assemble plates quickly when an order arrives.</p><p>If the chef must chop vegetables and bake bread from scratch for every single plate, orders will slow to a crawl.</p><p>Instead, the chef preps ingredients ahead of time.</p><p>During service, the chef only combines prepped ingredients.</p><p>In SwiftUI, the <code>body</code> property is the chef assembling plates.</p><p>It must run fast and combine pre-calculated data.</p><p>Heavy sorting, filtering, and data parsing belong in background tasks or data models before the view body executes.</p></aside>
+<p>SwiftUI evaluates view bodies frequently.</p>
+<p>When state changes, SwiftUI re-evaluates the bodies of dependent views and computes a diff.</p>
+<p>If a view body is fast and lightweight, SwiftUI runs at a smooth 60 or 120 frames per second.</p>
+<p>If a view body performs heavy work, the main thread locks and scrolling drops frames.</p>
+<p>Good SwiftUI performance relies on three principles: lightweight view bodies, stable view identities, and narrow state dependencies.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<h3>Avoiding heavy computations inside body</h3>
+<p>A view body should only configure and return view descriptions.</p>
+<p>Never perform heavy operations like array sorting, date formatting, or regular expression parsing inside <code>var body</code>.</p>
+<p>Compute derived data inside models or cache results ahead of time.</p>
+<pre class="block swift"><code class="language-swift">import Foundation
+
+struct HeavyFeedCalculator {
+    let rawItems: [Int]
+
+    func sortedFeed() -&gt; [Int] {
+        rawItems.sorted()
+    }
+}
+
+let calculator = HeavyFeedCalculator(rawItems: [5, 2, 8, 1, 9])
+let result = calculator.sortedFeed()
+print(&quot;Sorted count: \(result.count), First item: \(result[0])&quot;)
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Sorted count: 5, First item: 1
+</code></pre>
+<p>Pre-computing values allows the <code>body</code> property to execute in microseconds without stalling the main thread.</p>
+<h3>Skipping redundant body evaluations with Equatable</h3>
+<p>SwiftUI re-evaluates a view when parent state changes unless it can prove the view inputs did not change.</p>
+<p>Conforming a subview to <code>Equatable</code> and applying the <code>.equatable()</code> modifier lets SwiftUI compare properties.</p>
+<p>If old and new properties match, SwiftUI skips the view body completely.</p>
+<pre class="block swift"><code class="language-swift">import Foundation
+
+struct UserProfile: Equatable {
+    let id: Int
+    let name: String
+    let status: String
+}
+
+func shouldEvaluateBody(oldProfile: UserProfile, newProfile: UserProfile) -&gt; Bool {
+    return oldProfile != newProfile
+}
+
+let p1 = UserProfile(id: 1, name: &quot;Alice&quot;, status: &quot;Active&quot;)
+let p2 = UserProfile(id: 1, name: &quot;Alice&quot;, status: &quot;Active&quot;)
+let p3 = UserProfile(id: 1, name: &quot;Alice&quot;, status: &quot;Away&quot;)
+
+print(&quot;Equal profiles re-evaluate: \(shouldEvaluateBody(oldProfile: p1, newProfile: p2))&quot;)
+print(&quot;Changed profiles re-evaluate: \(shouldEvaluateBody(oldProfile: p1, newProfile: p3))&quot;)
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Equal profiles re-evaluate: false
+Changed profiles re-evaluate: true
+</code></pre>
+<p>By conforming types to <code>Equatable</code>, child views skip unnecessary body evaluations when irrelevant parent data changes.</p>
+<h3>Scoping observation with modern @Observable</h3>
+<p>On iOS 17 and later, the Observation framework tracks individual property access inside each view body.</p>
+<p>With older <code>ObservableObject</code> and <code>@Published</code>, changing any property invalidates every view observing that object.</p>
+<p>With <code>@Observable</code>, changing property A only re-evaluates views that read property A.</p>
+<p>Views that only read property B remain untouched, eliminating wasted body evaluations across your app.</p>
+<p class="try-it"><p>Open a Swift Playground. Create a SwiftUI view with a list. Call Self._printChanges() inside body to observe which state changes trigger redraws.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>What happens if you generate a random UUID() inside a view body for a ForEach id parameter?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">SwiftUI caches the UUID automatically to preserve performance.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">SwiftUI generates a new identity every pass, destroying and re-creating subviews on every render.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The Swift compiler raises a syntax error preventing compilation.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">The list smoothly animates changes between random identifiers.</span></button><p class="qc-explain" hidden=""><p>Generating dynamic identifiers inside body destroys view identity. SwiftUI cannot match old and new views, forcing full reconstruction.</p></p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>DateFormatter allocation and array sorting are expensive operations. Executing them inside <code>body</code> causes visible scrolling hitches. Always pre-format dates in your view models.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Never initialize <code>@StateObject</code> with dynamic dependencies inside <code>var body</code>. Doing so can leak memory or reset object state unexpectedly.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Using <code>ForEach(items, id: \.self)</code> with non-unique items or generating IDs inside <code>body</code> breaks view identity. SwiftUI loses animation state and re-creates cell trees.</p></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>What built-in debug method logs the exact property that caused a SwiftUI view body to re-evaluate?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text"><code>print(view.debugDescription)</code></span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text"><code>ViewDebugger.inspectHierarchy()</code></span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text"><code>Self._printChanges()</code></span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text"><code>SwiftUI.dumpLayoutTrace()</code></span></button><p class="qc-explain" hidden=""><p>Calling Self._printChanges() inside a view body prints the specific state, binding, or environment change that triggered the update.</p></p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>SwiftUI performance depends on fast view body execution, stable identity, and scoped state dependencies. We keep <code>body</code> pure and lightweight by doing heavy operations, like sorting or date formatting, in view models beforehand. We make sure <code>ForEach</code> elements have stable and unique identities to prevent view re-creation. In modern apps, we use <code>@Observable</code> so that views only re-evaluate when the specific properties they access change. When debugging hitches, we use <code>Self._printChanges()</code> and the SwiftUI template in Xcode Instruments.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>SwiftUI performance is governed by the dependency graph, identity preservation, and render tree diffing. View bodies must be deterministic, pure functions that execute in sub-millisecond timeframes. To avoid unnecessary invalidations, we scope dependencies tightly using <code>@Observable</code>, which provides granular property-level observation rather than the coarse object-level invalidation of <code>ObservableObject</code>. We maintain stable explicit identities in lists to protect view state and eliminate layout thrashing. For complex hierarchies with frequent parent updates, we implement <code>Equatable</code> conformance on subviews to skip body evaluation passes. When optimizing in production, we use Instruments with the Time Profiler and SwiftUI View Body tracks to pinpoint expensive body evaluations and identify invalidation storms.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><p>Keep SwiftUI view bodies pure and fast. Move data sorting, network calls, and expensive formatting out of body into models. Preserve stable view identity in ForEach to avoid tearing down view hierarchies. Use @Observable on iOS 17+ for granular property-level invalidation. Conform leaf views to Equatable to skip redundant evaluations. Use Self._printChanges() and Xcode Instruments to detect and fix bottlenecks.</p></div>
+<h2>Go deeper</h2>
+<ul>
+<li><a href="https://developer.apple.com/videos/play/wwdc2023/10160/">WWDC23: Demystify SwiftUI performance</a></li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2021/10022/">WWDC21: Demystify SwiftUI</a></li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2020/10040/">WWDC20: Data Essentials in SwiftUI</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+(function() {
+  const steps = [
+    {
+      title: "Step 1: State Mutation",
+      badge: "MUTATION",
+      badgeClass: "accent",
+      explainer: "User interaction or asynchronous data triggers a change in a @State or @Observable model property on the main thread.",
+      code: "@Observable class FeedModel {\n    var items: [String] = []\n    func addItem(_ item: String) {\n        items.append(item) // Triggers observation\n    }\n}",
+      activePaths: ["pathStep1", "lblStep1"],
+      highlightNodes: ["stateNode"]
+    },
+    {
+      title: "Step 2: Dependency Graph Lookup",
+      badge: "GRAPH",
+      badgeClass: "safe",
+      explainer: "SwiftUI inspects its internal dependency graph. With @Observable, only view bodies that read the modified property are marked dirty.",
+      code: "// Dependency check:\n// SubviewA reads `items` -> Marked dirty (invalidated)\n// SubviewB reads `title` -> Kept unchanged (skipped!)",
+      activePaths: ["pathStep2", "lblStep2"],
+      highlightNodes: ["graphNode"]
+    },
+    {
+      title: "Step 3: Body Property Execution",
+      badge: "EXECUTION",
+      badgeClass: "warn",
+      explainer: "SwiftUI invokes `var body: some View` on invalidated views. The body must be pure and instantaneous, returning lightweight view structs.",
+      code: "var body: some View {\n    List(model.items, id: \\.self) { item in\n        Text(item)\n    }\n    // Fast: No sorting or date formatting in body\n}",
+      activePaths: ["pathStep3", "lblStep3"],
+      highlightNodes: ["bodyNode"]
+    },
+    {
+      title: "Step 4: Render Tree Diff & Commit",
+      badge: "DIFF & RENDER",
+      badgeClass: "accent",
+      explainer: "SwiftUI compares old and new view structs. It applies minimal visual updates to render layers without destroying underlying identity.",
+      code: "// SwiftUI diff:\n// Identified 1 appended row\n// Animations committed at 60/120 FPS without hitching",
+      activePaths: ["pathStep4", "lblStep4"],
+      highlightNodes: ["diffNode"]
+    }
+  ];
+
+  let currentStep = 0;
+  const stageTitle = document.getElementById("stageTitle");
+  const statusBadge = document.getElementById("statusBadge");
+  const stepCounter = document.getElementById("stepCounter");
+  const explainerText = document.getElementById("explainerText");
+  const codeSnippet = document.getElementById("codeSnippet");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+
+  const allPathIds = ["pathStep1", "lblStep1", "pathStep2", "lblStep2", "pathStep3", "lblStep3", "pathStep4", "lblStep4"];
+  const allNodeIds = ["stateNode", "graphNode", "bodyNode", "diffNode"];
+
+  function updateView() {
+    const s = steps[currentStep];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${currentStep + 1} of ${steps.length}`;
+    explainerText.innerHTML = s.explainer;
+    codeSnippet.textContent = s.code;
+
+    btnBack.disabled = currentStep === 0;
+    btnNext.disabled = currentStep === steps.length - 1;
+
+    allPathIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute("opacity", s.activePaths.includes(id) ? "1" : "0.1");
+    });
+
+    allNodeIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        const rect = el.querySelector("rect");
+        if (rect) {
+          rect.setAttribute("stroke-width", s.highlightNodes.includes(id) ? "2.5" : "1.5");
+          rect.setAttribute("stroke", s.highlightNodes.includes(id) ? "var(--accent-color)" : "var(--line)");
+        }
+      }
+    });
+  }
+
+  btnNext.addEventListener("click", () => {
+    if (currentStep < steps.length - 1) {
+      currentStep++;
+      updateView();
+    }
+  });
+
+  btnBack.addEventListener("click", () => {
+    if (currentStep > 0) {
+      currentStep--;
+      updateView();
+    }
+  });
+
+  btnReplay.addEventListener("click", () => {
+    currentStep = 0;
+    updateView();
+  });
+
+  updateView();
+})();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"swiftui-performance","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"sui-perf-q01","type":"mcq","difficulty":1,"prompt":"What should the body property of a SwiftUI view ideally be?","answer":"a","options":[{"id":"a","text":"A fast, lightweight, and pure description of the user interface.","explanation":"View bodies run frequently on the main thread and must execute rapidly."},{"id":"b","text":"An asynchronous worker performing network and file operations.","explanation":"Body is a synchronous property and must never block for network or file I/O."},{"id":"c","text":"A cache holding reference type database connections.","explanation":"Database connections belong in data layer services, not view bodies."},{"id":"d","text":"A persistent controller managing the UIKit window hierarchy.","explanation":"SwiftUI views are ephemeral value types, not persistent window managers."}]},{"id":"sui-perf-q02","type":"mcq","difficulty":1,"prompt":"Why is performing heavy array sorting inside a view body considered an anti-pattern?","answer":"b","options":[{"id":"a","text":"Because Swift arrays cannot be sorted within view struct declarations.","explanation":"Arrays can be sorted syntactically, but doing so wastes main thread time."},{"id":"b","text":"Because body runs repeatedly, blocking the main thread and dropping frames.","explanation":"Sorting on every render pass consumes CPU cycles and causes stutter."},{"id":"c","text":"Because sorting an array permanently deletes its underlying elements.","explanation":"Sorting transforms element ordering without deleting items."},{"id":"d","text":"Because SwiftUI views automatically convert all arrays into hash sets.","explanation":"SwiftUI does not convert arrays into hash sets."}]},{"id":"sui-perf-q03","type":"mcq","difficulty":1,"prompt":"Where should expensive operations like sorting, filtering, and date formatting be performed?","answer":"c","options":[{"id":"a","text":"Inside custom property wrappers attached to primitive view bodies.","explanation":"Property wrappers decorate state but should not perform heavy sorting in body."},{"id":"b","text":"Within the body getter of the immediate parent navigation stack.","explanation":"Parent view bodies also run on the main thread and must stay lightweight."},{"id":"c","text":"In view models, background tasks, or cached properties beforehand.","explanation":"Pre-computing derived data keeps the view body fast and responsive."},{"id":"d","text":"Directly inside view initializer parameters on every single redraw.","explanation":"Initializers are called frequently during parent body evaluations."}]},{"id":"sui-perf-q04","type":"mcq","difficulty":1,"prompt":"What does SwiftUI do in the render loop after executing invalidated view bodies?","answer":"d","options":[{"id":"a","text":"It completely reloads the entire root application view controller.","explanation":"SwiftUI performs targeted local updates rather than reloading the app."},{"id":"b","text":"It wipes all user interaction states and resets text fields.","explanation":"Preserving view identity protects interaction state and text input."},{"id":"c","text":"It converts all subviews into static PNG bitmaps on disk.","explanation":"SwiftUI renders dynamic vector views to display buffers, not PNG files."},{"id":"d","text":"It diffs new view structs against old ones and renders visual changes.","explanation":"Diffing identifies the minimal necessary updates to commit to the screen."}]},{"id":"sui-perf-q05","type":"mcq","difficulty":1,"prompt":"How does conforming a subview to Equatable and applying .equatable() optimize performance?","answer":"a","options":[{"id":"a","text":"SwiftUI can compare inputs and skip body evaluation if properties match.","explanation":"Equatable comparison prevents redundant body evaluations when inputs are equal."},{"id":"b","text":"It forces SwiftUI to execute the subview body on a background thread.","explanation":"View bodies always execute on the main thread, never in the background."},{"id":"c","text":"It caches the view in disk storage across distinct application launches.","explanation":"Equatable affects memory diffing during runtime, not disk persistence."},{"id":"d","text":"It prevents the child view from ever receiving state updates again.","explanation":"The view still updates whenever any of its properties actually change."}]},{"id":"sui-perf-q06","type":"mcq","difficulty":1,"prompt":"How does modern @Observable improve upon older ObservableObject performance?","answer":"b","options":[{"id":"a","text":"By compressing memory payloads through background zip operations.","explanation":"Observation does not compress memory using zip operations."},{"id":"b","text":"By tracking property reads per view rather than invalidating for any change.","explanation":"@Observable scopes invalidations strictly to views that read the modified property."},{"id":"c","text":"By executing view body calculations directly on the GPU hardware.","explanation":"View bodies evaluate on the CPU before GPU render passes occur."},{"id":"d","text":"By converting all model classes into immutable value structs at runtime.","explanation":"@Observable works on reference classes without turning them into structs."}]},{"id":"sui-perf-q07","type":"mcq","difficulty":2,"prompt":"What is the primary danger of using UUID() inside a view body for ForEach identity?","answer":"c","options":[{"id":"a","text":"The app runs out of UUID numbers and throws a memory allocation fault.","explanation":"UUID space is vast and does not run out, but randomness destroys identity."},{"id":"b","text":"The compiler refuses to build views that instantiate UUID objects.","explanation":"The code compiles cleanly, but runtime performance degrades severely."},{"id":"c","text":"Every render generates new IDs, destroying view state and forcing rebuilds.","explanation":"Unstable identity causes SwiftUI to tear down and reconstruct all subviews."},{"id":"d","text":"SwiftUI converts the list into an unscrollable static image container.","explanation":"The list remains scrollable, but drops frames due to view churn."}]},{"id":"sui-perf-q08","type":"mcq","difficulty":2,"prompt":"Which diagnostic tool in Xcode helps identify excessive SwiftUI view body evaluations?","answer":"d","options":[{"id":"a","text":"The Network Link Conditioner tool.","explanation":"Network Link Conditioner simulates poor network connectivity."},{"id":"b","text":"The Metal Frame Debugger asset analyzer.","explanation":"Metal Frame Debugger inspects GPU shaders and draw calls."},{"id":"c","text":"The Core Data Fetch Request recorder.","explanation":"The Core Data instrument tracks database queries, not SwiftUI bodies."},{"id":"d","text":"The SwiftUI template in Xcode Instruments.","explanation":"Instruments provides the SwiftUI View Body and Time Profiler instruments."}]},{"id":"sui-perf-q09","type":"mcq","difficulty":2,"prompt":"What does calling Self._printChanges() inside a view body print to the Xcode console?","answer":"a","options":[{"id":"a","text":"The specific state property, binding, or environment key that triggered the body.","explanation":"Self._printChanges() inspects dependencies and logs what changed."},{"id":"b","text":"A complete assembly dump of the compiled Metal shader pipelines.","explanation":"It prints dependency names, not low-level GPU assembly code."},{"id":"c","text":"The total physical memory consumed by the entire application process.","explanation":"It is a SwiftUI view debugging method, not an OS memory tool."},{"id":"d","text":"A list of all network API calls executed during the previous minute.","explanation":"It tracks SwiftUI view dependencies, not network requests."}]},{"id":"sui-perf-q10","type":"mcq","difficulty":2,"prompt":"Why should DateFormatter not be instantiated repeatedly inside a view body?","answer":"b","options":[{"id":"a","text":"Because DateFormatter instances crash if created more than once per launch.","explanation":"DateFormatter does not crash, but allocating it repeatedly is very slow."},{"id":"b","text":"Because allocating DateFormatter is expensive and stalls the main run loop.","explanation":"DateFormatter setup involves locale and calendar parsing, hurting scrolling."},{"id":"c","text":"Because DateFormatter is an Objective-C class unsupported in SwiftUI views.","explanation":"DateFormatter works in Swift, but repeated initialization causes hitches."},{"id":"d","text":"Because SwiftUI already formats all date instances to local time automatically.","explanation":"Dates require explicit formatting in SwiftUI code."}]},{"id":"sui-perf-q11","type":"mcq","difficulty":2,"prompt":"What issue arises from instantiating StateObject with dynamic view parameters in body?","answer":"c","options":[{"id":"a","text":"The state object immediately converts all properties into private variables.","explanation":"Variable visibility is not changed by StateObject initialization."},{"id":"b","text":"The parent view refuses to display any navigation titles.","explanation":"Navigation titles are unaffected by StateObject placement."},{"id":"c","text":"StateObject creates and ties lifetime to the view node, ignoring later params.","explanation":"StateObject initializes only once; recreating it in body risks unexpected behavior."},{"id":"d","text":"The operating system terminates the process due to a security violation.","explanation":"No OS termination occurs, but model state fails to update as expected."}]},{"id":"sui-perf-q12","type":"mcq","difficulty":3,"prompt":"How does fine-grained observation in iOS 17+ reduce unnecessary body invalidations?","answer":"d","options":[{"id":"a","text":"By offloading all SwiftUI view struct evaluations to background dispatch queues.","explanation":"View bodies remain on the main actor; observation optimizes dependency scoping."},{"id":"b","text":"By rasterizing non-visible views to vector PDF format behind the scenes.","explanation":"Observation tracks runtime property reads, not vector rendering."},{"id":"c","text":"By disabling view animations whenever model properties change values.","explanation":"Animations continue to function seamlessly with @Observable."},{"id":"d","text":"By establishing dependencies only for properties actually read during body execution.","explanation":"Unread properties never trigger invalidation, eliminating broadcast updates."}]},{"id":"sui-perf-q13","type":"mcq","difficulty":3,"prompt":"When should an engineer consider breaking down a large monolithic view into smaller subviews?","answer":"a","options":[{"id":"a","text":"To isolate state dependencies and limit body evaluation to small subtrees.","explanation":"Smaller views scope invalidations so only affected subtrees re-evaluate."},{"id":"b","text":"To prevent SwiftUI from enforcing 60 frames per second display refreshes.","explanation":"Breaking down views helps achieve smooth 60 or 120 FPS, not avoid it."},{"id":"c","text":"Because SwiftUI views fail to compile when exceeding fifty lines of code.","explanation":"Views can be arbitrary length, but smaller views improve performance."},{"id":"d","text":"To bypass the Swift compiler type inference time limit on structs.","explanation":"While it aids compiler speed, the runtime performance gain is dependency isolation."}]},{"id":"sui-perf-q14","type":"mcq","difficulty":3,"prompt":"What is the performance implication of using AnyView excessively in SwiftUI hierarchies?","answer":"b","options":[{"id":"a","text":"AnyView permanently corrupts the application keychain records.","explanation":"AnyView has no relationship to Keychain services."},{"id":"b","text":"AnyView erases type information, hindering SwiftUI diffing optimizations.","explanation":"Type erasure forces heap allocations and prevents efficient structural diffing."},{"id":"c","text":"AnyView causes the application binary size to triple immediately.","explanation":"Type erasure does not triple the binary size."},{"id":"d","text":"AnyView stops user touch gestures from triggering button actions.","explanation":"Buttons wrapped in AnyView continue to receive user gestures."}]},{"id":"sui-perf-q15","type":"mcq","difficulty":1,"prompt":"Which set of practices best summarizes the core strategy for fast SwiftUI apps?","answer":"c","options":[{"id":"a","text":"Write heavy sorting in body, use random IDs, and wrap everything in AnyView.","explanation":"These are all classic anti-patterns that severely degrade performance."},{"id":"b","text":"Run all view body computations on background queues and avoid using structs.","explanation":"View bodies must run on the main thread and structs are required."},{"id":"c","text":"Keep body fast, maintain stable IDs, and scope dependencies tightly with @Observable.","explanation":"This concise set of rules represents Apple recommended SwiftUI performance practice."},{"id":"d","text":"Convert every SwiftUI screen into raw UIKit views using UIViewRepresentable.","explanation":"SwiftUI is highly performant on its own when following best practices."}]},{"id":"sui-perf-q16","type":"code-reading","difficulty":1,"prompt":"What does this cached calculation helper print when requesting results?","code":"import Foundation\n\nclass DataCacheHelper {\n    private var cache: [Int: Int] = [:]\n\n    func computeSquare(_ value: Int) -> Int {\n        if let existing = cache[value] {\n            return existing\n        }\n        let result = value * value\n        cache[value] = result\n        return result\n    }\n}\n\nlet helper = DataCacheHelper()\n_ = helper.computeSquare(4)\nlet cachedResult = helper.computeSquare(4)\nprint(\"Square: \\(cachedResult)\")","answer":"d","options":[{"id":"a","text":"Square: 4","explanation":"The helper computes the square of 4, which is 16."},{"id":"b","text":"Square: 8","explanation":"4 multiplied by 4 equals 16, not 8."},{"id":"c","text":"Square: 0","explanation":"The cache stores and returns the computed square of 16."},{"id":"d","text":"Square: 16","explanation":"4 squared is 16, retrieved from cache on the second invocation."}]},{"id":"sui-perf-q17","type":"code-reading","difficulty":1,"prompt":"What does this Equatable view comparison simulate when input values are identical?","code":"import Foundation\n\nstruct ViewInput: Equatable {\n    let title: String\n    let badgeCount: Int\n}\n\nfunc requiresBodyUpdate(old: ViewInput, new: ViewInput) -> Bool {\n    old != new\n}\n\nlet current = ViewInput(title: \"Inbox\", badgeCount: 3)\nlet updated = ViewInput(title: \"Inbox\", badgeCount: 3)\nprint(\"Needs update: \\(requiresBodyUpdate(old: current, new: updated))\")","answer":"a","options":[{"id":"a","text":"Needs update: false","explanation":"Because current equals updated, requiresBodyUpdate returns false."},{"id":"b","text":"Needs update: true","explanation":"The inputs are identical, so an update is not needed."},{"id":"c","text":"Needs update: nil","explanation":"The function returns a non-optional Boolean value."},{"id":"d","text":"Needs update: 0","explanation":"The return type is Bool, not an integer value."}]},{"id":"sui-perf-q18","type":"code-reading","difficulty":1,"prompt":"What does this dependency evaluation counter print after three updates?","code":"import Foundation\n\nclass EvaluationTracker {\n    var evaluations = 0\n\n    func evaluateIfChanged(oldVal: Int, newVal: Int) {\n        if oldVal != newVal {\n            evaluations += 1\n        }\n    }\n}\n\nlet tracker = EvaluationTracker()\ntracker.evaluateIfChanged(oldVal: 1, newVal: 2)\ntracker.evaluateIfChanged(oldVal: 2, newVal: 2)\ntracker.evaluateIfChanged(oldVal: 2, newVal: 5)\nprint(\"Total evaluations: \\(tracker.evaluations)\")","answer":"b","options":[{"id":"a","text":"Total evaluations: 3","explanation":"The second call had matching values and was skipped by the conditional check."},{"id":"b","text":"Total evaluations: 2","explanation":"Only the first (1 to 2) and third (2 to 5) calls differed and incremented the count."},{"id":"c","text":"Total evaluations: 1","explanation":"Two calls had different values, so evaluations is 2."},{"id":"d","text":"Total evaluations: 0","explanation":"Two updates occurred and were recorded."}]},{"id":"sui-perf-q19","type":"code-reading","difficulty":2,"prompt":"What does this identity stability simulator print when tracking persistent IDs?","code":"import Foundation\n\nstruct ItemRecord {\n    let stableId: String\n    let name: String\n}\n\nfunc countUniqueIdentities(_ items: [ItemRecord]) -> Int {\n    Set(items.map { $0.stableId }).count\n}\n\nlet records = [\n    ItemRecord(stableId: \"ID_A\", name: \"First\"),\n    ItemRecord(stableId: \"ID_B\", name: \"Second\"),\n    ItemRecord(stableId: \"ID_A\", name: \"First Updated\")\n]\nprint(\"Unique IDs: \\(countUniqueIdentities(records))\")","answer":"c","options":[{"id":"a","text":"Unique IDs: 3","explanation":"ID_A appears twice, so there are only 2 unique IDs."},{"id":"b","text":"Unique IDs: 1","explanation":"There are two distinct IDs: ID_A and ID_B."},{"id":"c","text":"Unique IDs: 2","explanation":"The set of stableId strings contains ID_A and ID_B, giving a count of 2."},{"id":"d","text":"Unique IDs: 0","explanation":"The collection contains three items with two unique keys."}]},{"id":"sui-perf-q20","type":"code-reading","difficulty":2,"prompt":"What does this pre-computation filter helper print for active items?","code":"import Foundation\n\nstruct FeedItem {\n    let id: Int\n    let isActive: Bool\n}\n\nclass FilteredFeedModel {\n    let allItems: [FeedItem]\n    private(set) var activeCount: Int = 0\n\n    init(items: [FeedItem]) {\n        self.allItems = items\n        self.activeCount = items.filter { $0.isActive }.count\n    }\n}\n\nlet model = FilteredFeedModel(items: [\n    FeedItem(id: 1, isActive: true),\n    FeedItem(id: 2, isActive: false),\n    FeedItem(id: 3, isActive: true)\n])\nprint(\"Active items: \\(model.activeCount)\")","answer":"d","options":[{"id":"a","text":"Active items: 3","explanation":"Only items 1 and 3 have isActive set to true."},{"id":"b","text":"Active items: 1","explanation":"There are 2 active items, not 1."},{"id":"c","text":"Active items: 0","explanation":"Two items matched the filter criteria."},{"id":"d","text":"Active items: 2","explanation":"Items 1 and 3 are active, resulting in an activeCount of 2."}]},{"id":"sui-perf-q21","type":"code-reading","difficulty":2,"prompt":"What does this change detector simulator print when property values are modified?","code":"import Foundation\n\nstruct DiagnosticLogger {\n    var changes: [String] = []\n\n    mutating func recordChange(_ propertyName: String) {\n        changes.append(propertyName)\n    }\n}\n\nvar logger = DiagnosticLogger()\nlogger.recordChange(\"@State count\")\nlogger.recordChange(\"@Binding text\")\nprint(\"Logged: \\(logger.changes.joined(separator: \", \"))\")","answer":"a","options":[{"id":"a","text":"Logged: @State count, @Binding text","explanation":"Both properties were recorded in sequence and joined with comma."},{"id":"b","text":"Logged: count, text","explanation":"The recorded strings include the @State and @Binding prefixes."},{"id":"c","text":"Logged: ","explanation":"Two changes were appended, so the output is not empty."},{"id":"d","text":"Logged: 2","explanation":"The joined string contains the property names, not their count."}]},{"id":"sui-perf-q22","type":"code-reading","difficulty":2,"prompt":"What does this body evaluation skip simulator print when evaluating three subviews?","code":"import Foundation\n\nstruct SubviewTracker {\n    var evaluatedCount = 0\n\n    mutating func evaluateIfNeeded(hasChanged: Bool) {\n        if hasChanged {\n            evaluatedCount += 1\n        }\n    }\n}\n\nvar tracker = SubviewTracker()\ntracker.evaluateIfNeeded(hasChanged: false)\ntracker.evaluateIfNeeded(hasChanged: true)\ntracker.evaluateIfNeeded(hasChanged: false)\nprint(\"Evaluated: \\(tracker.evaluatedCount)\")","answer":"b","options":[{"id":"a","text":"Evaluated: 0","explanation":"The second call had hasChanged true, incrementing the count."},{"id":"b","text":"Evaluated: 1","explanation":"Only one call had hasChanged set to true, so evaluatedCount is 1."},{"id":"c","text":"Evaluated: 2","explanation":"Only one subview had changes."},{"id":"d","text":"Evaluated: 3","explanation":"The other two calls had hasChanged as false and were skipped."}]},{"id":"sui-perf-q23","type":"code-reading","difficulty":3,"prompt":"What does this scoped property observer print when tracking selective view dependencies?","code":"import Foundation\n\nclass ScopedObservationSimulator {\n    var viewAReads = [\"title\"]\n    var viewBReads = [\"score\"]\n\n    func shouldInvalidateViewA(changedProperty: String) -> Bool {\n        viewAReads.contains(changedProperty)\n    }\n}\n\nlet sim = ScopedObservationSimulator()\nlet invalidated = sim.shouldInvalidateViewA(changedProperty: \"score\")\nprint(\"ViewA invalidated: \\(invalidated)\")","answer":"c","options":[{"id":"a","text":"ViewA invalidated: true","explanation":"viewAReads only contains title, so changing score does not invalidate ViewA."},{"id":"b","text":"ViewA invalidated: nil","explanation":"shouldInvalidateViewA returns a non-optional Boolean value."},{"id":"c","text":"ViewA invalidated: false","explanation":"score is read by ViewB, not ViewA, so ViewA remains valid."},{"id":"d","text":"ViewA invalidated: 0","explanation":"The return value is a Boolean, not an integer."}]},{"id":"sui-perf-q24","type":"written","difficulty":1,"prompt":"Explain why keeping view body execution fast and lightweight is critical in SwiftUI apps. Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that view body executes synchronously on the main thread during render passes","weight":50,"key":true},{"criterion":"Explains that heavy computations in body cause main thread blocking and dropped frames","weight":50,"key":true}],"modelAnswer":"SwiftUI evaluates view bodies synchronously on the main thread whenever dependent state changes. If a view body performs heavy computations like sorting, filtering, or JSON parsing, it stalls the main thread. This delay causes dropped frames and stuttering during scrolling and animations. Keeping view bodies fast makes sure the app maintains a smooth 60 or 120 frames per second."},{"id":"sui-perf-q25","type":"written","difficulty":2,"prompt":"How does conforming subviews to Equatable and using .equatable() help avoid unnecessary body evaluations? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that Equatable allows SwiftUI to compare view property values between render passes","weight":50,"key":true},{"criterion":"Explains that matching properties allow SwiftUI to skip executing the subview body","weight":50,"key":true}],"modelAnswer":"By conforming a subview to Equatable and applying the .equatable() modifier, you allow SwiftUI to compare old and new view struct inputs. If parent state changes but the subview properties remain identical, SwiftUI skips executing the child view body completely. This optimization prevents wasted work across complex view hierarchies when parent state changes frequently."},{"id":"sui-perf-q26","type":"written","difficulty":2,"prompt":"Describe why generating UUID() inside ForEach identity causes performance problems in SwiftUI lists. Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that generating UUID() inside body creates random IDs on every evaluation pass","weight":50,"key":true},{"criterion":"Explains that unstable identity destroys view state and forces complete reconstruction of subviews","weight":50,"key":true}],"modelAnswer":"Generating UUID() inside a view body creates new random identifiers on every single evaluation pass. Because the identifiers change constantly, SwiftUI cannot match old views to new views in its render graph. This unstable identity causes SwiftUI to tear down existing views, destroy internal state, and reconstruct the entire list from scratch. Always use stable, persistent identifiers from your data models."},{"id":"sui-perf-q27","type":"written","difficulty":3,"prompt":"How does the Observation framework in iOS 17+ improve performance compared to Combine-based ObservableObject? Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that ObservableObject invalidates any observing view whenever any Published property changes","weight":50,"key":true},{"criterion":"Explains that @Observable tracks per-property access so only views reading the changed property re-evaluate","weight":50,"key":true}],"modelAnswer":"With older ObservableObject and @Published, changing any property triggers objectWillChange, invalidating every view that observes the object regardless of which property it displays. In contrast, the modern @Observable macro uses the Observation framework to track property access on a granular per-property basis. Views only re-evaluate when the specific properties they access in body change. This fine-grained scoping eliminates wasted body evaluations across the application."},{"id":"sui-perf-q28","type":"written","difficulty":2,"prompt":"Explain the role of Self._printChanges() when diagnosing SwiftUI performance hitches. Answer in 2 to 5 sentences.","rubric":[{"criterion":"Explains that calling Self._printChanges() inside body logs which dependency caused the view update","weight":50,"key":true},{"criterion":"Explains that it helps developers detect unexpected state changes and over-invalidation loops","weight":50,"key":true}],"modelAnswer":"Calling Self._printChanges() inside a view body logs the exact state property, binding, or environment key that caused SwiftUI to re-evaluate the view. It helps developers discover unnecessary updates and over-invalidation cycles during debugging. By knowing which dependency changed, engineers can quickly scope or isolate states that cause dropped frames."},{"id":"sui-perf-q29","type":"code-write","difficulty":1,"prompt":"Write a struct CalculationCache with stored property var computedCount: Int = 0. Add a mutating method computeDouble(_ val: Int) -> Int that increments computedCount and returns val * 2. In testCache(), create an instance, call computeDouble(5), and print 'Doubled: {doubled}, Count: {computedCount}'. Call testCache().","starterCode":"struct CalculationCache {\n    // Implement property and computeDouble\n}\n\nfunc testCache() {\n    // Test and print\n}\n\ntestCache()","rubric":[{"criterion":"Declares CalculationCache with computedCount integer property initialized to 0","weight":35,"key":true},{"criterion":"Implements mutating computeDouble method incrementing count and returning double","weight":35,"key":true},{"criterion":"Prints exact output 'Doubled: 10, Count: 1'","weight":30,"key":true}],"modelAnswer":"struct CalculationCache {\n    var computedCount: Int = 0\n\n    mutating func computeDouble(_ val: Int) -> Int {\n        computedCount += 1\n        return val * 2\n    }\n}\n\nfunc testCache() {\n    var cache = CalculationCache()\n    let doubled = cache.computeDouble(5)\n    print(\"Doubled: \\(doubled), Count: \\(cache.computedCount)\")\n}\n\ntestCache()"},{"id":"sui-perf-q30","type":"code-write","difficulty":2,"prompt":"Write a struct EquatableStateEvaluator with properties id: Int and version: Int conforming to Equatable. Add a method needsUpdate(against newState: EquatableStateEvaluator) -> Bool that returns self != newState. In testEvaluator(), compare two identical instances with id: 1 and version: 2, and print 'Update needed: {s1.needsUpdate(against: s2)}'. Call testEvaluator().","starterCode":"struct EquatableStateEvaluator: Equatable {\n    // Implement properties and needsUpdate\n}\n\nfunc testEvaluator() {\n    // Test and print result\n}\n\ntestEvaluator()","rubric":[{"criterion":"Declares EquatableStateEvaluator with id and version conforming to Equatable","weight":35,"key":true},{"criterion":"Implements needsUpdate method returning inequality check","weight":35,"key":true},{"criterion":"Prints exact output 'Update needed: false'","weight":30,"key":true}],"modelAnswer":"struct EquatableStateEvaluator: Equatable {\n    let id: Int\n    let version: Int\n\n    func needsUpdate(against newState: EquatableStateEvaluator) -> Bool {\n        self != newState\n    }\n}\n\nfunc testEvaluator() {\n    let s1 = EquatableStateEvaluator(id: 1, version: 2)\n    let s2 = EquatableStateEvaluator(id: 1, version: 2)\n    print(\"Update needed: \\(s1.needsUpdate(against: s2))\")\n}\n\ntestEvaluator()"},{"id":"sui-perf-q31","type":"code-write","difficulty":3,"prompt":"Write a struct ScopedDependencyTracker with a property observedKeys: Set\u003cString>. Add a method isDirty(modifiedKey: String) -> Bool that returns true if observedKeys contains modifiedKey. In testTracker(), initialize with ['title', 'avatar'], check with modifiedKey 'status', and print 'Is dirty: {isDirty(modifiedKey: \"status\")} '. Call testTracker().","starterCode":"struct ScopedDependencyTracker {\n    // Implement observedKeys and isDirty\n}\n\nfunc testTracker() {\n    // Test and print result\n}\n\ntestTracker()","rubric":[{"criterion":"Declares ScopedDependencyTracker with observedKeys set property","weight":35,"key":true},{"criterion":"Implements isDirty method checking if modified key exists in observed set","weight":35,"key":true},{"criterion":"Prints exact output 'Is dirty: false'","weight":30,"key":true}],"modelAnswer":"struct ScopedDependencyTracker {\n    let observedKeys: Set\u003cString>\n\n    func isDirty(modifiedKey: String) -> Bool {\n        observedKeys.contains(modifiedKey)\n    }\n}\n\nfunc testTracker() {\n    let tracker = ScopedDependencyTracker(observedKeys: [\"title\", \"avatar\"])\n    print(\"Is dirty: \\(tracker.isDirty(modifiedKey: \"status\"))\")\n}\n\ntestTracker()"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
