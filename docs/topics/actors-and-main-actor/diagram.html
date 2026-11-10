@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Actors and @MainActor Isolation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --actor-color: #7c3aed;
+  --actor-soft: #ede9fe;
+  --task1-color: #0284c7;
+  --task1-soft: #e0f2fe;
+  --task2-color: #ea580c;
+  --task2-soft: #ffedd5;
+  --main-color: #059669;
+  --main-soft: #d1fae5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --actor-color: #a78bfa;
+    --actor-soft: #2e1065;
+    --task1-color: #38bdf8;
+    --task1-soft: #082f49;
+    --task2-color: #fb923c;
+    --task2-soft: #431407;
+    --main-color: #34d399;
+    --main-soft: #064e3b;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--actor-color);
+  color: var(--actor-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.step-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.badge.actor { background: var(--actor-soft); color: var(--actor-color); }
+.badge.task1 { background: var(--task1-soft); color: var(--task1-color); }
+.badge.task2 { background: var(--task2-soft); color: var(--task2-color); }
+.badge.main { background: var(--main-soft); color: var(--main-color); }
+
+.caption {
+  font-size: 15px;
+  color: var(--ink);
+  margin: 0;
+  min-height: 2.8em;
+}
+.code-box {
+  font: 13px/1.5 var(--font-code);
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  white-space: pre;
+}
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.node-box {
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+.reduced-motion-summary {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reduced-motion-summary { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host">
+  <div class="controls" role="region" aria-label="Diagram Controls">
+    <span class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+    <div class="btn-group">
+      <button id="btnBack" aria-label="Previous step">Back</button>
+      <button id="btnNext" aria-label="Next step">Next</button>
+      <button id="btnReplay" aria-label="Replay from step 1">Replay</button>
+    </div>
+  </div>
+
+  <div class="card" role="region" aria-label="Actors Diagram">
+    <div class="header-row">
+      <h3 class="title" id="stageTitle">Step 1: Concurrent Calls Arrive</h3>
+      <span class="badge actor" id="statusBadge">Actor Ready</span>
+    </div>
+
+    <p class="caption" id="captionText">
+      Two concurrent tasks call deposit() on the same BankAccount actor at the exact same moment.
+    </p>
+
+    <div class="code-box" id="codeText">// Task 1: await account.deposit(50)
+// Task 2: await account.deposit(100)</div>
+
+    <svg viewBox="0 0 680 230" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Actor Isolation Visualization">
+      <defs>
+        <marker id="arr-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--task1-color)" />
+        </marker>
+        <marker id="arr-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--task2-color)" />
+        </marker>
+        <marker id="arr-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--main-color)" />
+        </marker>
+      </defs>
+
+      <!-- Task 1 (Top Left) -->
+      <g id="boxT1">
+        <rect x="30" y="30" width="140" height="50" rx="8" fill="var(--task1-soft)" stroke="var(--task1-color)" class="node-box" id="t1Rect" />
+        <text x="100" y="52" text-anchor="middle" fill="var(--ink)" font-family="var(--font-body)" font-size="13" font-weight="600">Task 1</text>
+        <text x="100" y="68" text-anchor="middle" fill="var(--task1-color)" font-family="var(--font-code)" font-size="11" id="t1Text">deposit(50)</text>
+      </g>
+
+      <!-- Task 2 (Bottom Left) -->
+      <g id="boxT2">
+        <rect x="30" y="110" width="140" height="50" rx="8" fill="var(--task2-soft)" stroke="var(--task2-color)" class="node-box" id="t2Rect" />
+        <text x="100" y="132" text-anchor="middle" fill="var(--ink)" font-family="var(--font-body)" font-size="13" font-weight="600">Task 2</text>
+        <text x="100" y="148" text-anchor="middle" fill="var(--task2-color)" font-family="var(--font-code)" font-size="11" id="t2Text">deposit(100)</text>
+      </g>
+
+      <!-- Path: T1 -> Actor -->
+      <path id="arrowT1" d="M 170 55 L 235 75" stroke="var(--task1-color)" stroke-width="2.5" marker-end="url(#arr-blue)" />
+
+      <!-- Path: T2 -> Actor -->
+      <path id="arrowT2" d="M 170 135 L 235 115" stroke="var(--task2-color)" stroke-width="2.5" marker-end="url(#arr-orange)" />
+
+      <!-- Actor Island (Center) -->
+      <g id="boxActor">
+        <rect x="240" y="30" width="200" height="130" rx="12" fill="var(--surface)" stroke="var(--actor-color)" class="node-box" id="actorRect" />
+        <text x="340" y="55" text-anchor="middle" fill="var(--ink)" font-family="var(--font-body)" font-size="15" font-weight="bold">actor BankAccount</text>
+        <text x="340" y="75" text-anchor="middle" fill="var(--actor-color)" font-family="var(--font-code)" font-size="12" id="actorStateText">var balance = 100</text>
+
+        <!-- Isolation Boundary Ring -->
+        <rect x="255" y="90" width="170" height="55" rx="8" fill="var(--code-bg)" stroke="var(--line)" id="actorExecBox" />
+        <text x="340" y="115" text-anchor="middle" fill="var(--muted)" font-family="var(--font-body)" font-size="12" font-weight="600" id="actorExecTitle">Single Execution Slot</text>
+        <text x="340" y="133" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="11" id="actorExecDetail">Idle / Waiting</text>
+      </g>
+
+      <!-- Path: Actor -> MainActor -->
+      <path id="arrowMain" d="M 440 95 L 485 95" stroke="var(--line)" stroke-width="2.5" marker-end="url(#arr-green)" opacity="0.2" />
+
+      <!-- MainActor UI Box (Right) -->
+      <g id="boxMain">
+        <rect x="490" y="45" width="160" height="100" rx="10" fill="var(--surface)" stroke="var(--line)" class="node-box" id="mainRect" />
+        <text x="570" y="75" text-anchor="middle" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">@MainActor</text>
+        <text x="570" y="95" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="11" id="mainSub">Main Thread UI</text>
+        <text x="570" y="125" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="11" id="mainDetail">balanceText = "..."</text>
+      </g>
+
+      <!-- Status Banner -->
+      <rect x="140" y="180" width="400" height="30" rx="6" fill="var(--code-bg)" stroke="var(--line)" />
+      <text x="340" y="200" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" id="bannerStatus">
+        Actor idle: 2 calls awaiting entry
+      </text>
+    </svg>
+  </div>
+
+  <div class="reduced-motion-summary">
+    <h4>Static Summary of Steps:</h4>
+    <ol>
+      <li><strong>Step 1:</strong> Task 1 and Task 2 attempt to call deposit() simultaneously on the BankAccount actor.</li>
+      <li><strong>Step 2:</strong> Mutual exclusion admits Task 1 into the actor. Task 2 is suspended outside in the mailbox queue.</li>
+      <li><strong>Step 3:</strong> Task 1 hits an await suspension point (e.g. logging to cloud). Task 1 releases the actor lock; Task 2 enters reentrantly.</li>
+      <li><strong>Step 4:</strong> Both tasks finish safely without data races. State updates hop onto @MainActor to refresh the UI.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Step 1: Concurrent Calls Arrive",
+    badge: "Actor Ready",
+    badgeClass: "actor",
+    caption: "Two concurrent tasks call deposit() on the same BankAccount actor at the exact same moment.",
+    code: "// Task 1: await account.deposit(50)\n// Task 2: await account.deposit(100)",
+    t1Detail: "deposit(50)",
+    t2Detail: "deposit(100)",
+    balanceText: "var balance = 100",
+    execTitle: "Single Execution Slot",
+    execDetail: "Idle / Waiting",
+    execFill: "var(--code-bg)",
+    mainOpacity: 0.2,
+    mainStroke: "var(--line)",
+    mainFill: "var(--surface)",
+    mainDetail: "balanceText = \"$100\"",
+    banner: "Actor idle: 2 calls awaiting entry"
+  },
+  {
+    title: "Step 2: Mutual Exclusion in Action",
+    badge: "Task 1 Executing",
+    badgeClass: "task1",
+    caption: "Task 1 enters the execution slot. Task 2 is queued outside, preventing a simultaneous write data race.",
+    code: "// Inside actor: balance += 50 (balance becomes 150)\n// Task 2 waits outside in queue",
+    t1Detail: "Executing inside",
+    t2Detail: "Suspended / Queued",
+    balanceText: "var balance = 150",
+    execTitle: "Active: Task 1",
+    execDetail: "balance += 50 (Running)",
+    execFill: "var(--task1-soft)",
+    mainOpacity: 0.2,
+    mainStroke: "var(--line)",
+    mainFill: "var(--surface)",
+    mainDetail: "balanceText = \"$100\"",
+    banner: "Task 1 has exclusive access; Task 2 queued"
+  },
+  {
+    title: "Step 3: Reentrancy and Task 2 Turn",
+    badge: "Task 2 Reentrant",
+    badgeClass: "task2",
+    caption: "Task 1 suspends at an await call. The actor releases its lock so Task 2 executes reentrantly.",
+    code: "// Task 1 suspended at await cloudLog()\n// Task 2 executes: balance += 100 (balance becomes 250)",
+    t1Detail: "Suspended at await",
+    t2Detail: "Executing inside",
+    balanceText: "var balance = 250",
+    execTitle: "Active: Task 2",
+    execDetail: "balance += 100 (Running)",
+    execFill: "var(--task2-soft)",
+    mainOpacity: 0.2,
+    mainStroke: "var(--line)",
+    mainFill: "var(--surface)",
+    mainDetail: "balanceText = \"$100\"",
+    banner: "Actor reentrancy: Task 2 runs while Task 1 is suspended"
+  },
+  {
+    title: "Step 4: Safe Hop to @MainActor",
+    badge: "UI Updated",
+    badgeClass: "main",
+    caption: "All mutations complete without data races. The final balance hops onto @MainActor to update UI safely.",
+    code: "@MainActor func updateUI(newBalance: 250) {\n    balanceLabel.text = \"$250\" // Safe on main thread\n}",
+    t1Detail: "Completed",
+    t2Detail: "Completed",
+    balanceText: "var balance = 250",
+    execTitle: "Execution Done",
+    execDetail: "0 Data Races",
+    execFill: "var(--main-soft)",
+    mainOpacity: 1.0,
+    mainStroke: "var(--main-color)",
+    mainFill: "var(--main-soft)",
+    mainDetail: "balanceText = \"$250\"",
+    banner: "Zero data races: UI updated safely on main thread"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  document.getElementById("stageTitle").textContent = s.title;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = s.badge;
+  badge.className = `badge ${s.badgeClass}`;
+
+  document.getElementById("captionText").textContent = s.caption;
+  document.getElementById("codeText").textContent = s.code;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.getElementById("t1Text").textContent = s.t1Detail;
+  document.getElementById("t2Text").textContent = s.t2Detail;
+  document.getElementById("actorStateText").textContent = s.balanceText;
+  document.getElementById("actorExecTitle").textContent = s.execTitle;
+  document.getElementById("actorExecDetail").textContent = s.execDetail;
+  document.getElementById("actorExecBox").style.fill = s.execFill;
+
+  document.getElementById("arrowMain").style.opacity = s.mainOpacity;
+  const mainRect = document.getElementById("mainRect");
+  mainRect.style.stroke = s.mainStroke;
+  mainRect.style.fill = s.mainFill;
+  document.getElementById("mainDetail").textContent = s.mainDetail;
+
+  document.getElementById("bannerStatus").textContent = s.banner;
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>

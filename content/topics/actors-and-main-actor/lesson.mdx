@@ -1,0 +1,181 @@
+export const meta = {
+  id: "actors-and-main-actor",
+  summary: "Protect shared mutable state against data races using Swift actors, and execute user interface code safely on the main actor.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "The Swift Programming Language: Concurrency",
+      url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency"
+    },
+    {
+      title: "WWDC21: Protect mutable state with Swift actors",
+      url: "https://developer.apple.com/videos/play/wwdc2021/10133/"
+    },
+    {
+      title: "MainActor (Swift)",
+      url: "https://developer.apple.com/documentation/swift/mainactor"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    Two background tasks read and update a shared user bank balance at the exact same moment. How does Swift prevent a data race?
+  </Question>
+  <Guess>
+    <Option id="a">Swift wraps the class inside an autoreleasepool block.</Option>
+    <Option id="b" correct>Declare the type as an actor so only one task can access its mutable state at a time.</Option>
+    <Option id="c">Mark all bank balance properties as lazy var.</Option>
+    <Option id="d">Change the class to an unconstrained generic struct.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+When multiple threads read and write the same memory simultaneously, you get a data race. Data races cause memory corruption and random crashes.
+
+An `actor` solves this problem. Like a class, an actor is a reference type. But unlike a class, an actor protects its mutable state.
+
+<Analogy>
+  Think of a single bank teller window. Only one customer can stand at the counter and speak to the teller at a time. Other customers wait patiently in line. When your turn arrives, you step up and complete your transaction.
+</Analogy>
+
+Only one task can access an actor's mutable properties at any given moment.
+
+When calling an actor method from outside, you must write `await`. This is known as actor-hopping. Your task pauses if another task is currently using the actor.
+
+If a property is an immutable `let` constant, you can mark it `nonisolated`. Callers can then read that constant synchronously without writing `await`.
+
+For user interfaces, Apple provides `@MainActor`. `@MainActor` is a global actor that runs all its code on the main thread.
+
+## See it
+
+<Diagram id="actors-and-main-actor" caption="Visualize actor queueing, synchronous internal access, and main actor isolation." />
+
+## In code
+
+Here is an example of an actor protecting a bank balance. It also exposes a `nonisolated` property.
+
+```swift
+actor BankAccount {
+    let accountNumber: String
+    private(set) var balance: Int
+
+    init(accountNumber: String, balance: Int) {
+        self.accountNumber = accountNumber
+        self.balance = balance
+    }
+
+    func deposit(amount: Int) {
+        balance += amount
+    }
+
+    nonisolated var accountID: String {
+        "ACC-\(accountNumber)"
+    }
+}
+
+func testAccount() async {
+    let account = BankAccount(accountNumber: "123", balance: 100)
+    print("ID: \(account.accountID)")
+    await account.deposit(amount: 50)
+    print("Balance: \(await account.balance)")
+}
+
+await testAccount()
+```
+```output
+ID: ACC-123
+Balance: 150
+```
+
+Notice that reading `accountID` does not require `await` because it is `nonisolated`. Mutating `balance` requires `await` to hop onto the actor.
+
+Next, here is how you use `@MainActor` to isolate a view model to the main thread.
+
+```swift
+@MainActor
+final class ProfileViewModel {
+    var username = "Guest"
+
+    func update(name: String) {
+        username = name
+        print("Updated to \(username) on main thread")
+    }
+}
+
+func run() async {
+    let model = ProfileViewModel()
+    await model.update(name: "Taylor")
+}
+
+await run()
+```
+```output
+Updated to Taylor on main thread
+```
+
+Calling `update(name:)` from an outside task automatically hops to the main thread.
+
+<TryIt>
+  Open a Swift Playground. Create an actor that counts visitors. Launch three concurrent tasks that increment the count and print the total.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    Why must callers write await when accessing a mutable property of an actor from the outside?
+  </Question>
+  <Option id="a">Because actors execute exclusively on secondary thread pools.</Option>
+  <Option id="b" correct>Because the calling task must pause if another task is currently executing on that actor.</Option>
+  <Option id="c">Because actors automatically write data changes to disk storage.</Option>
+  <Option id="d">Because the compiler converts actors into objective-c blocks.</Option>
+  <Explanation>
+    Writing await marks a suspension point. If another task is using the actor, your task waits until the actor becomes free.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    What is actor reentrancy in Swift?
+  </Question>
+  <Option id="a">An error where an actor calls itself recursively until stack overflow.</Option>
+  <Option id="b" correct>The behavior where an actor method releases the actor while suspended, allowing other tasks to run before it resumes.</Option>
+  <Option id="c">A rule that forbids actors from conforming to protocols.</Option>
+  <Option id="d">A mechanism that converts class inheritance into protocol extensions.</Option>
+  <Explanation>
+    When an actor method hits an await suspension point, other tasks can execute on that actor. The actor state might change before the method resumes.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Beware of actor reentrancy bugs">
+  When an actor method suspends at an `await` call, other tasks can run on that actor. If your method assumes state remains unchanged across an `await`, bugs occur. Always re-check state assumptions after returning from an `await`.
+</Trap>
+
+<Trap label="Do not mark background workers with @MainActor">
+  Applying `@MainActor` to heavy image processors or database decoders forces that work onto the main thread. This causes UI stutters and dropped frames. Only use `@MainActor` for UI updates, view models, and views.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  An actor is a reference type that protects its mutable state by ensuring only one task executes on it at a time. Callers from the outside must write `await` to hop onto the actor. For immutable constants, I use `nonisolated` so callers can read them synchronously. For UI code, I apply `@MainActor` to ensure view models and state mutations run safely on the main thread.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I design actors to eliminate data races without manual lock management. I design around actor reentrancy by validating state invariants before and after every `await` suspension point. In Swift 6, data passed across actor boundaries must conform to `Sendable` to guarantee thread safety at compile time. When writing view models, I annotate classes with `@MainActor` to prevent race conditions during UI state updates.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Actors are reference types that protect mutable state through mutual exclusion. External callers use await to hop onto the actor. Use nonisolated for immutable reads and synchronous protocol conformances. Use @MainActor to tie UI code and view models to the main thread. Watch out for actor reentrancy across suspension points.
+</Recap>
+
+## Go deeper
+
+- The Swift Programming Language: Concurrency: https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency
+- WWDC21: Protect mutable state with Swift actors: https://developer.apple.com/videos/play/wwdc2021/10133/
+- Apple Developer Documentation: MainActor: https://developer.apple.com/documentation/swift/mainactor

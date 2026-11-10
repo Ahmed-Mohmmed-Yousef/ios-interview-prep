@@ -156,7 +156,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (18 of 53 published: 12 main + 6 bonus)
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (19 of 53 published: 13 main + 6 bonus)
   - ✅ **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)** — completed (7 of 7 published)
     - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
     - ✅ **generics-associated-types** (Generics: Associated Types and Where Clauses) — published (lesson, diagram, 31 questions) → [docs/topics/generics-associated-types/review.html](docs/topics/generics-associated-types/review.html)
@@ -178,7 +178,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **structured-concurrency** (Tasks and Task Groups) — published (lesson, diagram, 31 questions) → [docs/topics/structured-concurrency/review.html](docs/topics/structured-concurrency/review.html)
     - ✅ **task-cancellation** (Task Cancellation) — published (lesson, diagram, 31 questions) → [docs/topics/task-cancellation/review.html](docs/topics/task-cancellation/review.html)
     - ✅ **async-sequences** (AsyncSequence and AsyncStream) — published (lesson, diagram, 31 questions) → [docs/topics/async-sequences/review.html](docs/topics/async-sequences/review.html)
-    - 🔄 **actors-and-main-actor** (Actors and @MainActor) — starting research
+    - ✅ **actors-and-main-actor** (Actors and @MainActor) — published (lesson, diagram, 31 questions) → [docs/topics/actors-and-main-actor/review.html](docs/topics/actors-and-main-actor/review.html)
+    - 🔄 **sendable-data-races** (Sendable and Data Races) — starting research
     - ⬜ **structured-concurrency** (Tasks and Task Groups)
     - ⬜ **task-cancellation** (Task Cancellation)
     - ⬜ **async-sequences** (AsyncSequence and AsyncStream)
@@ -340,6 +341,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `actors-and-main-actor` (Actors and @MainActor): researched official Swift Concurrency and MainActor docs, authored lesson in simple English, interactive 4-step actor isolation and reentrancy diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/actors-and-main-actor/review.html`). All checks passed. Batch 3C progress: 5 of 8 published. Starting sendable-data-races.
 
 - **2026-11-10** — Built and published topic `async-sequences` (AsyncSequence and AsyncStream): researched official AsyncSequence and AsyncStream docs, authored lesson in simple English, interactive 4-step stream pipeline diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/async-sequences/review.html`). All checks passed. Batch 3C progress: 4 of 8 published. Starting actors-and-main-actor.
 
