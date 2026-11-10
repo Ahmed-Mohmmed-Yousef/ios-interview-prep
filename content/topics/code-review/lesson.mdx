@@ -1,0 +1,202 @@
+export const meta = {
+  id: "code-review",
+  title: "Code Review",
+  summary: "Give and receive effective code reviews that improve codebase health, catch bugs early, and foster team knowledge sharing.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "Google Engineering Practices: Code Review",
+      url: "https://google.github.io/eng-practices/review/",
+      kind: "community"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    What is the primary purpose of code review, and how do you separate blocking issues from personal stylistic preferences?
+  </Question>
+  <Guess>
+    <Option id="a">To catch formatting errors that linters missed and prove seniority over peers</Option>
+    <Option id="b" correct>To improve overall codebase health over time, share knowledge, and catch architectural or logic bugs</Option>
+    <Option id="c">To guarantee that zero bugs ever ship to end users in production</Option>
+    <Option id="d">To replace the need for automated unit and integration tests</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+Code review is a collaborative peer review process. Before merging code into the main branch, another engineer inspects the proposed changes.
+
+Google defines the main goal of code review clearly. The primary purpose is to make sure that the overall code health of the codebase improves over time.
+
+Code review is not about achieving perfection. There is no perfect code. There is only better code.
+
+If a pull request improves codebase health and meets project standards, you should approve it. You do not block progress waiting for flawless code.
+
+<Analogy>
+  Think of code review as an editorial check before publishing a book chapter.
+
+  The editor checks for plot holes, factual errors, and clear storytelling. The editor does not rewrite the author entire personal writing voice.
+
+  In software, reviewers guard system architecture and correctness without imposing personal style preferences.
+</Analogy>
+
+In iOS development, reviewers look for specific danger areas.
+
+These include memory retain cycles in closures, concurrency data races, missing error handling, and unhandled edge cases.
+
+Automated tools like SwiftLint and continuous integration should check formatting and unit tests. Human reviewers focus on design, correctness, and maintainability.
+
+## See it
+
+Open the interactive diagram to see the multi-stage code review pipeline from pull request submission to merge approval.
+
+<Diagram spec="docs/topics/code-review/diagram.html" />
+
+## In code
+
+Let us look at a common iOS issue found during code reviews: an accidental retain cycle in a closure.
+
+During a code review, a reviewer notices that a closure captures `self` strongly, causing a memory leak.
+
+<CodeExample title="Identifying and fixing a closure retain cycle during review">
+
+```swift
+import Foundation
+
+final class DataService {
+    var onComplete: (() -> Void)?
+
+    func execute() {
+        onComplete?()
+    }
+}
+
+final class ProfileViewModel {
+    let service = DataService()
+    var name = "Alex"
+
+    func setup() {
+        // Safe: weak self prevents a retain cycle
+        service.onComplete = { [weak self] in
+            guard let self = self else { return }
+            print("Loaded profile for: \(self.name)")
+        }
+    }
+}
+
+let viewModel = ProfileViewModel()
+viewModel.setup()
+viewModel.service.execute()
+```
+
+```output
+Loaded profile for: Alex
+```
+
+</CodeExample>
+
+Now look at structuring code review comments.
+
+Using comment prefixes makes your feedback clear. The author immediately knows if an item is a blocking requirement or an optional suggestion.
+
+<CodeExample title="Simulating review comment classification">
+
+```swift
+import Foundation
+
+enum CommentSeverity: String {
+    case blocking = "BLOCKING"
+    case suggestion = "SUGGESTION"
+    case nitpick = "NIT"
+}
+
+struct ReviewComment {
+    let severity: CommentSeverity
+    let message: String
+
+    var formatted: String {
+        "[\(severity.rawValue)] \(message)"
+    }
+}
+
+let comments = [
+    ReviewComment(severity: .blocking, message: "Missing weak self in escaping closure creates a retain cycle."),
+    ReviewComment(severity: .nitpick, message: "Consider using let instead of var for immutable property.")
+]
+
+for comment in comments {
+    print(comment.formatted)
+}
+```
+
+```output
+[BLOCKING] Missing weak self in escaping closure creates a retain cycle.
+[NIT] Consider using let instead of var for immutable property.
+```
+
+</CodeExample>
+
+<TryIt>
+  Open Swift Playground. Practice writing a small Swift struct and write three review comments using the prefixes blocking, question, and nitpick.
+</TryIt>
+
+<QuickCheck>
+  <Question>According to standard engineering practices, what is the primary goal of code review?</Question>
+  <Option id="a">To enforce identical personal coding styles across all engineers</Option>
+  <Option id="b" correct>To make sure the overall code health of the codebase improves over time</Option>
+  <Option id="c">To eliminate the need for QA and unit testing teams</Option>
+  <Option id="d">To measure individual developer line-of-code productivity metrics</Option>
+  <Explanation>Code review focuses on improving codebase health, catching bugs early, and sharing architectural knowledge across the team.</Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>Why should teams use prefix labels like 'nit:' on code review comments?</Question>
+  <Option id="a">Prefix labels prevent GitHub from sending email notifications to authors</Option>
+  <Option id="b">Prefix labels allow the compiler to optimize Swift binary sizes</Option>
+  <Option id="c" correct>Prefix labels distinguish minor optional preferences from mandatory blocking bug fixes</Option>
+  <Option id="d">Prefix labels require developers to rewrite the entire git commit history</Option>
+  <Explanation>Labels like 'nit:' show that a suggestion is optional and should not block approving the pull request.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Blocking pull requests over personal styling opinions">
+  Do not block approvals because someone indented code differently than your preference. Use automated formatters and SwiftLint to enforce style rules. Reserve your human review for architecture, logic bugs, and maintainability.
+</Trap>
+
+<Trap title="Submitting massive pull requests">
+  Avoid submitting changes with thousands of lines of code. Large pull requests trigger review fatigue, receive superficial reviews, and hide critical bugs. Keep pull requests under 400 lines so reviewers can review thoroughly.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="junior">
+  Code reviews help us catch bugs early and learn from each other. When reviewing iOS code, I check for memory leaks like missing weak self in closures, clear naming, and adequate unit tests. I keep feedback constructive by critiquing the code rather than the person.
+</InterviewAnswer>
+
+<InterviewAnswer level="mid">
+  I approach code reviews following the principle that review improves overall codebase health over time. I look for architectural alignment, edge-case safety, Swift 6 concurrency correctness, and memory management. I use comment tags like `nit:` or `blocking:` to clearly separate non-blocking preferences from critical defects.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  At a senior level, code review is an essential cultural tool for engineering excellence and mentorship. I promote small, focused pull requests and delegate style enforcement to automated CI pipelines. My reviews focus on system design, boundary safety, and maintainability. When disagreements arise, I seek consensus through shared technical principles or quick synchronous chats rather than prolonged comment threads.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  - The primary purpose of code review is to improve codebase health over time.
+  - Reviewers should approve pull requests that improve the codebase, without waiting for unattainable perfection.
+  - Offload style and formatting checks to automated linters and CI bots.
+  - Human reviews focus on architecture, concurrency, memory leaks, and test coverage.
+  - Use clear comment labels to distinguish blocking defects from optional suggestions.
+  - Keep pull requests small to prevent review fatigue and catch subtle defects.
+</Recap>
+
+## Go deeper
+
+- [Google Engineering Practices: Code Review Guide](https://google.github.io/eng-practices/review/)
+- [How to Do a Code Review (Google Engineering Practices)](https://google.github.io/eng-practices/review/reviewer/)

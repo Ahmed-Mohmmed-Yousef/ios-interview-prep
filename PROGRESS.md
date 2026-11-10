@@ -205,7 +205,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **caching** (Caching) — published (lesson, diagram, 31 questions) → [docs/topics/caching/review.html](docs/topics/caching/review.html)
     - ✅ **pagination** (Pagination) — published (lesson, diagram, 31 questions) → [docs/topics/pagination/review.html](docs/topics/pagination/review.html)
     - ✅ **combine-basics** (Combine Basics) — published (lesson, diagram, 31 questions) → [docs/topics/combine-basics/review.html](docs/topics/combine-basics/review.html)
-  - 🔄 **Batch 3G: Architecture & Testing Strategy (8 topics) — (7 of 8 published)**
+  - ✅ **Batch 3G: Architecture & Testing Strategy (8 topics) — COMPLETE (8 of 8 published)**
     - ✅ **mvvm** (MVVM) — published (lesson, diagram, 31 questions) → [docs/topics/mvvm/review.html](docs/topics/mvvm/review.html)
     - ✅ **dependency-injection** (Dependency Injection) — published (lesson, diagram, 31 questions) → [docs/topics/dependency-injection/review.html](docs/topics/dependency-injection/review.html)
     - ✅ **design-patterns** (Design Patterns) — published (lesson, diagram, 31 questions) → [docs/topics/design-patterns/review.html](docs/topics/design-patterns/review.html)
@@ -213,7 +213,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **testable-code-mocks** (Testable Code and Mocks) — published (lesson, diagram, 31 questions) → [docs/topics/testable-code-mocks/review.html](docs/topics/testable-code-mocks/review.html)
     - ✅ **testing-async-code** (Testing Async Code) — published (lesson, diagram, 31 questions) → [docs/topics/testing-async-code/review.html](docs/topics/testing-async-code/review.html)
     - ✅ **ui-testing** (UI Tests) — published (lesson, diagram, 31 questions) → [docs/topics/ui-testing/review.html](docs/topics/ui-testing/review.html)
-    - 🔄 **code-review** (Code Review) — starting research
+    - ✅ **code-review** (Code Review) — published (lesson, diagram, 31 questions) → [docs/topics/code-review/review.html](docs/topics/code-review/review.html)
   - ⬜ **Batch 3H: Performance & System Design Foundations (3 topics)**
 - ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
 - ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
@@ -382,6 +382,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Completed Batch 3G (Architecture & Testing Strategy: all 8 topics published and committed). Built and published the final topic `code-review` (Code Review): researched Google Engineering Practices Code Review Guide, authored lesson in simple English, interactive 4-step Engineering Code Review Pipeline diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/code-review/review.html`). All checks passed. Mid level progress is now 50 of 53 published (117 of 164 total published curriculum topics across Fresh, Junior, and Mid).
 
 - **2026-11-10** — Built and published topic `ui-testing` (UI Tests): researched official Apple XCUIAutomation and XCUIApplication docs, authored lesson in simple English, interactive 4-step XCUITest Execution Flow diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/ui-testing/review.html`). All checks passed. Batch 3G progress: 7 of 8 published (Mid: 49 of 53, total: 116 of 164 published curriculum topics). Starting code-review.
 
