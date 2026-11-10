@@ -1,0 +1,177 @@
+export const meta = {
+  id: "memory-graph-debugger",
+  summary: "Inspect heap allocations, identify retain cycles, and trace object references using the Xcode Memory Graph debugger.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "Gathering information about memory use (Xcode)",
+      url: "https://developer.apple.com/documentation/xcode/gathering-information-about-memory-use"
+    },
+    {
+      title: "WWDC18: iOS Memory Deep Dive",
+      url: "https://developer.apple.com/videos/play/wwdc2018/416/"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    You suspect a screen stays in memory after a user closes it. How do you confirm this in Xcode without adding print statements?
+  </Question>
+  <Guess>
+    <Option id="a">Open the Network Instruments template and watch active HTTP requests.</Option>
+    <Option id="b" correct>Click the Debug Memory Graph button in Xcode and inspect the heap for lingering view controller instances.</Option>
+    <Option id="c">Run the app in the iOS Simulator and check total storage space in the Settings app.</Option>
+    <Option id="d">Set an exception breakpoint to pause execution whenever memory pressure increases.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+Automatic Reference Counting frees an object when its reference count drops to zero. If two objects hold strong references to each other, their count never reaches zero. This creates a retain cycle, also known as a memory leak.
+
+<Analogy>
+  Imagine two people holding hands. Neither person lets go until the other lets go first. Both people stay stuck forever. The Memory Graph debugger takes a photograph of the room so you can spot who holds hands.
+</Analogy>
+
+The Xcode Memory Graph debugger pauses your app and scans heap memory. It builds a visual map of every active object and the strong pointers between them.
+
+When Xcode finds an isolated cycle of objects that reference each other, it marks them with a purple exclamation badge. You click any node to see who owns it.
+
+To see the exact line of code that created a leaked object, turn on Malloc Stack Logging in your scheme diagnostics.
+
+## See it
+
+<Diagram id="memory-graph-debugger" caption="Trace retain cycles and allocation backtraces with the Xcode Memory Graph debugger." />
+
+## In code
+
+Here is an example of a retain cycle created by a closure. The closure strongly captures `self`, and `self` holds the closure. The object never deallocates.
+
+```swift
+final class DetailScreen {
+    var onDismiss: (() -> Void)?
+    let name: String
+
+    init(name: String) {
+        self.name = name
+    }
+
+    func setup() {
+        onDismiss = {
+            print("Dismissing \(self.name)")
+        }
+    }
+
+    deinit {
+        print("DetailScreen deinit")
+    }
+}
+
+var screen: DetailScreen? = DetailScreen(name: "Profile")
+screen?.setup()
+screen = nil
+print("End of retain cycle test")
+```
+```output
+End of retain cycle test
+```
+
+Notice that `deinit` never runs. In the Xcode Memory Graph, you see both `DetailScreen` and its closure lingering on the heap with a purple badge.
+
+To break the cycle, add a weak capture list `[weak self]` inside the closure.
+
+```swift
+final class SafeScreen {
+    var onDismiss: (() -> Void)?
+    let name: String
+
+    init(name: String) {
+        self.name = name
+    }
+
+    func setup() {
+        onDismiss = { [weak self] in
+            guard let self = self else { return }
+            print("Dismissing \(self.name)")
+        }
+    }
+
+    deinit {
+        print("SafeScreen deinit")
+    }
+}
+
+var safe: SafeScreen? = SafeScreen(name: "Settings")
+safe?.setup()
+safe = nil
+print("End of safe test")
+```
+```output
+SafeScreen deinit
+End of safe test
+```
+
+Now `SafeScreen` deallocates immediately when `safe` is set to nil. The Memory Graph debugger shows zero instances lingering.
+
+<TryIt>
+  Open Xcode with a sample project. Add a view controller retain cycle, run the app, and click the three-node Memory Graph button to spot the purple leak warning.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    Which Xcode scheme setting allows you to see the exact allocation call stack of an object in the Memory Graph debugger?
+  </Question>
+  <Option id="a">Zombie Objects</Option>
+  <Option id="b" correct>Malloc Stack Logging</Option>
+  <Option id="c">Thread Sanitizer</Option>
+  <Option id="d">Metal API Validation</Option>
+  <Explanation>
+    Malloc Stack Logging records the backtrace for every allocation. When you click an object in the Memory Graph, the inspector shows the exact line that allocated it.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    A view controller was popped from the navigation stack, but its instance count is still one in the Memory Graph debugger. Xcode shows no purple warning badge. Why?
+  </Question>
+  <Option id="a">The Memory Graph debugger only detects objects written in Objective-C.</Option>
+  <Option id="b" correct>The object is still referenced by an active root object, such as a singleton or notification observer, so it is abandoned memory rather than an isolated cycle.</Option>
+  <Option id="c">The object has already been deallocated from the heap.</Option>
+  <Option id="d">Xcode requires a physical iPhone to display purple leak warning badges.</Option>
+  <Explanation>
+    Xcode only shows purple badges for isolated retain cycles that have zero roots. If a singleton or active notification holds a strong pointer to the screen, it is reachable abandoned memory.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Purple badges do not find every leak">
+  Xcode only puts a purple badge on isolated retain cycles that have no incoming external references. If an object is kept alive by a global collection or a singleton, it is still reachable. Xcode will not flag it with a purple badge. You must filter by class name and check instance counts manually.
+</Trap>
+
+<Trap label="Debugging without Malloc Stack Logging">
+  Opening the Memory Graph without Malloc Stack Logging reveals that an object exists, but you cannot see where your code created it. Always enable Malloc Stack Logging under Scheme Diagnostics before hunting leaks.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  I use the Xcode Memory Graph debugger by clicking the three-node icon during a debug session. It pauses the app and shows all objects on the heap. Xcode marks isolated retain cycles with purple warning badges. I enable Malloc Stack Logging in scheme diagnostics so I can inspect the exact call stack that allocated the leaking instance. Once I identify the circular strong reference, I break it with weak or unowned references.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I use the Memory Graph debugger to distinguish true retain cycles from abandoned memory. Retain cycles form isolated islands with zero external roots and show purple warnings. In contrast, abandoned memory occurs when objects remain reachable through singletons, notification observers, or caches, which ARC cannot clean up. To diagnose leaks automatically, I export `.memgraph` files and run command-line tools like `leaks`, `vmmap`, and `malloc_history` in continuous integration pipelines.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  The Xcode Memory Graph debugger pauses your app to show all heap allocations and references. Purple badges highlight isolated retain cycles. Turn on Malloc Stack Logging in Scheme Diagnostics to see allocation call stacks. Remember that abandoned memory still attached to roots will not show a purple badge, so verify instance counts after closing screens.
+</Recap>
+
+## Go deeper
+
+- Apple Developer Documentation: Gathering information about memory use: https://developer.apple.com/documentation/xcode/gathering-information-about-memory-use
+- WWDC18: iOS Memory Deep Dive: https://developer.apple.com/videos/play/wwdc2018/416/

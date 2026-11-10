@@ -156,7 +156,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (14 of 53 published: 8 main + 6 bonus)
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (15 of 53 published: 9 main + 6 bonus)
   - ✅ **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)** — completed (7 of 7 published)
     - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
     - ✅ **generics-associated-types** (Generics: Associated Types and Where Clauses) — published (lesson, diagram, 31 questions) → [docs/topics/generics-associated-types/review.html](docs/topics/generics-associated-types/review.html)
@@ -174,7 +174,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **dynamic-programming** (Dynamic Programming) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/dynamic-programming/review.html](docs/topics/dynamic-programming/review.html)
     - ✅ **bits-math-geometry** (Bits, Math and Geometry) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/bits-math-geometry/review.html](docs/topics/bits-math-geometry/review.html)
   - 🔄 **Batch 3C: Memory Profiling & Swift Concurrency (8 topics: 1 memory + 7 concurrency)**
-    - 🔄 **memory-graph-debugger** (Finding Leaks with the Memory Graph) — starting research
+    - ✅ **memory-graph-debugger** (Finding Leaks with the Memory Graph) — published (lesson, diagram, 31 questions) → [docs/topics/memory-graph-debugger/review.html](docs/topics/memory-graph-debugger/review.html)
+    - 🔄 **structured-concurrency** (Tasks and Task Groups) — starting research
     - ⬜ **structured-concurrency** (Tasks and Task Groups)
     - ⬜ **task-cancellation** (Task Cancellation)
     - ⬜ **async-sequences** (AsyncSequence and AsyncStream)
@@ -336,6 +337,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `memory-graph-debugger` (Finding Leaks with the Memory Graph): researched official Xcode and WWDC18 memory docs, authored lesson in simple English, interactive 4-step memory graph diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/memory-graph-debugger/review.html`). All checks passed. Batch 3C progress: 1 of 8 published. Starting structured-concurrency.
 
 - **2026-11-10** — Starting Batch 3C: Memory Profiling & Swift Concurrency (8 topics: `memory-graph-debugger` through `approachable-concurrency`). Launching dedicated autonomous subagent.
 

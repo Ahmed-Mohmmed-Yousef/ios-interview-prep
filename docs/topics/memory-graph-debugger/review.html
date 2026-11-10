@@ -1,0 +1,705 @@
+<title>Finding Leaks with the Memory Graph Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --node-blue: #0284c7;
+  --node-blue-soft: #e0f2fe;
+  --node-purple: #7c3aed;
+  --node-purple-soft: #ede9fe;
+  --leak-color: #dc2626;
+  --leak-soft: #fee2e2;
+  --success-color: #059669;
+  --success-soft: #d1fae5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --node-blue: #38bdf8;
+    --node-blue-soft: #082f49;
+    --node-purple: #a78bfa;
+    --node-purple-soft: #2e1065;
+    --leak-color: #f87171;
+    --leak-soft: #450a0a;
+    --success-color: #34d399;
+    --success-soft: #064e3b;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--node-blue);
+  color: var(--node-blue);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.step-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.badge.leak { background: var(--leak-soft); color: var(--leak-color); }
+.badge.ok { background: var(--success-soft); color: var(--success-color); }
+.badge.info { background: var(--node-blue-soft); color: var(--node-blue); }
+
+.caption {
+  font-size: 15px;
+  color: var(--ink);
+  margin: 0;
+  min-height: 2.8em;
+}
+.code-box {
+  font: 13px/1.5 var(--font-code);
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  white-space: pre;
+}
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.node-box {
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+.node-title {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+}
+.node-subtitle {
+  font-family: var(--font-code);
+  font-size: 12px;
+}
+.edge-line {
+  stroke-width: 2.5;
+  transition: all 0.3s ease;
+}
+.dashed {
+  stroke-dasharray: 6 4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+.reduced-motion-summary {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reduced-motion-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Memory · Topic 1 of 1 · Prototype</p>
+    <h1>Finding Leaks with the Memory Graph</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can find memory leaks with the Xcode Memory Graph debugger.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>You suspect a screen stays in memory after a user closes it. How do you confirm this in Xcode without adding print statements?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Open the Network Instruments template and watch active HTTP requests.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Click the Debug Memory Graph button in Xcode and inspect the heap for lingering view controller instances.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Run the app in the iOS Simulator and check total storage space in the Settings app.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Set an exception breakpoint to pause execution whenever memory pressure increases.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<p>Automatic Reference Counting frees an object when its reference count drops to zero. If two objects hold strong references to each other, their count never reaches zero. This creates a retain cycle, also known as a memory leak.</p>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Imagine two people holding hands. Neither person lets go until the other lets go first. Both people stay stuck forever. The Memory Graph debugger takes a photograph of the room so you can spot who holds hands.</p></aside>
+<p>The Xcode Memory Graph debugger pauses your app and scans heap memory. It builds a visual map of every active object and the strong pointers between them.</p>
+<p>When Xcode finds an isolated cycle of objects that reference each other, it marks them with a purple exclamation badge. You click any node to see who owns it.</p>
+<p>To see the exact line of code that created a leaked object, turn on Malloc Stack Logging in your scheme diagnostics.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<p>Here is an example of a retain cycle created by a closure. The closure strongly captures <code>self</code>, and <code>self</code> holds the closure. The object never deallocates.</p>
+<pre class="block swift"><code class="language-swift">final class DetailScreen {
+    var onDismiss: (() -&gt; Void)?
+    let name: String
+
+    init(name: String) {
+        self.name = name
+    }
+
+    func setup() {
+        onDismiss = {
+            print(&quot;Dismissing \(self.name)&quot;)
+        }
+    }
+
+    deinit {
+        print(&quot;DetailScreen deinit&quot;)
+    }
+}
+
+var screen: DetailScreen? = DetailScreen(name: &quot;Profile&quot;)
+screen?.setup()
+screen = nil
+print(&quot;End of retain cycle test&quot;)
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">End of retain cycle test
+</code></pre>
+<p>Notice that <code>deinit</code> never runs. In the Xcode Memory Graph, you see both <code>DetailScreen</code> and its closure lingering on the heap with a purple badge.</p>
+<p>To break the cycle, add a weak capture list <code>[weak self]</code> inside the closure.</p>
+<pre class="block swift"><code class="language-swift">final class SafeScreen {
+    var onDismiss: (() -&gt; Void)?
+    let name: String
+
+    init(name: String) {
+        self.name = name
+    }
+
+    func setup() {
+        onDismiss = { [weak self] in
+            guard let self = self else { return }
+            print(&quot;Dismissing \(self.name)&quot;)
+        }
+    }
+
+    deinit {
+        print(&quot;SafeScreen deinit&quot;)
+    }
+}
+
+var safe: SafeScreen? = SafeScreen(name: &quot;Settings&quot;)
+safe?.setup()
+safe = nil
+print(&quot;End of safe test&quot;)
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">SafeScreen deinit
+End of safe test
+</code></pre>
+<p>Now <code>SafeScreen</code> deallocates immediately when <code>safe</code> is set to nil. The Memory Graph debugger shows zero instances lingering.</p>
+<p class="try-it"><p>Open Xcode with a sample project. Add a view controller retain cycle, run the app, and click the three-node Memory Graph button to spot the purple leak warning.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>Which Xcode scheme setting allows you to see the exact allocation call stack of an object in the Memory Graph debugger?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Zombie Objects</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Malloc Stack Logging</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Thread Sanitizer</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Metal API Validation</span></button><p class="qc-explain" hidden=""><p>Malloc Stack Logging records the backtrace for every allocation. When you click an object in the Memory Graph, the inspector shows the exact line that allocated it.</p></p></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>A view controller was popped from the navigation stack, but its instance count is still one in the Memory Graph debugger. Xcode shows no purple warning badge. Why?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">The Memory Graph debugger only detects objects written in Objective-C.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">The object is still referenced by an active root object, such as a singleton or notification observer, so it is abandoned memory rather than an isolated cycle.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The object has already been deallocated from the heap.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Xcode requires a physical iPhone to display purple leak warning badges.</span></button><p class="qc-explain" hidden=""><p>Xcode only shows purple badges for isolated retain cycles that have zero roots. If a singleton or active notification holds a strong pointer to the screen, it is reachable abandoned memory.</p></p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Xcode only puts a purple badge on isolated retain cycles that have no incoming external references. If an object is kept alive by a global collection or a singleton, it is still reachable. Xcode will not flag it with a purple badge. You must filter by class name and check instance counts manually.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Opening the Memory Graph without Malloc Stack Logging reveals that an object exists, but you cannot see where your code created it. Always enable Malloc Stack Logging under Scheme Diagnostics before hunting leaks.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>I use the Xcode Memory Graph debugger by clicking the three-node icon during a debug session. It pauses the app and shows all objects on the heap. Xcode marks isolated retain cycles with purple warning badges. I enable Malloc Stack Logging in scheme diagnostics so I can inspect the exact call stack that allocated the leaking instance. Once I identify the circular strong reference, I break it with weak or unowned references.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>I use the Memory Graph debugger to distinguish true retain cycles from abandoned memory. Retain cycles form isolated islands with zero external roots and show purple warnings. In contrast, abandoned memory occurs when objects remain reachable through singletons, notification observers, or caches, which ARC cannot clean up. To diagnose leaks automatically, I export <code>.memgraph</code> files and run command-line tools like <code>leaks</code>, <code>vmmap</code>, and <code>malloc_history</code> in continuous integration pipelines.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><p>The Xcode Memory Graph debugger pauses your app to show all heap allocations and references. Purple badges highlight isolated retain cycles. Turn on Malloc Stack Logging in Scheme Diagnostics to see allocation call stacks. Remember that abandoned memory still attached to roots will not show a purple badge, so verify instance counts after closing screens.</p></div>
+<h2>Go deeper</h2>
+<ul>
+<li>Apple Developer Documentation: Gathering information about memory use: <a href="https://developer.apple.com/documentation/xcode/gathering-information-about-memory-use">https://developer.apple.com/documentation/xcode/gathering-information-about-memory-use</a></li>
+<li>WWDC18: iOS Memory Deep Dive: <a href="https://developer.apple.com/videos/play/wwdc2018/416/">https://developer.apple.com/videos/play/wwdc2018/416/</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    title: "Step 1: Allocation and Setup",
+    badge: "Active Allocation",
+    badgeClass: "info",
+    caption: "The app instantiates DetailScreen. The NavigationStack holds a strong reference to DetailScreen on the heap.",
+    code: "var screen: DetailScreen? = DetailScreen(name: \"Profile\")\nscreen?.setup()",
+    rootVisible: true,
+    rootEdge: "var(--node-blue)",
+    screenStroke: "var(--node-blue)",
+    screenFill: "var(--node-blue-soft)",
+    screenCount: "RC: 1 (Strong)",
+    topEdgeStroke: "var(--line)",
+    topEdgeMarker: "url(#arrow-muted)",
+    topEdgeDashed: false,
+    closureStroke: "var(--line)",
+    closureFill: "var(--surface)",
+    closureCount: "RC: 0 (Unassigned)",
+    bottomEdgeStroke: "var(--line)",
+    bottomEdgeMarker: "url(#arrow-muted)",
+    bottomEdgeDashed: true,
+    bottomEdgeOpacity: 0.2,
+    leakVisible: false
+  },
+  {
+    title: "Step 2: Strong Retain Cycle Created",
+    badge: "Cycle Formed",
+    badgeClass: "leak",
+    caption: "DetailScreen assigns onDismiss. The closure strongly captures self without [weak self], forming a circular reference.",
+    code: "onDismiss = {\n    print(\"Dismissing \\(self.name)\") // strongly captures self\n}",
+    rootVisible: true,
+    rootEdge: "var(--node-blue)",
+    screenStroke: "var(--leak-color)",
+    screenFill: "var(--surface)",
+    screenCount: "RC: 2 (Root + Closure)",
+    topEdgeStroke: "var(--node-blue)",
+    topEdgeMarker: "url(#arrow-blue)",
+    topEdgeDashed: false,
+    closureStroke: "var(--node-purple)",
+    closureFill: "var(--node-purple-soft)",
+    closureCount: "RC: 1 (Screen)",
+    bottomEdgeStroke: "var(--leak-color)",
+    bottomEdgeMarker: "url(#arrow-red)",
+    bottomEdgeDashed: false,
+    bottomEdgeOpacity: 1.0,
+    leakVisible: false
+  },
+  {
+    title: "Step 3: Popped Screen Leaks on Heap",
+    badge: "Retain Cycle Leaked",
+    badgeClass: "leak",
+    caption: "NavigationStack pops DetailScreen. The external pointer is nil, but the objects retain each other. Xcode flags a purple leak badge.",
+    code: "screen = nil // Root reference dropped\n// Both objects remain on heap with reference count 1",
+    rootVisible: false,
+    rootEdge: "var(--line)",
+    screenStroke: "var(--leak-color)",
+    screenFill: "var(--leak-soft)",
+    screenCount: "RC: 1 (Leaked Island)",
+    topEdgeStroke: "var(--leak-color)",
+    topEdgeMarker: "url(#arrow-red)",
+    topEdgeDashed: false,
+    closureStroke: "var(--leak-color)",
+    closureFill: "var(--leak-soft)",
+    closureCount: "RC: 1 (Leaked Island)",
+    bottomEdgeStroke: "var(--leak-color)",
+    bottomEdgeMarker: "url(#arrow-red)",
+    bottomEdgeDashed: false,
+    bottomEdgeOpacity: 1.0,
+    leakVisible: true
+  },
+  {
+    title: "Step 4: Fix with [weak self]",
+    badge: "Deallocated Cleanly",
+    badgeClass: "ok",
+    caption: "Adding [weak self] changes the closure pointer to a weak reference. When popped, RC drops to 0 and both deallocate.",
+    code: "onDismiss = { [weak self] in\n    guard let self = self else { return }\n    print(\"Dismissing \\(self.name)\")\n}",
+    rootVisible: false,
+    rootEdge: "var(--line)",
+    screenStroke: "var(--success-color)",
+    screenFill: "var(--success-soft)",
+    screenCount: "RC: 0 (Deallocated)",
+    topEdgeStroke: "var(--success-color)",
+    topEdgeMarker: "url(#arrow-green)",
+    topEdgeDashed: false,
+    closureStroke: "var(--success-color)",
+    closureFill: "var(--success-soft)",
+    closureCount: "RC: 0 (Deallocated)",
+    bottomEdgeStroke: "var(--success-color)",
+    bottomEdgeMarker: "url(#arrow-green)",
+    bottomEdgeDashed: true,
+    bottomEdgeOpacity: 0.8,
+    leakVisible: false
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  document.getElementById("stageTitle").textContent = s.title;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = s.badge;
+  badge.className = `badge ${s.badgeClass}`;
+
+  document.getElementById("captionText").textContent = s.caption;
+  document.getElementById("codeText").textContent = s.code;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  // Root visibility
+  document.getElementById("nodeRoot").style.opacity = s.rootVisible ? "1" : "0.2";
+  const edgeRoot = document.getElementById("edgeRootToScreen");
+  edgeRoot.style.stroke = s.rootEdge;
+  edgeRoot.style.opacity = s.rootVisible ? "1" : "0.1";
+
+  // Screen
+  const boxScreen = document.getElementById("boxScreen");
+  boxScreen.style.stroke = s.screenStroke;
+  boxScreen.style.fill = s.screenFill;
+  document.getElementById("screenCount").textContent = s.screenCount;
+
+  // Closure
+  const boxClosure = document.getElementById("boxClosure");
+  boxClosure.style.stroke = s.closureStroke;
+  boxClosure.style.fill = s.closureFill;
+  document.getElementById("closureCount").textContent = s.closureCount;
+
+  // Edges
+  const edgeTop = document.getElementById("edgeTop");
+  edgeTop.style.stroke = s.topEdgeStroke;
+  edgeTop.setAttribute("marker-end", s.topEdgeMarker);
+
+  const edgeBottom = document.getElementById("edgeBottom");
+  edgeBottom.style.stroke = s.bottomEdgeStroke;
+  edgeBottom.setAttribute("marker-end", s.bottomEdgeMarker);
+  edgeBottom.style.opacity = s.bottomEdgeOpacity;
+  if (s.bottomEdgeDashed) edgeBottom.classList.add("dashed");
+  else edgeBottom.classList.remove("dashed");
+
+  // Leak badge
+  document.getElementById("leakBadge").style.display = s.leakVisible ? "block" : "none";
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"memory-graph-debugger","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"mgd-q1","type":"mcq","difficulty":1,"prompt":"What does the Xcode Memory Graph debugger do when you click its button?","options":[{"id":"a","text":"It pauses the running process and snapshots active heap objects and pointers.","explanation":"The debugger pauses app execution and maps all active objects on the heap."},{"id":"b","text":"It recompiles your Swift code with debug optimizations enabled.","explanation":"The memory graph debugger inspects running memory without rebuilding code."},{"id":"c","text":"It resets all application data saved inside the UserDefaults store.","explanation":"The debugger inspects memory and never modifies persistent storage."},{"id":"d","text":"It measures CPU clock cycles spent across every active thread.","explanation":"CPU profiling is handled by Instruments Time Profiler, not the memory graph."}],"answer":"a"},{"id":"mgd-q2","type":"mcq","difficulty":1,"prompt":"What does a purple exclamation badge signify next to a class in the Debug Navigator?","options":[{"id":"a","text":"The class exceeds maximum recommended stack frame memory limits.","explanation":"The badge marks retain cycles on the heap rather than stack frame sizes."},{"id":"b","text":"Xcode detected a suspected retain cycle among active heap objects.","explanation":"Purple exclamation badges flag isolated cycles of objects that retain each other."},{"id":"c","text":"The object was deallocated before its background thread completed.","explanation":"The badge identifies lingering leaked objects that failed to deallocate."},{"id":"d","text":"The compiler generated redundant symbol debug information.","explanation":"The runtime memory graph inspects heap instances, not build artifacts."}],"answer":"b"},{"id":"mgd-q3","type":"mcq","difficulty":2,"prompt":"Which diagnostic setting displays the call stack that created an object in the Memory Graph inspector?","options":[{"id":"a","text":"Address Sanitizer","explanation":"Address Sanitizer catches memory corruption bugs like buffer overflows."},{"id":"b","text":"Zombie Objects","explanation":"Zombie Objects tracks messages sent to deallocated Objective-C instances."},{"id":"c","text":"Malloc Stack Logging","explanation":"Malloc Stack Logging records the backtrace of every heap memory allocation."},{"id":"d","text":"Thread Sanitizer","explanation":"Thread Sanitizer detects concurrent data races across multiple threads."}],"answer":"c"},{"id":"mgd-q4","type":"mcq","difficulty":2,"prompt":"Why might a dismissed screen stay in memory without Xcode showing a purple badge?","options":[{"id":"a","text":"The screen uses Auto Layout constraints instead of SwiftUI frames.","explanation":"Layout frameworks do not affect whether Xcode flags retain cycles."},{"id":"b","text":"Xcode memory graph debugging works only on macOS targets.","explanation":"The memory graph debugger supports iOS simulator and device targets."},{"id":"c","text":"The view controller was compiled without Swift concurrency checks.","explanation":"Swift concurrency checks do not dictate ARC leak detection in the debugger."},{"id":"d","text":"It is referenced by an active root object such as a singleton or cache.","explanation":"Objects reachable from an active root are abandoned memory, not isolated cycles."}],"answer":"d"},{"id":"mgd-q5","type":"mcq","difficulty":1,"prompt":"What does a solid directional arrow represent in the Memory Graph debugger visual view?","options":[{"id":"a","text":"A strong reference holding an object in heap memory.","explanation":"Solid arrows denote strong pointers that increase reference counts."},{"id":"b","text":"A weak pointer waiting to be set to nil automatically.","explanation":"Weak pointers are drawn with distinct styling rather than strong solid arrows."},{"id":"c","text":"An asynchronous message awaiting delivery across actors.","explanation":"Arrows in the memory graph indicate pointer relationships, not messages."},{"id":"d","text":"A value type copied onto the current thread execution stack.","explanation":"The memory graph displays heap reference types and objects, not stack values."}],"answer":"a"},{"id":"mgd-q6","type":"mcq","difficulty":2,"prompt":"Which file format preserves the full memory graph snapshot for offline analysis?","options":[{"id":"a","text":"A .trace folder generated by Time Profiler.","explanation":"A .trace file is created by Instruments, not the memory graph export."},{"id":"b","text":"A .memgraph file exported from Xcode.","explanation":"Xcode exports memory graphs as .memgraph files for command-line tools."},{"id":"c","text":"A .xcresult test bundle summary directory.","explanation":"A .xcresult bundle records automated unit test execution outputs."},{"id":"d","text":"A .dSYM debug symbol archive container.","explanation":"A .dSYM file stores compiler debug symbols for crash report symbolication."}],"answer":"b"},{"id":"mgd-q7","type":"mcq","difficulty":2,"prompt":"Which command-line utility scans an exported .memgraph file for memory leaks?","options":[{"id":"a","text":"swiftformat","explanation":"swiftformat formats Swift source code files according to rules."},{"id":"b","text":"otool","explanation":"otool displays Mach-O object file headers and load commands."},{"id":"c","text":"leaks","explanation":"The leaks command-line tool analyzes memory graphs and reports retain cycles."},{"id":"d","text":"xcodebuild","explanation":"xcodebuild compiles and tests Xcode projects from terminal."}],"answer":"c"},{"id":"mgd-q8","type":"mcq","difficulty":2,"prompt":"How does abandoned memory differ from an isolated retain cycle?","options":[{"id":"a","text":"Abandoned memory is automatically cleared during low memory warnings.","explanation":"ARC cannot clear abandoned memory unless your code removes strong references."},{"id":"b","text":"Retain cycles are allocated on the stack rather than on the heap.","explanation":"Both retain cycles and abandoned objects reside in heap memory."},{"id":"c","text":"Abandoned memory crashes immediately when a view controller closes.","explanation":"Abandoned memory lingers silently on the heap without triggering crashes."},{"id":"d","text":"Abandoned memory remains reachable from a root object such as a cache.","explanation":"Abandoned memory is still reachable through roots, so ARC cannot deallocate it."}],"answer":"d"},{"id":"mgd-q9","type":"mcq","difficulty":1,"prompt":"Where do you enable Malloc Stack Logging inside Xcode?","options":[{"id":"a","text":"Under Scheme Settings inside the Run action Diagnostics tab.","explanation":"Malloc Stack Logging is configured in Scheme > Edit Scheme > Run > Diagnostics."},{"id":"b","text":"Under Xcode Preferences inside the Fonts and Colors tab.","explanation":"Xcode Preferences controls IDE themes and editor fonts, not build schemes."},{"id":"c","text":"Under Project Settings inside the General App Identity section.","explanation":"General App Identity manages bundle identifiers and signing identities."},{"id":"d","text":"Under the Simulator Hardware menu inside audio quality settings.","explanation":"Simulator hardware settings do not configure runtime memory diagnostics."}],"answer":"a"},{"id":"mgd-q10","type":"mcq","difficulty":2,"prompt":"What is the primary trade-off when selecting All Allocations and History for Malloc Stack Logging?","options":[{"id":"a","text":"It completely disables breakpoint debugging and LLDB console commands.","explanation":"LLDB breakpoints and console commands continue functioning normally."},{"id":"b","text":"It consumes extra memory and storage tracking historical allocations.","explanation":"Logging all historical allocation call stacks introduces runtime memory overhead."},{"id":"c","text":"It forces ARC to use garbage collection instead of reference counting.","explanation":"Swift uses ARC on all Apple platforms; it does not switch to garbage collection."},{"id":"d","text":"It prevents the app from opening network connections to secure hosts.","explanation":"Malloc Stack Logging does not intercept or restrict networking capabilities."}],"answer":"b"},{"id":"mgd-q11","type":"mcq","difficulty":2,"prompt":"Which command-line tool summarizes virtual memory categories including dirty and clean memory?","options":[{"id":"a","text":"nm","explanation":"nm displays symbol names from object files and binaries."},{"id":"b","text":"strings","explanation":"strings extracts readable text sequences from compiled binaries."},{"id":"c","text":"vmmap","explanation":"vmmap analyzes the virtual memory layout and memory categories of a process."},{"id":"d","text":"codesign","explanation":"codesign signs app bundles and verifies code identity signatures."}],"answer":"c"},{"id":"mgd-q12","type":"mcq","difficulty":3,"prompt":"Why is dirty memory particularly dangerous on iOS devices?","options":[{"id":"a","text":"Dirty memory causes Swift compiler warnings during automated builds.","explanation":"Dirty memory is a runtime memory condition, not a compiler build warning."},{"id":"b","text":"Dirty memory prevents unit tests from executing in debug schemes.","explanation":"Unit tests run independently of whether memory regions are dirty."},{"id":"c","text":"Dirty memory is discarded immediately without warning by the kernel.","explanation":"iOS cannot discard dirty memory because it contains written data with no backing store."},{"id":"d","text":"iOS lacks swap space, so excessive dirty memory triggers Jetsam kills.","explanation":"Because iOS has no disk swap, the operating system terminates apps using too much dirty memory."}],"answer":"d"},{"id":"mgd-q13","type":"mcq","difficulty":1,"prompt":"How do you break a strong reference cycle between a view controller and a stored closure?","options":[{"id":"a","text":"Add a weak or unowned capture list such as [weak self] inside the closure.","explanation":"A weak capture list ensures the closure does not increase the reference count of self."},{"id":"b","text":"Change the view controller class declaration into a value type struct.","explanation":"View controllers inherit from UIViewController and must remain reference type classes."},{"id":"c","text":"Mark the closure property with the lazy modifier inside the class.","explanation":"Lazy properties do not prevent closures from creating strong retain cycles."},{"id":"d","text":"Wrap the closure call inside an autoreleasepool block at runtime.","explanation":"Autorelease pools manage temporary Objective-C objects, not Swift strong cycles."}],"answer":"a"},{"id":"mgd-q14","type":"mcq","difficulty":2,"prompt":"What does the filter bar at the bottom of the Debug Navigator help you do in the Memory Graph?","options":[{"id":"a","text":"Select the active Swift compiler optimization flags for test targets.","explanation":"Build settings are configured in project files, not debug filter bars."},{"id":"b","text":"Filter heap allocations by class name or isolate leaked instances.","explanation":"The filter bar lets you type class names or toggle only leaked blocks."},{"id":"c","text":"Reorder source files alphabetically inside the Project Navigator tree.","explanation":"The filter bar operates on the active runtime heap snapshot."},{"id":"d","text":"Configure remote push notification payloads for testing in simulator.","explanation":"Push notification testing is not managed inside the memory navigator filter."}],"answer":"b"},{"id":"mgd-q15","type":"mcq","difficulty":2,"prompt":"Which command-line tool prints the allocation backtrace for a specific memory address from a memgraph?","options":[{"id":"a","text":"heap analyzer","explanation":"The heap tool summarizes object instance counts rather than allocation call stacks."},{"id":"b","text":"lldb debugger","explanation":"LLDB is an interactive debugger rather than a dedicated memgraph parser."},{"id":"c","text":"malloc_history","explanation":"malloc_history prints the recorded allocation call stack for a given address."},{"id":"d","text":"dwarfdump tool","explanation":"dwarfdump inspects DWARF debug information within compiled Mach-O binaries."}],"answer":"c"},{"id":"mgd-q16","type":"code-reading","difficulty":1,"prompt":"What is the console output when this code runs?","code":"final class Worker {\n    var job: (() -> Void)?\n    var tag = \"Active\"\n\n    func start() {\n        job = {\n            print(\"Job tag: \\(self.tag)\")\n        }\n    }\n\n    deinit {\n        print(\"Worker deallocated\")\n    }\n}\n\nvar w: Worker? = Worker()\nw?.start()\nw = nil\nprint(\"Worker check done\")","options":[{"id":"a","text":"Worker deallocated","explanation":"Worker does not deallocate because job holds a strong reference to self."},{"id":"b","text":"Job tag: Active\nWorker deallocated","explanation":"The job closure is never invoked, and deinit does not execute."},{"id":"c","text":"Job tag: Active","explanation":"The closure was stored but not called."},{"id":"d","text":"Worker check done","explanation":"The strong retain cycle prevents Worker deinitialization, so only the final print runs."}],"answer":"d"},{"id":"mgd-q17","type":"code-reading","difficulty":1,"prompt":"What is the console output when this code runs?","code":"final class Handler {\n    var action: (() -> Void)?\n    var name = \"Download\"\n\n    func setup() {\n        action = { [weak self] in\n            guard let self = self else { return }\n            print(\"Action: \\(self.name)\")\n        }\n    }\n\n    deinit {\n        print(\"Handler deallocated\")\n    }\n}\n\nvar h: Handler? = Handler()\nh?.setup()\nh = nil\nprint(\"Finished\")","options":[{"id":"a","text":"Handler deallocated\nFinished","explanation":"Weak self avoids a retain cycle, allowing Handler to deallocate when h is set to nil."},{"id":"b","text":"Action: Download\nFinished","explanation":"The action closure was not invoked before setting h to nil."},{"id":"c","text":"Finished","explanation":"Because weak self broke the cycle, Handler deallocates before Finished prints."},{"id":"d","text":"Handler deallocated","explanation":"The final print statement executes after Handler deallocates."}],"answer":"a"},{"id":"mgd-q18","type":"code-reading","difficulty":2,"prompt":"What is the console output when this code runs?","code":"final class Node {\n    let id: Int\n    var next: Node?\n    init(id: Int) { self.id = id }\n    deinit { print(\"Node \\(id) freed\") }\n}\n\nvar first: Node? = Node(id: 1)\nvar second: Node? = Node(id: 2)\nfirst?.next = second\nsecond?.next = first\nfirst = nil\nsecond = nil\nprint(\"End of test\")","options":[{"id":"a","text":"Node 1 freed\nNode 2 freed\nEnd of test","explanation":"Both nodes hold strong references to each other, preventing deallocation."},{"id":"b","text":"End of test","explanation":"first and second form a retain cycle; neither deallocates when set to nil."},{"id":"c","text":"Node 1 freed\nEnd of test","explanation":"Node 1 is held by second, so it cannot deallocate."},{"id":"d","text":"Node 2 freed\nEnd of test","explanation":"Node 2 is held by first, so it cannot deallocate."}],"answer":"b"},{"id":"mgd-q19","type":"code-reading","difficulty":2,"prompt":"What is the console output when this code runs?","code":"final class Node {\n    let id: Int\n    weak var next: Node?\n    init(id: Int) { self.id = id }\n    deinit { print(\"Node \\(id) freed\") }\n}\n\nvar first: Node? = Node(id: 1)\nvar second: Node? = Node(id: 2)\nfirst?.next = second\nsecond?.next = first\nfirst = nil\nsecond = nil\nprint(\"Done\")","options":[{"id":"a","text":"Done","explanation":"Because next is weak, both nodes deallocate when external references are nil."},{"id":"b","text":"Node 1 freed\nDone","explanation":"Both nodes deallocate, not just the first one."},{"id":"c","text":"Node 1 freed\nNode 2 freed\nDone","explanation":"Weak next prevents a cycle, so both nodes are freed in order before Done prints."},{"id":"d","text":"Node 2 freed\nNode 1 freed\nDone","explanation":"first was set to nil first, releasing Node 1 before Node 2."}],"answer":"c"},{"id":"mgd-q20","type":"code-reading","difficulty":2,"prompt":"What is the console output when this code runs?","code":"final class Manager {\n    var name: String\n    var onUpdate: (() -> Void)?\n    init(name: String) { self.name = name }\n    func bind() {\n        onUpdate = { [unowned self] in\n            print(\"Update for \\(self.name)\")\n        }\n    }\n    deinit { print(\"Manager \\(name) freed\") }\n}\n\nvar m: Manager? = Manager(name: \"Data\")\nm?.bind()\nm?.onUpdate?()\nm = nil\nprint(\"Manager scope exit\")","options":[{"id":"a","text":"Manager Data freed\nManager scope exit","explanation":"The onUpdate closure was called, so Update for Data prints first."},{"id":"b","text":"Update for Data\nManager scope exit","explanation":"unowned self prevents a retain cycle, so Manager Data freed must print."},{"id":"c","text":"Manager scope exit","explanation":"onUpdate was called and Manager deallocates when set to nil."},{"id":"d","text":"Update for Data\nManager Data freed\nManager scope exit","explanation":"The closure prints its message, then Manager deallocates cleanly because unowned self avoids a cycle."}],"answer":"d"},{"id":"mgd-q21","type":"code-reading","difficulty":2,"prompt":"What is the console output when this code runs?","code":"final class Parent {\n    var child: Child?\n    deinit { print(\"Parent deinit\") }\n}\n\nfinal class Child {\n    weak var parent: Parent?\n    deinit { print(\"Child deinit\") }\n}\n\nvar p: Parent? = Parent()\nvar c: Child? = Child()\np?.child = c\nc?.parent = p\np = nil\nprint(\"Parent cleared\")\nc = nil\nprint(\"Child cleared\")","options":[{"id":"a","text":"Parent deinit\nParent cleared\nChild deinit\nChild cleared","explanation":"Parent deallocates immediately when p is set to nil because parent is weak."},{"id":"b","text":"Parent cleared\nChild deinit\nChild cleared","explanation":"Parent deinit runs before Parent cleared is printed."},{"id":"c","text":"Child deinit\nParent deinit\nParent cleared\nChild cleared","explanation":"Parent deallocates first when p becomes nil; Child deallocates when c becomes nil."},{"id":"d","text":"Parent cleared\nChild cleared","explanation":"Both instances deallocate and print their respective deinit messages."}],"answer":"a"},{"id":"mgd-q22","type":"code-reading","difficulty":2,"prompt":"What is the console output when this code runs?","code":"final class CacheEntry {\n    let key: String\n    init(key: String) { self.key = key }\n    deinit { print(\"Entry \\(key) released\") }\n}\n\nfinal class Store {\n    var items: [CacheEntry] = []\n    func add(_ entry: CacheEntry) { items.append(entry) }\n    func purge() { items.removeAll() }\n}\n\nlet store = Store()\nstore.add(CacheEntry(key: \"A\"))\nstore.add(CacheEntry(key: \"B\"))\nprint(\"Purging store\")\nstore.purge()\nprint(\"Store empty\")","options":[{"id":"a","text":"Purging store\nStore empty","explanation":"Purging releases the entries from items, triggering deinit for both entries."},{"id":"b","text":"Purging store\nEntry A released\nEntry B released\nStore empty","explanation":"removeAll releases both instances, firing deinitializers in order."},{"id":"c","text":"Entry A released\nEntry B released\nPurging store\nStore empty","explanation":"Entries are only released after purge() calls items.removeAll()."},{"id":"d","text":"Purging store\nEntry B released\nStore empty","explanation":"Both Entry A and Entry B are removed and released."}],"answer":"b"},{"id":"mgd-q23","type":"code-reading","difficulty":3,"prompt":"What is the console output when this code runs?","code":"final class Service {\n    var callbacks: [() -> Void] = []\n    var counter = 0\n    func register() {\n        callbacks.append {\n            self.counter += 1\n            print(\"Counter: \\(self.counter)\")\n        }\n    }\n    deinit { print(\"Service deallocated\") }\n}\n\nvar s: Service? = Service()\ns?.register()\ns?.callbacks.first?()\ns = nil\nprint(\"Completed\")","options":[{"id":"a","text":"Counter: 1\nService deallocated\nCompleted","explanation":"The closure appended to callbacks strongly retains self, preventing deallocation."},{"id":"b","text":"Completed","explanation":"callbacks.first?() was called, so Counter: 1 prints first."},{"id":"c","text":"Counter: 1\nCompleted","explanation":"The closure retains self strongly in callbacks, causing a leak where Service never deallocates."},{"id":"d","text":"Service deallocated\nCompleted","explanation":"The closure strongly captured self, so Service deallocated is never printed."}],"answer":"c"},{"id":"mgd-q24","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain how the Xcode Memory Graph debugger detects retain cycles compared to abandoned memory. Describe what visual indicator Xcode uses for retain cycles.","rubric":[{"criterion":"Explains that retain cycles form isolated islands of mutually strong references without external roots","weight":40,"key":true},{"criterion":"Identifies the purple exclamation badge as the visual indicator for retain cycles","weight":30,"key":true},{"criterion":"Explains that abandoned memory remains attached to a root object such as a singleton or collection","weight":30}],"modelAnswer":"The Xcode Memory Graph debugger pauses the app and scans heap allocations for circular reference paths. When objects strongly reference each other with no remaining root pointers, Xcode marks them with a purple exclamation badge. In contrast, abandoned memory stays reachable through an active root object. Because of this root reference, Xcode shows no purple badge."},{"id":"mgd-q25","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain Malloc Stack Logging. State where to enable it, and explain why it helps find leaks.","rubric":[{"criterion":"States where to enable Malloc Stack Logging (Scheme Diagnostics tab under Run action)","weight":35,"key":true},{"criterion":"Explains that it records the full allocation backtrace or call stack for heap allocations","weight":35,"key":true},{"criterion":"Explains that selecting a node in the Memory Graph reveals the exact file and line that created it","weight":30}],"modelAnswer":"Malloc Stack Logging is enabled in the scheme diagnostics tab under the Run action. It records the full call stack for every memory allocation on the heap. When enabled, selecting an object in the Memory Graph debugger displays the exact file and line number that created that instance. Without it, you can only see that an object exists, but not where it came from."},{"id":"mgd-q26","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, describe why a dismissed screen might leak without a purple badge. Explain how you locate it in the Memory Graph.","rubric":[{"criterion":"Describes a valid scenario such as registering with NotificationCenter or appending to a singleton manager","weight":40,"key":true},{"criterion":"Explains why the purple badge is missing (the instance is still reachable from a root)","weight":30,"key":true},{"criterion":"Explains how to locate it (filtering by class name in the navigator and checking instance count)","weight":30}],"modelAnswer":"A dismissed view controller will leak without a purple badge if a long-lived singleton or notification observer retains it. Because the singleton is a root object, the view controller is still reachable, so Xcode does not flag it as an isolated cycle. To locate this leak, I filter the Debug Navigator by class name. Then I check if the instance count stays above zero after dismissal."},{"id":"mgd-q27","type":"written","difficulty":3,"prompt":"In 2 to 5 sentences, explain how a team automates memory leak checks in CI/CD. Mention memory graphs and command-line tools.","rubric":[{"criterion":"Mentions generating or exporting a .memgraph file from tests or command line","weight":40,"key":true},{"criterion":"Mentions running the leaks or malloc_history command-line tool on the memgraph","weight":35,"key":true},{"criterion":"Explains failing the automated build if leaks reports retain cycles","weight":25}],"modelAnswer":"Teams can export a .memgraph snapshot during UI or integration tests using terminal commands or test attachments. In continuous integration, a shell step runs the leaks command-line utility against the exported memgraph file. If leaks identifies retain cycles or abandoned allocations, it exits with a non-zero status code, failing the build automatically before code merges."},{"id":"mgd-q28","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain the difference between weak and unowned references when resolving retain cycles. When should you avoid unowned?","rubric":[{"criterion":"Explains that weak becomes nil when the target deallocates and is always an optional","weight":40,"key":true},{"criterion":"Explains that unowned assumes the target is never nil and crashes if accessed after deallocation","weight":35,"key":true},{"criterion":"States to avoid unowned when lifetimes are asynchronous, independent, or uncertain","weight":25}],"modelAnswer":"A weak reference does not keep the target alive and becomes nil automatically when the instance deallocates, requiring an optional type. An unowned reference also avoids incrementing reference count, but assumes the target remains alive throughout its access. You should avoid unowned in asynchronous callbacks or network closures where the target might deallocate before the block executes, which would cause a crash."},{"id":"mgd-q29","type":"code-write","difficulty":1,"prompt":"Write a Swift class SafeTimer with properties var tick: (() -> Void)? and let name: String. Implement an initializer init(name: String) and a method setup() where tick is assigned a closure with [weak self] that prints 'Ticking \\(self.name)'. In deinit, print '\\(name) deallocated'. Create a SafeTimer with name 'Watch', call setup(), and set the reference to nil.","starterCode":"final class SafeTimer {\n    var tick: (() -> Void)?\n    let name: String\n    init(name: String) {\n        self.name = name\n    }\n    func setup() {\n        // Assign tick with [weak self] to avoid a retain cycle\n    }\n    deinit {\n        // Print name deallocated\n    }\n}\n\n// Create instance Watch, call setup(), set to nil","rubric":[{"criterion":"Defines SafeTimer with tick closure and name properties","weight":25,"key":true},{"criterion":"Uses [weak self] inside setup to avoid a retain cycle and safely unwrap self","weight":40,"key":true},{"criterion":"Prints deallocation message and ensures instance deallocates cleanly when set to nil","weight":35}],"modelAnswer":"final class SafeTimer {\n    var tick: (() -> Void)?\n    let name: String\n    init(name: String) {\n        self.name = name\n    }\n    func setup() {\n        tick = { [weak self] in\n            guard let self = self else { return }\n            print(\"Ticking \\(self.name)\")\n        }\n    }\n    deinit {\n        print(\"\\(name) deallocated\")\n    }\n}\n\nvar timer: SafeTimer? = SafeTimer(name: \"Watch\")\ntimer?.setup()\ntimer = nil"},{"id":"mgd-q30","type":"code-write","difficulty":2,"prompt":"Write two classes, Department and Employee, to model a parent-child relationship without a retain cycle. Department holds a strong var head: Employee? and let name: String. Employee holds a weak var department: Department? and let name: String. In deinit of both, print '\\(name) deinit'. Instantiate Department 'Sales' and Employee 'Alice', link them to each other, then set dept to nil and emp to nil.","starterCode":"final class Department {\n    var head: Employee?\n    let name: String\n    init(name: String) { self.name = name }\n    deinit { /* print name deinit */ }\n}\n\nfinal class Employee {\n    // weak reference to department\n    let name: String\n    init(name: String) { self.name = name }\n    deinit { /* print name deinit */ }\n}\n\n// Instantiate Sales and Alice, link them, and set both references to nil","rubric":[{"criterion":"Declares weak var department in Employee to prevent a retain cycle","weight":40,"key":true},{"criterion":"Declares strong var head in Department and implements deinit for both classes","weight":30,"key":true},{"criterion":"Links instances and sets references to nil producing Sales deinit and Alice deinit","weight":30}],"modelAnswer":"final class Department {\n    var head: Employee?\n    let name: String\n    init(name: String) { self.name = name }\n    deinit { print(\"\\(name) deinit\") }\n}\n\nfinal class Employee {\n    weak var department: Department?\n    let name: String\n    init(name: String) { self.name = name }\n    deinit { print(\"\\(name) deinit\") }\n}\n\nvar dept: Department? = Department(name: \"Sales\")\nvar emp: Employee? = Employee(name: \"Alice\")\ndept?.head = emp\nemp?.department = dept\ndept = nil\nemp = nil"},{"id":"mgd-q31","type":"code-write","difficulty":2,"prompt":"Write a Swift class ImageCache that manages an in-memory list of URL strings. Create private var list: [String] = []. Add methods add(_ url: String) and clear(). Add a computed property count returning list.count. Create an instance, add 'img1.png' and 'img2.png', print 'Count: \\(cache.count)', call clear(), and print 'Count: \\(cache.count)'.","starterCode":"final class ImageCache {\n    // Implement list, add, clear, count\n}\n\n// Create instance, add two items, print count, clear, print count","rubric":[{"criterion":"Declares ImageCache class with private list and computed count property","weight":30,"key":true},{"criterion":"Implements add and clear methods correctly modifying internal list","weight":40,"key":true},{"criterion":"Instantiates cache, adds items, clears items, and prints correct counts 2 and 0","weight":30}],"modelAnswer":"final class ImageCache {\n    private var list: [String] = []\n    func add(_ url: String) {\n        list.append(url)\n    }\n    func clear() {\n        list.removeAll()\n    }\n    var count: Int {\n        return list.count\n    }\n}\n\nlet cache = ImageCache()\ncache.add(\"img1.png\")\ncache.add(\"img2.png\")\nprint(\"Count: \\(cache.count)\")\ncache.clear()\nprint(\"Count: \\(cache.count)\")"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
