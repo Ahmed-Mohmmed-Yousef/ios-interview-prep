@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bitwise Operations: Bit Clearing &amp; XOR Cancellation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --bit-color: #0284c7; --bit-soft: #e0f2fe;
+  --done-color: #059669; --done-soft: #d1fae5;
+  --alert-color: #d97706; --alert-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --bit-color: #38bdf8; --bit-soft: #082f49;
+  --done-color: #34d399; --done-soft: #064e3b;
+  --alert-color: #fbbf24; --alert-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.controls {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  padding: 6px 14px; border-radius: 8px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: all 0.2s ease;
+}
+button:hover:not(:disabled) { border-color: var(--bit-color); color: var(--bit-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-weight: 600; font-size: 14px; color: var(--muted); }
+
+.panels { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-bits .kind { background: var(--bit-soft); color: var(--bit-color); }
+.p-state .kind { background: var(--done-soft); color: var(--done-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.bit-box { rx: 6; ry: 6; stroke: var(--line); stroke-width: 1.5; fill: var(--code-bg); transition: all 0.3s ease; }
+.bit-box.one-active { stroke: var(--bit-color); fill: var(--bit-soft); stroke-width: 2.5; }
+.bit-box.one-done { stroke: var(--done-color); fill: var(--done-soft); stroke-width: 2.5; }
+.bit-box.cleared { stroke: var(--alert-color); fill: var(--alert-soft); stroke-width: 2.5; }
+.bit-text { font-family: var(--font-code); font-weight: 700; font-size: 16px; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; }
+.bit-pos { font-family: var(--font-code); font-size: 10px; fill: var(--muted); text-anchor: middle; }
+
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-badge {
+  display: inline-block; font-family: var(--font-code); font-size: 12px;
+  padding: 4px 8px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bit-box { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Animated Bitwise Operations Diagram">
+  <div class="controls">
+    <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+    <div class="btn-group">
+      <button id="btnBack" type="button" aria-label="Previous step">Back</button>
+      <button id="btnNext" type="button" aria-label="Next step">Next</button>
+      <button id="btnReplay" type="button" aria-label="Replay from start">Replay</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <!-- Bit Register Panel -->
+    <div class="panel p-bits">
+      <h3><span>8-Bit Binary Register</span><span class="kind">Bitmask</span></h3>
+      <p class="caption" id="bitCaption">Number 12 in binary: 0000 1100 (bits at positions 3 and 2 are 1).</p>
+      <svg viewBox="0 0 340 150" aria-label="Binary Bit Register">
+        <!-- 8 bits: b7 to b0, width 34px each with 6px spacing -->
+        <!-- Bit 7 -->
+        <rect id="b7" x="12" y="35" width="34" height="45" class="bit-box" />
+        <text id="tb7" x="29" y="58" class="bit-text">0</text>
+        <text x="29" y="95" class="bit-pos">2^7</text>
+
+        <!-- Bit 6 -->
+        <rect id="b6" x="52" y="35" width="34" height="45" class="bit-box" />
+        <text id="tb6" x="69" y="58" class="bit-text">0</text>
+        <text x="69" y="95" class="bit-pos">2^6</text>
+
+        <!-- Bit 5 -->
+        <rect id="b5" x="92" y="35" width="34" height="45" class="bit-box" />
+        <text id="tb5" x="109" y="58" class="bit-text">0</text>
+        <text x="109" y="95" class="bit-pos">2^5</text>
+
+        <!-- Bit 4 -->
+        <rect id="b4" x="132" y="35" width="34" height="45" class="bit-box" />
+        <text id="tb4" x="149" y="58" class="bit-text">0</text>
+        <text x="149" y="95" class="bit-pos">2^4</text>
+
+        <!-- Bit 3 -->
+        <rect id="b3" x="172" y="35" width="34" height="45" class="bit-box one-active" />
+        <text id="tb3" x="189" y="58" class="bit-text">1</text>
+        <text x="189" y="95" class="bit-pos">2^3</text>
+
+        <!-- Bit 2 -->
+        <rect id="b2" x="212" y="35" width="34" height="45" class="bit-box one-active" />
+        <text id="tb2" x="229" y="58" class="bit-text">1</text>
+        <text x="229" y="95" class="bit-pos">2^2</text>
+
+        <!-- Bit 1 -->
+        <rect id="b1" x="252" y="35" width="34" height="45" class="bit-box" />
+        <text id="tb1" x="269" y="58" class="bit-text">0</text>
+        <text x="269" y="95" class="bit-pos">2^1</text>
+
+        <!-- Bit 0 -->
+        <rect id="b0" x="292" y="35" width="34" height="45" class="bit-box" />
+        <text id="tb0" x="309" y="58" class="bit-text">0</text>
+        <text x="309" y="95" class="bit-pos">2^0</text>
+      </svg>
+    </div>
+
+    <!-- State & Operations Panel -->
+    <div class="panel p-state">
+      <h3><span>Operation Trace</span><span class="kind">Bit Logic</span></h3>
+      <p class="caption" id="stateCaption">n = 12 = 8 + 4 = binary 00001100.</p>
+      <div class="code" id="stateCode">n = 12 (0b00001100)<br>nonzeroBitCount = 2</div>
+      <div class="badge-row">
+        <span class="status-badge" id="opBadge">Operation: Initial Value</span>
+        <span class="status-badge" id="resBadge">Value: 12</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    counter: "Step 1 of 4",
+    bitCap: "Number 12 in binary: 0000 1100. Positions 3 (8) and 2 (4) are set to 1.",
+    stateCap: "Two 1-bits represent 8 + 4 = 12. nonzeroBitCount in Swift returns 2.",
+    code: "n = 12 (00001100)\nTarget: Clear lowest set bit using n & (n - 1)",
+    op: "Status: Initial State",
+    res: "Value: 12",
+    bits: ["0", "0", "0", "0", "1", "1", "0", "0"],
+    classes: ["bit-box", "bit-box", "bit-box", "bit-box", "bit-box one-active", "bit-box one-active", "bit-box", "bit-box"]
+  },
+  {
+    counter: "Step 2 of 4",
+    bitCap: "Clear lowest bit: n - 1 = 11 (0000 1011). 12 & 11 = 0000 1000 = 8.",
+    stateCap: "Bit at position 2 is flipped to 0. Only bit at position 3 (value 8) remains.",
+    code: "n & (n - 1)\n= 00001100 & 00001011\n= 00001000 (8)\nLowest bit cleared in O(1) time!",
+    op: "Operation: n & (n - 1)",
+    res: "Value: 8",
+    bits: ["0", "0", "0", "0", "1", "0", "0", "0"],
+    classes: ["bit-box", "bit-box", "bit-box", "bit-box", "bit-box one-done", "bit-box cleared", "bit-box", "bit-box"]
+  },
+  {
+    counter: "Step 3 of 4",
+    bitCap: "Power of Two Check: 8 & (8 - 1) = 8 & 7 = 0000 1000 & 0000 0111 = 0.",
+    stateCap: "Result is 0 after clearing the only remaining set bit! Confirms 8 is a power of 2.",
+    code: "8 & 7 == 0 -> TRUE!\nisPowerOfTwo(8) = true\nSingle bit check verified.",
+    op: "Operation: Power of 2 Test",
+    res: "Value: 0 (Power of 2)",
+    bits: ["0", "0", "0", "0", "0", "0", "0", "0"],
+    classes: ["bit-box", "bit-box", "bit-box", "bit-box", "bit-box cleared", "bit-box", "bit-box", "bit-box"]
+  },
+  {
+    counter: "Step 4 of 4",
+    bitCap: "XOR Cancellation: Array [4, 1, 2, 1, 2]. Duplicates cancel: 1 ^ 1 = 0, 2 ^ 2 = 0.",
+    stateCap: "4 ^ 0 = 4. The unique element survives in O(N) time and O(1) space!",
+    code: "4 ^ 1 ^ 2 ^ 1 ^ 2\n= 4 ^ (1 ^ 1) ^ (2 ^ 2)\n= 4 ^ 0 ^ 0 = 4 (00000100)\nSingle Number found!",
+    op: "Operation: XOR Cancellation",
+    res: "Single: 4",
+    bits: ["0", "0", "0", "0", "0", "1", "0", "0"],
+    classes: ["bit-box", "bit-box", "bit-box", "bit-box", "bit-box", "bit-box one-done", "bit-box", "bit-box"]
+  }
+];
+
+let curr = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+const bitCap = document.getElementById("bitCaption");
+const stateCap = document.getElementById("stateCaption");
+const stateCode = document.getElementById("stateCode");
+const opBadge = document.getElementById("opBadge");
+const resBadge = document.getElementById("resBadge");
+
+const boxes = [
+  document.getElementById("b0"), document.getElementById("b1"),
+  document.getElementById("b2"), document.getElementById("b3"),
+  document.getElementById("b4"), document.getElementById("b5"),
+  document.getElementById("b6"), document.getElementById("b7")
+];
+const texts = [
+  document.getElementById("tb0"), document.getElementById("tb1"),
+  document.getElementById("tb2"), document.getElementById("tb3"),
+  document.getElementById("tb4"), document.getElementById("tb5"),
+  document.getElementById("tb6"), document.getElementById("tb7")
+];
+
+function render() {
+  const s = steps[curr];
+  stepCounter.textContent = s.counter;
+  btnBack.disabled = curr === 0;
+  btnNext.disabled = curr === steps.length - 1;
+
+  bitCap.textContent = s.bitCap;
+  stateCap.textContent = s.stateCap;
+  stateCode.innerHTML = s.code.replace(/\n/g, "<br>");
+  opBadge.textContent = s.op;
+  resBadge.textContent = s.res;
+
+  // s.bits is [b7, b6, b5, b4, b3, b2, b1, b0]
+  for (let i = 0; i < 8; i++) {
+    const bitVal = s.bits[7 - i];
+    const bitClass = s.classes[7 - i];
+    texts[i].textContent = bitVal;
+    boxes[i].className.baseVal = bitClass;
+  }
+}
+
+btnBack.addEventListener("click", () => { if (curr > 0) { curr--; render(); } });
+btnNext.addEventListener("click", () => { if (curr < steps.length - 1) { curr++; render(); } });
+btnReplay.addEventListener("click", () => { curr = 0; render(); });
+
+render();
+</script>
+</body>
+</html>
