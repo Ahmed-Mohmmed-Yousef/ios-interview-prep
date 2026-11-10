@@ -64,7 +64,8 @@ Claude Code runs some of these automatically through hooks (`.claude/settings.js
 |---|---|
 | `content/levels.json`, `units.json`, `rules.json` or any `topic.json` | `node scripts/validate-curriculum.mjs`, then `node scripts/curriculum-report.mjs` |
 | A `lesson.mdx` | `node .claude/hooks/check-lesson.mjs <file>`, `node .claude/hooks/check-plain-english.mjs <file>`, `node scripts/run-swift-examples.mjs <file>` |
-| A `questions.json` | `node .claude/hooks/check-plain-english.mjs <file>`, `node scripts/run-swift-examples.mjs <file>` |
+| A `questions.json` | `node .claude/hooks/check-plain-english.mjs <file>`, `node scripts/run-swift-examples.mjs <file>`, `node scripts/check-coverage.mjs <topic-id>` |
+| A topic's `status` to `published` | `node scripts/check-publish-gate.mjs <topic-id> --code` must pass first (`docs/audit/README.md`) |
 | `config/brand.json`, `config/design-tokens.json` or a page builder | `node scripts/check-brand.mjs` |
 
 **Never edit generated files by hand.** Edit the source and run its builder:

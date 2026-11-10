@@ -25,13 +25,13 @@ Take one topic from `planned` to `review`. The steps and their "done when" check
 | 3 | Plain-English review | Delegate to the `plain-english-reviewer` subagent with the lesson path | Every finding fixed or explained |
 | 4 | Diagram | Follow `.claude/skills/diagram-animator/SKILL.md` for each `<Diagram>` | Works at 375px, has a reduced-motion list, shows the code line on each step |
 | 5 | Exam | Follow `.claude/skills/exam-writer/SKILL.md` | 30+ questions, the right mix, every `verify` passes, each rubric tested with 3 sample answers |
-| 6 | Fact-check | Follow `.claude/skills/content-fact-checker/SKILL.md` | Every finding fixed or explained |
-| 7 | Checks | `node scripts/validate-curriculum.mjs`, `node scripts/curriculum-report.mjs`, `node scripts/run-swift-examples.mjs` on the lesson and the questions | All pass |
+| 6 | Independent fact-check | Run the `content-fact-checker` skill as `<topic-id> fix`. It forks a fresh agent, so the check is independent of the writer. Do not write `audit.json` yourself | `docs/topics/$ARGUMENTS/audit.json` says `"result": "pass"` |
+| 7 | Checks and publish gate | `node scripts/validate-curriculum.mjs`, `node scripts/curriculum-report.mjs`, `node scripts/check-coverage.mjs $ARGUMENTS`, then `node scripts/check-publish-gate.mjs $ARGUMENTS --code` | All pass. Never publish a topic that fails the gate |
 | 8 | Review page | Build the topic's prototype page and publish it as an artifact. Write its link into files only after the publish returns it | Page works at 375px in light and dark mode. Status `review` |
 
 ## Rules
 
-- **Never set the status to `published`.** Only the user approves publishing (step 8 of `docs/topic-workflow.md`).
+- **Never set the status to `published`** unless the publish gate passes (`docs/audit/README.md`). Since 2026-11-09 the user allows publishing without a manual review; since 2026-11-10 the gate is required for every publish.
 - Do not skip a failing check. Fix the cause, or tell the user why it cannot pass.
 - Keep `PROGRESS.md` current after each step: 🟡 when the review page is ready.
 

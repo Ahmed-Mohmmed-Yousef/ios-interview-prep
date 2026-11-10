@@ -1,0 +1,190 @@
+export const meta = {
+  id: "custom-layouts",
+  summary: "Build custom container views with the Layout protocol in SwiftUI, implementing sizeThatFits and placeSubviews.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "Layout (SwiftUI)",
+      url: "https://developer.apple.com/documentation/swiftui/layout"
+    },
+    {
+      title: "WWDC22: Compose custom layouts with SwiftUI",
+      url: "https://developer.apple.com/videos/play/wwdc2022/10056/"
+    }
+  ]
+}
+
+<InterviewHook>
+  <Question>
+    Before iOS 16, building a custom wrapping tag cloud required complex `GeometryReader` hacks. What modern SwiftUI protocol replaces those hacks?
+  </Question>
+  <Guess>
+    <Option id="a">The `ViewModifier` protocol.</Option>
+    <Option id="b" correct>The `Layout` protocol.</Option>
+    <Option id="c">The `DynamicProperty` protocol.</Option>
+    <Option id="d">The `Animatable` protocol.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+SwiftUI provides built-in layout containers like `VStack`, `HStack`, and `ZStack`.
+
+However, some user interfaces require unique layouts. Examples include tag clouds that wrap to new lines, or circular button rings.
+
+In iOS 16 and later, Apple introduced the `Layout` protocol.
+
+Conforming to `Layout` allows you to create first-class layout containers.
+
+The protocol requires only two core methods.
+
+First, `sizeThatFits` reports how much space the container needs for a proposed size.
+
+Second, `placeSubviews` assigns exact coordinates to each child view within the allocated bounds.
+
+<Analogy>
+  Think of packing items into a suitcase. First, you measure all your clothes to decide how large a suitcase you need. Then, you place each folded item into its specific spot inside the bag.
+</Analogy>
+
+Custom layouts also support an optional cache. You can calculate expensive math once during sizing and reuse it during placement.
+
+Child views can pass custom layout values up to your container using `LayoutValueKey`.
+
+## See it
+
+<Diagram id="custom-layouts" caption="Explore the two-step layout pass: measuring required size in sizeThatFits, then positioning children in placeSubviews." />
+
+<QuickCheck>
+  <Question>
+    What are the two required methods of the SwiftUI `Layout` protocol?
+  </Question>
+  <Option id="a">`body(content:)` and `makeCoordinator()`</Option>
+  <Option id="b" correct>`sizeThatFits(proposal:subviews:cache:)` and `placeSubviews(in:proposal:subviews:cache:)`</Option>
+  <Option id="c">`layoutSubviews()` and `draw(_:)`</Option>
+  <Option id="d">`preferredContentSize()` and `updateUIView()`</Option>
+  <Explanation>
+    The Layout protocol requires sizeThatFits to calculate total dimensions and placeSubviews to position each child.
+  </Explanation>
+</QuickCheck>
+
+## In code
+
+Here is an example calculating total layout height for wrapping items. This simulates the logic inside `sizeThatFits`.
+
+```swift
+struct ItemSize {
+    let width: Double
+    let height: Double
+}
+
+struct FlowCalculator {
+    let maxWidth: Double
+
+    func calculateSize(items: [ItemSize]) -> (width: Double, height: Double) {
+        var currentX = 0.0
+        var currentY = 0.0
+        var lineHeight = 0.0
+
+        for item in items {
+            if currentX + item.width > maxWidth && currentX > 0 {
+                currentX = 0
+                currentY += lineHeight
+                lineHeight = 0
+            }
+            currentX += item.width + 8.0
+            lineHeight = max(lineHeight, item.height)
+        }
+        return (maxWidth, currentY + lineHeight)
+    }
+}
+
+let calc = FlowCalculator(maxWidth: 200.0)
+let items = [ItemSize(width: 80, height: 30), ItemSize(width: 90, height: 30), ItemSize(width: 70, height: 30)]
+let total = calc.calculateSize(items: items)
+print("Total Height: \(total.height)")
+```
+```output
+Total Height: 60.0
+```
+
+Once sizing is determined, `placeSubviews` assigns exact coordinates to each child.
+
+```swift
+struct PlacedPoint {
+    let index: Int
+    let x: Double
+    let y: Double
+}
+
+struct EqualSpacingPlacer {
+    let spacing: Double
+
+    func place(items: [Double]) -> [PlacedPoint] {
+        var currentX = 0.0
+        var points: [PlacedPoint] = []
+        for (i, width) in items.enumerated() {
+            points.append(PlacedPoint(index: i, x: currentX, y: 0.0))
+            currentX += width + spacing
+        }
+        return points
+    }
+}
+
+let placer = EqualSpacingPlacer(spacing: 10.0)
+let points = placer.place(items: [50.0, 50.0, 50.0])
+print("Last X: \(points.last?.x ?? 0.0)")
+```
+```output
+Last X: 120.0
+```
+
+This clean separation gives custom layouts full participation in animations and frame calculations.
+
+<TryIt>
+  Open a Swift Playground. Write a custom struct conforming to Layout. Implement a horizontal wrap layout and display an array of tags.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    How can a child view pass custom metadata, like a layout priority or flex weight, to a parent Layout?
+  </Question>
+  <Option id="a">By saving the value in the application info plist file.</Option>
+  <Option id="b">By posting a notification through NotificationCenter.</Option>
+  <Option id="c" correct>By conforming to `LayoutValueKey` and using the `.layoutValue(key:value:)` modifier.</Option>
+  <Option id="d">By modifying the global device screen brightness setting.</Option>
+  <Explanation>
+    LayoutValueKey allows children to attach custom traits that the parent Layout inspects via subview layout values.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Do not perform slow calculations twice in sizeThatFits and placeSubviews">
+  If your layout performs expensive line-wrapping math, do not compute it twice. Use `makeCache(subviews:)` to calculate line indices once and reuse them.
+</Trap>
+
+<Trap label="Remember that subviews are proxies, not concrete views">
+  The `subviews` array contains `LayoutSubview` proxy values. You measure them using `subview.sizeThatFits()` and place them using `subview.place()`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  The `Layout` protocol allows us to build custom container views like flow layouts or circular arrangements. We implement `sizeThatFits` to report the container total size based on subview measurements. Then, we implement `placeSubviews` to position each child at an exact point inside the given bounds. When calculations are heavy, we use `makeCache` to store computed positions and share them between passes.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  Before iOS 16, custom multi-child layouts required fragile `GeometryReader` chains and preference keys that caused layout loops. The `Layout` protocol integrates directly into SwiftUI layout negotiation. It accepts a `ProposedViewSize` with optional dimensions, measures subviews without view re-instantiation, and places them via `LayoutSubview`. For advanced arrangements, I use `LayoutValueKey` to support child-specific flex weights or alignment traits with full animation support.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  The Layout protocol creates custom container views in modern SwiftUI. Implement sizeThatFits to calculate bounding box dimensions. Implement placeSubviews to position children within allocated bounds. Use makeCache to share expensive measurement math between sizing and placement passes.
+</Recap>
+
+## Go deeper
+
+- Layout Protocol Documentation: https://developer.apple.com/documentation/swiftui/layout
+- WWDC22: Compose custom layouts with SwiftUI: https://developer.apple.com/videos/play/wwdc2022/10056/

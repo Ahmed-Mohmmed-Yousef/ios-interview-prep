@@ -6,6 +6,9 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const dir = resolve(process.argv[2] ?? "content");
+const docsDir = resolve(dir, "../docs");
+const legacyPath = join(docsDir, "audit/legacy-unaudited.json");
+const legacyUnaudited = new Set(existsSync(legacyPath) ? JSON.parse(readFileSync(legacyPath, "utf8")).topics : []);
 const problems = [];
 const fail = (msg) => problems.push(msg);
 
@@ -208,6 +211,14 @@ for (const [id, t] of topics) {
     const active = (bank?.questions ?? []).filter((q) => !q.retired).length;
     if (bank && active < 30) fail(`${where}: published topic needs at least 30 non-retired questions (has ${active})`);
     if ((t.sources ?? []).length === 0) fail(`${where}: published topic needs at least one source`);
+    // Publish gate (2026-11-10): a published topic needs a passing independent audit, unless it is in the
+    // legacy list of topics published before the gate. The full gate is scripts/check-publish-gate.mjs.
+    if (!legacyUnaudited.has(t.id)) {
+      const auditPath = join(docsDir, "topics", t.id, "audit.json");
+      const audit = existsSync(auditPath) ? readJson(auditPath) : null;
+      if (!audit) fail(`${where}: published topic needs docs/topics/${t.id}/audit.json (run node scripts/check-publish-gate.mjs ${t.id})`);
+      else if (audit.result !== "pass" || Object.values(audit.open ?? {}).some((n) => n !== 0)) fail(`${where}: audit.json does not pass (result "${audit.result}", open findings ${JSON.stringify(audit.open ?? {})})`);
+    }
   }
 }
 

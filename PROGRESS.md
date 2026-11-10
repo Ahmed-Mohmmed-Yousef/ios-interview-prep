@@ -156,7 +156,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (25 of 53 published: 19 main + 6 bonus)
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (26 of 53 published: 19 main + 7 bonus)
   - ✅ **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)** — completed (7 of 7 published)
     - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
     - ✅ **generics-associated-types** (Generics: Associated Types and Where Clauses) — published (lesson, diagram, 31 questions) → [docs/topics/generics-associated-types/review.html](docs/topics/generics-associated-types/review.html)
@@ -182,15 +182,12 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **sendable-data-races** (Sendable and Data Races) — published (lesson, diagram, 31 questions) → [docs/topics/sendable-data-races/review.html](docs/topics/sendable-data-races/review.html)
     - ✅ **swift-6-strict-concurrency** (Swift 6 Strict Concurrency) — published (lesson, diagram, 31 questions) → [docs/topics/swift-6-strict-concurrency/review.html](docs/topics/swift-6-strict-concurrency/review.html)
     - ✅ **approachable-concurrency** (Approachable Concurrency) — published (lesson, diagram, 31 questions) → [docs/topics/approachable-concurrency/review.html](docs/topics/approachable-concurrency/review.html)
-  - 🔄 **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)**
+  - 🔄 **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)** — in progress (4 of 7 published)
     - ✅ **swiftui-loading-data** (Loading Data in SwiftUI) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-loading-data/review.html](docs/topics/swiftui-loading-data/review.html)
     - ✅ **view-identity-lifetime** (View Identity and Lifetime) — published (lesson, diagram, 31 questions) → [docs/topics/view-identity-lifetime/review.html](docs/topics/view-identity-lifetime/review.html)
     - ✅ **swiftui-animations** (Animations and Transitions) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-animations/review.html](docs/topics/swiftui-animations/review.html)
-    - 🔄 **custom-layouts** (Custom Layouts) [bonus] — in progress
-    - ⬜ **view-identity-lifetime** (View Identity and Lifetime)
-    - ⬜ **swiftui-animations** (Animations and Transitions)
-    - ⬜ **custom-layouts** (Custom Layouts) [bonus]
-    - ⬜ **swiftui-uikit-interop** (SwiftUI and UIKit Together)
+    - ✅ **custom-layouts** (Custom Layouts) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/custom-layouts/review.html](docs/topics/custom-layouts/review.html)
+    - 🔄 **swiftui-uikit-interop** (SwiftUI and UIKit Together) — in progress
     - ⬜ **swiftui-performance** (SwiftUI Performance)
     - ⬜ **custom-views-layout-pass** (Custom Views and the Layout Pass)
   - ⬜ **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
@@ -200,6 +197,14 @@ Write all lessons and question banks, level by level, with fact checks.
 - ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
 - ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
 - ⬜ **4.6 Phase 4 summary and final verification**
+- 🔄 **4.7 Content audit and publish gate** (started 2026-11-10) → [docs/audit/README.md](docs/audit/README.md)
+  - ✅ Spot check of 3 random fresh topics (`control-flow`, `error-handling`, `methods-and-initialization`): all code compiled, but each had wrong facts and about 20 questions in total tested ideas the lessons never teach
+  - ✅ Coverage script [scripts/check-coverage.mjs](scripts/check-coverage.mjs): real lesson headings, possibly untaught ideas, the 2–5 sentence rule, the mix, matching dates. First run on 92 published topics: 103 errors (90 written prompts ask for 2–4 sentences, 13 questions point at "Go deeper" or a missing heading) and 166 questions flagged as possibly untaught
+  - ✅ Publish gate [scripts/check-publish-gate.mjs](scripts/check-publish-gate.mjs): coverage + an independent fact check (`docs/topics/<id>/audit.json`) + the code runner. The validator now blocks publishing without a passing audit. The 92 topics published before the gate are listed in [docs/audit/legacy-unaudited.json](docs/audit/legacy-unaudited.json)
+  - ✅ Workflow, `new-topic` and `content-fact-checker` skills and `AGENTS.md` updated for the gate. New topics continue, but each must pass the gate
+  - ⬜ Fresh level audit (22 topics) → re-check 3 random topics → report
+  - ⬜ Junior level audit (45 topics) → re-check 3 random topics → report
+  - ⬜ Mid level audit (25 topics) → re-check 3 random topics → report
 
 ## Phase 5 — Web app MVP ✅
 
@@ -342,11 +347,17 @@ New rules and changes you ask for are added here, with the date.
 | 2026-11-09 | Content dashboard: view in Phase 7, edit right after launch. Every change is a pull request that passes all checks and that you approve. AI tasks run on your computer. The repo is public | this file (Phase 7) |
 | 2026-11-09 | Complete all 22 Fresh level topics first (Coding Interview, SwiftUI, App and System); keep optional-chaining in Wave 2 (Junior) | ask_question decision |
 | 2026-11-09 | Delegate Phase 4 content production to autonomous workflow without manual approvals; each topic auto-publishes upon passing compiler and linter checks | User instruction |
+| 2026-11-10 | Audit every published topic and fix wrong content directly, level by level (fresh first). One short report per level; 3 random topics re-checked per level | [docs/audit/README.md](docs/audit/README.md) |
+| 2026-11-10 | Every new topic must pass the publish gate (coverage + independent fact check + code) before it is published. New topics paused only until the gate existed | [docs/audit/README.md](docs/audit/README.md) |
+| 2026-11-10 | Fact checks for the audit may run as parallel helper agents | [docs/audit/README.md](docs/audit/README.md) |
 
 ## Change log
 
 Newest first.
 
+- **2026-11-10** — Built and published topic `custom-layouts` (Custom Layouts) [bonus]: researched official SwiftUI Layout protocol and WWDC22 Compose custom layouts session, authored lesson in simple English, interactive 4-step layout negotiation and positioning diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/custom-layouts/review.html`). All checks passed. Batch 3D progress: 4 of 7 published. Starting swiftui-uikit-interop.
+
+- **2026-11-10** — Started step 4.7 Content audit. A spot check of 3 random fresh topics found wrong facts and exam questions on untaught ideas that the old checks could not catch. Added the coverage script, the publish gate (independent `audit.json` + coverage + code), a validator rule that blocks publishing without a passing audit, and the legacy list of 92 topics to audit. Updated the topic workflow, the `new-topic` and `content-fact-checker` skills and `AGENTS.md`. Next: audit the fresh level with parallel helper agents.
 - **2026-11-10** — Built and published topic `swiftui-animations` (Animations and Transitions): researched official SwiftUI Animations and WWDC23 Explore SwiftUI animation docs, authored lesson in simple English, interactive 4-step animation scope, spring physics, and transitions diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swiftui-animations/review.html`). All checks passed. Batch 3D progress: 3 of 7 published. Starting custom-layouts [bonus].
 - **2026-11-10** — Built and published topic `view-identity-lifetime` (View Identity and Lifetime): researched official WWDC21 Demystify SwiftUI session and State docs, authored lesson in simple English, interactive 4-step view identity, branching, and state lifetime diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/view-identity-lifetime/review.html`). All checks passed. Batch 3D progress: 2 of 7 published. Starting swiftui-animations.
 - **2026-11-10** — Built and published topic `swiftui-loading-data` (Loading Data in SwiftUI): researched official Apple AsyncImage, task, and refreshable docs, authored lesson in simple English, interactive 4-step task lifecycle and AsyncImage diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swiftui-loading-data/review.html`). All checks passed. Batch 3D progress: 1 of 7 published. Starting view-identity-lifetime.
