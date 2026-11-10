@@ -1,0 +1,672 @@
+<title>AsyncSequence and AsyncStream Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --producer-color: #0284c7;
+  --producer-soft: #e0f2fe;
+  --buffer-color: #7c3aed;
+  --buffer-soft: #ede9fe;
+  --consumer-color: #059669;
+  --consumer-soft: #d1fae5;
+  --finish-color: #ea580c;
+  --finish-soft: #ffedd5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --producer-color: #38bdf8;
+    --producer-soft: #082f49;
+    --buffer-color: #a78bfa;
+    --buffer-soft: #2e1065;
+    --consumer-color: #34d399;
+    --consumer-soft: #064e3b;
+    --finish-color: #fb923c;
+    --finish-soft: #431407;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--producer-color);
+  color: var(--producer-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.step-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.badge.producer { background: var(--producer-soft); color: var(--producer-color); }
+.badge.buffer { background: var(--buffer-soft); color: var(--buffer-color); }
+.badge.consumer { background: var(--consumer-soft); color: var(--consumer-color); }
+.badge.finish { background: var(--finish-soft); color: var(--finish-color); }
+
+.caption {
+  font-size: 15px;
+  color: var(--ink);
+  margin: 0;
+  min-height: 2.8em;
+}
+.code-box {
+  font: 13px/1.5 var(--font-code);
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  white-space: pre;
+}
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.node-box {
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+.buffer-slot {
+  stroke-width: 1.5;
+  transition: all 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+.reduced-motion-summary {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reduced-motion-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Concurrency · Topic 3 of 7 · Prototype</p>
+    <h1>AsyncSequence and AsyncStream</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can use async sequences to handle values over time.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>You receive location updates or streaming network bytes one by one. How do you consume these values using Swift concurrency?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A standard Swift for-in loop over a fixed Array.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">An asynchronous for-await-in loop over an AsyncSequence.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">A DispatchQueue with a semaphore that blocks the main thread.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">An OperationQueue with maxConcurrentOperationCount set to zero.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<p>A standard Swift <code>Sequence</code> gives you all its items right away. You loop through an array or set, and the program never pauses between elements.</p>
+<p>An <code>AsyncSequence</code> works similarly, but values arrive over time.</p>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of an automated package conveyor belt. A worker waits next to the belt. When a package arrives, the worker picks it up and processes it. The belt pauses between packages. When the truck finishes unloading, the belt stops.</p></aside>
+<p>In an <code>AsyncSequence</code>, your loop suspends using <code>await</code> until the next value is ready. When the sequence ends, its iterator returns <code>nil</code>, and the loop exits.</p>
+<p>Apple provides built-in async sequences like <code>URLSession.shared.bytes(from:)</code> and <code>NotificationCenter</code> notifications.</p>
+<p>When you need to turn your own callback or delegate code into an async sequence, use <code>AsyncStream</code>.</p>
+<p><code>AsyncStream</code> provides a <code>continuation</code>. You call <code>continuation.yield(value)</code> to emit data, and <code>continuation.finish()</code> to close the stream.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<p>Here is how you create an <code>AsyncStream</code> and consume its values with a <code>for await</code> loop.</p>
+<pre class="block swift"><code class="language-swift">func generateNumbers() -&gt; AsyncStream&lt;Int&gt; {
+    AsyncStream { continuation in
+        for i in 1...3 {
+            continuation.yield(i * 10)
+        }
+        continuation.finish()
+    }
+}
+
+func readStream() async {
+    for await number in generateNumbers() {
+        print(&quot;Received: \(number)&quot;)
+    }
+    print(&quot;Stream complete&quot;)
+}
+
+await readStream()
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Received: 10
+Received: 20
+Received: 30
+Stream complete
+</code></pre>
+<p>The producer yields three numbers and signals completion with <code>continuation.finish()</code>. The <code>for await</code> loop prints each value and exits cleanly.</p>
+<p>You can also make a custom struct conform to <code>AsyncSequence</code> and <code>AsyncIteratorProtocol</code>.</p>
+<pre class="block swift"><code class="language-swift">struct Counter: AsyncSequence, AsyncIteratorProtocol {
+    typealias Element = Int
+    var current = 1
+    let limit: Int
+
+    mutating func next() async -&gt; Int? {
+        guard current &lt;= limit else { return nil }
+        defer { current += 1 }
+        return current
+    }
+
+    func makeAsyncIterator() -&gt; Counter {
+        self
+    }
+}
+
+func countUp() async {
+    let counter = Counter(limit: 3)
+    for await value in counter {
+        print(&quot;Count: \(value)&quot;)
+    }
+}
+
+await countUp()
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Count: 1
+Count: 2
+Count: 3
+</code></pre>
+<p>Returning <code>nil</code> from <code>next()</code> signals the end of the sequence.</p>
+<p class="try-it"><p>Open a Swift Playground. Build an AsyncStream that yields three mock sensor temperatures and prints the highest value using .reduce.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>What does an AsyncIteratorProtocol next() method return when the sequence has no more values?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">An empty string</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">nil</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">A fatalError exception</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">false</span></button><p class="qc-explain" hidden=""><p>Returning nil from next() signals to the for-await-in loop that the sequence has finished.</p></p></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>Why is continuation.onTermination essential when creating an AsyncStream that wraps a hardware sensor?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It increases the sensor polling frequency automatically.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It provides a callback to stop the sensor and clean up resources when the consumer cancels or finishes.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It encrypts sensor data before transmission.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">It saves sensor readings to disk cache.</span></button><p class="qc-explain" hidden=""><p>continuation.onTermination runs when the consumer task is cancelled, allowing you to stop sensor updates and prevent battery drains.</p></p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>If you omit <code>continuation.finish()</code>, the consumer loop waits forever for more elements. The task never finishes, leaking memory and leaving user interface screens stuck in loading states.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>By default, <code>AsyncStream</code> uses an unbounded buffer. If a producer yields thousands of values per second and the consumer processes slowly, unread values accumulate in memory. Use a bounded buffering policy like <code>.bufferingNewest(50)</code> for fast data streams.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>An AsyncSequence represents a stream of values delivered over time, consumed using a <code>for await in</code> loop. Its iterator returns values asynchronously until returning nil to finish. I use <code>AsyncStream</code> to bridge closure and delegate APIs into modern concurrency. Inside the stream, I call <code>yield</code> to push data and <code>finish()</code> to close the sequence.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>I design streaming pipelines with <code>AsyncSequence</code> to gain native structured concurrency and automatic cancellation. When wrapping high-frequency producers like sensors, I set a bounded buffering policy to avoid memory exhaustion from unconsumed elements. I always implement <code>continuation.onTermination</code> to deregister listeners and release system resources when the consumer cancels.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><p>AsyncSequence delivers values over time, consumed with for-await loops. The sequence ends when next() returns nil. Use AsyncStream to adapt callbacks, delegates, or notifications into async sequences. Call continuation.finish() to avoid hanging loops, and use continuation.onTermination for clean teardown.</p></div>
+<h2>Go deeper</h2>
+<ul>
+<li>Apple Developer Documentation: AsyncSequence: <a href="https://developer.apple.com/documentation/swift/asyncsequence">https://developer.apple.com/documentation/swift/asyncsequence</a></li>
+<li>Apple Developer Documentation: AsyncStream: <a href="https://developer.apple.com/documentation/swift/asyncstream">https://developer.apple.com/documentation/swift/asyncstream</a></li>
+<li>WWDC21: Meet AsyncSequence: <a href="https://developer.apple.com/videos/play/wwdc2021/10058/">https://developer.apple.com/videos/play/wwdc2021/10058/</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    title: "Step 1: Producer and Consumer Setup",
+    badge: "Stream Initialized",
+    badgeClass: "producer",
+    caption: "The producer creates an AsyncStream. The consumer begins a for-await loop, suspending until values arrive.",
+    code: "let stream = AsyncStream(Int.self) { continuation in ... }\nfor await number in stream { // Suspends awaiting first element }",
+    producerText: "continuation ready",
+    pFill: "var(--producer-soft)",
+    pStroke: "var(--producer-color)",
+    bStroke: "var(--line)",
+    slots: ["-", "-", "-"],
+    slotFills: ["var(--code-bg)", "var(--code-bg)", "var(--code-bg)"],
+    slotStrokes: ["var(--line)", "var(--line)", "var(--line)"],
+    consumeOpacity: 0.2,
+    cFill: "var(--surface)",
+    cStroke: "var(--line)",
+    consumerText: "Suspended (await)",
+    banner: "Buffer empty: consumer awaiting first value"
+  },
+  {
+    title: "Step 2: First Value Yielded",
+    badge: "Value 10 Yielded",
+    badgeClass: "buffer",
+    caption: "The producer calls continuation.yield(10). The value enters the stream and the consumer loop awakes to process 10.",
+    code: "continuation.yield(10)\n// Consumer awakes: Received 10",
+    producerText: "yield(10)",
+    pFill: "var(--producer-soft)",
+    pStroke: "var(--producer-color)",
+    bStroke: "var(--buffer-color)",
+    slots: ["10", "-", "-"],
+    slotFills: ["var(--buffer-soft)", "var(--code-bg)", "var(--code-bg)"],
+    slotStrokes: ["var(--buffer-color)", "var(--line)", "var(--line)"],
+    consumeOpacity: 1.0,
+    cFill: "var(--consumer-soft)",
+    cStroke: "var(--consumer-color)",
+    consumerText: "Processing: 10",
+    banner: "Value 10 yielded -> consumed by for-await loop"
+  },
+  {
+    title: "Step 3: Buffering and Stream Pull",
+    badge: "Values Buffered",
+    badgeClass: "consumer",
+    caption: "The producer yields 20 and 30 into the stream. The buffer temporarily holds unread items until the consumer awaits them.",
+    code: "continuation.yield(20)\ncontinuation.yield(30)\n// Consumer pulls 20, then 30 sequentially",
+    producerText: "yield(20), yield(30)",
+    pFill: "var(--producer-soft)",
+    pStroke: "var(--producer-color)",
+    bStroke: "var(--buffer-color)",
+    slots: ["20", "30", "-"],
+    slotFills: ["var(--buffer-soft)", "var(--buffer-soft)", "var(--code-bg)"],
+    slotStrokes: ["var(--buffer-color)", "var(--buffer-color)", "var(--line)"],
+    consumeOpacity: 1.0,
+    cFill: "var(--consumer-soft)",
+    cStroke: "var(--consumer-color)",
+    consumerText: "Processing: 20 -> 30",
+    banner: "Buffered items ready for consumer pull"
+  },
+  {
+    title: "Step 4: Stream Completion",
+    badge: "Stream Finished",
+    badgeClass: "finish",
+    caption: "The producer calls continuation.finish(). The stream returns nil from next(), and the consumer loop exits cleanly.",
+    code: "continuation.finish()\n// next() returns nil -> for-await loop exits cleanly",
+    producerText: "finish()",
+    pFill: "var(--finish-soft)",
+    pStroke: "var(--finish-color)",
+    bStroke: "var(--finish-color)",
+    slots: ["nil", "-", "-"],
+    slotFills: ["var(--finish-soft)", "var(--code-bg)", "var(--code-bg)"],
+    slotStrokes: ["var(--finish-color)", "var(--line)", "var(--line)"],
+    consumeOpacity: 1.0,
+    cFill: "var(--clean-soft)",
+    cStroke: "var(--clean-color)",
+    consumerText: "Exited Loop (nil)",
+    banner: "Stream finished: iterator returned nil, scope complete"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  document.getElementById("stageTitle").textContent = s.title;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = s.badge;
+  badge.className = `badge ${s.badgeClass}`;
+
+  document.getElementById("captionText").textContent = s.caption;
+  document.getElementById("codeText").textContent = s.code;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  // Producer
+  const pRect = document.getElementById("pRect");
+  pRect.style.fill = s.pFill;
+  pRect.style.stroke = s.pStroke;
+  document.getElementById("producerText").textContent = s.producerText;
+
+  // Buffer
+  document.getElementById("bRect").style.stroke = s.bStroke;
+  for (let i = 1; i <= 3; i++) {
+    const slotEl = document.getElementById(`slot${i}`);
+    const textEl = document.getElementById(`slotText${i}`);
+    slotEl.style.fill = s.slotFills[i - 1];
+    slotEl.style.stroke = s.slotStrokes[i - 1];
+    textEl.textContent = s.slots[i - 1];
+  }
+
+  // Consumer Arrow & Box
+  document.getElementById("arrowConsume").style.opacity = s.consumeOpacity;
+  const cRect = document.getElementById("cRect");
+  cRect.style.fill = s.cFill;
+  cRect.style.stroke = s.cStroke;
+  document.getElementById("consumerText").textContent = s.consumerText;
+
+  // Banner
+  document.getElementById("bannerStatus").textContent = s.banner;
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"async-sequences","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"as-q1","type":"mcq","difficulty":1,"prompt":"How does an AsyncSequence differ from a standard Swift Sequence?","options":[{"id":"a","text":"An AsyncSequence delivers values over time, suspending until each item is ready.","explanation":"AsyncSequence elements arrive asynchronously and are awaited using for-await loops."},{"id":"b","text":"An AsyncSequence can only store elements conforming to the AnyObject protocol.","explanation":"AsyncSequence works with value types, structs, enums, and objects alike."},{"id":"c","text":"An AsyncSequence executes entirely inside GPU shader compute kernels.","explanation":"AsyncSequence runs standard Swift code on CPU cooperative task threads."},{"id":"d","text":"An AsyncSequence cannot be iterated more than once during an application session.","explanation":"Whether an AsyncSequence can be iterated repeatedly depends on the concrete type."}],"answer":"a"},{"id":"as-q2","type":"mcq","difficulty":1,"prompt":"Which syntax loop is used to consume values from an AsyncSequence in Swift?","options":[{"id":"a","text":"while let next = queue.pop()","explanation":"while let is used for synchronous queues rather than AsyncSequence iteration."},{"id":"b","text":"for await element in sequence","explanation":"for await element in sequence is the standard syntax for consuming an AsyncSequence."},{"id":"c","text":"for element in sequence.sync()","explanation":"sync() is not a method for bridging AsyncSequence to synchronous loops."},{"id":"d","text":"repeat await { ... } until empty","explanation":"repeat-await is not valid Swift language syntax."}],"answer":"b"},{"id":"as-q3","type":"mcq","difficulty":1,"prompt":"What does an AsyncIteratorProtocol next() method return when the sequence has finished?","options":[{"id":"a","text":"It throws an EOFError exception.","explanation":"Normal sequence termination returns nil without throwing an error."},{"id":"b","text":"It returns false to end looping.","explanation":"next() returns an optional Element, not a Boolean flag."},{"id":"c","text":"It returns nil to signal completion.","explanation":"Returning nil signals to the for-await loop that no more values remain."},{"id":"d","text":"It resets current index to zero.","explanation":"Iterators do not automatically reset; they return nil on completion."}],"answer":"c"},{"id":"as-q4","type":"mcq","difficulty":2,"prompt":"Which Swift type adapts delegate or callback-based events into an AsyncSequence?","options":[{"id":"a","text":"DispatchGroup","explanation":"DispatchGroup aggregates multiple concurrent tasks rather than streaming values."},{"id":"b","text":"OperationQueue","explanation":"OperationQueue schedules discrete Operation objects rather than yielding sequence values."},{"id":"c","text":"Combine.Subject","explanation":"Subjects belong to Combine framework publishers rather than native Swift async sequences."},{"id":"d","text":"AsyncStream","explanation":"AsyncStream provides a continuation that adapts callbacks and closures into async sequences."}],"answer":"d"},{"id":"as-q5","type":"mcq","difficulty":1,"prompt":"Which method on AsyncStream.Continuation emits a new value into the stream?","options":[{"id":"a","text":"continuation.yield(value)","explanation":"Calling continuation.yield emits a value to the awaiting consumer."},{"id":"b","text":"continuation.send(value)","explanation":"send() is used by Combine Subjects, not Swift AsyncStream."},{"id":"c","text":"continuation.emit(value)","explanation":"emit() is not an API method on AsyncStream.Continuation."},{"id":"d","text":"continuation.push(value)","explanation":"push() is not a method on AsyncStream.Continuation."}],"answer":"a"},{"id":"as-q6","type":"mcq","difficulty":2,"prompt":"What happens if a stream producer never calls continuation.finish() after yielding items?","options":[{"id":"a","text":"The consumer loop automatically exits after a five second timeout.","explanation":"AsyncStream has no default timeout; it suspends indefinitely."},{"id":"b","text":"The consumer for-await loop hangs waiting for more elements forever.","explanation":"Without finish(), next() never returns nil, leaving the consuming task hanging."},{"id":"c","text":"The operating system crashes the application with a memory panic.","explanation":"Hanging loops do not crash immediately, but leak task resources."},{"id":"d","text":"The compiler issues a warning and converts the stream to an array.","explanation":"The compiler cannot verify runtime stream termination statically."}],"answer":"b"},{"id":"as-q7","type":"mcq","difficulty":2,"prompt":"Why is continuation.onTermination crucial when streaming from system sensors or delegates?","options":[{"id":"a","text":"It reboots the device hardware sensor to recalibrate precision.","explanation":"onTermination is a cleanup callback, not a hardware reboot trigger."},{"id":"b","text":"It compresses yielded sensor values before writing them to disk.","explanation":"Data compression is handled separately, not in termination handlers."},{"id":"c","text":"It provides a hook to stop sensors when the consumer task is cancelled.","explanation":"onTermination runs when iteration terminates or cancels, allowing cleanup."},{"id":"d","text":"It prevents the view model from being deallocated by ARC.","explanation":"onTermination is for cleaning up resources, not forcing object retention."}],"answer":"c"},{"id":"as-q8","type":"mcq","difficulty":2,"prompt":"What is the default buffering policy of an AsyncStream in Swift?","options":[{"id":"a","text":"bufferingNewest(1)","explanation":"bufferingNewest(1) must be specified explicitly if single-value buffering is desired."},{"id":"b","text":"bufferingOldest(10)","explanation":"bufferingOldest(10) is not the default policy."},{"id":"c","text":"noBuffering","explanation":"AsyncStream does not have a noBuffering policy option."},{"id":"d","text":"unbounded","explanation":"By default, AsyncStream uses an unbounded buffer that retains all unconsumed items."}],"answer":"d"},{"id":"as-q9","type":"mcq","difficulty":2,"prompt":"Which buffering policy discards the oldest unconsumed elements when buffer limit is exceeded?","options":[{"id":"a","text":"bufferingNewest(limit)","explanation":"bufferingNewest preserves newer items by dropping older unread elements."},{"id":"b","text":"bufferingOldest(limit)","explanation":"bufferingOldest drops incoming newer elements when full, keeping older ones."},{"id":"c","text":"unboundedBuffer","explanation":"Unbounded buffers never drop elements until memory is exhausted."},{"id":"d","text":"circularLIFO","explanation":"circularLIFO is not an option in Swift BufferingPolicy."}],"answer":"a"},{"id":"as-q10","type":"mcq","difficulty":2,"prompt":"How does AsyncThrowingStream differ from standard AsyncStream?","options":[{"id":"a","text":"AsyncThrowingStream can only be consumed on the main actor thread.","explanation":"AsyncThrowingStream can be consumed on any actor or background task."},{"id":"b","text":"AsyncThrowingStream supports throwing errors during iteration via finish(throwing:).","explanation":"AsyncThrowingStream can terminate with an error, consumed via for try await."},{"id":"c","text":"AsyncThrowingStream automatically retries failed network calls five times.","explanation":"Swift does not retry failed streams automatically."},{"id":"d","text":"AsyncThrowingStream executes all operations synchronously on the caller stack.","explanation":"AsyncThrowingStream is fully asynchronous and non-blocking."}],"answer":"b"},{"id":"as-q11","type":"mcq","difficulty":2,"prompt":"Which Apple system API provides a built-in AsyncSequence of incoming HTTP bytes?","options":[{"id":"a","text":"URLSession.shared.data(from:)","explanation":"data(from:) downloads the entire payload into a Data buffer before returning."},{"id":"b","text":"URLSession.shared.upload(for:from:)","explanation":"upload uploads data rather than streaming incoming response bytes."},{"id":"c","text":"URLSession.shared.bytes(from:)","explanation":"bytes(from:) returns an AsyncBytes sequence that delivers bytes as they arrive."},{"id":"d","text":"URLSession.shared.download(from:)","explanation":"download downloads the response to a temporary local file on disk."}],"answer":"c"},{"id":"as-q12","type":"mcq","difficulty":2,"prompt":"What happens when a task running a for-await loop receives cancellation?","options":[{"id":"a","text":"The loop continues until the stream producer calls finish().","explanation":"Cancellation signals the iterator to stop awaiting further elements."},{"id":"b","text":"The entire operating system process terminates with an exit code.","explanation":"Cancellation unwinds execution safely without process termination."},{"id":"c","text":"The loop retries the current element on the main thread.","explanation":"Cancellation does not re-dispatch elements to the main thread."},{"id":"d","text":"The iterator check terminates iteration and the for-await loop exits.","explanation":"Task cancellation interrupts the await next() call, exiting the loop cleanly."}],"answer":"d"},{"id":"as-q13","type":"mcq","difficulty":1,"prompt":"Which method on AsyncSequence restricts consumption to the first N elements?","options":[{"id":"a","text":"sequence.prefix(count)","explanation":"prefix(count) returns an AsyncSequence that terminates after yielding count items."},{"id":"b","text":"sequence.limit(count)","explanation":"limit is not a standard AsyncSequence operator method."},{"id":"c","text":"sequence.cap(count)","explanation":"cap does not exist on Swift AsyncSequence."},{"id":"d","text":"sequence.truncate(count)","explanation":"truncate is not an AsyncSequence method in Swift standard library."}],"answer":"a"},{"id":"as-q14","type":"mcq","difficulty":2,"prompt":"How does AsyncSequence compare to Combine AnyPublisher in terms of pull versus push?","options":[{"id":"a","text":"Both AsyncSequence and Combine are strictly push-based reactive systems.","explanation":"AsyncSequence is pull-based because the consumer awaits each element."},{"id":"b","text":"AsyncSequence is pull-based via await, while Combine is push-based.","explanation":"In AsyncSequence the consumer pulls values via await; Combine pushes values via subscribers."},{"id":"c","text":"Combine is pull-based while AsyncSequence is strictly push-based.","explanation":"AsyncSequence is consumer-driven pull; Combine publishers push down stream."},{"id":"d","text":"AsyncSequence requires AnyCancellable subscriber tokens for memory storage.","explanation":"AsyncSequence uses task cancellation and does not require AnyCancellable."}],"answer":"b"},{"id":"as-q15","type":"mcq","difficulty":2,"prompt":"What protocol requirement must a custom async iterator implement in Swift?","options":[{"id":"a","text":"fetch() async -> Element","explanation":"The required method is next(), not fetch()."},{"id":"b","text":"poll() async throws -> Element","explanation":"poll() is not a method on AsyncIteratorProtocol."},{"id":"c","text":"mutating func next() async throws -> Element?","explanation":"AsyncIteratorProtocol requires mutating func next() returning optional Element."},{"id":"d","text":"receive() -> AnyPublisher\u003cElement, Never>","explanation":"receive() is an operator from Combine, not an async iterator requirement."}],"answer":"c"},{"id":"as-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"func streamItems() -> AsyncStream\u003cString> {\n    AsyncStream {\n        continuation in\n        continuation.yield(\"Alpha\")\n        continuation.yield(\"Beta\")\n        continuation.finish()\n    }\n}\n\nfunc read() async {\n    var list: [String] = []\n    for await item in streamItems() {\n        list.append(item)\n    }\n    print(list.joined(separator: \", \"))\n}\nawait read()","options":[{"id":"a","text":"Alpha","explanation":"Both Alpha and Beta are yielded and appended to the list."},{"id":"b","text":"Beta, Alpha","explanation":"Items are yielded in order: Alpha first, then Beta."},{"id":"c","text":"nil","explanation":"The loop consumes strings and joins them into a string."},{"id":"d","text":"Alpha, Beta","explanation":"Both elements are yielded and appended in sequence, then joined by comma."}],"answer":"d"},{"id":"as-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"func counterStream() -> AsyncStream\u003cInt> {\n    AsyncStream {\n        continuation in\n        for i in 1...3 {\n            continuation.yield(i)\n        }\n        continuation.finish()\n    }\n}\n\nfunc sum() async {\n    var total = 0\n    for await num in counterStream() {\n        total += num\n    }\n    print(\"Total: \\(total)\")\n}\nawait sum()","options":[{"id":"a","text":"Total: 6","explanation":"Numbers 1, 2, and 3 are yielded and summed, resulting in 6."},{"id":"b","text":"Total: 3","explanation":"All three yielded integers are added together (1 + 2 + 3 = 6)."},{"id":"c","text":"Total: 0","explanation":"The loop iterates three times and accumulates each number."},{"id":"d","text":"Total: 5","explanation":"The sum of 1, 2, and 3 is 6, not 5."}],"answer":"a"},{"id":"as-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"func words() -> AsyncStream\u003cString> {\n    AsyncStream {\n        continuation in\n        continuation.yield(\"cat\")\n        continuation.yield(\"elephant\")\n        continuation.yield(\"dog\")\n        continuation.finish()\n    }\n}\n\nfunc longest() async {\n    var maxLen = 0\n    for await w in words() {\n        if w.count > maxLen { maxLen = w.count }\n    }\n    print(\"Max length: \\(maxLen)\")\n}\nawait longest()","options":[{"id":"a","text":"Max length: 3","explanation":"'elephant' has 8 characters, which is greater than 3."},{"id":"b","text":"Max length: 8","explanation":"The longest string yielded is 'elephant' with 8 characters."},{"id":"c","text":"Max length: 4","explanation":"'cat' is 3, 'elephant' is 8, and 'dog' is 3; max is 8."},{"id":"d","text":"Max length: 0","explanation":"maxLen is updated when examining 'elephant'."}],"answer":"b"},{"id":"as-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"struct StepCounter: AsyncSequence, AsyncIteratorProtocol {\n    typealias Element = Int\n    var count = 0\n    mutating func next() async -> Int? {\n        if count \u003c 2 {\n            count += 1\n            return count * 10\n        }\n        return nil\n    }\n    func makeAsyncIterator() -> StepCounter { self }\n}\n\nfunc run() async {\n    var results: [Int] = []\n    for await val in StepCounter() {\n        results.append(val)\n    }\n    print(results)\n}\nawait run()","options":[{"id":"a","text":"[10, 20, 30]","explanation":"count \u003c 2 terminates after count reaches 2, yielding 2 items."},{"id":"b","text":"[10]","explanation":"The iterator runs for count 0 and 1, producing 10 and 20."},{"id":"c","text":"[10, 20]","explanation":"next() yields 10 on step 1, 20 on step 2, and nil on step 3."},{"id":"d","text":"[]","explanation":"The iterator yields two elements before returning nil."}],"answer":"c"},{"id":"as-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func streamPrefix() async {\n    let stream = AsyncStream\u003cInt> {\n        continuation in\n        for i in 1...5 { continuation.yield(i) }\n        continuation.finish()\n    }\n    var sum = 0\n    for await x in stream.prefix(2) {\n        sum += x\n    }\n    print(\"Prefix sum: \\(sum)\")\n}\nawait streamPrefix()","options":[{"id":"a","text":"Prefix sum: 15","explanation":"prefix(2) takes only the first 2 elements, not all 5."},{"id":"b","text":"Prefix sum: 1","explanation":"prefix(2) takes 1 and 2, which sum to 3."},{"id":"c","text":"Prefix sum: 6","explanation":"The first two elements are 1 and 2, summing to 3."},{"id":"d","text":"Prefix sum: 3","explanation":"prefix(2) limits the stream to 1 and 2, yielding a sum of 3."}],"answer":"d"},{"id":"as-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func filterStream() async {\n    let stream = AsyncStream\u003cInt> {\n        continuation in\n        continuation.yield(1)\n        continuation.yield(4)\n        continuation.yield(7)\n        continuation.finish()\n    }\n    var evens: [Int] = []\n    for await n in stream.filter({ $0 % 2 == 0 }) {\n        evens.append(n)\n    }\n    print(evens)\n}\nawait filterStream()","options":[{"id":"a","text":"[4]","explanation":"Among 1, 4, and 7, only 4 is even and passes the filter."},{"id":"b","text":"[1, 7]","explanation":"1 and 7 are odd numbers, rejected by $0 % 2 == 0."},{"id":"c","text":"[1, 4, 7]","explanation":"filter removes elements that evaluate to false."},{"id":"d","text":"[]","explanation":"The number 4 passes the filter condition."}],"answer":"a"},{"id":"as-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func streamMap() async {\n    let stream = AsyncStream\u003cString> {\n        continuation in\n        continuation.yield(\"ios\")\n        continuation.yield(\"swift\")\n        continuation.finish()\n    }\n    var uppercase: [String] = []\n    for await str in stream.map({ $0.uppercased() }) {\n        uppercase.append(str)\n    }\n    print(uppercase.joined(separator: \"-\"))\n}\nawait streamMap()","options":[{"id":"a","text":"ios-swift","explanation":"The map operator transformed both strings to uppercase."},{"id":"b","text":"IOS-SWIFT","explanation":"Each string is uppercased by map and joined with a hyphen."},{"id":"c","text":"IOSSWIFT","explanation":"The joined separator is a hyphen, not empty string."},{"id":"d","text":"SWIFT-IOS","explanation":"The stream yields in order: 'ios' followed by 'swift'."}],"answer":"b"},{"id":"as-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func earlyBreak() async {\n    let stream = AsyncStream\u003cInt> {\n        continuation in\n        continuation.yield(100)\n        continuation.yield(200)\n        continuation.yield(300)\n        continuation.finish()\n    }\n    var first = 0\n    for await val in stream {\n        first = val\n        break\n    }\n    print(\"First: \\(first)\")\n}\nawait earlyBreak()","options":[{"id":"a","text":"First: 300","explanation":"The break statement terminates the loop after the first iteration."},{"id":"b","text":"First: 0","explanation":"first is assigned 100 on the first iteration before breaking."},{"id":"c","text":"First: 100","explanation":"The loop assigns 100 to first on iteration 1 and breaks immediately."},{"id":"d","text":"First: 200","explanation":"The break prevents iteration 2 from executing."}],"answer":"c"},{"id":"as-q24","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, compare AsyncSequence to standard Swift Sequence. Explain how elements are delivered and how the consuming loop knows when the sequence finishes.","rubric":[{"criterion":"Explains that AsyncSequence delivers elements asynchronously over time using for-await","weight":40,"key":true},{"criterion":"Contrasts with synchronous Sequence which delivers all elements immediately","weight":35,"key":true},{"criterion":"Explains that the loop terminates when next() returns nil","weight":25}],"modelAnswer":"A standard Swift Sequence provides its elements immediately in memory during a synchronous loop. In contrast, an AsyncSequence delivers elements asynchronously over time, suspending the consuming task between values. The for-await loop consumes elements one by one until the iterator returns nil to signal completion."},{"id":"as-q25","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain how AsyncStream adapts legacy callback or delegate APIs into modern concurrency. Describe the roles of yield and finish.","rubric":[{"criterion":"Explains that AsyncStream provides a continuation closure to bridge event callbacks","weight":40,"key":true},{"criterion":"Explains that continuation.yield emits individual values into the stream","weight":35,"key":true},{"criterion":"Explains that continuation.finish signals that no more elements will be produced","weight":25}],"modelAnswer":"AsyncStream provides a continuation that bridges callback or delegate events into an async sequence. The producer calls continuation.yield(value) whenever a delegate event fires to push data into the stream buffer. When events are done, calling continuation.finish() closes the stream so the consuming for-await loop exits."},{"id":"as-q26","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain why continuation.onTermination is essential in AsyncStream. Give an example of a resource leak that occurs without it.","rubric":[{"criterion":"Explains that onTermination runs when the consumer cancels or finishes iterating","weight":40,"key":true},{"criterion":"Identifies that without it, producers keep running and emitting events in the background","weight":35,"key":true},{"criterion":"Provides a concrete example such as CoreLocation manager or open network socket","weight":25}],"modelAnswer":"continuation.onTermination is called whenever a consumer task is cancelled or stops reading the stream. Without this callback, event producers such as location managers or WebSocket connections will continue generating events in the background. Implementing onTermination allows you to stop location updates or close sockets, preventing battery drain and memory leaks."},{"id":"as-q27","type":"written","difficulty":3,"prompt":"In 2 to 5 sentences, describe the buffering policies available in AsyncStream. Why is bufferingNewest useful for fast real-time data sources?","rubric":[{"criterion":"Identifies available policies: unbounded, bufferingNewest, and bufferingOldest","weight":40,"key":true},{"criterion":"Explains that unbounded buffers can exhaust memory if consumer is slower than producer","weight":35,"key":true},{"criterion":"Explains that bufferingNewest discards older stale frames, keeping fresh data and bounded memory","weight":25}],"modelAnswer":"AsyncStream supports unbounded, bufferingNewest, and bufferingOldest policies. Fast producers like camera video frames can quickly exhaust memory if using the default unbounded buffer with a slow consumer. Using bufferingNewest with a fixed capacity discards older stale data, maintaining fresh sensor readings while guaranteeing bounded memory usage."},{"id":"as-q28","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, compare AsyncSequence with Combine AnyPublisher. Mention pull versus push models and how task cancellation affects both.","rubric":[{"criterion":"Explains AsyncSequence is pull-based where consumer awaits values, while Combine pushes to subscribers","weight":40,"key":true},{"criterion":"Explains AsyncSequence integrates natively with Swift task cancellation without AnyCancellable tokens","weight":35,"key":true},{"criterion":"Explains Combine requires storing cancellable subscriptions in memory bags","weight":25}],"modelAnswer":"AsyncSequence uses a pull-based model where the consumer explicitly awaits each element within a task. In contrast, Combine uses a push-based model where publishers push values to subscribers. AsyncSequence cancellation integrates directly into Swift structured concurrency, whereas Combine requires storing AnyCancellable tokens to manage subscription lifetimes."},{"id":"as-q29","type":"code-write","difficulty":1,"prompt":"Write a function makeMessageStream() -> AsyncStream\u003cString> that creates an AsyncStream. The stream yields 'Hello', then yields 'World', and calls continuation.finish(). Consume the stream using for await, append the words into an array, and print 'Combined: \\(words.joined(separator: \" \"))'.","starterCode":"func makeMessageStream() -> AsyncStream\u003cString> {\n    // Create AsyncStream yielding Hello and World, then finish\n}\n\n// Consume stream and print Combined: Hello World","rubric":[{"criterion":"Creates AsyncStream yielding Hello and World","weight":35,"key":true},{"criterion":"Calls continuation.finish() to close the stream cleanly","weight":35,"key":true},{"criterion":"Iterates with for await and prints Combined: Hello World","weight":30}],"modelAnswer":"func makeMessageStream() -> AsyncStream\u003cString> {\n    AsyncStream {\n        continuation in\n        continuation.yield(\"Hello\")\n        continuation.yield(\"World\")\n        continuation.finish()\n    }\n}\nvar words: [String] = []\nfor await w in makeMessageStream() {\n    words.append(w)\n}\nprint(\"Combined: \\(words.joined(separator: \" \"))\")"},{"id":"as-q30","type":"code-write","difficulty":2,"prompt":"Write an async function sumEvenNumbers() async -> Int. Inside, create an AsyncStream\u003cInt> that yields numbers 1 through 5 and finishes. Iterate over the stream with for await, summing only the even integers ($0 % 2 == 0), and return the sum. At the top level, await the function and print 'Even sum: \\(total)'.","starterCode":"func sumEvenNumbers() async -> Int {\n    // Create AsyncStream yielding 1...5, sum evens in for await, return sum\n}\n\n// Await and print Even sum: total","rubric":[{"criterion":"Creates AsyncStream yielding numbers 1...5 and finishes","weight":35,"key":true},{"criterion":"Filters and sums only even numbers during for await loop","weight":35,"key":true},{"criterion":"Prints exact output Even sum: 6","weight":30}],"modelAnswer":"func sumEvenNumbers() async -> Int {\n    let stream = AsyncStream\u003cInt> {\n        continuation in\n        for n in 1...5 {\n            continuation.yield(n)\n        }\n        continuation.finish()\n    }\n    var sum = 0\n    for await val in stream {\n        if val % 2 == 0 {\n            sum += val\n        }\n    }\n    return sum\n}\nlet total = await sumEvenNumbers()\nprint(\"Even sum: \\(total)\")"},{"id":"as-q31","type":"code-write","difficulty":2,"prompt":"Write a struct RangeSequence conforming to AsyncSequence and AsyncIteratorProtocol with properties var current: Int and let max: Int. In mutating func next() async -> Int?, return current if current \u003c= max (incrementing current after), otherwise return nil. In top-level code, collect RangeSequence(current: 1, max: 3) items into an array using for await and print the array.","starterCode":"struct RangeSequence: AsyncSequence, AsyncIteratorProtocol {\n    // Implement Element, current, max, next(), makeAsyncIterator()\n}\n\n// Collect items from RangeSequence(current: 1, max: 3) and print array","rubric":[{"criterion":"Declares struct conforming to AsyncSequence and AsyncIteratorProtocol","weight":30,"key":true},{"criterion":"Implements next() returning values up to max and nil when exceeded","weight":40,"key":true},{"criterion":"Iterates with for await and prints exact output [1, 2, 3]","weight":30}],"modelAnswer":"struct RangeSequence: AsyncSequence, AsyncIteratorProtocol {\n    typealias Element = Int\n    var current: Int\n    let max: Int\n    mutating func next() async -> Int? {\n        guard current \u003c= max else { return nil }\n        defer { current += 1 }\n        return current\n    }\n    func makeAsyncIterator() -> RangeSequence {\n        self\n    }\n}\nvar output: [Int] = []\nfor await item in RangeSequence(current: 1, max: 3) {\n    output.append(item)\n}\nprint(output)"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

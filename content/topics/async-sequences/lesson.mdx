@@ -1,0 +1,184 @@
+export const meta = {
+  id: "async-sequences",
+  summary: "Consume asynchronous streams of data over time using AsyncSequence and bridge event-driven code with AsyncStream in Swift.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "AsyncSequence (Swift)",
+      url: "https://developer.apple.com/documentation/swift/asyncsequence"
+    },
+    {
+      title: "AsyncStream (Swift)",
+      url: "https://developer.apple.com/documentation/swift/asyncstream"
+    },
+    {
+      title: "WWDC21: Meet AsyncSequence",
+      url: "https://developer.apple.com/videos/play/wwdc2021/10058/"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    You receive location updates or streaming network bytes one by one. How do you consume these values using Swift concurrency?
+  </Question>
+  <Guess>
+    <Option id="a">A standard Swift for-in loop over a fixed Array.</Option>
+    <Option id="b" correct>An asynchronous for-await-in loop over an AsyncSequence.</Option>
+    <Option id="c">A DispatchQueue with a semaphore that blocks the main thread.</Option>
+    <Option id="d">An OperationQueue with maxConcurrentOperationCount set to zero.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+A standard Swift `Sequence` gives you all its items right away. You loop through an array or set, and the program never pauses between elements.
+
+An `AsyncSequence` works similarly, but values arrive over time.
+
+<Analogy>
+  Think of an automated package conveyor belt. A worker waits next to the belt. When a package arrives, the worker picks it up and processes it. The belt pauses between packages. When the truck finishes unloading, the belt stops.
+</Analogy>
+
+In an `AsyncSequence`, your loop suspends using `await` until the next value is ready. When the sequence ends, its iterator returns `nil`, and the loop exits.
+
+Apple provides built-in async sequences like `URLSession.shared.bytes(from:)` and `NotificationCenter` notifications.
+
+When you need to turn your own callback or delegate code into an async sequence, use `AsyncStream`.
+
+`AsyncStream` provides a `continuation`. You call `continuation.yield(value)` to emit data, and `continuation.finish()` to close the stream.
+
+## See it
+
+<Diagram id="async-sequences" caption="Follow how an AsyncStream produces, buffers, and yields values to a for-await loop." />
+
+## In code
+
+Here is how you create an `AsyncStream` and consume its values with a `for await` loop.
+
+```swift
+func generateNumbers() -> AsyncStream<Int> {
+    AsyncStream { continuation in
+        for i in 1...3 {
+            continuation.yield(i * 10)
+        }
+        continuation.finish()
+    }
+}
+
+func readStream() async {
+    for await number in generateNumbers() {
+        print("Received: \(number)")
+    }
+    print("Stream complete")
+}
+
+await readStream()
+```
+```output
+Received: 10
+Received: 20
+Received: 30
+Stream complete
+```
+
+The producer yields three numbers and signals completion with `continuation.finish()`. The `for await` loop prints each value and exits cleanly.
+
+You can also make a custom struct conform to `AsyncSequence` and `AsyncIteratorProtocol`.
+
+```swift
+struct Counter: AsyncSequence, AsyncIteratorProtocol {
+    typealias Element = Int
+    var current = 1
+    let limit: Int
+
+    mutating func next() async -> Int? {
+        guard current <= limit else { return nil }
+        defer { current += 1 }
+        return current
+    }
+
+    func makeAsyncIterator() -> Counter {
+        self
+    }
+}
+
+func countUp() async {
+    let counter = Counter(limit: 3)
+    for await value in counter {
+        print("Count: \(value)")
+    }
+}
+
+await countUp()
+```
+```output
+Count: 1
+Count: 2
+Count: 3
+```
+
+Returning `nil` from `next()` signals the end of the sequence.
+
+<TryIt>
+  Open a Swift Playground. Build an AsyncStream that yields three mock sensor temperatures and prints the highest value using .reduce.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    What does an AsyncIteratorProtocol next() method return when the sequence has no more values?
+  </Question>
+  <Option id="a">An empty string</Option>
+  <Option id="b" correct>nil</Option>
+  <Option id="c">A fatalError exception</Option>
+  <Option id="d">false</Option>
+  <Explanation>
+    Returning nil from next() signals to the for-await-in loop that the sequence has finished.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    Why is continuation.onTermination essential when creating an AsyncStream that wraps a hardware sensor?
+  </Question>
+  <Option id="a">It increases the sensor polling frequency automatically.</Option>
+  <Option id="b" correct>It provides a callback to stop the sensor and clean up resources when the consumer cancels or finishes.</Option>
+  <Option id="c">It encrypts sensor data before transmission.</Option>
+  <Option id="d">It saves sensor readings to disk cache.</Option>
+  <Explanation>
+    continuation.onTermination runs when the consumer task is cancelled, allowing you to stop sensor updates and prevent battery drains.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Forgetting continuation.finish() causes hanging loops">
+  If you omit `continuation.finish()`, the consumer loop waits forever for more elements. The task never finishes, leaking memory and leaving user interface screens stuck in loading states.
+</Trap>
+
+<Trap label="Unbounded buffer memory spikes">
+  By default, `AsyncStream` uses an unbounded buffer. If a producer yields thousands of values per second and the consumer processes slowly, unread values accumulate in memory. Use a bounded buffering policy like `.bufferingNewest(50)` for fast data streams.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  An AsyncSequence represents a stream of values delivered over time, consumed using a `for await in` loop. Its iterator returns values asynchronously until returning nil to finish. I use `AsyncStream` to bridge closure and delegate APIs into modern concurrency. Inside the stream, I call `yield` to push data and `finish()` to close the sequence.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I design streaming pipelines with `AsyncSequence` to gain native structured concurrency and automatic cancellation. When wrapping high-frequency producers like sensors, I set a bounded buffering policy to avoid memory exhaustion from unconsumed elements. I always implement `continuation.onTermination` to deregister listeners and release system resources when the consumer cancels.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  AsyncSequence delivers values over time, consumed with for-await loops. The sequence ends when next() returns nil. Use AsyncStream to adapt callbacks, delegates, or notifications into async sequences. Call continuation.finish() to avoid hanging loops, and use continuation.onTermination for clean teardown.
+</Recap>
+
+## Go deeper
+
+- Apple Developer Documentation: AsyncSequence: https://developer.apple.com/documentation/swift/asyncsequence
+- Apple Developer Documentation: AsyncStream: https://developer.apple.com/documentation/swift/asyncstream
+- WWDC21: Meet AsyncSequence: https://developer.apple.com/videos/play/wwdc2021/10058/

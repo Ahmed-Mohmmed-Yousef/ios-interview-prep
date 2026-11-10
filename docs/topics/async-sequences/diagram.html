@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AsyncSequence and AsyncStream Pipeline</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --producer-color: #0284c7;
+  --producer-soft: #e0f2fe;
+  --buffer-color: #7c3aed;
+  --buffer-soft: #ede9fe;
+  --consumer-color: #059669;
+  --consumer-soft: #d1fae5;
+  --finish-color: #ea580c;
+  --finish-soft: #ffedd5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --producer-color: #38bdf8;
+    --producer-soft: #082f49;
+    --buffer-color: #a78bfa;
+    --buffer-soft: #2e1065;
+    --consumer-color: #34d399;
+    --consumer-soft: #064e3b;
+    --finish-color: #fb923c;
+    --finish-soft: #431407;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--producer-color);
+  color: var(--producer-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.step-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.badge.producer { background: var(--producer-soft); color: var(--producer-color); }
+.badge.buffer { background: var(--buffer-soft); color: var(--buffer-color); }
+.badge.consumer { background: var(--consumer-soft); color: var(--consumer-color); }
+.badge.finish { background: var(--finish-soft); color: var(--finish-color); }
+
+.caption {
+  font-size: 15px;
+  color: var(--ink);
+  margin: 0;
+  min-height: 2.8em;
+}
+.code-box {
+  font: 13px/1.5 var(--font-code);
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  white-space: pre;
+}
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.node-box {
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+.buffer-slot {
+  stroke-width: 1.5;
+  transition: all 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+.reduced-motion-summary {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reduced-motion-summary { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host">
+  <div class="controls" role="region" aria-label="Diagram Controls">
+    <span class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+    <div class="btn-group">
+      <button id="btnBack" aria-label="Previous step">Back</button>
+      <button id="btnNext" aria-label="Next step">Next</button>
+      <button id="btnReplay" aria-label="Replay from step 1">Replay</button>
+    </div>
+  </div>
+
+  <div class="card" role="region" aria-label="AsyncSequence Diagram">
+    <div class="header-row">
+      <h3 class="title" id="stageTitle">Step 1: Producer and Consumer Setup</h3>
+      <span class="badge producer" id="statusBadge">Stream Initialized</span>
+    </div>
+
+    <p class="caption" id="captionText">
+      The producer creates an AsyncStream. The consumer begins a for-await loop, suspending until values arrive.
+    </p>
+
+    <div class="code-box" id="codeText">let stream = AsyncStream(Int.self) { continuation in ... }
+for await number in stream { // Suspends awaiting first element }</div>
+
+    <svg viewBox="0 0 680 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AsyncStream Architecture Visualization">
+      <defs>
+        <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--producer-color)" />
+        </marker>
+        <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--consumer-color)" />
+        </marker>
+        <marker id="arrow-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--finish-color)" />
+        </marker>
+      </defs>
+
+      <!-- Producer Box (Left) -->
+      <g id="boxProducer">
+        <rect x="20" y="50" width="160" height="80" rx="10" fill="var(--producer-soft)" stroke="var(--producer-color)" class="node-box" id="pRect" />
+        <text x="100" y="80" text-anchor="middle" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">Producer</text>
+        <text x="100" y="102" text-anchor="middle" fill="var(--producer-color)" font-family="var(--font-code)" font-size="12" id="producerText">continuation</text>
+      </g>
+
+      <!-- Arrow: Producer -> Buffer -->
+      <path id="arrowYield" d="M 180 90 L 235 90" stroke="var(--producer-color)" stroke-width="2.5" marker-end="url(#arrow-blue)" />
+
+      <!-- Stream Buffer Box (Center) -->
+      <g id="boxBuffer">
+        <rect x="240" y="40" width="200" height="100" rx="10" fill="var(--surface)" stroke="var(--buffer-color)" class="node-box" id="bRect" />
+        <text x="340" y="65" text-anchor="middle" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">Stream Buffer</text>
+
+        <!-- Buffer Slots (3 slots) -->
+        <rect x="255" y="80" width="50" height="40" rx="6" fill="var(--code-bg)" stroke="var(--line)" class="buffer-slot" id="slot1" />
+        <text x="280" y="105" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" id="slotText1">-</text>
+
+        <rect x="315" y="80" width="50" height="40" rx="6" fill="var(--code-bg)" stroke="var(--line)" class="buffer-slot" id="slot2" />
+        <text x="340" y="105" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" id="slotText2">-</text>
+
+        <rect x="375" y="80" width="50" height="40" rx="6" fill="var(--code-bg)" stroke="var(--line)" class="buffer-slot" id="slot3" />
+        <text x="400" y="105" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" id="slotText3">-</text>
+      </g>
+
+      <!-- Arrow: Buffer -> Consumer -->
+      <path id="arrowConsume" d="M 440 90 L 495 90" stroke="var(--line)" stroke-width="2.5" marker-end="url(#arrow-green)" opacity="0.3" />
+
+      <!-- Consumer Box (Right) -->
+      <g id="boxConsumer">
+        <rect x="500" y="50" width="160" height="80" rx="10" fill="var(--surface)" stroke="var(--line)" class="node-box" id="cRect" />
+        <text x="580" y="80" text-anchor="middle" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">Consumer</text>
+        <text x="580" y="102" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" id="consumerText">for await in</text>
+      </g>
+
+      <!-- Status Banner -->
+      <rect x="140" y="170" width="400" height="30" rx="6" fill="var(--code-bg)" stroke="var(--line)" />
+      <text x="340" y="190" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" id="bannerStatus">
+        Buffer empty: consumer awaiting first value
+      </text>
+    </svg>
+  </div>
+
+  <div class="reduced-motion-summary">
+    <h4>Static Summary of Steps:</h4>
+    <ol>
+      <li><strong>Step 1:</strong> An AsyncStream is initialized. The consumer begins a for-await loop and suspends.</li>
+      <li><strong>Step 2:</strong> The producer calls continuation.yield(10). The value enters the buffer and the consumer loop resumes to process it.</li>
+      <li><strong>Step 3:</strong> The producer yields 20 and 30 into the buffer. The consumer pulls each value sequentially.</li>
+      <li><strong>Step 4:</strong> The producer calls continuation.finish(). The stream iterator returns nil, cleanly ending the loop.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Step 1: Producer and Consumer Setup",
+    badge: "Stream Initialized",
+    badgeClass: "producer",
+    caption: "The producer creates an AsyncStream. The consumer begins a for-await loop, suspending until values arrive.",
+    code: "let stream = AsyncStream(Int.self) { continuation in ... }\nfor await number in stream { // Suspends awaiting first element }",
+    producerText: "continuation ready",
+    pFill: "var(--producer-soft)",
+    pStroke: "var(--producer-color)",
+    bStroke: "var(--line)",
+    slots: ["-", "-", "-"],
+    slotFills: ["var(--code-bg)", "var(--code-bg)", "var(--code-bg)"],
+    slotStrokes: ["var(--line)", "var(--line)", "var(--line)"],
+    consumeOpacity: 0.2,
+    cFill: "var(--surface)",
+    cStroke: "var(--line)",
+    consumerText: "Suspended (await)",
+    banner: "Buffer empty: consumer awaiting first value"
+  },
+  {
+    title: "Step 2: First Value Yielded",
+    badge: "Value 10 Yielded",
+    badgeClass: "buffer",
+    caption: "The producer calls continuation.yield(10). The value enters the stream and the consumer loop awakes to process 10.",
+    code: "continuation.yield(10)\n// Consumer awakes: Received 10",
+    producerText: "yield(10)",
+    pFill: "var(--producer-soft)",
+    pStroke: "var(--producer-color)",
+    bStroke: "var(--buffer-color)",
+    slots: ["10", "-", "-"],
+    slotFills: ["var(--buffer-soft)", "var(--code-bg)", "var(--code-bg)"],
+    slotStrokes: ["var(--buffer-color)", "var(--line)", "var(--line)"],
+    consumeOpacity: 1.0,
+    cFill: "var(--consumer-soft)",
+    cStroke: "var(--consumer-color)",
+    consumerText: "Processing: 10",
+    banner: "Value 10 yielded -> consumed by for-await loop"
+  },
+  {
+    title: "Step 3: Buffering and Stream Pull",
+    badge: "Values Buffered",
+    badgeClass: "consumer",
+    caption: "The producer yields 20 and 30 into the stream. The buffer temporarily holds unread items until the consumer awaits them.",
+    code: "continuation.yield(20)\ncontinuation.yield(30)\n// Consumer pulls 20, then 30 sequentially",
+    producerText: "yield(20), yield(30)",
+    pFill: "var(--producer-soft)",
+    pStroke: "var(--producer-color)",
+    bStroke: "var(--buffer-color)",
+    slots: ["20", "30", "-"],
+    slotFills: ["var(--buffer-soft)", "var(--buffer-soft)", "var(--code-bg)"],
+    slotStrokes: ["var(--buffer-color)", "var(--buffer-color)", "var(--line)"],
+    consumeOpacity: 1.0,
+    cFill: "var(--consumer-soft)",
+    cStroke: "var(--consumer-color)",
+    consumerText: "Processing: 20 -> 30",
+    banner: "Buffered items ready for consumer pull"
+  },
+  {
+    title: "Step 4: Stream Completion",
+    badge: "Stream Finished",
+    badgeClass: "finish",
+    caption: "The producer calls continuation.finish(). The stream returns nil from next(), and the consumer loop exits cleanly.",
+    code: "continuation.finish()\n// next() returns nil -> for-await loop exits cleanly",
+    producerText: "finish()",
+    pFill: "var(--finish-soft)",
+    pStroke: "var(--finish-color)",
+    bStroke: "var(--finish-color)",
+    slots: ["nil", "-", "-"],
+    slotFills: ["var(--finish-soft)", "var(--code-bg)", "var(--code-bg)"],
+    slotStrokes: ["var(--finish-color)", "var(--line)", "var(--line)"],
+    consumeOpacity: 1.0,
+    cFill: "var(--clean-soft)",
+    cStroke: "var(--clean-color)",
+    consumerText: "Exited Loop (nil)",
+    banner: "Stream finished: iterator returned nil, scope complete"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  document.getElementById("stageTitle").textContent = s.title;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = s.badge;
+  badge.className = `badge ${s.badgeClass}`;
+
+  document.getElementById("captionText").textContent = s.caption;
+  document.getElementById("codeText").textContent = s.code;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  // Producer
+  const pRect = document.getElementById("pRect");
+  pRect.style.fill = s.pFill;
+  pRect.style.stroke = s.pStroke;
+  document.getElementById("producerText").textContent = s.producerText;
+
+  // Buffer
+  document.getElementById("bRect").style.stroke = s.bStroke;
+  for (let i = 1; i <= 3; i++) {
+    const slotEl = document.getElementById(`slot${i}`);
+    const textEl = document.getElementById(`slotText${i}`);
+    slotEl.style.fill = s.slotFills[i - 1];
+    slotEl.style.stroke = s.slotStrokes[i - 1];
+    textEl.textContent = s.slots[i - 1];
+  }
+
+  // Consumer Arrow & Box
+  document.getElementById("arrowConsume").style.opacity = s.consumeOpacity;
+  const cRect = document.getElementById("cRect");
+  cRect.style.fill = s.cFill;
+  cRect.style.stroke = s.cStroke;
+  document.getElementById("consumerText").textContent = s.consumerText;
+
+  // Banner
+  document.getElementById("bannerStatus").textContent = s.banner;
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>
