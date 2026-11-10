@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pagination and Infinite Scrolling in SwiftUI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.diagram-container {
+  max-width: 840px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+.subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+.stepper-nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  background: var(--code-bg);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.counter {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-family: var(--font-code);
+  min-width: 85px;
+  text-align: center;
+}
+.svg-wrapper {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+  margin: 1rem 0;
+}
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.node-box {
+  transition: all 0.3s ease;
+}
+.dimmed {
+  opacity: 0.25;
+}
+.highlighted {
+  opacity: 1;
+}
+.step-description {
+  background: var(--code-bg);
+  border-left: 4px solid var(--accent-color);
+  padding: 1rem;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  min-height: 4.5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-box {
+    transition: none !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-container" role="region" aria-label="Pagination and Infinite Scrolling Diagram">
+  <div class="header">
+    <div>
+      <h1 class="title">Cursor Pagination & Lazy Loading</h1>
+      <div class="subtitle">How threshold prefetching, ViewModel guards, and cursor APIs coordinate</div>
+    </div>
+    <div class="stepper-nav">
+      <button id="prevBtn" aria-label="Previous Step">Back</button>
+      <span class="counter" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+      <button id="nextBtn" aria-label="Next Step">Next</button>
+    </div>
+  </div>
+
+  <div class="svg-wrapper">
+    <svg viewBox="0 0 800 360" role="img" aria-label="Interactive pagination flow diagram">
+      <defs>
+        <marker id="arrowActive" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent-color)" />
+        </marker>
+        <marker id="arrowSafe" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--safe-color)" />
+        </marker>
+        <marker id="arrowWarn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--warn-color)" />
+        </marker>
+      </defs>
+
+      <!-- Step 1: ScrollView with LazyVStack & Visible Window -->
+      <g id="step1Group" class="node-box">
+        <rect x="30" y="60" width="200" height="250" rx="10" fill="var(--code-bg)" stroke="var(--accent-color)" stroke-width="2"/>
+        <text x="130" y="85" text-anchor="middle" font-weight="700" font-size="12" fill="var(--ink)">ScrollView / LazyVStack</text>
+        <text x="130" y="103" text-anchor="middle" font-size="10" fill="var(--muted)">Lazy Viewport Allocation</text>
+
+        <!-- Rows inside viewport -->
+        <rect x="45" y="115" width="170" height="30" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+        <text x="130" y="135" text-anchor="middle" font-size="11" fill="var(--ink)">Row 1 (Active)</text>
+
+        <rect x="45" y="150" width="170" height="30" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+        <text x="130" y="170" text-anchor="middle" font-size="11" fill="var(--ink)">Row 2 (Active)</text>
+
+        <rect x="45" y="185" width="170" height="30" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+        <text x="130" y="205" text-anchor="middle" font-size="11" fill="var(--ink)">Row 3 (Active)</text>
+      </g>
+
+      <!-- Step 2: Threshold Item (.onAppear) -->
+      <g id="step2Group" class="node-box">
+        <rect x="45" y="225" width="170" height="35" rx="4" fill="var(--warn-soft)" stroke="var(--warn-color)" stroke-width="2"/>
+        <text x="130" y="243" text-anchor="middle" font-weight="700" font-size="11" fill="var(--warn-color)">Row 15: Threshold Trigger</text>
+        <text x="130" y="255" text-anchor="middle" font-size="9" fill="var(--ink)">.onAppear fires loadNextPage()</text>
+
+        <rect x="45" y="265" width="170" height="25" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+        <text x="130" y="282" text-anchor="middle" font-size="10" fill="var(--muted)">Row 20 (Unreached Bottom)</text>
+      </g>
+
+      <!-- Connection 2 -> 3 -->
+      <path id="arrow2to3" d="M 215 242 L 270 242" stroke="var(--warn-color)" stroke-width="2" marker-end="url(#arrowWarn)" fill="none"/>
+
+      <!-- Step 3: ViewModel State Guard & Network Request -->
+      <g id="step3Group" class="node-box">
+        <rect x="270" y="60" width="230" height="250" rx="10" fill="var(--surface)" stroke="var(--accent-color)" stroke-width="2"/>
+        <text x="385" y="85" text-anchor="middle" font-weight="700" font-size="13" fill="var(--accent-color)">Paginator State Machine</text>
+        <text x="385" y="103" text-anchor="middle" font-size="10" fill="var(--muted)">Concurrency & Guard Rules</text>
+
+        <rect x="285" y="120" width="200" height="40" rx="6" fill="var(--code-bg)" stroke="var(--line)" stroke-width="1"/>
+        <text x="385" y="137" text-anchor="middle" font-weight="600" font-size="10" fill="var(--ink)">guard !isLoading && hasMore</text>
+        <text x="385" y="152" text-anchor="middle" font-size="9" fill="var(--safe-color)">Prevents duplicate fetches</text>
+
+        <rect x="285" y="170" width="200" height="45" rx="6" fill="var(--accent-soft)" stroke="var(--accent-color)" stroke-width="1"/>
+        <text x="385" y="188" text-anchor="middle" font-weight="600" font-size="11" fill="var(--accent-color)">nextCursor = "cursor_token_42"</text>
+        <text x="385" y="204" text-anchor="middle" font-size="10" fill="var(--ink)">Stable anchor; immune to inserts</text>
+
+        <rect x="285" y="225" width="200" height="45" rx="6" fill="var(--warn-soft)" stroke="var(--warn-color)" stroke-width="1"/>
+        <text x="385" y="244" text-anchor="middle" font-weight="600" font-size="11" fill="var(--warn-color)">isLoading = true</text>
+        <text x="385" y="260" text-anchor="middle" font-size="10" fill="var(--ink)">Shows spinner indicator</text>
+      </g>
+
+      <!-- Connection 3 -> 4 -->
+      <path id="arrow3to4" d="M 500 190 L 550 190" stroke="var(--accent-color)" stroke-width="2" marker-end="url(#arrowActive)" fill="none"/>
+
+      <!-- Step 4: Web API & Deduplication into List -->
+      <g id="step4Group" class="node-box">
+        <rect x="550" y="60" width="220" height="250" rx="10" fill="var(--safe-soft)" stroke="var(--safe-color)" stroke-width="2"/>
+        <text x="660" y="85" text-anchor="middle" font-weight="700" font-size="13" fill="var(--safe-color)">Backend API & Appending</text>
+        <text x="660" y="103" text-anchor="middle" font-size="10" fill="var(--muted)">Batch Returns & Deduplication</text>
+
+        <rect x="565" y="120" width="190" height="50" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+        <text x="660" y="140" text-anchor="middle" font-weight="600" font-size="11" fill="var(--ink)">GET /items?cursor=42</text>
+        <text x="660" y="158" text-anchor="middle" font-size="10" fill="var(--safe-color)">Returns 20 items + new cursor</text>
+
+        <rect x="565" y="180" width="190" height="50" rx="6" fill="var(--surface)" stroke="var(--safe-color)" stroke-width="1"/>
+        <text x="660" y="200" text-anchor="middle" font-weight="600" font-size="11" fill="var(--safe-color)">Deduplicate by ID</text>
+        <text x="660" y="218" text-anchor="middle" font-size="10" fill="var(--muted)">Set(existingIDs) check</text>
+
+        <rect x="565" y="240" width="190" height="40" rx="6" fill="var(--surface)" stroke="var(--accent-color)" stroke-width="1"/>
+        <text x="660" y="258" text-anchor="middle" font-weight="600" font-size="11" fill="var(--accent-color)">items.append(contentsOf:)</text>
+        <text x="660" y="272" text-anchor="middle" font-size="9" fill="var(--ink)">List extends smoothly</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="step-description" id="stepDescription">
+    <!-- Populated by JavaScript -->
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Step 1: Lazy UI Viewport Allocation",
+    text: "SwiftUI <strong>LazyVStack</strong> instantiates row views only as they approach the screen. Early rows stay in memory while unrendered rows remain unallocated, conserving device RAM.",
+    highlight: ["step1Group"]
+  },
+  {
+    title: "Step 2: Threshold Pre-fetching",
+    text: "Rather than waiting for the final cell, the app detects an item near the bottom (e.g. Row 15 of 20). Its <strong>.onAppear</strong> modifier triggers loadNextPage() before the user reaches the end.",
+    highlight: ["step2Group", "arrow2to3"]
+  },
+  {
+    title: "Step 3: State Machine Concurrency Guard",
+    text: "The ViewModel checks <strong>guard !isLoading && hasMore</strong>. This blocks duplicate fetches during rapid scrolling, locks state with isLoading = true, and prepares the <strong>nextCursor</strong> token.",
+    highlight: ["step3Group", "arrow3to4"]
+  },
+  {
+    title: "Step 4: Cursor API Response and Deduplication",
+    text: "The server returns the next page and a new cursor. The app <strong>deduplicates items by ID</strong> to protect SwiftUI ForEach identity, appends them to the items array, and unlocks isLoading.",
+    highlight: ["step4Group", "step1Group"]
+  }
+];
+
+let currentStep = 0;
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const stepCounter = document.getElementById("stepCounter");
+const stepDescription = document.getElementById("stepDescription");
+
+const allGroups = ["step1Group", "step2Group", "arrow2to3", "step3Group", "arrow3to4", "step4Group"];
+
+function renderStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  stepDescription.innerHTML = `<strong>${s.title}:</strong> ${s.text}`;
+  
+  prevBtn.disabled = (idx === 0);
+  nextBtn.disabled = (idx === steps.length - 1);
+
+  allGroups.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (s.highlight.includes(id)) {
+      el.classList.remove("dimmed");
+      el.classList.add("highlighted");
+    } else {
+      el.classList.remove("highlighted");
+      el.classList.add("dimmed");
+    }
+  });
+}
+
+prevBtn.addEventListener("click", () => {
+  if (currentStep > 0) renderStep(currentStep - 1);
+});
+
+nextBtn.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) renderStep(currentStep + 1);
+});
+
+renderStep(0);
+</script>
+
+</body>
+</html>

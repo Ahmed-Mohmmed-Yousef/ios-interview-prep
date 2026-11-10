@@ -1,0 +1,243 @@
+export const meta = {
+  id: "pagination",
+  summary: "Load continuous datasets page by page using cursor pagination, LazyVStack, and deduplicated state management.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.0", xcode: "16.0", ios: "17.0" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "LazyVStack (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/lazyvstack", kind: "official" },
+    { title: "URLSession (Foundation)", url: "https://developer.apple.com/documentation/foundation/urlsession", kind: "official" },
+    { title: "URLComponents", url: "https://developer.apple.com/documentation/foundation/urlcomponents", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does cursor-based pagination provide more reliable feeds than traditional offset-limit pagination?</Question>
+  <Guess>
+    <Option id="a">Offset pagination only supports plain text files without images.</Option>
+    <Option id="b" correct>Cursor pagination prevents duplicate or skipped items when new records are added while a user scrolls.</Option>
+    <Option id="c">Cursor pagination compresses network packets using specialized hardware chips.</Option>
+    <Option id="d">Offset pagination stops working whenever a device switches to Wi-Fi.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine reading a massive thousand-page encyclopedia.
+You do not carry the entire thousand-page volume in your backpack.
+Instead, you read chapter booklets of twenty pages each.
+When you reach page fifteen of your current booklet, a courier delivers the next booklet.
+By prefetching before you reach the final sentence, your reading never pauses.
+In mobile apps, pagination is this delivery courier: it delivers small batches of records just before the user runs out of content.
+</Analogy>
+
+**Pagination** is the practice of loading large datasets in smaller discrete pages.
+Loading ten thousand items in a single network response wastes cellular data, exhausts device memory, and freezes the user interface.
+Instead, apps load an initial page of items and fetch additional pages as the user scrolls.
+
+### Offset vs cursor pagination
+
+There are two primary ways APIs paginate data:
+
+1. **Offset-Limit Pagination**:
+   - The app sends a page number or skip offset, such as `page=2&limit=20`.
+   - Simple to build and allows jumping directly to page five.
+   - **Flaw**: If another user posts a new item at the top of the feed while you scroll, every item shifts down by one.
+   - When you request page two, the last item from page one appears again as a duplicate.
+
+2. **Cursor-Based Pagination**:
+   - The app passes an opaque token pointing to the last item seen, such as `cursor=item_20`.
+   - The server returns items that exist immediately after that specific record.
+   - **Advantage**: It is immune to inserts at the top of the feed, preventing duplicates and skipped items.
+
+### Lazy rendering in SwiftUI
+
+In SwiftUI, use **`LazyVStack`** or **`List`** inside a `ScrollView`.
+Standard vertical stacks create all view instances in memory at once.
+In contrast, lazy containers instantiate row views only as they approach the visible viewport on screen.
+
+### Prefetching with threshold items
+
+Do not wait until the user hits the absolute bottom row to trigger the next fetch.
+Waiting for the last row forces the user to stop scrolling and stare at a loading spinner.
+Instead, attach `.onAppear` to an item five rows before the end.
+This pre-fetches the next page in the background, creating a seamless infinite scroll experience.
+
+**Pagination combines cursor networking with lazy SwiftUI containers to create fast, infinite scrolling feeds.**
+
+## See it
+
+<Diagram id="pagination-flow" caption="How cursor pagination and threshold detection in LazyVStack coordinate continuous data fetching.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: SwiftUI LazyVStack Viewport, Visible Rows, Threshold Trigger Row, Paginator State, Web API.
+  - Step 1: User scrolls down; LazyVStack renders rows on demand as they enter the screen.
+  - Step 2: User reaches the threshold item (5 rows before end); .onAppear triggers loadNextPage().
+  - Step 3: Paginator checks !isLoading, sends URLRequest with nextCursor to API, and shows loading indicator.
+  - Step 4: API returns fresh batch with new cursor; items append to array, and list extends smoothly.
+  - Static version (reduced motion): Shows scrolling list with visible window, prefetch threshold trigger, and cursor query parameters.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why should pagination trigger on a threshold item a few rows before the end rather than the final item?</Question>
+  <Option id="a">The Swift compiler refuses to attach onAppear modifiers to the last element of an array.</Option>
+  <Option id="b" correct>Pre-fetching before the user reaches the end prevents scroll interruptions and loading spinner delays.</Option>
+  <Option id="c">The iOS operating system cancels network requests initiated on the final screen row.</Option>
+  <Explanation>Triggering before the end allows data to arrive before the user reaches the bottom, creating a smooth scroll experience.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Building a cursor-based pagination state machine
+
+Track `nextCursor`, `isLoading`, and `hasMore` to manage sequential batch requests safely.
+
+```swift
+import Foundation
+
+struct FeedItem: Identifiable {
+    let id: Int
+    let text: String
+}
+
+@MainActor
+final class FeedPaginator {
+    private(set) var items: [FeedItem] = []
+    private(set) var nextCursor: Int? = 1
+    private(set) var isLoading = false
+    private(set) var hasMore = true
+
+    func loadNextPage() {
+        guard !isLoading && hasMore, let cursor = nextCursor else { return }
+        isLoading = true
+
+        let newItems = [
+            FeedItem(id: cursor, text: "Story \(cursor)"),
+            FeedItem(id: cursor + 1, text: "Story \(cursor + 1)")
+        ]
+        items.append(contentsOf: newItems)
+
+        if cursor >= 3 {
+            nextCursor = nil
+            hasMore = false
+        } else {
+            nextCursor = cursor + 2
+        }
+        isLoading = false
+    }
+}
+
+let paginator = FeedPaginator()
+paginator.loadNextPage()
+paginator.loadNextPage()
+print("Loaded count: \(paginator.items.count)")
+```
+
+```output
+Loaded count: 4
+```
+
+Guarding with `!isLoading` stops duplicate network tasks when the user scrolls quickly back and forth.
+
+### Deduplicating incoming records by identifier
+
+Always make sure new items have unique IDs before appending them to your collection.
+
+```swift
+import Foundation
+
+struct Post: Identifiable {
+    let id: Int
+    let title: String
+}
+
+func appendUnique(existing: inout [Post], newItems: [Post]) {
+    let existingIDs = Set(existing.map(\.id))
+    let uniqueItems = newItems.filter { !existingIDs.contains($0.id) }
+    existing.append(contentsOf: uniqueItems)
+}
+
+var currentPosts = [
+    Post(id: 101, title: "First Post"),
+    Post(id: 102, title: "Second Post")
+]
+
+let incomingBatch = [
+    Post(id: 102, title: "Duplicate Second"),
+    Post(id: 103, title: "Third Post")
+]
+
+appendUnique(existing: &currentPosts, newItems: incomingBatch)
+print("Unique total: \(currentPosts.count)")
+```
+
+```output
+Unique total: 3
+```
+
+Filtering out duplicate IDs protects SwiftUI `ForEach` containers from layout crashes and visual glitches.
+
+<QuickCheck>
+  <Question>What issue occurs in SwiftUI if a paginated response accidentally appends duplicate item IDs?</Question>
+  <Option id="a">The device screen immediately switches to black and white mode.</Option>
+  <Option id="b" correct>ForEach view diffing fails, causing visual glitches, broken animations, or crashes.</Option>
+  <Option id="c">The network card on the phone shuts down to prevent data corruption.</Option>
+  <Explanation>SwiftUI requires unique identifiers for each item in ForEach. Duplicate IDs break diffing and cause UI bugs.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Create a SwiftUI ScrollView with a LazyVStack, print row indexes inside onAppear, and observe lazy creation in Xcode console.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Missing the isLoading concurrency guard">
+When a user flings a scroll view, multiple rows near the bottom can trigger `.onAppear` within milliseconds.
+If your view model does not check an `isLoading` flag, your app launches multiple duplicate network requests for the exact same page.
+Always guard pagination calls with `guard !isLoading else { return }` before initiating a network task.
+</Trap>
+
+<Trap title="Assuming offset-limit pagination is safe for real-time feeds">
+Interviewers frequently ask why a feed shows duplicate posts after scrolling down.
+In offset pagination, if new posts arrive at index zero while the user views page one, all existing posts shift down.
+Fetching page two then returns items that were already displayed on page one.
+Explain that cursor-based pagination uses an anchor pointer to eliminate duplicate shifts.
+</Trap>
+
+<Trap title="Forgetting to reset pagination state on pull-to-refresh">
+When implementing `.refreshable`, developers sometimes append refreshed items to the existing array.
+This results in duplicate records or confusing order.
+When the user pulls to refresh, clear existing items, reset the cursor to `nil`, set `hasMore = true`, and fetch page one fresh.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Pagination divides large datasets into small pages so mobile apps use less memory, battery, and network data.
+In SwiftUI, I use `LazyVStack` inside a `ScrollView` so cells are created lazily only when they appear on screen.
+I prefer cursor-based pagination over offset-limit because cursors prevent duplicate items when new records are added while scrolling.
+I trigger fetches on a threshold item a few rows before the end, and use an `isLoading` guard to avoid duplicate network calls.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+An optimal pagination architecture addresses concurrency, data integrity, and UI responsiveness.
+For feeds with frequent insertions, I mandate cursor-based pagination over offset-limit to prevent item shifting and duplicate rows.
+On the UI layer, I bind a `LazyVStack` to a ViewModel state machine tracking `isLoading`, `hasMore`, and `nextCursor`.
+To deliver an infinite scrolling experience, I prefetch the next page when the user reaches an offset threshold, such as five items before the end.
+Finally, I always deduplicate incoming records by ID before appending to protect SwiftUI view identity, and handle cancellation on refresh.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Pagination breaks large datasets into manageable pages to conserve bandwidth and memory.
+- Offset-limit pagination allows arbitrary page jumps but suffers from duplicates during real-time inserts.
+- Cursor pagination uses stable anchor tokens, eliminating duplicate shifts during scrolling.
+- `LazyVStack` and `List` evaluate row views lazily on demand as they enter the screen.
+- Triggering pre-fetching on a threshold item five rows before the end prevents scroll interruptions.
+- Guarding fetch calls with `!isLoading` stops duplicate network requests during rapid scrolling gestures.
+- Deduplicate incoming items by ID before appending to protect SwiftUI `ForEach` diffing integrity.
+- On pull-to-refresh, clear items and reset cursors to load a fresh page one.
+</Recap>
