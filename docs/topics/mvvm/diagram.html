@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MVVM Data Flow and Architecture</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --ink: #0f172a;
+  --muted: #475569;
+  --line: #cbd5e1;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --accent-border: #93c5fd;
+  --active-node: #3b82f6;
+  --card-bg: #f1f5f9;
+  --code-bg: #e2e8f0;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f17;
+    --surface: #131b26;
+    --ink: #f1f5f9;
+    --muted: #94a3b8;
+    --line: #2d3748;
+    --accent-color: #3b82f6;
+    --accent-soft: #1e293b;
+    --accent-border: #3b82f6;
+    --active-node: #60a5fa;
+    --card-bg: #1a2230;
+    --code-bg: #0d121c;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.diagram-container {
+  max-width: 820px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+.subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+.stepper-nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  background: var(--code-bg);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.step-indicator {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--muted);
+  min-width: 85px;
+  text-align: center;
+}
+.canvas {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  min-height: 220px;
+}
+.node {
+  flex: 1;
+  max-width: 220px;
+  padding: 1.25rem 1rem;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+  transition: all 0.3s ease;
+  z-index: 2;
+}
+.node.active {
+  border-color: var(--active-node);
+  background: var(--accent-soft);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(37,99,235,0.15);
+}
+.node-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 0.35rem;
+}
+.node-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.connector {
+  flex: 0 0 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+.arrow {
+  font-size: 1.25rem;
+  color: var(--line);
+  font-weight: 700;
+  transition: color 0.3s ease;
+}
+.connector.active .arrow {
+  color: var(--active-node);
+}
+.step-details {
+  background: var(--surface);
+  border-left: 4px solid var(--accent-color);
+  padding: 1rem 1.25rem;
+  border-radius: 0 8px 8px 0;
+  margin-top: 1rem;
+}
+.step-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 0 0 0.35rem 0;
+  color: var(--ink);
+}
+.step-explanation {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 0.75rem;
+  font-family: var(--font-code);
+  font-size: 0.825rem;
+  background: var(--code-bg);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.reduced-motion-view {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas, .stepper-nav, .step-details {
+    display: none;
+  }
+  .reduced-motion-view {
+    display: block;
+    margin-top: 1rem;
+  }
+  .reduced-motion-step {
+    padding: 0.75rem 1rem;
+    border-left: 3px solid var(--accent-color);
+    background: var(--card-bg);
+    margin-bottom: 0.75rem;
+    border-radius: 0 6px 6px 0;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-container" role="region" aria-label="MVVM Architecture Stepper">
+  <div class="header">
+    <div>
+      <h2 class="title">MVVM Flow Architecture</h2>
+      <div class="subtitle">Step-by-step separation of UI, presentation logic, and domain models</div>
+    </div>
+    <div class="stepper-nav">
+      <button id="prevBtn" onclick="prevStep()" disabled aria-label="Previous step">Back</button>
+      <span class="step-indicator" id="stepIndicator">Step 1 of 4</span>
+      <button id="nextBtn" onclick="nextStep()" aria-label="Next step">Next</button>
+    </div>
+  </div>
+
+  <div class="canvas" id="canvas">
+    <div class="node" id="viewNode">
+      <div class="node-title">View</div>
+      <div class="node-desc">SwiftUI View / UIViewController<br>Captures input & renders UI</div>
+    </div>
+    <div class="connector" id="conn1">
+      <span class="arrow" id="arrow1">&rarr;</span>
+    </div>
+    <div class="node" id="vmNode">
+      <div class="node-title">ViewModel</div>
+      <div class="node-desc">Observable state store<br>Presentation logic & formatting</div>
+    </div>
+    <div class="connector" id="conn2">
+      <span class="arrow" id="arrow2">&rarr;</span>
+    </div>
+    <div class="node" id="modelNode">
+      <div class="node-title">Model</div>
+      <div class="node-desc">Domain Entities & Repositories<br>Pure business data</div>
+    </div>
+  </div>
+
+  <div class="step-details" id="stepDetails" aria-live="polite">
+    <div class="step-title" id="stepTitle">1. User Action Triggers Event</div>
+    <p class="step-explanation" id="stepExplanation">
+      The user interacts with the View (for example, tapping a button or pulling to refresh).
+      The View does not process business logic; it immediately forwards the user intent to the ViewModel.
+    </p>
+    <div class="code-preview" id="codePreview">Button("Refresh") { viewModel.loadData() }</div>
+  </div>
+
+  <div class="reduced-motion-view">
+    <div class="reduced-motion-step">
+      <strong>Step 1: User Action in View:</strong> The user taps a UI element. The View delegates the action directly to the ViewModel.
+    </div>
+    <div class="reduced-motion-step">
+      <strong>Step 2: ViewModel Processing:</strong> The ViewModel runs presentation logic and invokes domain models or network services.
+    </div>
+    <div class="reduced-motion-step">
+      <strong>Step 3: Model Delivers Domain Data:</strong> The Model layer returns raw domain entities to the ViewModel without any UI formatting.
+    </div>
+    <div class="reduced-motion-step">
+      <strong>Step 4: Observable UI Update:</strong> The ViewModel formats domain values into display strings and updates published properties, automatically refreshing the View.
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "1. User Action Triggers Event",
+    desc: "The user interacts with the View (for example, tapping a button or pulling to refresh). The View does not process business logic; it immediately forwards the user intent to the ViewModel.",
+    code: 'Button("Refresh") { viewModel.loadData() }',
+    activeNodes: ["viewNode"],
+    activeConns: ["conn1"],
+    arrow1: "&rarr;",
+    arrow2: "&rarr;"
+  },
+  {
+    title: "2. ViewModel Requests Domain Data",
+    desc: "The ViewModel coordinates the action. It sets UI loading state and requests raw entities from domain models, repositories, or network services.",
+    code: 'func loadData() async { isLoading = true; let user = await repository.fetchUser() }',
+    activeNodes: ["vmNode"],
+    activeConns: ["conn2"],
+    arrow1: "&rarr;",
+    arrow2: "&rarr;"
+  },
+  {
+    title: "3. Model Supplies Domain Entities",
+    desc: "The Model layer provides pure data structs (such as User or Product). The Model has no knowledge of ViewModels, SwiftUI, or visual presentation.",
+    code: 'struct User: Sendable { let id: UUID; let balanceCents: Int }',
+    activeNodes: ["modelNode"],
+    activeConns: ["conn2"],
+    arrow1: "&rarr;",
+    arrow2: "&larr;"
+  },
+  {
+    title: "4. ViewModel Formats State & View Renders",
+    desc: "The ViewModel receives domain data, formats values (currency, dates, labels), and updates observable properties. The View automatically observes changes and redraws.",
+    code: 'formattedBalance = "$42.50"\nisLoading = false // View body refreshes automatically',
+    activeNodes: ["vmNode", "viewNode"],
+    activeConns: ["conn1"],
+    arrow1: "&larr;",
+    arrow2: "&rarr;"
+  }
+];
+
+let currentStep = 0;
+
+function updateStep() {
+  const step = steps[currentStep];
+  document.getElementById("stepIndicator").textContent = `Step ${currentStep + 1} of ${steps.length}`;
+  document.getElementById("stepTitle").textContent = step.title;
+  document.getElementById("stepExplanation").textContent = step.desc;
+  document.getElementById("codePreview").textContent = step.code;
+
+  document.getElementById("prevBtn").disabled = currentStep === 0;
+  document.getElementById("nextBtn").disabled = currentStep === steps.length - 1;
+
+  ["viewNode", "vmNode", "modelNode"].forEach(id => {
+    document.getElementById(id).classList.toggle("active", step.activeNodes.includes(id));
+  });
+
+  ["conn1", "conn2"].forEach(id => {
+    document.getElementById(id).classList.toggle("active", step.activeConns.includes(id));
+  });
+
+  document.getElementById("arrow1").innerHTML = step.arrow1;
+  document.getElementById("arrow2").innerHTML = step.arrow2;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateStep();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateStep();
+  }
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateStep();
+</script>
+</body>
+</html>

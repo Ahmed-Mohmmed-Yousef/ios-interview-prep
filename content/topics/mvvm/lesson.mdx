@@ -1,0 +1,243 @@
+export const meta = {
+  id: "mvvm",
+  title: "MVVM",
+  summary: "Separate your data models, visual views, and presentation logic with the Model-View-ViewModel pattern in Swift.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "Managing model data in your app (SwiftUI)",
+      url: "https://developer.apple.com/documentation/swiftui/managing-model-data-in-your-app",
+      kind: "official"
+    },
+    {
+      title: "Model-View-ViewModel - .NET | Microsoft Learn",
+      url: "https://learn.microsoft.com/en-us/dotnet/architecture/maui/mvvm",
+      kind: "community"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    In the MVVM architectural pattern on iOS, which layer transforms raw domain models into user-facing presentation text?
+  </Question>
+  <Guess>
+    <Option id="a">The View layer directly converts raw numbers and dates inside its body property</Option>
+    <Option id="b" correct>The ViewModel prepares formatted strings and manages UI state for the View</Option>
+    <Option id="c">The Model layer imports SwiftUI to generate formatted text</Option>
+    <Option id="d">The Database layer formats text strings before sending them to memory</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+Mobile apps display data on a screen and process user actions.
+When you put networking, data formatting, and visual layout in one file, code becomes hard to read and test.
+The Model-View-ViewModel (MVVM) pattern divides your screen into three distinct parts:
+
+1. **Model**: Pure data objects and domain rules. Models hold raw values such as numbers, strings, and dates. They do not know anything about user interfaces.
+2. **View**: Visual elements on the screen. Views lay out controls, display text, and capture user gestures like button taps.
+3. **ViewModel**: The bridge between Model and View. The ViewModel stores UI state, runs presentation logic, and formats raw values into readable strings.
+
+<Analogy>
+  Think of a restaurant.
+  The kitchen chefs are the Model. They prepare the raw ingredients and cook the meals.
+  The dining room table is the View. It presents the meal to the guest in a clean setting.
+  The waiter is the ViewModel.
+  The waiter takes requests from the guest, communicates with the kitchen, and serves the finished dish in a pleasant format.
+  The guest never enters the kitchen, and the chef never waits on tables.
+</Analogy>
+
+### Why use MVVM?
+
+In standard MVC (Model-View-Controller), view controllers frequently become bloated with networking, validation, and string formatting.
+This problem is often called Massive View Controller.
+MVVM solves this problem by moving presentation logic out of the view controller or SwiftUI view.
+
+The ViewModel does not import `UIKit` or render `SwiftUI` views directly.
+Because the ViewModel contains no user interface controls, you can write fast unit tests for it without launching a simulator.
+
+## See it
+
+<Diagram id="mvvm-flow" caption="How user events pass from View to ViewModel, and state updates pass back to the View.">
+{/*
+  Interactive stepper:
+  Step 1: User taps a button in the View. The View forwards the user intent to the ViewModel.
+  Step 2: The ViewModel executes presentation logic and requests data from a Model or service.
+  Step 3: The Model returns raw domain data to the ViewModel.
+  Step 4: The ViewModel formats the data, updates observable state, and the View refreshes.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why is a ViewModel easier to test than a traditional UIViewController?</Question>
+  <Option id="a">It runs faster because it compiles into C++ code</Option>
+  <Option id="b" correct>It has no user interface dependencies, so you can test state changes with unit tests</Option>
+  <Option id="c">It runs on a private background thread created by the operating system</Option>
+  <Option id="d">It avoids memory allocation by storing properties on the stack</Option>
+  <Explanation>A ViewModel focuses on presentation logic without importing UI frameworks. This makes it straightforward to test in standard unit tests.</Explanation>
+</QuickCheck>
+
+## In code
+
+In modern Swift, we mark ViewModels with `@Observable` and isolate them to the `@MainActor` when they drive UI updates.
+Models remain simple value types.
+
+<CodeExample title="Declaring a Model and an Observable ViewModel">
+```swift
+import Foundation
+import Observation
+
+// 1. Model: Pure domain data
+struct Product: Sendable {
+    let id: UUID
+    let name: String
+    let priceInCents: Int
+}
+
+// 2. ViewModel: Prepares data for presentation
+@Observable
+@MainActor
+final class ProductViewModel {
+    var title: String = ""
+    var priceText: String = ""
+    var isAvailable: Bool = true
+
+    func load(product: Product) {
+        title = product.name.capitalized
+        let dollars = Double(product.priceInCents) / 100.0
+        priceText = String(format: "$%.2f", dollars)
+    }
+}
+
+// 3. Execution
+@MainActor
+func demonstrateMVVM() {
+    let vm = ProductViewModel()
+    let item = Product(id: UUID(), name: "wireless keyboard", priceInCents: 9999)
+    vm.load(product: item)
+    print("Item: \(vm.title)")
+    print("Price: \(vm.priceText)")
+}
+
+demonstrateMVVM()
+```
+```output
+Item: Wireless Keyboard
+Price: $99.99
+```
+</CodeExample>
+
+<CodeExample title="Handling user actions and state transitions">
+```swift
+import Foundation
+import Observation
+
+@Observable
+@MainActor
+final class CartViewModel {
+    var itemCount: Int = 0
+    var checkoutStatus: String = "Idle"
+
+    func addItem() {
+        itemCount += 1
+        checkoutStatus = "Cart has \(itemCount) items"
+    }
+
+    func checkout() {
+        if itemCount > 0 {
+            checkoutStatus = "Order placed successfully"
+            itemCount = 0
+        } else {
+            checkoutStatus = "Cart is empty"
+        }
+    }
+}
+
+@MainActor
+func testCartFlow() {
+    let cartVM = CartViewModel()
+    cartVM.addItem()
+    cartVM.addItem()
+    print("Status: \(cartVM.checkoutStatus)")
+    cartVM.checkout()
+    print("After checkout: \(cartVM.checkoutStatus)")
+}
+
+testCartFlow()
+```
+```output
+Status: Cart has 2 items
+After checkout: Order placed successfully
+```
+</CodeExample>
+
+<TryIt>
+  You can run and modify this MVVM sample directly in Swift Playground.
+</TryIt>
+
+<QuickCheck>
+  <Question>Where should currency formatting logic live when building an iOS screen with MVVM?</Question>
+  <Option id="a">Inside the SwiftUI View body property</Option>
+  <Option id="b">Inside the raw Model struct</Option>
+  <Option id="c" correct>Inside the ViewModel, which provides a formatted text property to the View</Option>
+  <Option id="d">Inside the network response handler</Option>
+  <Explanation>Formatting raw values into displayable strings is presentation logic. The ViewModel owns presentation logic and supplies clean properties to the View.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="The Massive ViewModel">
+  Moving all logic out of a view controller into a view model can create a Massive ViewModel.
+  Do not place networking requests, database queries, and navigation handling inside a single ViewModel class.
+  Instead, inject specialized service objects or repository protocols into your ViewModel.
+  Keep the ViewModel focused on managing UI state.
+</Trap>
+
+<Trap title="Overusing ViewModels for simple SwiftUI views">
+  SwiftUI views are lightweight structs that already observe state efficiently.
+  Do not force a separate ViewModel for static views, simple forms, or pure UI animations.
+  Creating a ViewModel for every trivial screen adds unnecessary boilerplate without providing testability benefits.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="junior">
+  MVVM stands for Model, View, and ViewModel.
+  The Model holds our raw data.
+  The View displays the user interface and passes user actions forward.
+  The ViewModel contains the presentation logic and state.
+  It converts raw data into strings that the View can display easily.
+</InterviewAnswer>
+
+<InterviewAnswer level="mid">
+  MVVM separates presentation logic from UI rendering, resolving the Massive View Controller issue in iOS.
+  The View observes the ViewModel through SwiftUI Observation or Combine.
+  When users interact with the View, it calls methods on the ViewModel.
+  The ViewModel mutates state properties and coordinates with business services.
+  Because the ViewModel has no UI dependencies, we can write unit tests for UI states and formatting without running the simulator.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  In modern iOS, MVVM provides clean boundary separation when paired with Dependency Injection and unidirectional data flow.
+  In SwiftUI, we model ViewModels as `@Observable` classes isolated to `@MainActor`, keeping the views declarative and dumb.
+  However, we must avoid treating MVVM as a silver bullet.
+  A ViewModel should delegate networking to repositories and navigation to coordinators or routers.
+  For trivial screens, native SwiftUI state properties are often cleaner than an artificial ViewModel layer.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  - MVVM splits responsibilities into Model (domain data), View (visual UI), and ViewModel (presentation state).
+  - The ViewModel formats raw data into displayable text and coordinates user actions.
+  - ViewModels contain no UI framework dependencies, making presentation logic easy to unit test.
+  - Avoid Massive ViewModels by injecting services for networking and storage.
+  - Do not create unnecessary ViewModels for simple static SwiftUI views.
+</Recap>
+
+## Go deeper
+
+- [Managing model data in your app (Apple Developer Documentation)](https://developer.apple.com/documentation/swiftui/managing-model-data-in-your-app)
+- [WWDC23: Meet Observation in SwiftUI](https://developer.apple.com/videos/play/wwdc2023/10149/)

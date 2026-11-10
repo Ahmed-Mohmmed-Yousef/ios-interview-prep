@@ -205,9 +205,9 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **caching** (Caching) — published (lesson, diagram, 31 questions) → [docs/topics/caching/review.html](docs/topics/caching/review.html)
     - ✅ **pagination** (Pagination) — published (lesson, diagram, 31 questions) → [docs/topics/pagination/review.html](docs/topics/pagination/review.html)
     - ✅ **combine-basics** (Combine Basics) — published (lesson, diagram, 31 questions) → [docs/topics/combine-basics/review.html](docs/topics/combine-basics/review.html)
-  - 🔄 **Batch 3G: Architecture & Testing Strategy (8 topics)**
-    - 🔄 **mvvm** (MVVM) — starting research
-    - ⬜ **dependency-injection** (Dependency Injection)
+  - 🔄 **Batch 3G: Architecture & Testing Strategy (8 topics) — (1 of 8 published)**
+    - ✅ **mvvm** (MVVM) — published (lesson, diagram, 31 questions) → [docs/topics/mvvm/review.html](docs/topics/mvvm/review.html)
+    - 🔄 **dependency-injection** (Dependency Injection) — starting research
     - ⬜ **design-patterns** (Design Patterns)
     - ⬜ **navigation-patterns** (Navigation Patterns)
     - ⬜ **testable-code-mocks** (Testable Code and Mocks)
@@ -382,6 +382,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `mvvm` (MVVM): researched official Apple SwiftUI observation and Microsoft MVVM docs, authored lesson in simple English, interactive 4-step MVVM data flow diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/mvvm/review.html`). All checks passed. Batch 3G progress: 1 of 8 published (Mid: 43 of 53, total: 110 of 164 published curriculum topics). Starting dependency-injection.
 
 - **2026-11-10** — Starting Batch 3G: Architecture & Testing Strategy (8 topics: `mvvm` through `code-review`). Launching dedicated autonomous subagent.
 
