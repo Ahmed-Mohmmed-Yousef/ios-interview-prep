@@ -190,7 +190,15 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **swiftui-uikit-interop** (SwiftUI and UIKit Together) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-uikit-interop/review.html](docs/topics/swiftui-uikit-interop/review.html)
     - ✅ **swiftui-performance** (SwiftUI Performance) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-performance/review.html](docs/topics/swiftui-performance/review.html)
     - ✅ **custom-views-layout-pass** (Custom Views and the Layout Pass) — published (lesson, diagram, 31 questions) → [docs/topics/custom-views-layout-pass/review.html](docs/topics/custom-views-layout-pass/review.html)
-  - ⬜ **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
+  - 🔄 **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
+    - 🔄 **accessibility** (Accessibility) — starting research
+    - ⬜ **localization** (Localization) [bonus]
+    - ⬜ **ipad-adaptive-layout** (iPad and Adaptive Layout)
+    - ⬜ **notifications** (Push and Local Notifications)
+    - ⬜ **background-tasks** (Background Work)
+    - ⬜ **deep-links** (Deep Links and Universal Links)
+    - ⬜ **widgets-app-intents** (Widgets and App Intents) [bonus]
+    - ⬜ **foundation-models** (On-Device AI with Foundation Models) [bonus]
   - ⬜ **Batch 3F: Data Persistence & Networking (5 topics)**
   - ⬜ **Batch 3G: Architecture & Testing Strategy (8 topics)**
   - ⬜ **Batch 3H: Performance & System Design Foundations (3 topics)**
@@ -361,6 +369,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Starting Batch 3E: Design, Accessibility & System Integration (8 topics: `accessibility` through `foundation-models`). Launching dedicated autonomous subagent.
 
 - **2026-11-10** — Built and published topic `custom-views-layout-pass` (Custom Views and the Layout Pass): researched official UIKit layoutSubviews, setNeedsLayout, layoutIfNeeded, and WWDC18 Auto Layout docs, authored lesson in simple English, interactive 4-step run loop layout cycle diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/custom-views-layout-pass/review.html`). All checks passed. Batch 3D (SwiftUI & UIKit Advanced) is now 100% COMPLETE (7 of 7 published)! Mid level progress: 29 of 53 published (96 total published topics across curriculum).
 
