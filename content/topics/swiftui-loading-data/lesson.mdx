@@ -1,0 +1,186 @@
+export const meta = {
+  id: "swiftui-loading-data",
+  summary: "Learn how to load data asynchronously using the task modifier and display remote images with AsyncImage in SwiftUI.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "AsyncImage (SwiftUI)",
+      url: "https://developer.apple.com/documentation/swiftui/asyncimage"
+    },
+    {
+      title: "WWDC21: Discover concurrency in SwiftUI",
+      url: "https://developer.apple.com/videos/play/wwdc2021/10019/"
+    }
+  ]
+}
+
+<InterviewHook>
+  <Question>
+    Why should you prefer the `.task` modifier over `.onAppear` when fetching remote data in SwiftUI?
+  </Question>
+  <Guess>
+    <Option id="a">The `.task` modifier increases network bandwidth limits automatically.</Option>
+    <Option id="b" correct>The `.task` modifier ties work to the view lifetime and cancels automatically when the view disappears.</Option>
+    <Option id="c">The `.onAppear` modifier cannot call methods written in Swift.</Option>
+    <Option id="d">Apple deprecated `.onAppear` across all platforms in iOS 15.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+In early SwiftUI, developers used `.onAppear` to trigger data loads.
+
+They created an unstructured `Task` inside `.onAppear`. If the user popped the screen, that background task kept running.
+
+This wasted battery, cellular data, and device memory.
+
+The `.task` modifier solves this problem. It starts an asynchronous task when the view appears.
+
+Crucially, SwiftUI cancels the task automatically if the view disappears before work finishes.
+
+<Analogy>
+  Think of sitting down at a restaurant table. The waiter starts preparing your meal when you sit down. If you leave the restaurant before the food arrives, the kitchen cancels the order immediately so no food goes to waste.
+</Analogy>
+
+The `.task` modifier also accepts an `id` parameter. When the `id` value changes, SwiftUI cancels any active task and starts a fresh one.
+
+This feature is useful for search screens and filter tabs.
+
+For images, SwiftUI provides `AsyncImage`. It fetches and renders remote images over the network without third-party libraries.
+
+`AsyncImage` exposes three phases: empty while loading, success with an image, and failure with an error.
+
+## See it
+
+<Diagram id="swiftui-loading-data" caption="Learn how SwiftUI task lifecycle starts on appear, updates state on main actor, and cancels cleanly on disappear." />
+
+<QuickCheck>
+  <Question>
+    What happens to a running `.task` when a user navigates back and dismisses the current view?
+  </Question>
+  <Option id="a">The task continues running until the entire application closes.</Option>
+  <Option id="b" correct>SwiftUI cancels the task automatically to preserve network and battery resources.</Option>
+  <Option id="c">The application pauses rendering until the task throws an error.</Option>
+  <Option id="d">The task restarts from the beginning on a background thread.</Option>
+  <Explanation>
+    The task modifier ties task lifetime directly to view presentation. Dismissing the view triggers cooperative cancellation.
+  </Explanation>
+</QuickCheck>
+
+## In code
+
+Here is an example of an asynchronous feed loader. In SwiftUI, the `.task` closure runs in an isolated `@MainActor` context.
+
+```swift
+import Foundation
+
+struct User: Identifiable {
+    let id: Int
+    let name: String
+}
+
+@MainActor
+final class FeedLoader {
+    var users: [User] = []
+    var isLoading = false
+
+    func loadData() async {
+        isLoading = true
+        // Simulate network fetch
+        users = [User(id: 1, name: "Alice"), User(id: 2, name: "Bob")]
+        isLoading = false
+        print("Loaded \(users.count) users")
+    }
+}
+
+@MainActor
+func simulateViewTask() async {
+    let loader = FeedLoader()
+    await loader.loadData()
+}
+
+await simulateViewTask()
+```
+```output
+Loaded 2 users
+```
+
+When displaying images from a remote URL, `AsyncImage` reports loading progress through distinct phases.
+
+```swift
+import Foundation
+
+enum DisplayPhase {
+    case empty
+    case success(String)
+    case failure(String)
+}
+
+func renderPhase(_ phase: DisplayPhase) -> String {
+    switch phase {
+    case .empty:
+        return "Showing ProgressView"
+    case .success(let image):
+        return "Displaying image: \(image)"
+    case .failure(let error):
+        return "Showing error icon: \(error)"
+    }
+}
+
+let currentPhase = DisplayPhase.success("avatar.png")
+print(renderPhase(currentPhase))
+```
+```output
+Displaying image: avatar.png
+```
+
+Handling every phase gives users immediate feedback while waiting for network downloads.
+
+<TryIt>
+  Open a Swift Playground. Create an AsyncImage with a custom phase closure. Display a ProgressView during the empty phase and verify error handling.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    Why should you use the `AsyncImage(url:) { phase in }` initializer instead of the basic `AsyncImage(url:)`?
+  </Question>
+  <Option id="a">The basic initializer cannot load images over secure HTTPS connections.</Option>
+  <Option id="b">The phase initializer disables disk caching to conserve storage.</Option>
+  <Option id="c" correct>The phase initializer allows custom views for loading spinners, error icons, and resizable layout modifiers.</Option>
+  <Option id="d">The phase initializer runs image decoding on the main thread only.</Option>
+  <Explanation>
+    The phase initializer gives complete control over placeholder, error, and loaded image styling such as resizable modifiers.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Do not apply resizable to AsyncImage directly">
+  Applying `.resizable()` directly to `AsyncImage` does not compile or work as expected. The modifier belongs on the underlying `Image` view delivered inside the success phase closure.
+</Trap>
+
+<Trap label="Do not launch unmanaged Task blocks inside onAppear">
+  Calling `Task { await load() }` inside `.onAppear` creates an unstructured task. That task does not cancel when the user leaves the screen, wasting network bandwidth and battery life. Always prefer `.task`.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  I use the `.task` modifier to load view data because it ties execution directly to the view lifetime. When the view appears, the task starts. When the view disappears, SwiftUI cancels the task cooperatively, preventing wasted bandwidth. For search or filter inputs, I pass the query to `.task(id:)` so old requests cancel automatically when the search input changes. For remote images, I use `AsyncImage` with phase handling to display loading spinners and handle errors cleanly.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  In production SwiftUI apps, data loading must respect view identity and cancellation. The `.task` modifier runs on `@MainActor` and cancels in-flight work when navigation pops or conditional views toggle. For complex feeds, I pair `.task(id:)` with debounce strategies to avoid race conditions. While `AsyncImage` is ideal for standard views, high-volume scrolling lists often need custom caching and downsampling pipelines because `AsyncImage` relies primarily on default `URLCache` storage.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Use the `.task` modifier to start asynchronous work when a view appears. SwiftUI automatically cancels running tasks when the view disappears. Pass an identifier to `.task(id:)` to restart work when search parameters change. Use `AsyncImage` with phase closures to handle loading spinners, error views, and loaded images smoothly.
+</Recap>
+
+## Go deeper
+
+- AsyncImage Documentation: https://developer.apple.com/documentation/swiftui/asyncimage
+- WWDC21: Discover concurrency in SwiftUI: https://developer.apple.com/videos/play/wwdc2021/10019/

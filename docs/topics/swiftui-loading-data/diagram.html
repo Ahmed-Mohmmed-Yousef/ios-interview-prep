@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI Loading Data & Task Lifecycle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stage-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.badge.danger { background: var(--danger-soft); color: var(--danger-color); }
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-color); }
+
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.step-counter {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--ink);
+  transform: translateY(-1px);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.caption-box {
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 4px solid var(--accent-color);
+  background: var(--code-bg);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+.reduced-list {
+  display: none;
+  margin-top: 16px;
+  padding-left: 20px;
+}
+.reduced-list li {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reduced-list {
+    display: block;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="SwiftUI Loading Data Stepper">
+  <div class="diagram-card">
+    <div class="header-row">
+      <h2 class="stage-title" id="stageTitle">Step 1: View Appears & Task Starts</h2>
+      <span class="badge accent" id="statusBadge">VIEW APPEARED</span>
+    </div>
+
+    <div class="stepper-controls" aria-label="Diagram stepper">
+      <span class="step-counter" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+      <div class="button-group">
+        <button id="btnBack" aria-label="Previous step" disabled>&larr; Back</button>
+        <button id="btnNext" aria-label="Next step">Next &rarr;</button>
+        <button id="btnReplay" aria-label="Restart stepper">&#8635; Replay</button>
+      </div>
+    </div>
+
+    <svg viewBox="0 0 760 280" role="img" aria-label="SwiftUI Task Lifecycle and Data Loading Flow">
+      <!-- SwiftUI View Hierarchy Box (Left) -->
+      <g id="viewBox" transform="translate(30, 30)">
+        <rect id="viewRect" width="280" height="210" rx="10" fill="var(--code-bg)" stroke="var(--accent-color)" stroke-width="2.5"/>
+        <text id="viewTitle" x="18" y="32" fill="var(--accent-color)" font-weight="700" font-size="14">SwiftUI View Presentation</text>
+        <text id="viewCode1" x="18" y="66" fill="var(--ink)" font-family="var(--font-code)" font-size="12">ProfileView()</text>
+        <text id="viewCode2" x="18" y="90" fill="var(--muted)" font-family="var(--font-code)" font-size="12">.task { await load() }</text>
+        <text id="viewStatus" x="18" y="130" fill="var(--ink)" font-size="12">View on screen & active</text>
+        <rect id="viewTag" x="18" y="152" width="244" height="26" rx="4" fill="var(--accent-soft)"/>
+        <text id="viewTagText" x="140" y="169" fill="var(--accent-color)" font-size="11" font-weight="700" text-anchor="middle">LIFETIME ATTACHED</text>
+      </g>
+
+      <!-- Center Flow Arrow / Transition Indicator -->
+      <g id="flowGroup" transform="translate(330, 40)">
+        <line id="flowLine" x1="0" y1="95" x2="100" y2="95" stroke="var(--accent-color)" stroke-width="3" stroke-dasharray="6,4"/>
+        <polygon id="flowArrow" points="95,90 105,95 95,100" fill="var(--accent-color)"/>
+        <circle id="flowBall" cx="50" cy="95" r="9" fill="var(--accent-color)"/>
+        <text id="flowLabel" x="50" y="70" fill="var(--accent-color)" font-size="11" font-weight="600" text-anchor="middle">Launches Task</text>
+      </g>
+
+      <!-- Network / Async Worker Box (Right) -->
+      <g id="workerBox" transform="translate(450, 30)">
+        <rect id="workerRect" width="280" height="210" rx="10" fill="var(--code-bg)" stroke="var(--line)" stroke-width="2"/>
+        <text id="workerTitle" x="18" y="32" fill="var(--muted)" font-weight="700" font-size="14">Asynchronous Task / URLSession</text>
+        <text id="workerCode1" x="18" y="66" fill="var(--muted)" font-family="var(--font-code)" font-size="12">URLSession.shared.data(from:)</text>
+        <text id="workerCode2" x="18" y="90" fill="var(--muted)" font-family="var(--font-code)" font-size="12">AsyncImage(url:)</text>
+        <text id="workerStatus" x="18" y="130" fill="var(--muted)" font-size="12">Initiating network request...</text>
+        <rect id="workerTag" x="18" y="152" width="244" height="26" rx="4" fill="var(--surface)"/>
+        <text id="workerTagText" x="140" y="169" fill="var(--muted)" font-size="11" font-weight="700" text-anchor="middle">BACKGROUND TRANSFER</text>
+      </g>
+    </svg>
+
+    <div class="caption-box" id="captionText">
+      When a view appears on screen, its .task modifier automatically launches an asynchronous task. Work is bound directly to the view's lifetime.
+    </div>
+
+    <pre class="code-preview" id="codePreview">struct ProfileView: View {
+    @State private var user: User?
+
+    var body: some View {
+        VStack {
+            if let user { Text(user.name) }
+            else { ProgressView() }
+        }
+        .task {
+            user = await fetchUser()
+        }
+    }
+}</pre>
+
+    <ol class="reduced-list" aria-label="Accessible overview of diagram steps">
+      <li><strong>Step 1: View Appears & Task Starts</strong> &mdash; The .task modifier triggers automatically upon view appearance.</li>
+      <li><strong>Step 2: In-Flight Network Fetch</strong> &mdash; Background request executes while SwiftUI displays ProgressView or placeholder without blocking UI.</li>
+      <li><strong>Step 3: Auto-Cancellation on Disappear</strong> &mdash; If the user pops or navigates away, SwiftUI cancels the task cooperatively to save network and battery.</li>
+      <li><strong>Step 4: Success & View Update</strong> &mdash; When data arrives, state updates safely on @MainActor, or AsyncImage displays the rendered image.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(function() {
+  const steps = [
+    {
+      title: "Step 1: View Appears & Task Starts",
+      badge: "VIEW APPEARED",
+      badgeClass: "accent",
+      viewStroke: "var(--accent-color)",
+      viewTagFill: "var(--accent-soft)",
+      viewTagColor: "var(--accent-color)",
+      viewStatus: "View on screen & active",
+      viewTagText: "LIFETIME ATTACHED",
+      flowStroke: "var(--accent-color)",
+      flowFill: "var(--accent-color)",
+      flowText: "Launches Task",
+      workerStroke: "var(--line)",
+      workerTitleColor: "var(--muted)",
+      workerStatus: "Initiating network request...",
+      workerTagFill: "var(--surface)",
+      workerTagColor: "var(--muted)",
+      borderLeftColor: "var(--accent-color)",
+      caption: "When a view appears on screen, its .task modifier automatically launches an asynchronous task. Work is bound directly to the view's lifetime.",
+      code: `struct ProfileView: View {\n    @State private var user: User?\n\n    var body: some View {\n        VStack {\n            if let user { Text(user.name) }\n            else { ProgressView() }\n        }\n        .task {\n            user = await fetchUser()\n        }\n    }\n}`
+    },
+    {
+      title: "Step 2: In-Flight Network Request",
+      badge: "DOWNLOADING",
+      badgeClass: "warn",
+      viewStroke: "var(--warn-color)",
+      viewTagFill: "var(--warn-soft)",
+      viewTagColor: "var(--warn-color)",
+      viewStatus: "Displaying ProgressView spinner",
+      viewTagText: "UI RESPONSIVE (120 FPS)",
+      flowStroke: "var(--warn-color)",
+      flowFill: "var(--warn-color)",
+      flowText: "Awaiting Data",
+      workerStroke: "var(--warn-color)",
+      workerTitleColor: "var(--ink)",
+      workerStatus: "URLSession downloading packet stream",
+      workerTagFill: "var(--warn-soft)",
+      workerTagColor: "var(--warn-color)",
+      borderLeftColor: "var(--warn-color)",
+      caption: "While the network request is in flight, the main thread remains completely unblocked. SwiftUI renders a loading indicator (ProgressView) or AsyncImage empty phase smoothly.",
+      code: `// AsyncImage handles loading states automatically\nAsyncImage(url: avatarURL) { phase in\n    switch phase {\n    case .empty: ProgressView() // Active loading\n    case .success(let image): image.resizable().scaledToFit()\n    case .failure: Image(systemName: "person.crop.circle.badge.exclamationmark")\n    @unknown default: EmptyView()\n    }\n}`
+    },
+    {
+      title: "Step 3: Clean Cancellation on Disappear",
+      badge: "AUTO CANCELLED",
+      badgeClass: "danger",
+      viewStroke: "var(--danger-color)",
+      viewTagFill: "var(--danger-soft)",
+      viewTagColor: "var(--danger-color)",
+      viewStatus: "View popped / dismissed",
+      viewTagText: "VIEW DISMISSED",
+      flowStroke: "var(--danger-color)",
+      flowFill: "var(--danger-color)",
+      flowText: "Sends Cancel Signal",
+      workerStroke: "var(--danger-color)",
+      workerTitleColor: "var(--danger-color)",
+      workerStatus: "Network transfer aborted immediately",
+      workerTagFill: "var(--danger-soft)",
+      workerTagColor: "var(--danger-color)",
+      borderLeftColor: "var(--danger-color)",
+      caption: "If the user dismisses the view before download finishes, SwiftUI cancels the active task immediately. Unlike unstructured tasks in .onAppear, .task stops wasted downloads and saves battery.",
+      code: `// If user leaves the view before load finishes:\n// 1. SwiftUI triggers Task.isCancelled\n// 2. URLSession aborts the HTTP connection\n// 3. Wasted processing and battery drain are prevented!`
+    },
+    {
+      title: "Step 4: Success & @MainActor State Update",
+      badge: "LOADED & SAFE",
+      badgeClass: "safe",
+      viewStroke: "var(--safe-color)",
+      viewTagFill: "var(--safe-soft)",
+      viewTagColor: "var(--safe-color)",
+      viewStatus: "Rendered loaded image & text",
+      viewTagText: "MAIN ACTOR UPDATED",
+      flowStroke: "var(--safe-color)",
+      flowFill: "var(--safe-color)",
+      flowText: "Delivery Complete",
+      workerStroke: "var(--safe-color)",
+      workerTitleColor: "var(--safe-color)",
+      workerStatus: "Decoded payload delivered",
+      workerTagFill: "var(--safe-soft)",
+      workerTagColor: "var(--safe-color)",
+      borderLeftColor: "var(--safe-color)",
+      caption: "Upon completion, execution resumes on @MainActor. State mutations update UI components immediately without threading errors, or AsyncImage transitions into its success phase.",
+      code: `// Resumes on @MainActor\nself.user = downloadedUser\n// View redraws with user details!\nprint("Loaded: \\(downloadedUser.name)")`
+    }
+  ];
+
+  let current = 0;
+  const stageTitle = document.getElementById("stageTitle");
+  const statusBadge = document.getElementById("statusBadge");
+  const stepCounter = document.getElementById("stepCounter");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+  const captionText = document.getElementById("captionText");
+  const codePreview = document.getElementById("codePreview");
+
+  const viewRect = document.getElementById("viewRect");
+  const viewTag = document.getElementById("viewTag");
+  const viewTagText = document.getElementById("viewTagText");
+  const viewStatus = document.getElementById("viewStatus");
+
+  const flowLine = document.getElementById("flowLine");
+  const flowArrow = document.getElementById("flowArrow");
+  const flowBall = document.getElementById("flowBall");
+  const flowLabel = document.getElementById("flowLabel");
+
+  const workerRect = document.getElementById("workerRect");
+  const workerTitle = document.getElementById("workerTitle");
+  const workerStatus = document.getElementById("workerStatus");
+  const workerTag = document.getElementById("workerTag");
+  const workerTagText = document.getElementById("workerTagText");
+
+  function render(index) {
+    const s = steps[index];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${index + 1} of ${steps.length}`;
+
+    btnBack.disabled = index === 0;
+    btnNext.disabled = index === steps.length - 1;
+
+    viewRect.setAttribute("stroke", s.viewStroke);
+    viewTag.setAttribute("fill", s.viewTagFill);
+    viewTagText.setAttribute("fill", s.viewTagColor);
+    viewTagText.textContent = s.viewTagText;
+    viewStatus.textContent = s.viewStatus;
+
+    flowLine.setAttribute("stroke", s.flowStroke);
+    flowArrow.setAttribute("fill", s.flowFill);
+    flowBall.setAttribute("fill", s.flowFill);
+    flowLabel.textContent = s.flowText;
+    flowLabel.setAttribute("fill", s.flowFill);
+
+    workerRect.setAttribute("stroke", s.workerStroke);
+    workerTitle.setAttribute("fill", s.workerTitleColor);
+    workerStatus.textContent = s.workerStatus;
+    workerTag.setAttribute("fill", s.workerTagFill);
+    workerTagText.setAttribute("fill", s.workerTagColor);
+
+    captionText.style.borderLeftColor = s.borderLeftColor;
+    captionText.textContent = s.caption;
+    codePreview.textContent = s.code;
+  }
+
+  btnBack.addEventListener("click", () => {
+    if (current > 0) { current--; render(current); }
+  });
+  btnNext.addEventListener("click", () => {
+    if (current < steps.length - 1) { current++; render(current); }
+  });
+  btnReplay.addEventListener("click", () => {
+    current = 0; render(current);
+  });
+
+  render(0);
+})();
+</script>
+</body>
+</html>
