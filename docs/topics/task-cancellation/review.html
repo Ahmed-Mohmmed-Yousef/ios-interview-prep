@@ -1,0 +1,667 @@
+<title>Task Cancellation Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --active-color: #0284c7;
+  --active-soft: #e0f2fe;
+  --signal-color: #f59e0b;
+  --signal-soft: #fef3c7;
+  --cancel-color: #dc2626;
+  --cancel-soft: #fee2e2;
+  --clean-color: #059669;
+  --clean-soft: #d1fae5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --active-color: #38bdf8;
+    --active-soft: #082f49;
+    --signal-color: #fbbf24;
+    --signal-soft: #451a03;
+    --cancel-color: #f87171;
+    --cancel-soft: #450a0a;
+    --clean-color: #34d399;
+    --clean-soft: #064e3b;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--active-color);
+  color: var(--active-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.step-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.badge.active { background: var(--active-soft); color: var(--active-color); }
+.badge.signal { background: var(--signal-soft); color: var(--signal-color); }
+.badge.cancel { background: var(--cancel-soft); color: var(--cancel-color); }
+.badge.clean { background: var(--clean-soft); color: var(--clean-color); }
+
+.caption {
+  font-size: 15px;
+  color: var(--ink);
+  margin: 0;
+  min-height: 2.8em;
+}
+.code-box {
+  font: 13px/1.5 var(--font-code);
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  white-space: pre;
+}
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.node-box {
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+.step-circle {
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+.reduced-motion-summary {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reduced-motion-summary { display: block; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Concurrency · Topic 2 of 7 · Prototype</p>
+    <h1>Task Cancellation</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can cancel tasks and write code that stops when you cancel it.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>You call task.cancel() on a running task that executes a heavy loop. Does the loop stop executing immediately?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Yes, Swift kills the thread executing the loop immediately.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">No, cancellation is cooperative and the loop only stops if code checks for cancellation.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Yes, Swift pauses the thread until the device has free memory.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">No, tasks can only be cancelled before they start executing.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<p>Calling <code>task.cancel()</code> does not pull the power cord on your code. Swift does not kill threads or force running code to stop.</p>
+<p>Instead, cancellation in Swift is cooperative.</p>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a chef in a restaurant kitchen. The manager walks in and asks the chef to cancel an order. The chef finishes the current knife cut, turns off the stove, and throws away the unfinished prep. The manager does not knock the knife out of the chef&#x27;s hand.</p></aside>
+<p>When you cancel a task, Swift sets a flag on that task. In structured concurrency, this flag also flows down to all child tasks.</p>
+<p>Your code must inspect this flag to stop doing work. You have two primary tools to check cancellation:</p>
+<ol>
+<li><code>Task.isCancelled</code>: A simple Boolean check. Use it inside loops or before starting expensive steps to return early.</li>
+<li><code>try Task.checkCancellation()</code>: Throws a <code>CancellationError</code> immediately if the task is cancelled. Use it in throwing functions.</li>
+</ol>
+<p>Built-in asynchronous APIs like <code>Task.sleep(for:)</code> and <code>URLSession</code> already check cancellation for you. They throw <code>CancellationError</code> immediately when cancelled.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<p>Here is how you check <code>Task.isCancelled</code> inside a loop to stop work early.</p>
+<pre class="block swift"><code class="language-swift">func processWork() async {
+    let task = Task {
+        var count = 0
+        for i in 1...5 {
+            if Task.isCancelled {
+                print(&quot;Cancelled at step \(i)&quot;)
+                return
+            }
+            count += 1
+        }
+        print(&quot;Finished all: \(count)&quot;)
+    }
+
+    task.cancel()
+    await task.value
+}
+
+await processWork()
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Cancelled at step 1
+</code></pre>
+<p>Because <code>task.cancel()</code> was called before the first step finished, <code>Task.isCancelled</code> was true. The task printed the cancellation message and exited immediately.</p>
+<p>Next, here is how to use <code>try Task.checkCancellation()</code> in a throwing workflow.</p>
+<pre class="block swift"><code class="language-swift">func downloadFile() async throws {
+    let task = Task {
+        print(&quot;Starting download&quot;)
+        try Task.checkCancellation()
+        return &quot;File data&quot;
+    }
+
+    task.cancel()
+    do {
+        _ = try await task.value
+    } catch is CancellationError {
+        print(&quot;Caught CancellationError&quot;)
+    }
+}
+
+try await downloadFile()
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Starting download
+Caught CancellationError
+</code></pre>
+<p>When <code>try Task.checkCancellation()</code> detects that the task was cancelled, it throws <code>CancellationError</code>. The caller catches the error cleanly.</p>
+<p class="try-it"><p>Open a Swift Playground. Write a task that loops 10 times with a small delay. Cancel the task after 2 iterations and verify that your loop stops.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>What error does try Task.checkCancellation() throw when the current task has received a cancellation request?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">URLError.cancelled</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">CancellationError</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">POSIXError.ECANCELED</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">CocoaError.userCancelled</span></button><p class="qc-explain" hidden=""><p>Swift concurrency uses CancellationError from the standard library to signal task cancellation.</p></p></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>How does the SwiftUI .task modifier manage task cancellation when a user navigates away from a screen?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It leaves the task running in the background until the app closes.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It automatically cancels the task when the view disappears from the screen.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It freezes the task state and saves it to disk.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">It raises a fatal runtime error if the task is still running.</span></button><p class="qc-explain" hidden=""><p>The SwiftUI .task modifier ties task lifetime to view appearance. It cancels the task automatically when the view disappears.</p></p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>A loop that performs image filtering or encryption will keep running even after calling <code>cancel()</code>. Always place <code>if Task.isCancelled</code> or <code>try Task.checkCancellation()</code> inside long loops to avoid burning battery and CPU.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>When a user leaves a screen, ongoing network requests cancel. If your catch block shows an alert for every error, the user sees an alert saying request cancelled. Check for <code>is CancellationError</code> and ignore expected cancellations.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>Swift task cancellation is cooperative. Calling <code>task.cancel()</code> sets a cancellation flag on the task and all its children, but does not kill threads. My code checks <code>Task.isCancelled</code> in non-throwing loops or calls <code>try Task.checkCancellation()</code> in throwing pipelines. Standard APIs like <code>Task.sleep</code> check cancellation automatically and throw <code>CancellationError</code>.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>I design cancellation handling with clear resource cleanup using <code>defer</code> blocks. For bridging non-async APIs, I use <code>withTaskCancellationHandler</code> to forward cancellation to legacy network tasks or file handles. In SwiftUI, I use <code>.task(id:)</code> so parameter changes cancel in-flight requests automatically. When catching errors, I distinguish <code>CancellationError</code> from operational failures to avoid showing bogus alert popups to users.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><p>Task cancellation in Swift is cooperative. Calling cancel sets a flag that flows down the task tree. Check <code>Task.isCancelled</code> to exit loops early or call <code>try Task.checkCancellation()</code> to throw <code>CancellationError</code>. Remember to clean up resources with defer, and do not show error alerts for intentional cancellations.</p></div>
+<h2>Go deeper</h2>
+<ul>
+<li>Apple Developer Documentation: Task: <a href="https://developer.apple.com/documentation/swift/task">https://developer.apple.com/documentation/swift/task</a></li>
+<li>The Swift Programming Language: Concurrency: <a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency">https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency</a></li>
+<li>WWDC21: Explore structured concurrency in Swift: <a href="https://developer.apple.com/videos/play/wwdc2021/10134/">https://developer.apple.com/videos/play/wwdc2021/10134/</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    title: "Step 1: Normal Task Execution",
+    badge: "Running Normally",
+    badgeClass: "active",
+    caption: "The task executes step 1. Task.isCancelled is false, so the loop continues doing work.",
+    code: "for i in 1...5 {\n    if Task.isCancelled { return }\n    // Processing item 1...\n}",
+    callerStatus: "Active",
+    flagText: "isCancelled == false",
+    taskFill: "var(--active-soft)",
+    taskStroke: "var(--active-color)",
+    flagColor: "var(--active-color)",
+    arrowOpacity: 0.1,
+    circles: [
+      { fill: "var(--active-soft)", stroke: "var(--active-color)", text: "var(--active-color)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" }
+    ],
+    banner: "Step 1 active: isCancelled is false"
+  },
+  {
+    title: "Step 2: Cancel Signal Sent",
+    badge: "Cancel Requested",
+    badgeClass: "signal",
+    caption: "The caller calls task.cancel(). Swift sets isCancelled = true. The thread continues running cooperatively.",
+    code: "task.cancel() // Sets isCancelled = true\n// Running thread is NOT killed forcibly",
+    callerStatus: "Calls task.cancel()",
+    flagText: "isCancelled == true",
+    taskFill: "var(--signal-soft)",
+    taskStroke: "var(--signal-color)",
+    flagColor: "var(--signal-color)",
+    arrowOpacity: 1.0,
+    circles: [
+      { fill: "var(--clean-soft)", stroke: "var(--clean-color)", text: "var(--clean-color)" },
+      { fill: "var(--signal-soft)", stroke: "var(--signal-color)", text: "var(--signal-color)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" }
+    ],
+    banner: "Cancellation signal set: thread must cooperate"
+  },
+  {
+    title: "Step 3: Cooperative Check",
+    badge: "Cooperative Check",
+    badgeClass: "cancel",
+    caption: "At iteration 2, the loop tests if Task.isCancelled. The condition matches true.",
+    code: "for i in 1...5 {\n    if Task.isCancelled { // Evaluates to TRUE\n        print(\"Cancelled at step \\(i)\")\n        return\n    }\n}",
+    callerStatus: "Awaiting task.value",
+    flagText: "isCancelled == true",
+    taskFill: "var(--cancel-soft)",
+    taskStroke: "var(--cancel-color)",
+    flagColor: "var(--cancel-color)",
+    arrowOpacity: 0.2,
+    circles: [
+      { fill: "var(--clean-soft)", stroke: "var(--clean-color)", text: "var(--clean-color)" },
+      { fill: "var(--cancel-soft)", stroke: "var(--cancel-color)", text: "var(--cancel-color)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" }
+    ],
+    banner: "Check fired at step 2: preparing early exit"
+  },
+  {
+    title: "Step 4: Early Exit & Cleanup",
+    badge: "Clean Early Exit",
+    badgeClass: "clean",
+    caption: "The task exits immediately. Steps 3, 4, and 5 are aborted without consuming CPU or battery.",
+    code: "// Output: Cancelled at step 2\n// Remaining steps 3, 4, 5 skipped cleanly",
+    callerStatus: "Completed Cleanly",
+    flagText: "Finished / Exited",
+    taskFill: "var(--clean-soft)",
+    taskStroke: "var(--clean-color)",
+    flagColor: "var(--clean-color)",
+    arrowOpacity: 0.1,
+    circles: [
+      { fill: "var(--clean-soft)", stroke: "var(--clean-color)", text: "var(--clean-color)" },
+      { fill: "var(--cancel-soft)", stroke: "var(--cancel-color)", text: "var(--cancel-color)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" }
+    ],
+    banner: "Early return: 0 wasted CPU cycles on steps 3-5"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  document.getElementById("stageTitle").textContent = s.title;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = s.badge;
+  badge.className = `badge ${s.badgeClass}`;
+
+  document.getElementById("captionText").textContent = s.caption;
+  document.getElementById("codeText").textContent = s.code;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.getElementById("callerStatus").textContent = s.callerStatus;
+  document.getElementById("flagText").textContent = s.flagText;
+  document.getElementById("flagText").style.fill = s.flagColor;
+
+  const boxTask = document.getElementById("boxTask");
+  boxTask.style.fill = s.taskFill;
+  boxTask.style.stroke = s.taskStroke;
+
+  document.getElementById("cancelArrow").style.opacity = s.arrowOpacity;
+
+  for (let i = 1; i <= 5; i++) {
+    const c = s.circles[i - 1];
+    const circleEl = document.getElementById(`circle${i}`);
+    const textEl = document.getElementById(`cText${i}`);
+    circleEl.style.fill = c.fill;
+    circleEl.style.stroke = c.stroke;
+    textEl.style.fill = c.text;
+  }
+
+  document.getElementById("bannerStatus").textContent = s.banner;
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+
+}
+</script>
+<script>
+const DATA = {"topicId":"task-cancellation","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"tc-q1","type":"mcq","difficulty":1,"prompt":"What does calling task.cancel() on a running Swift task do immediately?","options":[{"id":"a","text":"It sets the isCancelled flag to true on the task and its child tasks.","explanation":"Calling cancel() sets the cancellation flag and propagates it down the task tree."},{"id":"b","text":"It immediately kills the underlying operating system POSIX thread.","explanation":"Swift cancellation is cooperative and does not kill threads."},{"id":"c","text":"It resets all state variables in the enclosing view controller to nil.","explanation":"Task cancellation affects task state, not view controller properties."},{"id":"d","text":"It forces the current function to return an empty default value.","explanation":"Code continues running until it cooperatively checks for cancellation."}],"answer":"a"},{"id":"tc-q2","type":"mcq","difficulty":1,"prompt":"Which property returns a Boolean indicating whether the current task was cancelled?","options":[{"id":"a","text":"Task.hasAborted","explanation":"hasAborted is not a property on Swift Task."},{"id":"b","text":"Task.isCancelled","explanation":"Task.isCancelled returns true if the current task has received a cancellation request."},{"id":"c","text":"Task.isInterrupted","explanation":"isInterrupted does not exist in Swift concurrency."},{"id":"d","text":"Task.shouldStop","explanation":"shouldStop is not a Swift concurrency API property."}],"answer":"b"},{"id":"tc-q3","type":"mcq","difficulty":1,"prompt":"What does try Task.checkCancellation() do when a task has received a cancellation request?","options":[{"id":"a","text":"It restarts the task from the beginning with reduced priority.","explanation":"Swift does not restart cancelled tasks automatically."},{"id":"b","text":"It returns false to indicate execution should halt immediately.","explanation":"checkCancellation() throws an error rather than returning a Boolean."},{"id":"c","text":"It throws a CancellationError immediately to unwind the call stack.","explanation":"Calling checkCancellation() throws CancellationError if isCancelled is true."},{"id":"d","text":"It raises a fatal assertion failure in debug scheme configurations.","explanation":"Cancellation is a normal runtime condition and does not trigger fatal assertions."}],"answer":"c"},{"id":"tc-q4","type":"mcq","difficulty":2,"prompt":"Why is Swift task cancellation termed cooperative?","options":[{"id":"a","text":"Because multiple tasks share a single cooperative memory cache.","explanation":"Cooperative cancellation relates to execution flow, not caching."},{"id":"b","text":"Because tasks can only be cancelled by other tasks on the same thread.","explanation":"Tasks can be cancelled from any thread or actor context."},{"id":"c","text":"Because child tasks vote on whether to accept a cancellation request.","explanation":"Cancellation cascades automatically; child tasks do not vote on cancellation."},{"id":"d","text":"Because code must inspect cancellation flags and stop running voluntarily.","explanation":"Swift does not forcibly terminate threads; running code must cooperate by checking flags."}],"answer":"d"},{"id":"tc-q5","type":"mcq","difficulty":2,"prompt":"What happens if a heavy CPU loop never checks Task.isCancelled or checkCancellation()?","options":[{"id":"a","text":"The loop continues running to completion, wasting CPU and battery.","explanation":"Without cooperative checks, running loops do not stop when cancelled."},{"id":"b","text":"Swift terminates the app process with an unhandled exception.","explanation":"Unchecked tasks continue running normally without crashing."},{"id":"c","text":"The thread execution speed slows down to zero instructions per second.","explanation":"The thread continues executing at its scheduled priority."},{"id":"d","text":"The compiler refuses to compile the loop under Swift 6 mode.","explanation":"Checking cancellation is a runtime responsibility, not a compiler error."}],"answer":"a"},{"id":"tc-q6","type":"mcq","difficulty":1,"prompt":"How does the SwiftUI .task modifier behave when a view disappears from the screen?","options":[{"id":"a","text":"It keeps the task active indefinitely until the application terminates.","explanation":"The task modifier cancels tasks on disappearance to prevent leaks."},{"id":"b","text":"It automatically cancels the running task when the view disappears.","explanation":"The SwiftUI .task modifier automatically cancels its task upon view disappearance."},{"id":"c","text":"It converts the task into a detached background maintenance task.","explanation":"The task is cancelled, not detached into maintenance."},{"id":"d","text":"It forces synchronous completion of the task before view teardown.","explanation":"SwiftUI cancels tasks asynchronously without blocking the UI thread."}],"answer":"b"},{"id":"tc-q7","type":"mcq","difficulty":2,"prompt":"How does Task.sleep behave when its enclosing task is cancelled during sleep?","options":[{"id":"a","text":"It ignores cancellation and completes the full sleep duration.","explanation":"Task.sleep is cancellation-aware and will not sleep its full duration."},{"id":"b","text":"It returns false to indicate the sleep was interrupted early.","explanation":"Task.sleep throws CancellationError rather than returning a Boolean."},{"id":"c","text":"It wakes up immediately and throws CancellationError to the caller.","explanation":"Task.sleep detects cancellation, aborts its sleep timer, and throws CancellationError."},{"id":"d","text":"It resets the device hardware clock to synchronize with NTP.","explanation":"Task.sleep is a software scheduler timer, not a hardware clock reset."}],"answer":"c"},{"id":"tc-q8","type":"mcq","difficulty":2,"prompt":"Why should you avoid presenting error alerts when catching CancellationError?","options":[{"id":"a","text":"Because CancellationError crashes UIAlertController when displayed.","explanation":"CancellationError is a standard Swift error and does not crash UI."},{"id":"b","text":"Because presenting alerts re-enables the cancelled background task.","explanation":"Alert presentations do not resume or re-enable cancelled tasks."},{"id":"c","text":"Because CancellationError is erased by the compiler in release builds.","explanation":"CancellationError exists and behaves identically in debug and release builds."},{"id":"d","text":"Because cancellation is usually intentional when users navigate away.","explanation":"Presenting alerts for intentional navigation confuses users with bogus error popups."}],"answer":"d"},{"id":"tc-q9","type":"mcq","difficulty":2,"prompt":"Which construct guarantees cleanup code runs when a task exits due to cancellation?","options":[{"id":"a","text":"A defer block placed before throwing cancellation checks.","explanation":"defer blocks execute whenever scope exits, including unwinding from CancellationError."},{"id":"b","text":"An autoreleasepool block surrounding the task declaration.","explanation":"autoreleasepool manages temporary Objective-C pointers, not task unwinding."},{"id":"c","text":"A fatalError handler registered with the system kernel.","explanation":"fatalError terminates processes and does not manage normal cleanup."},{"id":"d","text":"A global notification observer listening for app termination.","explanation":"App termination observers do not manage task-level scope cleanups."}],"answer":"a"},{"id":"tc-q10","type":"mcq","difficulty":2,"prompt":"What does withTaskCancellationHandler do when a task receives cancellation?","options":[{"id":"a","text":"It forces the operation closure to restart on a new worker thread.","explanation":"withTaskCancellationHandler does not restart operations."},{"id":"b","text":"It executes its onCancel closure immediately upon cancellation.","explanation":"withTaskCancellationHandler runs the onCancel closure as soon as cancel is requested."},{"id":"c","text":"It converts all thrown errors into non-throwing optional values.","explanation":"Error handling behavior is determined by whether the operation throws."},{"id":"d","text":"It pauses the canceling thread until the operation closure returns.","explanation":"onCancel runs immediately and does not pause the canceling thread."}],"answer":"b"},{"id":"tc-q11","type":"mcq","difficulty":3,"prompt":"What concurrency risk exists between operation and onCancel in withTaskCancellationHandler?","options":[{"id":"a","text":"Memory leaks caused by strong reference cycles in the view model.","explanation":"Reference cycles are an ARC concern, not a concurrency handler race."},{"id":"b","text":"Deadlocks when allocating thread local storage buffers.","explanation":"Thread local storage does not cause handler race conditions."},{"id":"c","text":"onCancel runs concurrently on the canceling thread, risking data races.","explanation":"onCancel executes on the thread calling cancel(), which can race with the operation."},{"id":"d","text":"Priority inversions between UI animations and network decoders.","explanation":"The core hazard of onCancel is concurrent execution with operation."}],"answer":"c"},{"id":"tc-q12","type":"mcq","difficulty":2,"prompt":"How does .task(id: value) in SwiftUI handle task lifetime when value changes?","options":[{"id":"a","text":"It enqueues the new task sequentially after the old task completes.","explanation":"The modifier does not queue tasks sequentially; it cancels the running task."},{"id":"b","text":"It pauses the current task and resumes it when value returns to original.","explanation":"Tasks are cancelled and re-created, not paused."},{"id":"c","text":"It ignores the change if the previous task is still downloading.","explanation":"Value changes trigger cancellation of in-flight work immediately."},{"id":"d","text":"It cancels the in-flight task and restarts a new task with the new value.","explanation":".task(id:) cancels existing work when the identity value changes and starts fresh."}],"answer":"d"},{"id":"tc-q13","type":"mcq","difficulty":1,"prompt":"When should you use Task.isCancelled instead of try Task.checkCancellation()?","options":[{"id":"a","text":"In non-throwing functions or when returning partial completed results.","explanation":"Task.isCancelled is ideal for non-throwing methods or returning partial work."},{"id":"b","text":"When tasks must run with elevated real-time audio thread priority.","explanation":"Cancellation checks do not alter task priority levels."},{"id":"c","text":"When code must execute exclusively on the main actor thread.","explanation":"Both checking mechanisms can be used on any actor or thread."},{"id":"d","text":"When launching detached tasks from background GCD dispatch queues.","explanation":"Task.isCancelled checks cancellation regardless of task structure."}],"answer":"a"},{"id":"tc-q14","type":"mcq","difficulty":2,"prompt":"How does cancellation affect child tasks created with async let?","options":[{"id":"a","text":"async let child tasks ignore parent cancellation entirely.","explanation":"Structured concurrency guarantees cancellation propagates to async let children."},{"id":"b","text":"Cancellation automatically cascades down to the async let child tasks.","explanation":"Structured child tasks receive the cancellation flag when the parent task cancels."},{"id":"c","text":"async let child tasks terminate immediately without running defer.","explanation":"defer blocks always run during scope unwinding in cancelled child tasks."},{"id":"d","text":"async let child tasks switch to running synchronously on the caller thread.","explanation":"Cancellation does not alter child task thread execution modes."}],"answer":"b"},{"id":"tc-q15","type":"mcq","difficulty":2,"prompt":"Can a cancelled task start new asynchronous sub-operations that succeed?","options":[{"id":"a","text":"No, cancelled tasks are prohibited from calling any async methods.","explanation":"Cancelled tasks can still call async methods, but cancellation-aware calls throw."},{"id":"b","text":"Yes, calling cancel() is automatically undone when calling await.","explanation":"Cancellation flags persist; calling await does not un-cancel a task."},{"id":"c","text":"Yes, but cancellation-aware calls like Task.sleep throw immediately.","explanation":"A cancelled task remains cancelled, so built-in APIs throw CancellationError."},{"id":"d","text":"No, calling await inside a cancelled task raises a compiler syntax error.","explanation":"The compiler allows await calls; cancellation is checked dynamically at runtime."}],"answer":"c"},{"id":"tc-q16","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"func test() async {\n    let t = Task {\n        if Task.isCancelled {\n            return \"Cancelled\"\n        }\n        return \"Complete\"\n    }\n    t.cancel()\n    let result = await t.value\n    print(result)\n}\nawait test()","options":[{"id":"a","text":"Complete","explanation":"t.cancel() was called before t was evaluated, so Task.isCancelled was true."},{"id":"b","text":"nil","explanation":"The task returns a String value, not an optional nil."},{"id":"c","text":"TaskError","explanation":"The task returns a String and does not throw an error."},{"id":"d","text":"Cancelled","explanation":"The task was cancelled before executing its check, so Task.isCancelled is true."}],"answer":"d"},{"id":"tc-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print when executed?","code":"func runLoop() async {\n    let t = Task {\n        var sum = 0\n        for i in 1...10 {\n            if Task.isCancelled { break }\n            sum += i\n        }\n        return sum\n    }\n    t.cancel()\n    let total = await t.value\n    print(\"Total: \\(total)\")\n}\nawait runLoop()","options":[{"id":"a","text":"Total: 0","explanation":"The task is cancelled immediately, so the loop breaks on the first iteration before adding."},{"id":"b","text":"Total: 55","explanation":"The loop does not run to completion because Task.isCancelled causes an early break."},{"id":"c","text":"Total: 1","explanation":"The check occurs before sum += i on iteration 1, keeping sum at 0."},{"id":"d","text":"Total: 10","explanation":"sum remains 0 because the loop breaks before any additions occur."}],"answer":"a"},{"id":"tc-q18","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func check() async {\n    let t = Task {\n        try Task.checkCancellation()\n        return 100\n    }\n    t.cancel()\n    do {\n        _ = try await t.value\n        print(\"Success\")\n    } catch is CancellationError {\n        print(\"Caught CancellationError\")\n    } catch {\n        print(\"Other error\")\n    }\n}\nawait check()","options":[{"id":"a","text":"Success without error","explanation":"The task throws CancellationError and does not print Success."},{"id":"b","text":"Caught CancellationError","explanation":"try Task.checkCancellation() throws CancellationError because t was cancelled."},{"id":"c","text":"Other unexpected error","explanation":"The thrown error is specifically matched by catch is CancellationError."},{"id":"d","text":"Value returned 100","explanation":"The task throws before returning 100, so the value is never printed."}],"answer":"b"},{"id":"tc-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func deferCheck() async {\n    let t = Task {\n        defer { print(\"Cleanup executed\") }\n        try Task.checkCancellation()\n        return \"OK\"\n    }\n    t.cancel()\n    _ = try? await t.value\n    print(\"Task finished\")\n}\nawait deferCheck()","options":[{"id":"a","text":"Only Task finished","explanation":"The defer block always executes when scope unwinds, printing Cleanup executed first."},{"id":"b","text":"OK\nTask finished","explanation":"The task throws CancellationError and never reaches return OK."},{"id":"c","text":"Cleanup executed\nTask finished","explanation":"defer runs when checkCancellation throws, followed by Task finished in the caller."},{"id":"d","text":"Cleanup executed without finish","explanation":"Task finished prints after the task value await statement."}],"answer":"c"},{"id":"tc-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func ignoreCancel() async {\n    let t = Task {\n        var x = 0\n        for _ in 1...3 {\n            x += 10\n        }\n        return x\n    }\n    t.cancel()\n    let val = await t.value\n    print(\"Value: \\(val)\")\n}\nawait ignoreCancel()","options":[{"id":"a","text":"Value: 0","explanation":"Because the loop contains no cancellation checks, it executes all iterations."},{"id":"b","text":"Value: 10","explanation":"The loop runs all 3 iterations without stopping early."},{"id":"c","text":"Value: nil","explanation":"val is a non-optional integer calculated by adding 10 three times."},{"id":"d","text":"Value: 30","explanation":"Cancellation is cooperative; without checking isCancelled, the loop runs to completion."}],"answer":"d"},{"id":"tc-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func structuredCancel() async {\n    await withTaskGroup(of: String.self) {\n        group in\n        group.addTask {\n            if Task.isCancelled { return \"C\" }\n            return \"N\"\n        }\n        group.cancelAll()\n        for await res in group {\n            print(\"Child: \\(res)\")\n        }\n    }\n}\nawait structuredCancel()","options":[{"id":"a","text":"Child: C","explanation":"group.cancelAll() marks child tasks cancelled, so the task returns C."},{"id":"b","text":"Child: N","explanation":"The child task observes Task.isCancelled == true after cancelAll()."},{"id":"c","text":"Child: nil","explanation":"The task returns a non-optional String 'C'."},{"id":"d","text":"Child: cancelled","explanation":"The code explicitly returns 'C', printing 'Child: C'."}],"answer":"a"},{"id":"tc-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func checkSleep() async {\n    let task = Task {\n        do {\n            try await Task.sleep(nanoseconds: 1_000_000_000)\n            return \"Woke up\"\n        } catch is CancellationError {\n            return \"Sleep cancelled\"\n        } catch {\n            return \"Error\"\n        }\n    }\n    task.cancel()\n    let result = await task.value\n    print(result)\n}\nawait checkSleep()","options":[{"id":"a","text":"Woke up normally","explanation":"Task.sleep detects cancellation and aborts sleeping, throwing CancellationError."},{"id":"b","text":"Sleep cancelled","explanation":"Task.sleep is cancellation-aware and throws CancellationError when cancelled."},{"id":"c","text":"Error caught","explanation":"The caught error is specifically CancellationError, returning 'Sleep cancelled'."},{"id":"d","text":"nil returned","explanation":"The task returns a String and is awaited by task.value."}],"answer":"b"},{"id":"tc-q23","type":"code-reading","difficulty":2,"prompt":"What does this code print when executed?","code":"func cancelCheck() async {\n    let t = Task {\n        var items: [String] = []\n        for word in [\"Apple\", \"Banana\", \"Cherry\"] {\n            if Task.isCancelled { break }\n            items.append(word)\n        }\n        return items\n    }\n    t.cancel()\n    let res = await t.value\n    print(\"Items: \\(res.count)\")\n}\nawait cancelCheck()","options":[{"id":"a","text":"Items: 3","explanation":"The loop breaks on the very first iteration because t was cancelled."},{"id":"b","text":"Items: 1","explanation":"The check occurs before items.append(word), so 0 items are added."},{"id":"c","text":"Items: 0","explanation":"Task.isCancelled breaks the loop before any words are appended, leaving count at 0."},{"id":"d","text":"Items: nil","explanation":"res.count is an Int with value 0."}],"answer":"c"},{"id":"tc-q24","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain why Swift task cancellation is cooperative. What happens if a running loop contains no cancellation checks?","rubric":[{"criterion":"Explains that calling cancel() sets a cancellation flag rather than killing threads","weight":40,"key":true},{"criterion":"Explains that code must inspect Task.isCancelled or checkCancellation to halt work","weight":35,"key":true},{"criterion":"Explains that a loop without checks will run to completion, wasting CPU and battery","weight":25}],"modelAnswer":"Swift task cancellation is cooperative because the system sets a cancellation flag instead of killing threads. Running code must explicitly check Task.isCancelled or call try Task.checkCancellation() to stop working. If a running loop contains no cancellation checks, it continues executing until completion, consuming CPU cycles and battery."},{"id":"tc-q25","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, compare Task.isCancelled and try Task.checkCancellation(). Explain when you should choose one over the other.","rubric":[{"criterion":"Explains Task.isCancelled returns a Boolean without throwing","weight":35,"key":true},{"criterion":"Explains try Task.checkCancellation() throws CancellationError","weight":35,"key":true},{"criterion":"Explains choosing Task.isCancelled for partial returns or non-throwing functions","weight":30}],"modelAnswer":"Task.isCancelled is a Boolean property that lets you inspect cancellation status without throwing an error. In contrast, try Task.checkCancellation() immediately throws CancellationError if the task is cancelled. You choose Task.isCancelled in non-throwing functions or when returning partial results, and checkCancellation() in throwing asynchronous pipelines."},{"id":"tc-q26","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain how the SwiftUI .task modifier handles cancellation automatically. Mention what happens when a view disappears or when an identity value changes.","rubric":[{"criterion":"Explains that .task launches when the view appears and cancels when it disappears","weight":40,"key":true},{"criterion":"Explains that .task(id:) cancels existing work and restarts when the id value changes","weight":35,"key":true},{"criterion":"Mentions avoiding manual task cancellation boilerplate in view models","weight":25}],"modelAnswer":"The SwiftUI .task modifier automatically starts an asynchronous task when the view appears and cancels it when the view disappears. When using .task(id: value), SwiftUI cancels any existing in-flight task whenever the identity value changes, then starts a new one. This handles search-as-you-type cancellations automatically without manual task management."},{"id":"tc-q27","type":"written","difficulty":3,"prompt":"In 2 to 5 sentences, explain how withTaskCancellationHandler bridges non-async APIs. What threading hazard must you consider regarding onCancel?","rubric":[{"criterion":"Explains executing an operation while providing an onCancel closure to abort external work","weight":40,"key":true},{"criterion":"Explains that onCancel runs immediately on whichever thread called cancel()","weight":35,"key":true},{"criterion":"Identifies data race risks between operation and onCancel requiring synchronization","weight":25}],"modelAnswer":"withTaskCancellationHandler runs an operation and provides an onCancel closure to cancel legacy resources like network sessions or file descriptors. However, onCancel executes immediately on whatever thread invoked task.cancel(). This means onCancel can run concurrently with the operation, so shared variables must be protected against data races."},{"id":"tc-q28","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain how to handle resource cleanups when a task receives cancellation. Why is defer useful in this context?","rubric":[{"criterion":"Explains using defer to guarantee cleanup code runs when scope exits","weight":40,"key":true},{"criterion":"Explains that defer executes even when checkCancellation throws CancellationError","weight":35,"key":true},{"criterion":"Mentions cleaning up open handles, sockets, or temporary files","weight":25}],"modelAnswer":"When a task is cancelled, throwing checkCancellation() unwinds the call stack immediately. Using a defer block ensures cleanup logic always runs regardless of how the function exits. This allows you to close open files, terminate database connections, and release temporary memory safely upon cancellation."},{"id":"tc-q29","type":"code-write","difficulty":1,"prompt":"Write a Swift function runWorker() async -> String that creates a child Task. Inside the task, check if Task.isCancelled: if cancelled, return 'Stopped', otherwise return 'Running'. Cancel the task immediately before awaiting its value, and return the result. In the top-level code, print the result.","starterCode":"func runWorker() async -> String {\n    // Create task, check Task.isCancelled, cancel task, return value\n}\n\n// Print await runWorker()","rubric":[{"criterion":"Creates a Task inspecting Task.isCancelled","weight":30,"key":true},{"criterion":"Calls task.cancel() and returns awaited task.value","weight":40,"key":true},{"criterion":"Prints the correct output Stopped","weight":30}],"modelAnswer":"func runWorker() async -> String {\n    let task = Task {\n        if Task.isCancelled {\n            return \"Stopped\"\n        }\n        return \"Running\"\n    }\n    task.cancel()\n    return await task.value\n}\n\nprint(await runWorker())"},{"id":"tc-q30","type":"code-write","difficulty":2,"prompt":"Write a Swift function throwingOperation() async that creates a task. Inside the task, call try Task.checkCancellation() and return 'Data downloaded'. Cancel the task, await task.value inside a do-catch block, catch is CancellationError, and print 'CancellationError handled'. Call throwingOperation() at the top level.","starterCode":"func throwingOperation() async {\n    // Create task with try Task.checkCancellation(), cancel it, and catch CancellationError\n}\n\n// Call throwingOperation()","rubric":[{"criterion":"Uses try Task.checkCancellation() inside a Task","weight":35,"key":true},{"criterion":"Cancels the task and catches CancellationError around try await task.value","weight":35,"key":true},{"criterion":"Prints CancellationError handled upon catching the error","weight":30}],"modelAnswer":"func throwingOperation() async {\n    let task = Task {\n        try Task.checkCancellation()\n        return \"Data downloaded\"\n    }\n    task.cancel()\n    do {\n        _ = try await task.value\n    } catch is CancellationError {\n        print(\"CancellationError handled\")\n    } catch {\n        print(\"Other error\")\n    }\n}\n\nawait throwingOperation()"},{"id":"tc-q31","type":"code-write","difficulty":2,"prompt":"Write a Swift function fetchUntilCancelled(_ count: Int) async -> [Int] that creates a task. The task loops from 1...count, checking if Task.isCancelled at each step: if cancelled, it breaks and returns the items array. Cancel the task, await its value for count 5, and print 'Collected: \\(collected.count)'.","starterCode":"func fetchUntilCancelled(_ count: Int) async -> [Int] {\n    // Create task looping 1...count, break if Task.isCancelled, return items\n}\n\n// Call with 5, print Collected: collected.count","rubric":[{"criterion":"Declares task iterating 1...count with if Task.isCancelled break check","weight":35,"key":true},{"criterion":"Cancels the task and awaits task.value","weight":35,"key":true},{"criterion":"Prints exact output Collected: 0","weight":30}],"modelAnswer":"func fetchUntilCancelled(_ count: Int) async -> [Int] {\n    let task = Task {\n        var items: [Int] = []\n        for i in 1...count {\n            if Task.isCancelled { break }\n            items.append(i)\n        }\n        return items\n    }\n    task.cancel()\n    return await task.value\n}\n\nlet collected = await fetchUntilCancelled(5)\nprint(\"Collected: \\(collected.count)\")"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

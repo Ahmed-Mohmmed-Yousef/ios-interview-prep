@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Task Cancellation Workflow</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --active-color: #0284c7;
+  --active-soft: #e0f2fe;
+  --signal-color: #f59e0b;
+  --signal-soft: #fef3c7;
+  --cancel-color: #dc2626;
+  --cancel-soft: #fee2e2;
+  --clean-color: #059669;
+  --clean-soft: #d1fae5;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --active-color: #38bdf8;
+    --active-soft: #082f49;
+    --signal-color: #fbbf24;
+    --signal-soft: #451a03;
+    --cancel-color: #f87171;
+    --cancel-soft: #450a0a;
+    --clean-color: #34d399;
+    --clean-soft: #064e3b;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--active-color);
+  color: var(--active-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.step-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.badge.active { background: var(--active-soft); color: var(--active-color); }
+.badge.signal { background: var(--signal-soft); color: var(--signal-color); }
+.badge.cancel { background: var(--cancel-soft); color: var(--cancel-color); }
+.badge.clean { background: var(--clean-soft); color: var(--clean-color); }
+
+.caption {
+  font-size: 15px;
+  color: var(--ink);
+  margin: 0;
+  min-height: 2.8em;
+}
+.code-box {
+  font: 13px/1.5 var(--font-code);
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  white-space: pre;
+}
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.node-box {
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+.step-circle {
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+.reduced-motion-summary {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reduced-motion-summary { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host">
+  <div class="controls" role="region" aria-label="Diagram Controls">
+    <span class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+    <div class="btn-group">
+      <button id="btnBack" aria-label="Previous step">Back</button>
+      <button id="btnNext" aria-label="Next step">Next</button>
+      <button id="btnReplay" aria-label="Replay from step 1">Replay</button>
+    </div>
+  </div>
+
+  <div class="card" role="region" aria-label="Task Cancellation Diagram">
+    <div class="header-row">
+      <h3 class="title" id="stageTitle">Step 1: Normal Task Execution</h3>
+      <span class="badge active" id="statusBadge">Running Normally</span>
+    </div>
+
+    <p class="caption" id="captionText">
+      The task executes iterations 1 through 5. Task.isCancelled is false, so work proceeds step by step.
+    </p>
+
+    <div class="code-box" id="codeText">for i in 1...5 {
+    if Task.isCancelled { return }
+    // Processing item i...
+}</div>
+
+    <svg viewBox="0 0 680 230" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Task Cancellation Visualization">
+      <!-- Caller Box -->
+      <g id="boxCallerGroup">
+        <rect x="30" y="30" width="160" height="60" rx="10" fill="var(--surface)" stroke="var(--line)" class="node-box" id="boxCaller" />
+        <text x="110" y="57" text-anchor="middle" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">Caller Scope</text>
+        <text x="110" y="75" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" id="callerStatus">Running</text>
+      </g>
+
+      <!-- Task Handle Box -->
+      <g id="boxTaskGroup">
+        <rect x="250" y="30" width="180" height="60" rx="10" fill="var(--active-soft)" stroke="var(--active-color)" class="node-box" id="boxTask" />
+        <text x="340" y="57" text-anchor="middle" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">Task Handle</text>
+        <text x="340" y="75" text-anchor="middle" fill="var(--active-color)" font-family="var(--font-code)" font-size="12" id="flagText">isCancelled == false</text>
+      </g>
+
+      <!-- Cancel Action Arrow -->
+      <path id="cancelArrow" d="M 190 60 L 245 60" stroke="var(--line)" stroke-width="2.5" marker-end="url(#arrow-head)" opacity="0.2" />
+
+      <!-- Timeline Iteration Steps (1..5) -->
+      <g id="timelineGroup" transform="translate(60, 130)">
+        <text x="0" y="25" fill="var(--muted)" font-family="var(--font-body)" font-size="13" font-weight="600">Task Steps:</text>
+
+        <!-- Step 1 -->
+        <circle cx="120" cy="20" r="18" fill="var(--active-soft)" stroke="var(--active-color)" class="step-circle" id="circle1" />
+        <text x="120" y="25" text-anchor="middle" fill="var(--active-color)" font-family="var(--font-code)" font-size="12" font-weight="bold" id="cText1">1</text>
+
+        <!-- Step 2 -->
+        <circle cx="210" cy="20" r="18" fill="var(--surface)" stroke="var(--line)" class="step-circle" id="circle2" />
+        <text x="210" y="25" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" font-weight="bold" id="cText2">2</text>
+
+        <!-- Step 3 -->
+        <circle cx="300" cy="20" r="18" fill="var(--surface)" stroke="var(--line)" class="step-circle" id="circle3" />
+        <text x="300" y="25" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" font-weight="bold" id="cText3">3</text>
+
+        <!-- Step 4 -->
+        <circle cx="390" cy="20" r="18" fill="var(--surface)" stroke="var(--line)" class="step-circle" id="circle4" />
+        <text x="390" y="25" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" font-weight="bold" id="cText4">4</text>
+
+        <!-- Step 5 -->
+        <circle cx="480" cy="20" r="18" fill="var(--surface)" stroke="var(--line)" class="step-circle" id="circle5" />
+        <text x="480" y="25" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" font-weight="bold" id="cText5">5</text>
+      </g>
+
+      <defs>
+        <marker id="arrow-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--signal-color)" />
+        </marker>
+      </defs>
+
+      <!-- Status Banner -->
+      <rect x="140" y="185" width="400" height="30" rx="6" fill="var(--code-bg)" stroke="var(--line)" />
+      <text x="340" y="205" text-anchor="middle" fill="var(--muted)" font-family="var(--font-code)" font-size="12" id="bannerStatus">
+        Step 1 executing: isCancelled is false
+      </text>
+    </svg>
+  </div>
+
+  <div class="reduced-motion-summary">
+    <h4>Static Summary of Steps:</h4>
+    <ol>
+      <li><strong>Step 1:</strong> The task executes normally. Task.isCancelled evaluates to false, completing step 1.</li>
+      <li><strong>Step 2:</strong> The caller invokes task.cancel(). The task's isCancelled flag toggles to true, but running threads are not aborted.</li>
+      <li><strong>Step 3:</strong> At step 2, the task cooperatively checks if Task.isCancelled.</li>
+      <li><strong>Step 4:</strong> The condition matches true. The task aborts remaining steps (3, 4, 5) and returns early cleanly.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Step 1: Normal Task Execution",
+    badge: "Running Normally",
+    badgeClass: "active",
+    caption: "The task executes step 1. Task.isCancelled is false, so the loop continues doing work.",
+    code: "for i in 1...5 {\n    if Task.isCancelled { return }\n    // Processing item 1...\n}",
+    callerStatus: "Active",
+    flagText: "isCancelled == false",
+    taskFill: "var(--active-soft)",
+    taskStroke: "var(--active-color)",
+    flagColor: "var(--active-color)",
+    arrowOpacity: 0.1,
+    circles: [
+      { fill: "var(--active-soft)", stroke: "var(--active-color)", text: "var(--active-color)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" }
+    ],
+    banner: "Step 1 active: isCancelled is false"
+  },
+  {
+    title: "Step 2: Cancel Signal Sent",
+    badge: "Cancel Requested",
+    badgeClass: "signal",
+    caption: "The caller calls task.cancel(). Swift sets isCancelled = true. The thread continues running cooperatively.",
+    code: "task.cancel() // Sets isCancelled = true\n// Running thread is NOT killed forcibly",
+    callerStatus: "Calls task.cancel()",
+    flagText: "isCancelled == true",
+    taskFill: "var(--signal-soft)",
+    taskStroke: "var(--signal-color)",
+    flagColor: "var(--signal-color)",
+    arrowOpacity: 1.0,
+    circles: [
+      { fill: "var(--clean-soft)", stroke: "var(--clean-color)", text: "var(--clean-color)" },
+      { fill: "var(--signal-soft)", stroke: "var(--signal-color)", text: "var(--signal-color)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" }
+    ],
+    banner: "Cancellation signal set: thread must cooperate"
+  },
+  {
+    title: "Step 3: Cooperative Check",
+    badge: "Cooperative Check",
+    badgeClass: "cancel",
+    caption: "At iteration 2, the loop tests if Task.isCancelled. The condition matches true.",
+    code: "for i in 1...5 {\n    if Task.isCancelled { // Evaluates to TRUE\n        print(\"Cancelled at step \\(i)\")\n        return\n    }\n}",
+    callerStatus: "Awaiting task.value",
+    flagText: "isCancelled == true",
+    taskFill: "var(--cancel-soft)",
+    taskStroke: "var(--cancel-color)",
+    flagColor: "var(--cancel-color)",
+    arrowOpacity: 0.2,
+    circles: [
+      { fill: "var(--clean-soft)", stroke: "var(--clean-color)", text: "var(--clean-color)" },
+      { fill: "var(--cancel-soft)", stroke: "var(--cancel-color)", text: "var(--cancel-color)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" }
+    ],
+    banner: "Check fired at step 2: preparing early exit"
+  },
+  {
+    title: "Step 4: Early Exit & Cleanup",
+    badge: "Clean Early Exit",
+    badgeClass: "clean",
+    caption: "The task exits immediately. Steps 3, 4, and 5 are aborted without consuming CPU or battery.",
+    code: "// Output: Cancelled at step 2\n// Remaining steps 3, 4, 5 skipped cleanly",
+    callerStatus: "Completed Cleanly",
+    flagText: "Finished / Exited",
+    taskFill: "var(--clean-soft)",
+    taskStroke: "var(--clean-color)",
+    flagColor: "var(--clean-color)",
+    arrowOpacity: 0.1,
+    circles: [
+      { fill: "var(--clean-soft)", stroke: "var(--clean-color)", text: "var(--clean-color)" },
+      { fill: "var(--cancel-soft)", stroke: "var(--cancel-color)", text: "var(--cancel-color)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" },
+      { fill: "var(--surface)", stroke: "var(--line)", text: "var(--muted)" }
+    ],
+    banner: "Early return: 0 wasted CPU cycles on steps 3-5"
+  }
+];
+
+let currentStep = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+function updateStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  document.getElementById("stageTitle").textContent = s.title;
+
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = s.badge;
+  badge.className = `badge ${s.badgeClass}`;
+
+  document.getElementById("captionText").textContent = s.caption;
+  document.getElementById("codeText").textContent = s.code;
+
+  btnBack.disabled = currentStep === 0;
+  btnNext.disabled = currentStep === steps.length - 1;
+
+  document.getElementById("callerStatus").textContent = s.callerStatus;
+  document.getElementById("flagText").textContent = s.flagText;
+  document.getElementById("flagText").style.fill = s.flagColor;
+
+  const boxTask = document.getElementById("boxTask");
+  boxTask.style.fill = s.taskFill;
+  boxTask.style.stroke = s.taskStroke;
+
+  document.getElementById("cancelArrow").style.opacity = s.arrowOpacity;
+
+  for (let i = 1; i <= 5; i++) {
+    const c = s.circles[i - 1];
+    const circleEl = document.getElementById(`circle${i}`);
+    const textEl = document.getElementById(`cText${i}`);
+    circleEl.style.fill = c.fill;
+    circleEl.style.stroke = c.stroke;
+    textEl.style.fill = c.text;
+  }
+
+  document.getElementById("bannerStatus").textContent = s.banner;
+}
+
+btnBack.addEventListener("click", () => {
+  if (currentStep > 0) updateStep(currentStep - 1);
+});
+btnNext.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) updateStep(currentStep + 1);
+});
+btnReplay.addEventListener("click", () => {
+  updateStep(0);
+});
+
+updateStep(0);
+</script>
+</body>
+</html>

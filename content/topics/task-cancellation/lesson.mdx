@@ -1,0 +1,170 @@
+export const meta = {
+  id: "task-cancellation",
+  summary: "Cancel asynchronous tasks and write cooperative checks to stop long-running work cleanly in Swift.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "Task (Swift)",
+      url: "https://developer.apple.com/documentation/swift/task"
+    },
+    {
+      title: "The Swift Programming Language: Concurrency",
+      url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    You call task.cancel() on a running task that executes a heavy loop. Does the loop stop executing immediately?
+  </Question>
+  <Guess>
+    <Option id="a">Yes, Swift kills the thread executing the loop immediately.</Option>
+    <Option id="b" correct>No, cancellation is cooperative and the loop only stops if code checks for cancellation.</Option>
+    <Option id="c">Yes, Swift pauses the thread until the device has free memory.</Option>
+    <Option id="d">No, tasks can only be cancelled before they start executing.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+Calling `task.cancel()` does not pull the power cord on your code. Swift does not kill threads or force running code to stop.
+
+Instead, cancellation in Swift is cooperative.
+
+<Analogy>
+  Think of a chef in a restaurant kitchen. The manager walks in and asks the chef to cancel an order. The chef finishes the current knife cut, turns off the stove, and throws away the unfinished prep. The manager does not knock the knife out of the chef's hand.
+</Analogy>
+
+When you cancel a task, Swift sets a flag on that task. In structured concurrency, this flag also flows down to all child tasks.
+
+Your code must inspect this flag to stop doing work. You have two primary tools to check cancellation:
+
+1. `Task.isCancelled`: A simple Boolean check. Use it inside loops or before starting expensive steps to return early.
+2. `try Task.checkCancellation()`: Throws a `CancellationError` immediately if the task is cancelled. Use it in throwing functions.
+
+Built-in asynchronous APIs like `Task.sleep(for:)` and `URLSession` already check cancellation for you. They throw `CancellationError` immediately when cancelled.
+
+## See it
+
+<Diagram id="task-cancellation" caption="Trace cooperative cancellation signals and early exits in a running task." />
+
+## In code
+
+Here is how you check `Task.isCancelled` inside a loop to stop work early.
+
+```swift
+func processWork() async {
+    let task = Task {
+        var count = 0
+        for i in 1...5 {
+            if Task.isCancelled {
+                print("Cancelled at step \(i)")
+                return
+            }
+            count += 1
+        }
+        print("Finished all: \(count)")
+    }
+
+    task.cancel()
+    await task.value
+}
+
+await processWork()
+```
+```output
+Cancelled at step 1
+```
+
+Because `task.cancel()` was called before the first step finished, `Task.isCancelled` was true. The task printed the cancellation message and exited immediately.
+
+Next, here is how to use `try Task.checkCancellation()` in a throwing workflow.
+
+```swift
+func downloadFile() async throws {
+    let task = Task {
+        print("Starting download")
+        try Task.checkCancellation()
+        return "File data"
+    }
+
+    task.cancel()
+    do {
+        _ = try await task.value
+    } catch is CancellationError {
+        print("Caught CancellationError")
+    }
+}
+
+try await downloadFile()
+```
+```output
+Starting download
+Caught CancellationError
+```
+
+When `try Task.checkCancellation()` detects that the task was cancelled, it throws `CancellationError`. The caller catches the error cleanly.
+
+<TryIt>
+  Open a Swift Playground. Write a task that loops 10 times with a small delay. Cancel the task after 2 iterations and verify that your loop stops.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    What error does try Task.checkCancellation() throw when the current task has received a cancellation request?
+  </Question>
+  <Option id="a">URLError.cancelled</Option>
+  <Option id="b" correct>CancellationError</Option>
+  <Option id="c">POSIXError.ECANCELED</Option>
+  <Option id="d">CocoaError.userCancelled</Option>
+  <Explanation>
+    Swift concurrency uses CancellationError from the standard library to signal task cancellation.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    How does the SwiftUI .task modifier manage task cancellation when a user navigates away from a screen?
+  </Question>
+  <Option id="a">It leaves the task running in the background until the app closes.</Option>
+  <Option id="b" correct>It automatically cancels the task when the view disappears from the screen.</Option>
+  <Option id="c">It freezes the task state and saves it to disk.</Option>
+  <Option id="d">It raises a fatal runtime error if the task is still running.</Option>
+  <Explanation>
+    The SwiftUI .task modifier ties task lifetime to view appearance. It cancels the task automatically when the view disappears.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Never ignore cooperative checks in CPU loops">
+  A loop that performs image filtering or encryption will keep running even after calling `cancel()`. Always place `if Task.isCancelled` or `try Task.checkCancellation()` inside long loops to avoid burning battery and CPU.
+</Trap>
+
+<Trap label="Do not treat CancellationError as a network failure">
+  When a user leaves a screen, ongoing network requests cancel. If your catch block shows an alert for every error, the user sees an alert saying request cancelled. Check for `is CancellationError` and ignore expected cancellations.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  Swift task cancellation is cooperative. Calling `task.cancel()` sets a cancellation flag on the task and all its children, but does not kill threads. My code checks `Task.isCancelled` in non-throwing loops or calls `try Task.checkCancellation()` in throwing pipelines. Standard APIs like `Task.sleep` check cancellation automatically and throw `CancellationError`.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I design cancellation handling with clear resource cleanup using `defer` blocks. For bridging non-async APIs, I use `withTaskCancellationHandler` to forward cancellation to legacy network tasks or file handles. In SwiftUI, I use `.task(id:)` so parameter changes cancel in-flight requests automatically. When catching errors, I distinguish `CancellationError` from operational failures to avoid showing bogus alert popups to users.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Task cancellation in Swift is cooperative. Calling cancel sets a flag that flows down the task tree. Check `Task.isCancelled` to exit loops early or call `try Task.checkCancellation()` to throw `CancellationError`. Remember to clean up resources with defer, and do not show error alerts for intentional cancellations.
+</Recap>
+
+## Go deeper
+
+- Apple Developer Documentation: Task: https://developer.apple.com/documentation/swift/task
+- The Swift Programming Language: Concurrency: https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency
+- WWDC21: Explore structured concurrency in Swift: https://developer.apple.com/videos/play/wwdc2021/10134/
