@@ -1,0 +1,198 @@
+export const meta = {
+  id: "accessibility",
+  summary: "Make iOS apps usable for everyone by configuring VoiceOver labels, values, traits, and element grouping.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "Accessibility (Apple)", url: "https://developer.apple.com/documentation/accessibility", kind: "official" },
+    { title: "Human Interface Guidelines: Accessibility", url: "https://developer.apple.com/design/human-interface-guidelines/accessibility", kind: "official" },
+    { title: "View Accessibility (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/view-accessibility", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How do you make a custom icon button accessible to VoiceOver users without repeating control types?</Question>
+  <Guess>
+    <Option id="a">Set the accessibility label to Play Button so VoiceOver speaks both words together.</Option>
+    <Option id="b" correct>Set the accessibility label to Play and assign the button accessibility trait.</Option>
+    <Option id="c">Set the accessibility hint to Play and leave the label empty.</Option>
+    <Option id="d">Hide the icon view and create an invisible text field over it.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine walking through a museum with a blindfold while a friendly guide describes each room.
+When the guide comes to a door, they say "Library entrance, push door".
+They tell you the name, what it does, and how to open it.
+VoiceOver acts like this museum guide for users who cannot see the screen.
+</Analogy>
+
+Assistive technologies do not inspect raw screen pixels.
+Instead, they read the **accessibility tree**.
+The accessibility tree is a hierarchy of accessible nodes that mirror your user interface.
+
+Standard Apple controls like `Button`, `Text`, and `Toggle` provide accessibility automatically.
+When you build custom components or complex view cards, you must provide clear metadata.
+
+Each accessible element relies on four main properties:
+1. The **accessibility label** is a concise name, such as "Play" or "Close".
+2. The **accessibility value** describes the current state or quantity, such as "50 percent" or "Page 2 of 5".
+3. The **accessibility traits** tell the system what kind of element this is, such as a button, a header, or a link.
+4. The **accessibility hint** explains what happens when the user interacts, such as "Opens your profile settings".
+
+**VoiceOver reads the label, value, and traits in sequence to convey clear meaning.**
+
+## See it
+
+<Diagram id="accessibility-main" caption="How VoiceOver navigates through the accessibility tree and speaks element properties.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: Screen View with Icon & Text, Accessibility Tree Node, VoiceOver Focus Ring, Spoken Audio Output.
+  - Step 1: VoiceOver focuses on element node.
+  - Step 2: System reads accessibilityLabel ("Play").
+  - Step 3: System appends accessibilityTraits ("Button").
+  - Step 4: System adds accessibilityHint ("Starts track playback").
+  - Static version (reduced motion): Displays the complete mapping table from UI view to spoken VoiceOver sentence.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why should you not include the word button inside an accessibility label?</Question>
+  <Option id="a">The accessibility label only accepts numbers and symbols.</Option>
+  <Option id="b" correct>VoiceOver already announces the button trait automatically.</Option>
+  <Option id="c">Screen readers crash when the word button appears twice.</Option>
+  <Explanation>VoiceOver reads the label first and then reads the trait. If your label says "Play button", VoiceOver speaks "Play button, button".</Explanation>
+</QuickCheck>
+
+## In code
+
+### Configuring accessibility attributes in UIKit
+
+In UIKit, you enable accessibility by setting `isAccessibilityElement` to true on your view.
+Then you assign the label, value, traits, and hint.
+
+```swift
+import UIKit
+
+let playButton = UIButton(type: .system)
+playButton.isAccessibilityElement = true
+playButton.accessibilityLabel = "Play"
+playButton.accessibilityTraits = [.button]
+playButton.accessibilityHint = "Starts playing the selected audio track."
+
+let traitText = playButton.accessibilityTraits.contains(.button) ? "button" : "none"
+print("Label: \(playButton.accessibilityLabel ?? "")")
+print("Trait: \(traitText)")
+print("Hint: \(playButton.accessibilityHint ?? "")")
+```
+
+```output
+Label: Play
+Trait: button
+Hint: Starts playing the selected audio track.
+```
+
+The system reads the label first, followed by the trait, and finally the hint after a short pause.
+
+### Grouping compound views with combine and ignore
+
+When building cards with multiple labels and icons, separate swipes create a slow and tiring experience.
+SwiftUI provides `accessibilityElement(children:)` to combine or ignore child elements.
+
+```swift
+import Foundation
+
+struct CardAccessibilityDescriptor {
+    let title: String
+    let subtitle: String
+    let isCombined: Bool
+
+    var spokenSummary: String {
+        if isCombined {
+            return "\(title), \(subtitle)"
+        } else {
+            return title
+        }
+    }
+}
+
+let card = CardAccessibilityDescriptor(
+    title: "Flight AA100",
+    subtitle: "On time, Gate B12",
+    isCombined: true
+)
+
+print("Spoken output: \(card.spokenSummary)")
+```
+
+```output
+Spoken output: Flight AA100, On time, Gate B12
+```
+
+Using `.combine` merges children into one focus element.
+Using `.ignore` drops all child nodes so you can attach a fresh custom label to the parent container.
+
+<QuickCheck>
+  <Question>When should you use accessibilityElement(children: .combine) on a SwiftUI view?</Question>
+  <Option id="a" correct>When several related text items form a single logical card.</Option>
+  <Option id="b">When you want to remove an entire view from the accessibility tree.</Option>
+  <Option id="c">When an element only contains decorative background graphics.</Option>
+  <Explanation>Combining children lets VoiceOver read a card as a single unit instead of requiring many tedious swipes.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open Xcode, build a sample card view, and run the Accessibility Inspector to inspect the accessibility tree.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Repeating control types in accessibility labels">
+Do not write "Close button" or "Profile image" in your label.
+VoiceOver announces the trait for buttons and images automatically.
+Writing the type produces awkward speech like "Close button, button".
+Set the label to "Close" and let traits do their job.
+</Trap>
+
+<Trap title="Leaving decorative icons exposed to screen readers">
+Decorative icons and background shapes clutter the accessibility tree.
+In SwiftUI, apply `.accessibilityHidden(true)` or use `Image(decorative:)`.
+In UIKit, set `isAccessibilityElement = false`.
+This keeps the reading flow fast and focused on meaningful content.
+</Trap>
+
+<Trap title="Forgetting to notify VoiceOver about dynamic changes">
+When a modal sheet dismisses or dynamic content refreshes, VoiceOver might stay stuck on an old coordinate.
+In UIKit, post `UIAccessibility.post(notification: .screenChanged, argument: focusTarget)` or `.layoutChanged`.
+In SwiftUI, use `@AccessibilityFocusState` to steer focus to the newly appeared element.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+VoiceOver is Apple built-in screen reader for vision-impaired users.
+It reads elements in the accessibility tree rather than raw pixels.
+I make views accessible by setting `accessibilityLabel` for the name, `accessibilityTraits` for the element type, and `accessibilityHint` for extra instructions.
+I also hide decorative elements so users do not hear clutter.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Accessibility is an architectural requirement, not a last-minute polish.
+I group compound elements with `accessibilityElement(children: .combine)` to optimize navigation flow.
+For complex gestures, I add custom actions so users can access shortcuts through the accessibility Rotor without complex hand motions.
+I also manage screen notifications with `UIAccessibility.post` during dynamic layout updates.
+Finally, I verify every screen with the Xcode Accessibility Inspector and write automated audits using `XCTest` accessibility audits.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- VoiceOver navigates the accessibility tree, not raw pixels on the screen.
+- `accessibilityLabel` provides the name, `accessibilityValue` holds the state, and `accessibilityTraits` describe the control type.
+- Never include control types like "button" in the accessibility label.
+- Group related controls with `.combine` or `.ignore` to keep swipe navigation efficient.
+- Hide purely decorative graphics with `.accessibilityHidden(true)`.
+- Use the Accessibility Inspector in Xcode to audit touch targets, contrast, and element labels.
+</Recap>

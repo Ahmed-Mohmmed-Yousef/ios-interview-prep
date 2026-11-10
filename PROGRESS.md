@@ -191,8 +191,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **swiftui-performance** (SwiftUI Performance) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-performance/review.html](docs/topics/swiftui-performance/review.html)
     - ✅ **custom-views-layout-pass** (Custom Views and the Layout Pass) — published (lesson, diagram, 31 questions) → [docs/topics/custom-views-layout-pass/review.html](docs/topics/custom-views-layout-pass/review.html)
   - 🔄 **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
-    - 🔄 **accessibility** (Accessibility) — starting research
-    - ⬜ **localization** (Localization) [bonus]
+    - ✅ **accessibility** (Accessibility) — published (lesson, diagram, 31 questions) → [docs/topics/accessibility/review.html](docs/topics/accessibility/review.html)
+    - 🔄 **localization** (Localization) [bonus] — starting research
     - ⬜ **ipad-adaptive-layout** (iPad and Adaptive Layout)
     - ⬜ **notifications** (Push and Local Notifications)
     - ⬜ **background-tasks** (Background Work)
@@ -369,6 +369,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `accessibility` (Accessibility): researched official Apple Accessibility and HIG docs, authored lesson in simple English, interactive 4-step VoiceOver tree focus and speech cycle diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/accessibility/review.html`). All checks passed. Batch 3E progress: 1 of 8 published (97 total published topics across curriculum). Starting localization.
 
 - **2026-11-10** — Starting Batch 3E: Design, Accessibility & System Integration (8 topics: `accessibility` through `foundation-models`). Launching dedicated autonomous subagent.
 
