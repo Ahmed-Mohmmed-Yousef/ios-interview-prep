@@ -1,0 +1,254 @@
+export const meta = {
+  id: "navigation-patterns",
+  title: "Navigation Patterns",
+  summary: "Manage screen transitions and deep links cleanly using Coordinators in UIKit and Routers in modern SwiftUI.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "NavigationStack (SwiftUI)",
+      url: "https://developer.apple.com/documentation/swiftui/navigationstack",
+      kind: "official"
+    },
+    {
+      title: "UINavigationController (UIKit)",
+      url: "https://developer.apple.com/documentation/uikit/uinavigationcontroller",
+      kind: "official"
+    },
+    {
+      title: "WWDC22: The SwiftUI cookbook for navigation",
+      url: "https://developer.apple.com/videos/play/wwdc2022/10054/",
+      kind: "official"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    What is the main architectural problem with having one view controller instantiate and present the next view controller directly?
+  </Question>
+  <Guess>
+    <Option id="a">Direct presentation causes the device graphics processor to overheat</Option>
+    <Option id="b" correct>Direct presentation creates tight coupling between screens, preventing reusability and clean deep linking</Option>
+    <Option id="c">Apple platforms forbid push transitions without storyboard segues</Option>
+    <Option id="d">Direct presentation disables user touch gestures permanently</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+In simple mobile apps, a view controller often creates the next screen and pushes it onto the navigation stack.
+While this works for tiny projects, it tightly couples screens together.
+The first screen must know the exact type, initializer, and dependencies of the second screen.
+You cannot easily reuse that first screen in another flow.
+
+Navigation patterns solve this by moving transition logic into dedicated objects.
+
+1. **The Coordinator Pattern**: In UIKit or hybrid apps, a Coordinator owns screen navigation. Views report user actions to the Coordinator, which instantiates and presents the next screen.
+2. **The Router Pattern**: In modern SwiftUI, an observable Router manages a collection of routes bound to a `NavigationStack`.
+
+<Analogy>
+  Think of an airport control tower.
+  Pilots flying individual airplanes do not negotiate runway landings directly with each other in the sky.
+  Instead, pilots report their location and intent to the air traffic controller.
+  The controller directs which airplane takes off, which airplane holds, and which runway is cleared.
+  In mobile architecture, views are airplanes, and the Coordinator is the control tower.
+</Analogy>
+
+### Why decouple navigation?
+
+- **Reusability**: You can display a profile view from onboarding, settings, or search without modifying the profile view itself.
+- **Deep Linking**: A central router can parse a push notification URL and build a multi-screen navigation stack programmatically.
+- **Testability**: You can test whether a user action triggers the correct navigation event without loading UIKit view hierarchies.
+
+## See it
+
+<Diagram id="nav-patterns-flow" caption="How Coordinator and Router objects manage screen transitions outside visual views.">
+{/*
+  Interactive stepper:
+  Step 1: Direct Navigation (Tightly coupled: Screen A directly pushes Screen B).
+  Step 2: Coordinator Introduction: Screen A delegates user intent to a Coordinator.
+  Step 3: Coordinator Execution: Coordinator builds Screen B with dependencies and pushes it.
+  Step 4: SwiftUI Router: State-driven NavigationStack driven by an observable path array.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Where should screen transition logic live when following the Coordinator pattern?</Question>
+  <Option id="a">Inside the destination view controller viewDidLoad method</Option>
+  <Option id="b">Inside the domain Model struct</Option>
+  <Option id="c" correct>Inside a dedicated Coordinator class that manages flow</Option>
+  <Option id="d">Inside the app SQLite database schema</Option>
+  <Explanation>Coordinators take responsibility for navigation flow out of view controllers, keeping views focused on display.</Explanation>
+</QuickCheck>
+
+## In code
+
+Let us look at two modern navigation approaches: the SwiftUI Router pattern and child coordinator management.
+
+<CodeExample title="Programmatic navigation with a SwiftUI Router">
+```swift
+import Foundation
+import Observation
+
+// 1. Hashable destinations
+enum AppRoute: Hashable, Sendable {
+    case home
+    case profile(username: String)
+    case settings
+}
+
+// 2. Observable router managing navigation path
+@Observable
+final class NavigationRouter {
+    var path: [AppRoute] = []
+
+    func push(_ route: AppRoute) {
+        path.append(route)
+    }
+
+    func pop() {
+        if !path.isEmpty {
+            path.removeLast()
+        }
+    }
+
+    func popToRoot() {
+        path.removeAll()
+    }
+}
+
+// 3. Simulating navigation actions
+let router = NavigationRouter()
+router.push(.home)
+router.push(.profile(username: "alex"))
+print("Current depth: \(router.path.count)")
+router.pop()
+print("After pop: \(router.path.count)")
+router.popToRoot()
+print("After popToRoot: \(router.path.count)")
+```
+```output
+Current depth: 2
+After pop: 1
+After popToRoot: 0
+```
+</CodeExample>
+
+<CodeExample title="Managing child coordinators in a Coordinator hierarchy">
+```swift
+import Foundation
+
+protocol Coordinator: AnyObject {
+    var childCoordinators: [Coordinator] { get set }
+    func start()
+}
+
+final class OnboardingCoordinator: Coordinator {
+    var childCoordinators: [Coordinator] = []
+    var isFinished = false
+
+    func start() {
+        print("Onboarding started")
+    }
+
+    func finish() {
+        isFinished = true
+        print("Onboarding finished")
+    }
+}
+
+final class AppCoordinator: Coordinator {
+    var childCoordinators: [Coordinator] = []
+
+    func start() {
+        let onboarding = OnboardingCoordinator()
+        childCoordinators.append(onboarding)
+        onboarding.start()
+    }
+
+    func childDidFinish(_ child: Coordinator) {
+        childCoordinators.removeAll { $0 === child }
+        print("Remaining children: \(childCoordinators.count)")
+    }
+}
+
+let app = AppCoordinator()
+app.start()
+if let onboarding = app.childCoordinators.first as? OnboardingCoordinator {
+    onboarding.finish()
+    app.childDidFinish(onboarding)
+}
+```
+```output
+Onboarding started
+Onboarding finished
+Remaining children: 0
+```
+</CodeExample>
+
+<TryIt>
+  Open Swift Playground and add a checkout route to the NavigationRouter.
+</TryIt>
+
+<QuickCheck>
+  <Question>Why must a parent coordinator remove a child coordinator from its child array when the child finishes?</Question>
+  <Option id="a">To prevent Swift from deleting the main window</Option>
+  <Option id="b" correct>To allow the child coordinator and its view hierarchy to deallocate, preventing memory leaks</Option>
+  <Option id="c">To force the app to restart</Option>
+  <Option id="d">To trigger an automatic push notification</Option>
+  <Explanation>Parents retain child coordinators. If you do not remove finished children, they stay in memory indefinitely, causing a memory leak.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Leaking Child Coordinators">
+  A common bug in Coordinator implementations is failing to clean up child coordinators.
+  When a user taps the standard back button in a navigation bar, the coordinator may not know.
+  Use `UINavigationControllerDelegate` to intercept pop gestures and remove finished child coordinators.
+</Trap>
+
+<Trap title="Hardcoding Concrete Destinations in SwiftUI">
+  Using `NavigationLink(destination: DetailView())` eagerly instantiates destination views and couples view layouts.
+  Instead, use `NavigationLink(value: route)` paired with `.navigationDestination(for: Route.self)`.
+  This enables lazy destination resolution and decoupled routing.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="junior">
+  Instead of letting view controllers push each other directly, we use navigation patterns like Coordinators or Routers.
+  A Coordinator handles screen creation and transitions.
+  This keeps our view controllers decoupled and makes screens reusable in different parts of the app.
+</InterviewAnswer>
+
+<InterviewAnswer level="mid">
+  In UIKit, the Coordinator pattern isolates screen flow from view controllers.
+  View controllers or view models communicate user intent through delegates or closures, and the Coordinator handles presentation.
+  The parent coordinator manages child coordinators in an array to maintain their lifecycles.
+  In modern SwiftUI, we use data-driven navigation with `NavigationStack` and `NavigationPath`.
+  An observable router manages a collection of routes, making deep links and programmatic navigation straightforward.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  Navigation is a first-class architectural concern.
+  Coupling views directly to navigation destinations impedes modularization and dynamic server-driven flows.
+  In large apps, we define feature boundaries where feature modules expose entry coordinators or route contracts.
+  In modern SwiftUI, state-driven navigation paths allow serialization, state restoration, and universal link routing.
+  We must handle coordinator cleanup carefully, intercepting navigation controller delegate callbacks to avoid memory leaks.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  - Navigation patterns remove screen transition logic from visual views.
+  - The Coordinator pattern uses dedicated flow controllers to instantiate and present view controllers.
+  - Parent coordinators must store and clean up child coordinators to prevent memory leaks.
+  - Modern SwiftUI uses data-driven `NavigationStack` with typed routes or `NavigationPath`.
+  - Decoupled navigation enables seamless deep linking, state restoration, and view reusability.
+</Recap>
+
+## Go deeper
+
+- [NavigationStack (Apple Developer Documentation)](https://developer.apple.com/documentation/swiftui/navigationstack)
+- [WWDC22: The SwiftUI cookbook for navigation](https://developer.apple.com/videos/play/wwdc2022/10054/)
