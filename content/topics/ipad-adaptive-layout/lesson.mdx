@@ -1,0 +1,190 @@
+export const meta = {
+  id: "ipad-adaptive-layout",
+  summary: "Design responsive interfaces that adapt smoothly between iPhone and iPad using size classes, split views, and adaptive containers.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "Layout (Human Interface Guidelines)", url: "https://developer.apple.com/design/human-interface-guidelines/layout", kind: "official" },
+    { title: "UITraitCollection (UIKit)", url: "https://developer.apple.com/documentation/uikit/uitraitcollection", kind: "official" },
+    { title: "NavigationSplitView (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/navigationsplitview", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why is checking the iPad device model with UIDevice an anti-pattern when building adaptive layouts?</Question>
+  <Guess>
+    <Option id="a">UIDevice calls drain battery by querying hardware sensors on every layout pass.</Option>
+    <Option id="b" correct>An iPad app in Split View or Slide Over runs with a compact width identical to an iPhone.</Option>
+    <Option id="c">Apple blocks apps from accessing the device model string in App Store review.</Option>
+    <Option id="d">UIDevice returns simulator strings instead of real hardware models in production builds.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a folding dining table.
+When guests arrive, you unfold both table leaves to seat a large dinner party with multiple plates.
+When eating alone in a small kitchen, you fold the leaves down into a compact desk.
+Adaptive layouts work like this folding table, expanding into multiple columns on large screens and folding into a single column on compact screens.
+</Analogy>
+
+iOS devices come in many shapes, from a pocket-sized iPhone to a large 13-inch iPad Pro.
+Furthermore, iPadOS allows users to run apps side-by-side using **Split View**, in a floating overlay using **Slide Over**, or in resizable windows using **Stage Manager**.
+
+To handle this variety without hardcoding screen sizes, iOS uses **size classes**.
+A size class categorizes available screen space into two values:
+1. **Compact**: Constrained space, typical of an iPhone in portrait orientation or an iPad window sharing the screen in Split View.
+2. **Regular**: Expansive space, typical of a full-screen iPad or a large iPhone in landscape orientation.
+
+Every view environment provides both a horizontal size class (`horizontalSizeClass`) and a vertical size class (`verticalSizeClass`).
+
+**Never design for a specific device model; always design for the active size class and available window bounds.**
+
+## See it
+
+<Diagram id="ipad-adaptive-layout-main" caption="How an app layout adapts from full-screen iPad multi-column navigation to a collapsed single stack during Split View multitasking.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: Full-screen iPad Window (Regular Width), Multitasking Divider, 1/3 Split View Window (Compact Width), Navigation Layout Hierarchy.
+  - Step 1: App runs full screen on iPad (horizontalSizeClass is regular). Sidebar and Detail columns show side-by-side.
+  - Step 2: User drags multitasking handle to split screen with another app.
+  - Step 3: Window width shrinks past boundary; horizontalSizeClass transitions dynamically to compact.
+  - Step 4: NavigationSplitView collapses columns automatically into a single navigation stack.
+  - Static version (reduced motion): Displays a comparison table showing size class transitions across iPhone, full-screen iPad, and Split View.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What horizontal size class does an iPad app receive when running in a 1/3 Split View window?</Question>
+  <Option id="a">Regular horizontal size class</Option>
+  <Option id="b" correct>Compact horizontal size class</Option>
+  <Option id="c">Unspecified horizontal size class</Option>
+  <Explanation>When an iPad window shares the screen in 1/3 Split View, its horizontal size class becomes compact, just like an iPhone in portrait.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Classifying layout size categories
+
+Your app should respond to container width rather than checking physical hardware identifiers.
+
+```swift
+import Foundation
+
+enum WindowWidthCategory {
+    case compact
+    case regular
+
+    static func from(width: Double) -> WindowWidthCategory {
+        width >= 768.0 ? .regular : .compact
+    }
+}
+
+let fullPadWidth = 1024.0
+let splitPadWidth = 375.0
+
+print("Full: \(WindowWidthCategory.from(width: fullPadWidth))")
+print("Split: \(WindowWidthCategory.from(width: splitPadWidth))")
+```
+
+```output
+Full: regular
+Split: compact
+```
+
+When the user resizes an iPad window, your views receive updated layout traits dynamically.
+
+### Adapting navigation columns in SwiftUI and UIKit
+
+In SwiftUI, `NavigationSplitView` displays multi-column layouts on regular width and collapses automatically on compact width.
+You can also determine column counts programmatically based on size classes.
+
+```swift
+import Foundation
+
+struct AdaptiveColumnPlan {
+    let horizontalSizeClass: String
+
+    var columnCount: Int {
+        horizontalSizeClass == "regular" ? 2 : 1
+    }
+}
+
+let padPlan = AdaptiveColumnPlan(horizontalSizeClass: "regular")
+let phonePlan = AdaptiveColumnPlan(horizontalSizeClass: "compact")
+
+print("iPad columns: \(padPlan.columnCount)")
+print("iPhone columns: \(phonePlan.columnCount)")
+```
+
+```output
+iPad columns: 2
+iPhone columns: 1
+```
+
+In SwiftUI, use `@Environment(\.horizontalSizeClass)` to read the active size class.
+In UIKit, use `registerForTraitChanges([UITraitHorizontalSizeClass.self])` to observe updates in iOS 17 and later.
+
+<QuickCheck>
+  <Question>Which SwiftUI container automatically selects between multiple layouts based on available space?</Question>
+  <Option id="a">GeometryReader</Option>
+  <Option id="b" correct>ViewThatFits</Option>
+  <Option id="c">NavigationStack</Option>
+  <Explanation>ViewThatFits measures its child views in order and displays the first child that fits without clipping.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open an iPad simulator in Xcode, run your app, and drag the multitasking divider to test Split View and Slide Over.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Checking UIDevice userInterfaceIdiom for layout decisions">
+Do not write `if UIDevice.current.userInterfaceIdiom == .pad` to pick layouts.
+An iPad running in Slide Over or Split View has a narrow width identical to an iPhone.
+If you force a multi-column iPad layout inside a narrow Split View window, text truncates and columns overlap.
+Always branch on `horizontalSizeClass` or container width instead.
+</Trap>
+
+<Trap title="Using UIScreen.main.bounds to calculate view frames">
+`UIScreen.main.bounds` returns the physical hardware display resolution, not your app window size.
+On iPad with Stage Manager or Split View, your window is only a fraction of the hardware screen.
+`UIScreen.main` is deprecated in modern iOS.
+Always calculate frames using view bounds, container geometry, or Auto Layout constraints.
+</Trap>
+
+<Trap title="Using deprecated traitCollectionDidChange">
+`traitCollectionDidChange(_:)` was deprecated in iOS 17.
+Apple replaced it with the modern trait registration API.
+Use `registerForTraitChanges([UITraitHorizontalSizeClass.self])` on views or view controllers to register precise closure handlers.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Adaptive layout means designing user interfaces that adjust smoothly across iPhone and iPad screens.
+Apple provides size classes, dividing horizontal and vertical space into compact and regular categories.
+I avoid hardcoding screen sizes or checking device hardware models.
+Instead, I use SwiftUI `NavigationSplitView` and size class environment values so layouts scale from single columns on phones to multiple columns on tablets.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Building robust iPad experiences requires embracing variable window geometries, multitasking, and Stage Manager.
+I treat the app window as an arbitrary viewport, relying on Auto Layout and `ViewThatFits` rather than fixed screen constants.
+In SwiftUI, I use `NavigationSplitView` which provides automatic column collapse when transitioning between regular and compact widths.
+For UIKit view controllers, I register for specific trait changes with `registerForTraitChanges` introduced in iOS 17.
+Finally, I support multi-scene architectures with `UISceneConfiguration` so users can open multiple instances of the app simultaneously.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Size classes abstract screen space into compact and regular categories for width and height.
+- An iPad app running in Slide Over or Split View transitions dynamically to a compact horizontal size class.
+- Never check `UIDevice.current.userInterfaceIdiom` for layout decisions; use `horizontalSizeClass`.
+- `UIScreen.main.bounds` is deprecated because multitasking windows do not match physical screen size.
+- SwiftUI `NavigationSplitView` displays side-by-side columns on regular width and collapses into a stack on compact width.
+- In iOS 17+, register trait changes with `registerForTraitChanges` instead of `traitCollectionDidChange`.
+</Recap>
