@@ -1,0 +1,210 @@
+export const meta = {
+  id: "swiftui-uikit-interop",
+  summary: "Bridge SwiftUI and UIKit using UIViewRepresentable, UIViewControllerRepresentable, UIHostingController, and modern UIHostingConfiguration.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "UIViewRepresentable (SwiftUI)",
+      url: "https://developer.apple.com/documentation/swiftui/uiviewrepresentable"
+    },
+    {
+      title: "UIHostingController (SwiftUI)",
+      url: "https://developer.apple.com/documentation/swiftui/uihostingcontroller"
+    }
+  ]
+}
+
+<InterviewHook>
+  <Question>
+    When you wrap a UIKit view in SwiftUI, where should you handle delegate callbacks and user events?
+  </Question>
+  <Guess>
+    <Option id="a">Inside the updateUIView method using global closures.</Option>
+    <Option id="b" correct>Inside a custom Coordinator class created by the makeCoordinator method.</Option>
+    <Option id="c">Directly in the SwiftUI view body using background threads.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of an embassy between two different countries.
+
+SwiftUI is one country with declarative rules and state-driven updates.
+
+UIKit is an older country built on imperative objects and delegates.
+
+`UIViewRepresentable` and `UIHostingController` act as diplomatic bridges between these systems.
+
+The **Coordinator** is the bilingual diplomat.
+
+When a UIKit control fires an event, the diplomat translates it into a SwiftUI state update.
+</Analogy>
+
+Most apps cannot migrate to SwiftUI all at once.
+
+Teams often need UIKit components that SwiftUI lacks, such as specialized camera views or web browsers.
+
+Other times, teams build new screens in SwiftUI and embed them into existing UIKit view controller stacks.
+
+Apple provides dedicated bridges to make these two frameworks work together smoothly.
+
+## See it
+
+<Diagram>
+1. SwiftUI creates the UIKit view once using makeUIView.
+2. SwiftUI passes new state into updateUIView whenever state changes.
+3. User interactions in UIKit notify the Coordinator through delegates or target-action.
+4. The Coordinator updates SwiftUI bindings, keeping both frameworks in sync.
+</Diagram>
+
+## In code
+
+### Wrapping UIKit in SwiftUI with a Coordinator
+
+To bring a `UIView` into SwiftUI, conform a struct to `UIViewRepresentable`.
+
+Implement `makeUIView` to create the view once.
+
+Implement `updateUIView` to update view properties when SwiftUI state changes.
+
+Use a `Coordinator` class to listen to UIKit delegate calls or target-action events.
+
+```swift
+import SwiftUI
+import UIKit
+
+class ToggleCoordinator: NSObject {
+    var state: Bool = false
+
+    func switchChanged(_ sender: UISwitch) {
+        state = sender.isOn
+    }
+}
+
+let coordinator = ToggleCoordinator()
+let toggle = UISwitch()
+toggle.isOn = true
+coordinator.switchChanged(toggle)
+
+print("Coordinator received state: \(coordinator.state)")
+```
+
+```output
+Coordinator received state: true
+```
+
+The coordinator captures the event from UIKit and forwards the new state back into SwiftUI.
+
+Always check whether the property actually changed before setting UIKit properties in `updateUIView`.
+
+This check prevents layout feedback loops and redundant redraws.
+
+### Embedding SwiftUI in UIKit with UIHostingController
+
+To place a SwiftUI view inside an existing UIKit screen, use `UIHostingController`.
+
+`UIHostingController` is a standard `UIViewController` subclass that manages a SwiftUI view hierarchy.
+
+Always follow standard view controller containment rules when embedding it.
+
+Add the controller with `addChild`, insert its view into the view hierarchy, and call `didMove(toParent:)`.
+
+```swift
+import SwiftUI
+import UIKit
+
+class ParentVC: UIViewController {
+    var embeddedCount = 0
+
+    func embedSwiftUIView<V: View>(_ swiftUIView: V) {
+        let hostingController = UIHostingController(rootView: swiftUIView)
+        addChild(hostingController)
+        view.addSubview(hostingController.view)
+        hostingController.didMove(toParent: self)
+        embeddedCount += 1
+    }
+}
+
+let parent = ParentVC()
+parent.embedSwiftUIView(Text("Hello from SwiftUI"))
+print("Embedded hosting controllers: \(parent.embeddedCount)")
+```
+
+```output
+Embedded hosting controllers: 1
+```
+
+If you omit `addChild` or `didMove(toParent:)`, the hosting controller will not receive lifecycle events like `viewWillAppear`.
+
+On iOS 16 and later, you can also use `UIHostingConfiguration` inside `UICollectionViewCell` and `UITableViewCell`.
+
+This configuration lets you use SwiftUI views in cells without manually managing hosting controllers.
+
+<TryIt>
+  Open a Swift Playground. Write a UIViewRepresentable wrapper around a UISwitch. Connect a SwiftUI @State boolean using a Coordinator.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    Why should you not instantiate a new UIView inside updateUIView?
+  </Question>
+  <Option id="a">Because UIKit views can only be created on background threads.</Option>
+  <Option id="b" correct>Because updateUIView runs on every state change, destroying view state and degrading performance.</Option>
+  <Option id="c">Because SwiftUI automatically deletes UIKit views created in updateUIView.</Option>
+  <Option id="d">Because updateUIView only accepts SwiftUI views, not UIKit views.</Option>
+  <Explanation>
+    Create the UIKit view only once inside makeUIView. Re-creating views in updateUIView resets user interaction and destroys scroll position.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Do not create views inside updateUIView">
+  Create the UIKit view only once inside `makeUIView`. The `updateUIView` method is intended only for updating properties on the existing view instance.
+</Trap>
+
+<Trap label="Do not mutate SwiftUI state inside updateUIView">
+  Modifying a SwiftUI binding or `@State` property inside `updateUIView` triggers another view update immediately. This mistake causes infinite update loops.
+</Trap>
+
+<Trap label="Do not skip view controller containment methods">
+  Adding `hostingController.view` with `addSubview` alone is incomplete. You must call `addChild` and `didMove(toParent:)` so lifecycle and safe area events propagate correctly.
+</Trap>
+
+<QuickCheck>
+  <Question>
+    What modern API simplifies embedding SwiftUI views inside UIKit collection view cells on iOS 16 and later?
+  </Question>
+  <Option id="a">`UIViewContentMode`</Option>
+  <Option id="b">`UICollectionReusableViewRepresentable`</Option>
+  <Option id="c" correct>`UIHostingConfiguration`</Option>
+  <Option id="d">`UIStoryboardSegueBridge`</Option>
+  <Explanation>
+    UIHostingConfiguration provides a native way to configure cell content using SwiftUI view hierarchies on iOS 16 and later.
+  </Explanation>
+</QuickCheck>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  We use `UIViewRepresentable` to wrap UIKit views in SwiftUI and `UIHostingController` to embed SwiftUI views in UIKit. In `UIViewRepresentable`, we build the view in `makeUIView` and update it in `updateUIView`. We use a `Coordinator` class to listen for UIKit delegate and target-action events and update SwiftUI bindings. When embedding in UIKit, we wrap SwiftUI views in a `UIHostingController` and follow standard view controller containment ceremonies.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  SwiftUI and UIKit interoperability requires careful data flow and lifecycle management. With `UIViewRepresentable`, we isolate view creation in `makeUIView` and use `updateUIView` strictly for property propagation. We avoid mutating state in `updateUIView` to prevent recursive layout cycles. The `Coordinator` translates imperative delegate callbacks into declarative binding updates. In UIKit, embedding requires full view controller containment with `addChild` and `didMove(toParent:)` to preserve lifecycle events and safe areas. In modern iOS 16+ codebases, we use `UIHostingConfiguration` to render SwiftUI content cleanly inside collection and table view cells without individual controller overhead.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Use UIViewRepresentable and UIViewControllerRepresentable to wrap UIKit views in SwiftUI. Create the view once in makeUIView and update properties in updateUIView. Use a Coordinator to bridge UIKit delegates to SwiftUI bindings. Embed SwiftUI in UIKit with UIHostingController using full containment calls. Use UIHostingConfiguration for modern list and collection cells.
+</Recap>
+
+## Go deeper
+
+- [UIViewRepresentable (SwiftUI)](https://developer.apple.com/documentation/swiftui/uiviewrepresentable)
+- [UIHostingController (SwiftUI)](https://developer.apple.com/documentation/swiftui/uihostingcontroller)
+- [UIHostingConfiguration (UIKit)](https://developer.apple.com/documentation/uikit/uihostingconfiguration)
+- [WWDC22: Use SwiftUI with UIKit](https://developer.apple.com/videos/play/wwdc2022/10072/)

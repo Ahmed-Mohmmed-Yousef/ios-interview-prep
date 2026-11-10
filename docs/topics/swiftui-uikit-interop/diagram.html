@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI and UIKit Interoperability Lifecycle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.stage-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-color);
+}
+.badge.safe {
+  background: var(--safe-soft);
+  color: var(--safe-color);
+}
+.badge.warn {
+  background: var(--warn-soft);
+  color: var(--warn-color);
+}
+.badge.accent {
+  background: var(--accent-soft);
+  color: var(--accent-color);
+}
+
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+.step-counter {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.canvas-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+svg {
+  width: 100%;
+  height: 100%;
+}
+
+.explainer-text {
+  margin-top: 16px;
+  font-size: 0.95rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+.reduced-list {
+  display: none;
+  margin-top: 16px;
+  padding-left: 20px;
+}
+.reduced-list li {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reduced-list {
+    display: block;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="SwiftUI and UIKit Interop Lifecycle Stepper">
+  <div class="diagram-card">
+    <div class="header-row">
+      <h2 class="stage-title" id="stageTitle">Step 1: makeUIView & Coordinator Instantiation</h2>
+      <span class="badge accent" id="statusBadge">CREATION</span>
+    </div>
+
+    <div class="stepper-controls" aria-label="Diagram stepper">
+      <span class="step-counter" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+      <div class="button-group">
+        <button id="btnBack" aria-label="Previous step" disabled>&larr; Back</button>
+        <button id="btnNext" aria-label="Next step">Next &rarr;</button>
+        <button id="btnReplay" aria-label="Restart stepper">&#8635; Replay</button>
+      </div>
+    </div>
+
+    <div class="canvas-container">
+      <svg viewBox="0 0 740 400" id="diagramSvg" role="img" aria-label="Interactive bidirectional bridge flow between SwiftUI and UIKit">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent-color)" />
+          </marker>
+          <marker id="arrow-safe" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--safe-color)" />
+          </marker>
+          <marker id="arrow-warn" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--warn-color)" />
+          </marker>
+        </defs>
+
+        <!-- Left Box: SwiftUI Domain -->
+        <g id="boxSwiftUI">
+          <rect x="40" y="40" width="280" height="320" rx="10" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+          <text x="180" y="75" text-anchor="middle" font-family="var(--font-body)" font-weight="700" font-size="16" fill="var(--ink)">SwiftUI Environment</text>
+          
+          <rect id="stateNode" x="70" y="110" width="220" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent-color)" stroke-width="1.5"/>
+          <text x="180" y="140" text-anchor="middle" font-family="var(--font-code)" font-size="13" font-weight="600" fill="var(--accent-color)">@Binding var isOn: Bool</text>
+          <text x="180" y="162" text-anchor="middle" font-family="var(--font-body)" font-size="11" fill="var(--muted)">Declarative State Source</text>
+
+          <rect id="representableNode" x="70" y="220" width="220" height="100" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="180" y="245" text-anchor="middle" font-family="var(--font-code)" font-size="13" font-weight="600" fill="var(--ink)">UIViewRepresentable</text>
+          <text x="180" y="270" text-anchor="middle" font-family="var(--font-code)" font-size="11" fill="var(--muted)">makeUIView(context:)</text>
+          <text x="180" y="295" text-anchor="middle" font-family="var(--font-code)" font-size="11" fill="var(--muted)">updateUIView(_:context:)</text>
+        </g>
+
+        <!-- Right Box: UIKit Domain -->
+        <g id="boxUIKit">
+          <rect x="420" y="40" width="280" height="320" rx="10" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+          <text x="560" y="75" text-anchor="middle" font-family="var(--font-body)" font-weight="700" font-size="16" fill="var(--ink)">UIKit Domain</text>
+
+          <rect id="coordinatorNode" x="450" y="110" width="220" height="90" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="560" y="135" text-anchor="middle" font-family="var(--font-code)" font-size="13" font-weight="600" fill="var(--ink)">class Coordinator</text>
+          <text x="560" y="158" text-anchor="middle" font-family="var(--font-body)" font-size="11" fill="var(--muted)">Delegate / Target-Action Bridge</text>
+          <text x="560" y="180" text-anchor="middle" font-family="var(--font-code)" font-size="11" fill="var(--muted)">switchChanged(_:)</text>
+
+          <rect id="uiViewNode" x="450" y="240" width="220" height="80" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="560" y="272" text-anchor="middle" font-family="var(--font-code)" font-size="13" font-weight="600" fill="var(--ink)">UISwitch / UIView</text>
+          <text x="560" y="295" text-anchor="middle" font-family="var(--font-body)" font-size="11" fill="var(--muted)">Imperative Screen View</text>
+        </g>
+
+        <!-- Flow Arrows -->
+        <!-- Step 1 Arrow: makeUIView creates UISwitch -->
+        <path id="pathStep1" d="M 290 270 L 440 270" stroke="var(--accent-color)" stroke-width="2.5" fill="none" marker-end="url(#arrow)" />
+        <text id="lblStep1" x="365" y="260" text-anchor="middle" font-family="var(--font-code)" font-size="11" fill="var(--accent-color)" font-weight="600">makeUIView()</text>
+
+        <!-- Step 2 Arrow: updateUIView pushes new state -->
+        <path id="pathStep2" d="M 290 295 C 360 295, 380 305, 440 305" stroke="var(--safe-color)" stroke-width="2.5" fill="none" marker-end="url(#arrow-safe)" opacity="0.1" />
+        <text id="lblStep2" x="365" y="325" text-anchor="middle" font-family="var(--font-code)" font-size="11" fill="var(--safe-color)" font-weight="600" opacity="0.1">updateUIView()</text>
+
+        <!-- Step 3 Arrow: UIControl target-action to Coordinator -->
+        <path id="pathStep3" d="M 560 240 L 560 210" stroke="var(--warn-color)" stroke-width="2.5" fill="none" marker-end="url(#arrow-warn)" opacity="0.1" />
+        <text id="lblStep3" x="600" y="225" text-anchor="start" font-family="var(--font-code)" font-size="11" fill="var(--warn-color)" font-weight="600" opacity="0.1">valueChanged</text>
+
+        <!-- Step 4 Arrow: Coordinator updates @Binding -->
+        <path id="pathStep4" d="M 450 145 L 300 145" stroke="var(--accent-color)" stroke-width="2.5" fill="none" marker-end="url(#arrow)" opacity="0.1" />
+        <text id="lblStep4" x="375" y="135" text-anchor="middle" font-family="var(--font-code)" font-size="11" fill="var(--accent-color)" font-weight="600" opacity="0.1">binding.wrappedValue =</text>
+      </svg>
+    </div>
+
+    <p class="explainer-text" id="explainerText">
+      SwiftUI initializes the Coordinator with <code>makeCoordinator()</code>, then calls <code>makeUIView(context:)</code> exactly once to construct the native UIKit view.
+    </p>
+
+    <div class="code-preview" id="codeSnippet">func makeUIView(context: Context) -> UISwitch {
+    let toggle = UISwitch()
+    toggle.addTarget(context.coordinator, action: #selector(Coordinator.changed), for: .valueChanged)
+    return toggle
+}</div>
+
+    <ol class="reduced-list" aria-label="Static lifecycle summary">
+      <li><strong>Step 1: Creation:</strong> <code>makeUIView</code> builds the UIKit instance once and assigns the coordinator as delegate or target.</li>
+      <li><strong>Step 2: SwiftUI to UIKit:</strong> When SwiftUI state changes, <code>updateUIView</code> runs to update properties on the existing UIKit view.</li>
+      <li><strong>Step 3: User Interaction:</strong> User actions in the UIKit control fire target-action or delegate messages to the Coordinator.</li>
+      <li><strong>Step 4: UIKit to SwiftUI:</strong> The Coordinator assigns the new value to the SwiftUI <code>@Binding</code>, completing the feedback loop.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(function() {
+  const steps = [
+    {
+      title: "Step 1: makeUIView & Coordinator Instantiation",
+      badge: "CREATION",
+      badgeClass: "accent",
+      explainer: "SwiftUI calls makeCoordinator() first, then makeUIView(context:) once to create the native UIKit view and configure initial properties.",
+      code: "func makeUIView(context: Context) -> UISwitch {\n    let toggle = UISwitch()\n    toggle.addTarget(context.coordinator, action: #selector(Coordinator.changed), for: .valueChanged)\n    return toggle\n}",
+      activePaths: ["pathStep1", "lblStep1"],
+      highlightNodes: ["representableNode", "uiViewNode"]
+    },
+    {
+      title: "Step 2: SwiftUI State Update -> updateUIView",
+      badge: "STATE UPDATE",
+      badgeClass: "safe",
+      explainer: "When parent SwiftUI state or environment dependencies change, SwiftUI calls updateUIView(_:context:) to synchronize properties without re-creating the view.",
+      code: "func updateUIView(_ uiView: UISwitch, context: Context) {\n    if uiView.isOn != isOn {\n        uiView.isOn = isOn // Guard against redundant set\n    }\n}",
+      activePaths: ["pathStep2", "lblStep2"],
+      highlightNodes: ["stateNode", "representableNode", "uiViewNode"]
+    },
+    {
+      title: "Step 3: UIKit Event -> Coordinator Target",
+      badge: "USER EVENT",
+      badgeClass: "warn",
+      explainer: "When the user interacts with the UIKit control (such as toggling a switch or typing in a text field), UIKit triggers the Coordinator's target-action method.",
+      code: "@objc func changed(_ sender: UISwitch) {\n    // Target action fires on user gesture\n    parent.isOn = sender.isOn\n}",
+      activePaths: ["pathStep3", "lblStep3"],
+      highlightNodes: ["uiViewNode", "coordinatorNode"]
+    },
+    {
+      title: "Step 4: Coordinator -> SwiftUI Binding Mutation",
+      badge: "BIDIRECTIONAL",
+      badgeClass: "accent",
+      explainer: "The Coordinator mutates the SwiftUI @Binding wrappedValue. SwiftUI records the mutation and re-evaluates dependent views in the next render pass.",
+      code: "class Coordinator: NSObject {\n    var binding: Binding<Bool>\n    func changed(_ sender: UISwitch) {\n        binding.wrappedValue = sender.isOn\n    }\n}",
+      activePaths: ["pathStep4", "lblStep4"],
+      highlightNodes: ["coordinatorNode", "stateNode"]
+    }
+  ];
+
+  let currentStep = 0;
+  const stageTitle = document.getElementById("stageTitle");
+  const statusBadge = document.getElementById("statusBadge");
+  const stepCounter = document.getElementById("stepCounter");
+  const explainerText = document.getElementById("explainerText");
+  const codeSnippet = document.getElementById("codeSnippet");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+
+  const allPathIds = ["pathStep1", "lblStep1", "pathStep2", "lblStep2", "pathStep3", "lblStep3", "pathStep4", "lblStep4"];
+  const allNodeIds = ["stateNode", "representableNode", "coordinatorNode", "uiViewNode"];
+
+  function updateView() {
+    const s = steps[currentStep];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${currentStep + 1} of ${steps.length}`;
+    explainerText.innerHTML = s.explainer;
+    codeSnippet.textContent = s.code;
+
+    btnBack.disabled = currentStep === 0;
+    btnNext.disabled = currentStep === steps.length - 1;
+
+    allPathIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute("opacity", s.activePaths.includes(id) ? "1" : "0.1");
+    });
+
+    allNodeIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        if (s.highlightNodes.includes(id)) {
+          el.setAttribute("stroke-width", "2.5");
+        } else {
+          el.setAttribute("stroke-width", "1.5");
+        }
+      }
+    });
+  }
+
+  btnNext.addEventListener("click", () => {
+    if (currentStep < steps.length - 1) {
+      currentStep++;
+      updateView();
+    }
+  });
+
+  btnBack.addEventListener("click", () => {
+    if (currentStep > 0) {
+      currentStep--;
+      updateView();
+    }
+  });
+
+  btnReplay.addEventListener("click", () => {
+    currentStep = 0;
+    updateView();
+  });
+
+  updateView();
+})();
+</script>
+</body>
+</html>
