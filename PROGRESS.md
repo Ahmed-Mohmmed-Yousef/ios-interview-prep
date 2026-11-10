@@ -173,7 +173,15 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **intervals** (Intervals) — published (lesson, diagram, 31 questions) → [docs/topics/intervals/review.html](docs/topics/intervals/review.html)
     - ✅ **dynamic-programming** (Dynamic Programming) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/dynamic-programming/review.html](docs/topics/dynamic-programming/review.html)
     - ✅ **bits-math-geometry** (Bits, Math and Geometry) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/bits-math-geometry/review.html](docs/topics/bits-math-geometry/review.html)
-  - ⬜ **Batch 3C: Memory Profiling & Swift Concurrency (8 topics: 1 memory + 7 concurrency)**
+  - 🔄 **Batch 3C: Memory Profiling & Swift Concurrency (8 topics: 1 memory + 7 concurrency)**
+    - 🔄 **memory-graph-debugger** (Finding Leaks with the Memory Graph) — starting research
+    - ⬜ **structured-concurrency** (Tasks and Task Groups)
+    - ⬜ **task-cancellation** (Task Cancellation)
+    - ⬜ **async-sequences** (AsyncSequence and AsyncStream)
+    - ⬜ **actors-and-main-actor** (Actors and @MainActor)
+    - ⬜ **sendable-data-races** (Sendable and Data Races)
+    - ⬜ **swift-6-strict-concurrency** (Swift 6 Strict Concurrency)
+    - ⬜ **approachable-concurrency** (Approachable Concurrency)
   - ⬜ **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)**
   - ⬜ **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
   - ⬜ **Batch 3F: Data Persistence & Networking (5 topics)**
@@ -328,6 +336,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Starting Batch 3C: Memory Profiling & Swift Concurrency (8 topics: `memory-graph-debugger` through `approachable-concurrency`). Launching dedicated autonomous subagent.
 
 - **2026-11-10** — Built and published topic `bits-math-geometry` (Bits, Math and Geometry) [bonus]: researched official FixedWidthInteger, CGRect, and OptionSet docs, authored lesson in simple English, interactive bitwise stepper diagram with step controls, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/bits-math-geometry/review.html`). All checks passed. Batch 3B is now 100% COMPLETE (7 of 7 published: 4 main + 3 bonus)! Mid level progress: 14 of 53 published (81 total published topics across curriculum).
 
