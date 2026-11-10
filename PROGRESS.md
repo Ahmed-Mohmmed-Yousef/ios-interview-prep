@@ -181,8 +181,15 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **actors-and-main-actor** (Actors and @MainActor) — published (lesson, diagram, 31 questions) → [docs/topics/actors-and-main-actor/review.html](docs/topics/actors-and-main-actor/review.html)
     - ✅ **sendable-data-races** (Sendable and Data Races) — published (lesson, diagram, 31 questions) → [docs/topics/sendable-data-races/review.html](docs/topics/sendable-data-races/review.html)
     - ✅ **swift-6-strict-concurrency** (Swift 6 Strict Concurrency) — published (lesson, diagram, 31 questions) → [docs/topics/swift-6-strict-concurrency/review.html](docs/topics/swift-6-strict-concurrency/review.html)
-    - ⬜ **approachable-concurrency** (Approachable Concurrency)
+    - 🔄 **approachable-concurrency** (Approachable Concurrency) — in progress
   - ⬜ **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)**
+    - ⬜ **swiftui-loading-data** (Loading Data in SwiftUI)
+    - ⬜ **view-identity-lifetime** (View Identity and Lifetime)
+    - ⬜ **swiftui-animations** (Animations and Transitions)
+    - ⬜ **custom-layouts** (Custom Layouts) [bonus]
+    - ⬜ **swiftui-uikit-interop** (SwiftUI and UIKit Together)
+    - ⬜ **swiftui-performance** (SwiftUI Performance)
+    - ⬜ **custom-views-layout-pass** (Custom Views and the Layout Pass)
   - ⬜ **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
   - ⬜ **Batch 3F: Data Persistence & Networking (5 topics)**
   - ⬜ **Batch 3G: Architecture & Testing Strategy (8 topics)**
@@ -336,6 +343,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Resumed Batch 3C: finishing `approachable-concurrency` and queued Batch 3D (SwiftUI & UIKit Advanced). Launching dedicated autonomous subagent.
 
 - **2026-11-10** — Built and published topic `swift-6-strict-concurrency` (Swift 6 Strict Concurrency): researched official Swift.org migration guide and WWDC24 migrate to Swift 6, authored lesson in simple English, interactive 4-step strict concurrency diagnostic diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swift-6-strict-concurrency/review.html`). All checks passed. Batch 3C progress: 7 of 8 published. Starting approachable-concurrency.
 
