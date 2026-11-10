@@ -1,0 +1,164 @@
+export const meta = {
+  id: "swiftui-animations",
+  summary: "Master SwiftUI animations and transitions, comparing implicit versus explicit animations, spring physics, and view transitions.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "Animations (SwiftUI)",
+      url: "https://developer.apple.com/documentation/swiftui/animations"
+    },
+    {
+      title: "WWDC23: Explore SwiftUI animation",
+      url: "https://developer.apple.com/videos/play/wwdc2023/10156/"
+    }
+  ]
+}
+
+<InterviewHook>
+  <Question>
+    You added a `.transition(.slide)` modifier to a view, but it appears instantly without animating. Why?
+  </Question>
+  <Guess>
+    <Option id="a">SwiftUI requires Metal shader permission to slide views.</Option>
+    <Option id="b" correct>Transitions only animate when the state change happens inside an animated context like `withAnimation`.</Option>
+    <Option id="c">Slide transitions only work on iPad devices.</Option>
+    <Option id="d">The `.transition` modifier is deprecated in modern SwiftUI.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+SwiftUI makes animations declarative. You describe the end state, and SwiftUI figures out how to animate between frames.
+
+There are two primary ways to animate: implicit animations and explicit animations.
+
+Implicit animations use the `.animation(_:value:)` modifier. The animation triggers only when that specific bound value changes.
+
+Explicit animations wrap the state change in `withAnimation`. This tells SwiftUI to animate all views that depend on that state change.
+
+<Analogy>
+  Think of turning on the lights in a room. An implicit animation is like a lamp with its own dimmer switch. An explicit animation is like the main wall switch that smoothly dims every light connected to the circuit.
+</Analogy>
+
+Transitions are different from regular property animations.
+
+Property animations interpolate values like colors or frame sizes on views that stay on screen.
+
+Transitions govern how a view enters (insertion) or exits (removal) the view hierarchy when identity changes.
+
+A transition requires an animated context. If you toggle state without `withAnimation`, SwiftUI inserts or removes the view instantly without animation.
+
+Modern SwiftUI uses spring animations by default. Springs preserve velocity, so user interruptions look natural and smooth.
+
+## See it
+
+<Diagram id="swiftui-animations" caption="Explore the difference between implicit property animations and structural transitions with spring physics." />
+
+<QuickCheck>
+  <Question>
+    Why did Apple deprecate the single-parameter `.animation(_:)` modifier in iOS 15?
+  </Question>
+  <Option id="a">It consumed excessive disk storage space.</Option>
+  <Option id="b" correct>It responded to every ancestor view redraw, causing unintended side-effect animations.</Option>
+  <Option id="c">It forced all animations to run for ten seconds.</Option>
+  <Option id="d">It was replaced by Core Animation CALayer classes.</Option>
+  <Explanation>
+    The old modifier lacked scoping, animating accidentally whenever any parent state changed. The value parameter scopes animation explicitly.
+  </Explanation>
+</QuickCheck>
+
+## In code
+
+Here is an example representing spring animation configuration. Modern SwiftUI provides presets like snappy, smooth, and bouncy.
+
+```swift
+struct AnimationCurve {
+    let name: String
+    let duration: Double
+    let bounce: Double
+
+    func describe() -> String {
+        "\(name): duration \(duration)s, bounce \(bounce)"
+    }
+}
+
+let spring = AnimationCurve(name: "Snappy", duration: 0.35, bounce: 0.2)
+print(spring.describe())
+```
+```output
+Snappy: duration 0.35s, bounce 0.2
+```
+
+Transitions can be combined using `.combined(with:)` or tailored with `.asymmetric` for distinct insertion and removal effects.
+
+```swift
+struct TransitionSpec {
+    let mode: String
+    let hasOpacity: Bool
+    let hasScale: Bool
+
+    func describe() -> String {
+        var effects: [String] = []
+        if hasOpacity { effects.append("Opacity") }
+        if hasScale { effects.append("Scale") }
+        return "Transition (\(mode)): \(effects.joined(separator: " + "))"
+    }
+}
+
+let combined = TransitionSpec(mode: "Asymmetric", hasOpacity: true, hasScale: true)
+print(combined.describe())
+```
+```output
+Transition (Asymmetric): Opacity + Scale
+```
+
+Combining opacity and scale creates a polished card appearance without jarring jumps.
+
+<TryIt>
+  Open a Swift Playground. Create a view toggled by a boolean flag. Apply an asymmetric transition with withAnimation and test spring bounce presets.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    How do spring animations handle user interruptions compared to linear animations?
+  </Question>
+  <Option id="a">They freeze the application run loop until the gesture completes.</Option>
+  <Option id="b">They cancel the gesture and snap backwards instantly.</Option>
+  <Option id="c" correct>They preserve physical velocity and momentum, creating fluid direction changes without snapping.</Option>
+  <Option id="d">They convert the animation into an unhandled fatal error.</Option>
+  <Explanation>
+    Spring physics naturally accounts for existing velocity, redirecting motion smoothly when interrupted by gestures.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Do not forget withAnimation when using transitions">
+  Applying `.transition()` tells SwiftUI how to enter or leave, but it does not make the change animated. Always wrap the boolean state change inside `withAnimation`.
+</Trap>
+
+<Trap label="Beware of modifier order with .animation">
+  The `.animation(_:value:)` modifier only animates modifiers placed before it. Modifiers placed after `.animation` update immediately without interpolating.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  I use `withAnimation` for explicit animations when I want all views affected by a state change to animate together. For targeted view effects, I use `.animation(_:value:)` scoped to a specific property value. For views entering or leaving the hierarchy, I use `.transition()`, making sure the triggering state mutation is wrapped in `withAnimation`. I favor spring animations like `.snappy` and `.smooth` because their physics preserve momentum when interrupted.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  In SwiftUI, animation strategy centers on transactions and view identity. Explicit animations via `withAnimation` attach animation metadata to the current transaction, which propagates down the hierarchy. Transitions operate on structural identity insertions and removals, requiring transaction context to interpolate between layout passes. For interactive gestures, I rely on spring physics because they maintain continuous velocity curves, preventing visual snapping during rapid user inputs.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Use withAnimation for explicit animations across the view hierarchy. Use .animation(_:value:) for scoped animations on a specific view. Transitions define entrance and exit effects when identity changes, and require an animated context to trigger. Spring presets like smooth and snappy handle interruptions naturally by preserving momentum.
+</Recap>
+
+## Go deeper
+
+- Animations in SwiftUI: https://developer.apple.com/documentation/swiftui/animations
+- WWDC23: Explore SwiftUI animation: https://developer.apple.com/videos/play/wwdc2023/10156/
