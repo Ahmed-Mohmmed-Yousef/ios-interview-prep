@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Apple Push Notification Service (APNs) Lifecycle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.stage-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-color);
+}
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-color); }
+
+.svg-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.text-sm { font-size: 0.875rem; color: var(--muted); }
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.code-box {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  color: var(--ink);
+  white-space: pre-wrap;
+  margin-top: 12px;
+}
+.fallback-list {
+  display: none;
+  margin-top: 16px;
+  padding-left: 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fallback-list { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host">
+  <div class="diagram-card" role="region" aria-label="APNs push notification lifecycle stepper">
+    <div class="header-row">
+      <div>
+        <h2 class="stage-title" id="stageTitle">Step 1: App Registration Request</h2>
+        <span class="text-sm" id="stepCounter">Step 1 of 4</span>
+      </div>
+      <span class="badge accent" id="statusBadge">Handshake Initiated</span>
+    </div>
+
+    <div class="svg-container">
+      <svg viewBox="0 0 800 450" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Interactive diagram illustrating APNs token generation, server upload, and notification delivery">
+        <!-- Node 1: iOS Device (Left) -->
+        <g id="nodeDevice">
+          <rect x="50" y="80" width="180" height="260" rx="14" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+          <text x="75" y="115" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">iOS Device (App)</text>
+          
+          <rect x="65" y="130" width="150" height="130" rx="8" fill="var(--code-bg)" />
+          <text x="75" y="155" fill="var(--ink)" font-family="var(--font-code)" font-size="11">registerForRemote()</text>
+          
+          <!-- Notification Banner Mockup on Device -->
+          <g id="bannerMock" opacity="0.1">
+            <rect x="70" y="175" width="140" height="65" rx="6" fill="var(--accent-soft)" stroke="var(--accent-color)" stroke-width="1.5" />
+            <text x="80" y="195" fill="var(--accent-color)" font-family="var(--font-body)" font-size="10" font-weight="600">Push Alert</text>
+            <text x="80" y="212" fill="var(--ink)" font-family="var(--font-body)" font-size="10">New message!</text>
+          </g>
+
+          <text id="lblDevToken" x="75" y="300" fill="var(--muted)" font-family="var(--font-code)" font-size="10">token: none</text>
+        </g>
+
+        <!-- Node 2: Apple APNs Gateway (Center Top) -->
+        <g id="nodeAPNs">
+          <rect x="310" y="50" width="180" height="150" rx="14" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+          <!-- Cloud Icon -->
+          <circle cx="375" cy="95" r="20" fill="var(--accent-soft)" />
+          <circle cx="410" cy="95" r="24" fill="var(--accent-soft)" />
+          <circle cx="435" cy="100" r="16" fill="var(--accent-soft)" />
+          <rect x="375" y="95" width="60" height="20" fill="var(--accent-soft)" />
+          
+          <text x="345" y="145" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">Apple APNs</text>
+          <text x="330" y="165" fill="var(--muted)" font-family="var(--font-body)" font-size="11">Push Gateway Hub</text>
+        </g>
+
+        <!-- Node 3: Your Backend Server (Right) -->
+        <g id="nodeServer">
+          <rect x="570" y="80" width="180" height="260" rx="14" fill="var(--surface)" stroke="var(--line)" stroke-width="2" />
+          <text x="590" y="115" fill="var(--ink)" font-family="var(--font-body)" font-size="14" font-weight="600">Backend Server</text>
+
+          <rect x="585" y="130" width="150" height="120" rx="8" fill="var(--code-bg)" />
+          <text x="595" y="155" fill="var(--ink)" font-family="var(--font-code)" font-size="11">Customer DB</text>
+          <text id="lblServerDB" x="595" y="180" fill="var(--muted)" font-family="var(--font-code)" font-size="10">Device Tokens: []</text>
+          
+          <rect x="585" y="265" width="150" height="50" rx="6" fill="var(--surface)" stroke="var(--line)" />
+          <text x="595" y="295" fill="var(--muted)" font-family="var(--font-code)" font-size="11">HTTP/2 JWT Client</text>
+        </g>
+
+        <!-- Dynamic Data Flow Connectors -->
+        <!-- Step 1: Device -> APNs -->
+        <path id="path1" d="M230 140 Q 270 100 310 100" stroke="var(--accent-color)" stroke-width="2.5" stroke-dasharray="6 4" fill="none" marker-end="url(#arrowhead)" opacity="1" />
+        <text id="txtStep1" x="235" y="85" fill="var(--accent-color)" font-family="var(--font-body)" font-size="11" font-weight="600">1. Register</text>
+
+        <!-- Step 2: APNs -> Device (Token return) -->
+        <path id="path2" d="M310 135 Q 260 160 230 180" stroke="var(--safe-color)" stroke-width="2.5" fill="none" marker-end="url(#arrowheadSafe)" opacity="0.1" />
+        <text id="txtStep2" x="235" y="210" fill="var(--safe-color)" font-family="var(--font-body)" font-size="11" font-weight="600" opacity="0.1">2. Token: 0x8a9f...</text>
+
+        <!-- Step 3: Device -> Backend (Upload token) -->
+        <path id="path3" d="M230 280 H 570" stroke="var(--warn-color)" stroke-width="2.5" fill="none" marker-end="url(#arrowheadWarn)" opacity="0.1" />
+        <text id="txtStep3" x="350" y="270" fill="var(--warn-color)" font-family="var(--font-body)" font-size="11" font-weight="600" opacity="0.1">3. Upload Token</text>
+
+        <!-- Step 4a: Backend -> APNs (HTTP/2 push) -->
+        <path id="path4a" d="M570 140 Q 530 100 490 100" stroke="var(--accent-color)" stroke-width="2.5" fill="none" marker-end="url(#arrowhead)" opacity="0.1" />
+        <text id="txtStep4a" x="500" y="85" fill="var(--accent-color)" font-family="var(--font-body)" font-size="11" font-weight="600" opacity="0.1">4a. Send JSON</text>
+
+        <!-- Step 4b: APNs -> Device (Push delivery) -->
+        <path id="path4b" d="M340 180 Q 280 230 230 230" stroke="var(--accent-color)" stroke-width="3" fill="none" marker-end="url(#arrowhead)" opacity="0.1" />
+        <text id="txtStep4b" x="250" y="245" fill="var(--accent-color)" font-family="var(--font-body)" font-size="11" font-weight="600" opacity="0.1">4b. Deliver Push</text>
+
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="var(--accent-color)" />
+          </marker>
+          <marker id="arrowheadSafe" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="var(--safe-color)" />
+          </marker>
+          <marker id="arrowheadWarn" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="var(--warn-color)" />
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <div id="explainerText" class="text-sm">
+      The app calls <code>registerForRemoteNotifications()</code>. iOS establishes a secure connection to APNs.
+    </div>
+
+    <div class="code-box" id="codeSnippet">UIApplication.shared.registerForRemoteNotifications()</div>
+
+    <div class="controls-row">
+      <div class="btn-group">
+        <button id="btnBack" disabled aria-label="Previous step">Back</button>
+        <button id="btnNext" aria-label="Next step">Next</button>
+        <button id="btnReplay" aria-label="Replay animation">Replay</button>
+      </div>
+    </div>
+
+    <ol class="fallback-list">
+      <li><strong>Step 1 (Register):</strong> The app requests authorization and invokes <code>UIApplication.shared.registerForRemoteNotifications()</code>.</li>
+      <li><strong>Step 2 (Token Issued):</strong> APNs generates an opaque device token and passes it to the app in <code>didRegisterForRemoteNotificationsWithDeviceToken</code>.</li>
+      <li><strong>Step 3 (Token Upload):</strong> The app converts the binary token to hexadecimal and uploads it to the backend customer database.</li>
+      <li><strong>Step 4 (Push Delivery):</strong> When an event occurs, the backend sends a JSON payload to APNs via HTTP/2, and APNs delivers the notification banner to the device.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(function() {
+  const steps = [
+    {
+      title: "Step 1: App Registration Request",
+      badge: "Handshake Initiated",
+      badgeClass: "accent",
+      explainer: "The app calls <code>registerForRemoteNotifications()</code>. iOS establishes a secure connection to Apple Push Notification service (APNs).",
+      code: "UIApplication.shared.registerForRemoteNotifications()",
+      devTokenText: "token: none",
+      serverDBText: "Device Tokens: []",
+      showBanner: false,
+      activePaths: ["path1", "txtStep1"]
+    },
+    {
+      title: "Step 2: APNs Issues Device Token",
+      badge: "Token Generated",
+      badgeClass: "safe",
+      explainer: "APNs creates a unique cryptographic device token and returns it to <code>application(_:didRegisterForRemoteNotificationsWithDeviceToken:)</code>.",
+      code: "func application(_ app: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken token: Data)",
+      devTokenText: "token: 0x8a9f...",
+      serverDBText: "Device Tokens: []",
+      showBanner: false,
+      activePaths: ["path2", "txtStep2"]
+    },
+    {
+      title: "Step 3: App Uploads Token to Server",
+      badge: "Token Stored",
+      badgeClass: "warn",
+      explainer: "The app converts the binary token into a hexadecimal string and sends it over HTTPS to your backend server database.",
+      code: "backendAPI.saveDeviceToken(hexToken) // Stores for targeted push",
+      devTokenText: "token: 0x8a9f...",
+      serverDBText: "Device Tokens: [0x8a9f...]",
+      showBanner: false,
+      activePaths: ["path3", "txtStep3"]
+    },
+    {
+      title: "Step 4: Push Delivery to Device",
+      badge: "Delivered",
+      badgeClass: "safe",
+      explainer: "Backend sends an HTTP/2 payload to APNs addressing the device token. APNs routes the payload, displaying the banner on the device.",
+      code: "POST /3/device/0x8a9f... HTTP/2 // APNs delivers notification banner",
+      devTokenText: "token: 0x8a9f...",
+      serverDBText: "Device Tokens: [0x8a9f...]",
+      showBanner: true,
+      activePaths: ["path4a", "txtStep4a", "path4b", "txtStep4b"]
+    }
+  ];
+
+  let currentStep = 0;
+
+  const stageTitle = document.getElementById("stageTitle");
+  const stepCounter = document.getElementById("stepCounter");
+  const statusBadge = document.getElementById("statusBadge");
+  const explainerText = document.getElementById("explainerText");
+  const codeSnippet = document.getElementById("codeSnippet");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+
+  const lblDevToken = document.getElementById("lblDevToken");
+  const lblServerDB = document.getElementById("lblServerDB");
+  const bannerMock = document.getElementById("bannerMock");
+
+  const allPathIds = ["path1", "txtStep1", "path2", "txtStep2", "path3", "txtStep3", "path4a", "txtStep4a", "path4b", "txtStep4b"];
+
+  function updateView() {
+    const s = steps[currentStep];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${currentStep + 1} of ${steps.length}`;
+    explainerText.innerHTML = s.explainer;
+    codeSnippet.textContent = s.code;
+
+    btnBack.disabled = currentStep === 0;
+    btnNext.disabled = currentStep === steps.length - 1;
+
+    lblDevToken.textContent = s.devTokenText;
+    lblServerDB.textContent = s.serverDBText;
+    bannerMock.setAttribute("opacity", s.showBanner ? "1" : "0.1");
+
+    allPathIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute("opacity", s.activePaths.includes(id) ? "1" : "0.1");
+    });
+  }
+
+  btnNext.addEventListener("click", () => {
+    if (currentStep < steps.length - 1) {
+      currentStep++;
+      updateView();
+    }
+  });
+
+  btnBack.addEventListener("click", () => {
+    if (currentStep > 0) {
+      currentStep--;
+      updateView();
+    }
+  });
+
+  btnReplay.addEventListener("click", () => {
+    currentStep = 0;
+    updateView();
+  });
+
+  updateView();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+export const meta = {
+  id: "notifications",
+  summary: "Schedule local notifications and configure Apple Push Notification service (APNs) payloads and delegate callbacks.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "User Notifications (Apple)", url: "https://developer.apple.com/documentation/usernotifications", kind: "official" },
+    { title: "Registering your app with APNs", url: "https://developer.apple.com/documentation/usernotifications/registering-your-app-with-apns", kind: "official" },
+    { title: "Generating a remote notification", url: "https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does a push notification banner fail to display when an app is already open in the foreground?</Question>
+  <Guess>
+    <Option id="a">The Apple Push Notification service blocks delivery to apps running active network sockets.</Option>
+    <Option id="b" correct>By default, iOS suppresses visual banners in the foreground unless you implement the delegate method.</Option>
+    <Option id="c">Foreground apps consume all device audio channels, preventing notification sound playback.</Option>
+    <Option id="d">Apple requires paid enterprise certificates to display banners while apps are active.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine a personal alarm clock on your bedside table versus a courier delivering a telegram.
+The alarm clock rings locally in your room without internet connection or external servers.
+The telegram originates from a distant city, travels through a postal distribution hub, and reaches your door.
+Local notifications act like the alarm clock; push notifications act like the telegram.
+</Analogy>
+
+Notifications keep users informed when your app is in the background or closed.
+iOS divides notifications into two main categories:
+1. **Local notifications**: Scheduled directly on the device by your code using time, calendar, or location triggers. No network connection is needed.
+2. **Remote (push) notifications**: Sent from your backend server to the **Apple Push Notification service (APNs)**, which forwards them to the device.
+
+To display notifications, you must request user authorization using `UNUserNotificationCenter`.
+Users can grant alert, sound, and badge permissions.
+
+For push notifications, your app registers with APNs to receive a unique **device token**.
+Your app sends this token to your backend server.
+When your server sends a push, it addresses the payload to APNs using that device token.
+
+**Local notifications run entirely on device, while push notifications route through APNs via device tokens.**
+
+## See it
+
+<Diagram id="notifications-main" caption="The complete registration and delivery lifecycle between the app, APNs gateway, and backend server.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: iOS App, Apple APNs Gateway, Backend Server, Physical Device Screen.
+  - Step 1: App requests authorization and calls registerForRemoteNotifications().
+  - Step 2: APNs generates unique device token and returns it to the app delegate.
+  - Step 3: App transmits device token to backend server database.
+  - Step 4: Backend sends payload to APNs; APNs delivers notification banner to device.
+  - Static version (reduced motion): Displays a sequence table showing step numbers, sender, receiver, and data payload.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What should your iOS app do immediately after receiving a device token from APNs?</Question>
+  <Option id="a">Save the token inside the app sandbox and never share it.</Option>
+  <Option id="b" correct>Send the device token to your backend server so it can address pushes to this device.</Option>
+  <Option id="c">Display the device token to the user inside a modal alert popup.</Option>
+  <Explanation>Your backend server requires the device token to address push notifications to this specific device through APNs.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Scheduling a local notification with UserNotifications
+
+To schedule a local alert, create a `UNMutableNotificationContent` object, choose a trigger, and add a request to `UNUserNotificationCenter`.
+
+```swift
+import Foundation
+import UserNotifications
+
+let content = UNMutableNotificationContent()
+content.title = "Break Time"
+content.body = "Take a five-minute walk."
+
+let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 300, repeats: false)
+
+print("Title: \(content.title)")
+print("Interval: \(Int(trigger.timeInterval)) seconds")
+```
+
+```output
+Title: Break Time
+Interval: 300 seconds
+```
+
+Local notifications support time interval triggers, calendar date triggers, and core location boundary triggers.
+
+### Formatting device tokens for your backend server
+
+APNs delivers the device token as binary `Data`.
+Your app converts this data into a hexadecimal string before uploading it to your backend.
+
+```swift
+import Foundation
+
+struct DeviceTokenHelper {
+    static func hexString(from tokenData: Data) -> String {
+        tokenData.map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+let sampleBytes: [UInt8] = [0xde, 0xad, 0xbe, 0xef]
+let token = DeviceTokenHelper.hexString(from: Data(sampleBytes))
+print("Formatted Token: \(token)")
+```
+
+```output
+Formatted Token: deadbeef
+```
+
+Your backend stores this hexadecimal string to target push payloads to this specific device.
+
+<QuickCheck>
+  <Question>Which method in UNUserNotificationCenterDelegate displays banners while the app is in the foreground?</Question>
+  <Option id="a">userNotificationCenter with didReceive</Option>
+  <Option id="b" correct>userNotificationCenter with willPresent</Option>
+  <Option id="c">application didFinishLaunchingWithOptions</Option>
+  <Explanation>The willPresent method is called when a notification arrives while the app is in the foreground, allowing you to show a banner.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open an iOS project in Xcode, add the Push Notifications capability in Signing and Capabilities, and test local triggers.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Assuming foreground notifications display automatically">
+By default, iOS suppresses visual banners when the app is in the foreground.
+If you do not implement `userNotificationCenter(_:willPresent:withCompletionHandler:)`, users will not see banners while using the app.
+Implement this delegate method and call the completion handler with `[.banner, .sound]`.
+</Trap>
+
+<Trap title="Assuming the APNs device token never changes">
+Device tokens are not permanent hardware identifiers.
+A device token can change when a user restores from a backup, reinstalls the app, or updates iOS.
+Always send the latest token to your backend whenever `didRegisterForRemoteNotificationsWithDeviceToken` fires.
+</Trap>
+
+<Trap title="Relying on silent push for guaranteed background work">
+Silent push (`content-available: 1`) wakes the app in the background to download data.
+However, iOS throttles silent pushes aggressively when battery is low or the user rarely opens the app.
+Never rely on silent push notifications for critical, time-sensitive background tasks.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Local notifications are scheduled directly on the device using triggers like time intervals or calendar dates.
+Push notifications are sent from a backend server through Apple Push Notification service (APNs).
+I request user authorization with `UNUserNotificationCenter` before scheduling alerts.
+When APNs returns a device token, I format it and send it to our backend server so it can deliver remote notifications.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Designing notification infrastructure requires managing security, payload constraints, and extensions.
+Standard APNs payloads have a strict 4096-byte limit, so I send compact payloads containing message IDs rather than raw content.
+For rich media or end-to-end encryption, I use a `UNNotificationServiceExtension` triggered by `mutable-content: 1`.
+This extension downloads attachments or decrypts text within a 30-second window before the banner appears.
+Finally, I handle token churn by updating backend registrations on every launch, and I use `willPresent` to show banners in the foreground.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Local notifications schedule alerts directly on the device without network connectivity.
+- Push notifications originate from a backend server and route to the device through APNs.
+- Always request permission using `UNUserNotificationCenter.current().requestAuthorization`.
+- Convert the binary device token to hexadecimal and send it to your backend server.
+- Implement `willPresent` in `UNUserNotificationCenterDelegate` to show banners while in the foreground.
+- Use `UNNotificationServiceExtension` with `mutable-content: 1` to download attachments or decrypt payloads.
+</Recap>

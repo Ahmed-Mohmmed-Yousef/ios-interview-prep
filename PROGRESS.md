@@ -194,8 +194,8 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **accessibility** (Accessibility) — published (lesson, diagram, 31 questions) → [docs/topics/accessibility/review.html](docs/topics/accessibility/review.html)
     - ✅ **localization** (Localization) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/localization/review.html](docs/topics/localization/review.html)
     - ✅ **ipad-adaptive-layout** (iPad and Adaptive Layout) — published (lesson, diagram, 31 questions) → [docs/topics/ipad-adaptive-layout/review.html](docs/topics/ipad-adaptive-layout/review.html)
-    - 🔄 **notifications** (Push and Local Notifications) — starting research
-    - ⬜ **background-tasks** (Background Work)
+    - ✅ **notifications** (Push and Local Notifications) — published (lesson, diagram, 31 questions) → [docs/topics/notifications/review.html](docs/topics/notifications/review.html)
+    - 🔄 **background-tasks** (Background Work) — starting research
     - ⬜ **deep-links** (Deep Links and Universal Links)
     - ⬜ **widgets-app-intents** (Widgets and App Intents) [bonus]
     - ⬜ **foundation-models** (On-Device AI with Foundation Models) [bonus]
@@ -369,6 +369,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `notifications` (Push and Local Notifications): researched official Apple UserNotifications and APNs registration docs, authored lesson in simple English, interactive 4-step APNs lifecycle and device token synchronization diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/notifications/review.html`). All checks passed. Batch 3E progress: 4 of 8 published (100 total published topics across curriculum!). Starting background-tasks.
 
 - **2026-11-10** — Built and published topic `ipad-adaptive-layout` (iPad and Adaptive Layout): researched official Apple HIG Layout, UITraitCollection, NavigationSplitView, and ViewThatFits docs, authored lesson in simple English, interactive 4-step iPad window resizing from regular to compact size class diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/ipad-adaptive-layout/review.html`). All checks passed. Batch 3E progress: 3 of 8 published (99 total published topics across curriculum). Starting notifications.
 
