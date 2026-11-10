@@ -1,0 +1,240 @@
+export const meta = {
+  id: "core-data",
+  summary: "Manage complex object graphs, persistence, and thread-safe background operations using Core Data.",
+  estimatedMinutes: 12,
+  baseline: { swift: "6.0", xcode: "16.0", ios: "17.0" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "Core Data", url: "https://developer.apple.com/documentation/coredata", kind: "official" },
+    { title: "Setting up a Core Data stack", url: "https://developer.apple.com/documentation/coredata/setting_up_a_core_data_stack", kind: "official" },
+    { title: "NSPersistentContainer", url: "https://developer.apple.com/documentation/coredata/nspersistentcontainer", kind: "official" },
+    { title: "NSManagedObjectContext", url: "https://developer.apple.com/documentation/coredata/nsmanagedobjectcontext", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is faulting in Core Data, and why is it essential for app performance?</Question>
+  <Guess>
+    <Option id="a">A fatal error that halts database execution when disk storage runs out.</Option>
+    <Option id="b" correct>A lazy-loading mechanism where objects load as hollow placeholders until their properties are accessed.</Option>
+    <Option id="c">A background check that validates network connections before querying records.</Option>
+    <Option id="d">An automatic backup system that duplicates files to iCloud Drive every minute.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a huge reference library.
+The **NSPersistentContainer** is the library building that houses the shelves and staff.
+The **NSManagedObjectModel** is the catalog index that describes every book section and title format.
+The **NSPersistentStoreCoordinator** is the head librarian who unlocks the physical storage basement where books rest.
+The **NSManagedObjectContext** is your study table.
+When you ask for fifty books, the assistant brings cards with call numbers called **faults**.
+Only when you open a book to read a paragraph does the assistant fetch the actual printed pages.
+</Analogy>
+
+**Core Data** is Apple long-standing framework for managing object graphs and persisting data on Apple devices.
+It is not merely a database; it is a full object graph manager that can persist to SQLite, binary, or memory.
+Many existing iOS apps rely on Core Data, making it a frequent topic in iOS technical interviews.
+
+The core stack consists of four primary components:
+
+1. **`NSManagedObjectModel`**: The schema blueprint describing your entities, attributes, and relationships. It usually comes from a `.xcdatamodeld` file.
+2. **`NSPersistentStoreCoordinator`**: The coordinator that connects the object model to physical storage files like SQLite on disk.
+3. **`NSManagedObjectContext`**: The in-memory scratchpad. It manages lifecycle changes, tracking inserts, updates, and deletions before saving.
+4. **`NSPersistentContainer`**: A container introduced in iOS 10 that encapsulates the model, coordinator, and context into one convenient object.
+
+### Faulting and uniquing
+
+Core Data uses two important memory optimizations:
+
+- **Faulting**: When you fetch objects, Core Data returns lightweight placeholders called faults. Attributes are loaded from disk only when your code reads them. This keeps memory usage low.
+- **Uniquing**: A single context never holds two separate `NSManagedObject` instances for the same database row. It maintains one canonical object per record.
+
+### Threading and concurrency rules
+
+`NSManagedObjectContext` and `NSManagedObject` instances are not thread-safe:
+
+- **Queue Confinement**: Every context belongs to a specific queue. The `viewContext` belongs to the main queue for UI work.
+- **Background Contexts**: Create private queue contexts with `newBackgroundContext()` for heavy background imports.
+- **Queue Execution**: Always wrap context access inside `context.perform { ... }` or `context.performAndWait { ... }`.
+- **Cross-Thread Identifiers**: Never pass a managed object across threads or contexts. Pass its thread-safe `NSManagedObjectID` instead.
+
+**Core Data provides robust object graph tracking and lazy loading backed by strict queue concurrency rules.**
+
+## See it
+
+<Diagram id="core-data-stack" caption="Architecture of the Core Data stack connecting the persistent store, coordinator, contexts, and application UI.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: SQLite Store on Disk, NSPersistentStoreCoordinator, NSPersistentContainer, Background Context, ViewContext (Main Thread).
+  - Step 1: NSPersistentContainer loads the model and initializes the coordinator with the SQLite file.
+  - Step 2: Background context performs a heavy import task off the main thread inside perform {}.
+  - Step 3: Background context saves changes through the persistent store coordinator to disk.
+  - Step 4: Changes merge automatically into viewContext, and UI updates safely on the main thread.
+  - Static version (reduced motion): Shows standard layered Core Data stack diagram with clear thread boundary separating main and background contexts.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why must you never access a managed object directly from a foreign background thread?</Question>
+  <Option id="a">Core Data objects are deleted from memory immediately upon leaving the main queue.</Option>
+  <Option id="b" correct>Managed objects are not thread-safe and must only be accessed on their context queue.</Option>
+  <Option id="c">SQLite locks the entire operating system when background threads run.</Option>
+  <Explanation>Managed objects and their contexts are queue-confined. Interacting with them off their queue causes data corruption or crashes.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Setting up a Core Data stack and saving an entity
+
+Configure an in-memory persistent store coordinator, create a context, insert an entity, and save.
+
+```swift
+import Foundation
+import CoreData
+
+let model = NSManagedObjectModel()
+let entity = NSEntityDescription()
+entity.name = "DeviceRecord"
+entity.managedObjectClassName = "NSManagedObject"
+
+let nameAttr = NSAttributeDescription()
+nameAttr.name = "name"
+nameAttr.attributeType = .stringAttributeType
+nameAttr.isOptional = false
+
+entity.properties = [nameAttr]
+model.entities = [entity]
+
+let coordinator = NSPersistentStoreCoordinator(managedObjectModel: model)
+try coordinator.addPersistentStore(ofType: NSInMemoryStoreType, configurationName: nil, at: nil, options: nil)
+
+let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
+context.persistentStoreCoordinator = coordinator
+
+let device = NSManagedObject(entity: entity, insertInto: context)
+device.setValue("iPhone 16", forKey: "name")
+try context.save()
+
+let request = NSFetchRequest<NSManagedObject>(entityName: "DeviceRecord")
+let records = try context.fetch(request)
+print("Saved device: \(records.first?.value(forKey: "name") ?? "none")")
+```
+
+```output
+Saved device: iPhone 16
+```
+
+The in-memory store allows fast testing without writing temporary SQLite files to the filesystem.
+
+### Filtering entities with NSFetchRequest and NSPredicate
+
+Use `NSFetchRequest` along with `NSPredicate` to retrieve matching records from a context.
+
+```swift
+import Foundation
+import CoreData
+
+let model = NSManagedObjectModel()
+let entity = NSEntityDescription()
+entity.name = "Ticket"
+entity.managedObjectClassName = "NSManagedObject"
+
+let priorityAttr = NSAttributeDescription()
+priorityAttr.name = "priority"
+priorityAttr.attributeType = .integer64AttributeType
+priorityAttr.isOptional = false
+
+entity.properties = [priorityAttr]
+model.entities = [entity]
+
+let coordinator = NSPersistentStoreCoordinator(managedObjectModel: model)
+try coordinator.addPersistentStore(ofType: NSInMemoryStoreType, configurationName: nil, at: nil, options: nil)
+
+let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
+context.persistentStoreCoordinator = coordinator
+
+let t1 = NSManagedObject(entity: entity, insertInto: context)
+t1.setValue(1, forKey: "priority")
+
+let t2 = NSManagedObject(entity: entity, insertInto: context)
+t2.setValue(5, forKey: "priority")
+try context.save()
+
+let request = NSFetchRequest<NSManagedObject>(entityName: "Ticket")
+request.predicate = NSPredicate(format: "priority > %d", 2)
+let matches = try context.fetch(request)
+print("High priority tickets: \(matches.count)")
+```
+
+```output
+High priority tickets: 1
+```
+
+`NSFetchRequest` supports predicates, sort descriptors, and batch size limits to control query execution.
+
+<QuickCheck>
+  <Question>What property on viewContext enables automatic merging of changes saved by background contexts?</Question>
+  <Option id="a">mergesAutomaticallyFromParent</Option>
+  <Option id="b" correct>automaticallyMergesChangesFromParent</Option>
+  <Option id="c">mergesAllChildObjectsOnSave</Option>
+  <Explanation>Setting automaticallyMergesChangesFromParent to true keeps the viewContext synchronized when background saves occur.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Open an existing Core Data Xcode project, inspect the .xcdatamodeld file, and add a print statement inside viewContext.perform.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Accessing managed objects across threads or queues">
+`NSManagedObject` and `NSManagedObjectContext` are strictly bound to the thread or dispatch queue where they were created.
+Accessing a managed object from another thread without calling `perform` leads to data corruption, memory faults, and crashes.
+Always execute operations inside `context.perform` or `context.performAndWait`.
+To pass an object across threads, send its thread-safe `NSManagedObjectID` and re-fetch the object inside the destination context.
+</Trap>
+
+<Trap title="Triggering fault cascades in loops">
+When iterating through a list of managed objects, accessing an unloaded relationship fires a fault for every individual item.
+This triggers dozens or hundreds of small database queries, known as the N+1 problem.
+To prevent this bottleneck, use `relationshipKeyPathsForPrefetching` on your `NSFetchRequest` to batch load relationships upfront.
+</Trap>
+
+<Trap title="Forgetting to propagate background saves to viewContext">
+When a background context saves changes, those modifications commit to the persistent store coordinator on disk.
+However, the main `viewContext` does not automatically update unless instructed.
+Set `container.viewContext.automaticallyMergesChangesFromParent = true` to reflect background changes in the user interface immediately.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+Core Data is Apple framework for managing object graphs and saving data to disk, usually with SQLite.
+The stack starts with `NSPersistentContainer`, which holds the model schema, the persistent store coordinator, and the `viewContext`.
+A key feature is faulting, where Core Data loads objects as lightweight placeholders until their properties are read, saving memory.
+Because managed objects are not thread-safe, I perform background tasks on a private context and use `context.perform` to stay on the correct queue.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Core Data is an object graph management engine offering persistence, dirty tracking, undo/redo, and relationship modeling.
+In production architectures, I configure `NSPersistentContainer` with `viewContext` dedicated to UI rendering on the main queue.
+For background data imports or network syncing, I use `newBackgroundContext()` and wrap execution within `context.perform`.
+To keep `viewContext` synchronized with background saves, I enable `automaticallyMergesChangesFromParent`.
+For concurrency safety, managed objects never cross thread boundaries; I transfer `NSManagedObjectID` tokens and re-materialize them in target contexts.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Core Data is an object graph manager and persistence framework.
+- `NSPersistentContainer` encapsulates the model, store coordinator, and contexts.
+- `NSManagedObjectModel` defines entities, attributes, and relationships.
+- `NSManagedObjectContext` tracks in-memory object changes before saving.
+- Faulting lazily loads object data on demand, keeping memory footprints small.
+- Uniquing ensures exactly one managed object exists per database record inside a context.
+- Contexts are queue-confined; always execute code within `perform` or `performAndWait`.
+- Never pass `NSManagedObject` across threads; pass thread-safe `NSManagedObjectID` instead.
+- Set `automaticallyMergesChangesFromParent = true` to sync viewContext with background saves.
+</Recap>

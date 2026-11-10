@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Core Data Stack and Concurrency Architecture</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.diagram-container {
+  max-width: 840px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+.subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+.stepper-nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not(:disabled) {
+  background: var(--code-bg);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.counter {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-family: var(--font-code);
+  min-width: 85px;
+  text-align: center;
+}
+.svg-wrapper {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+  margin: 1rem 0;
+}
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.node-box {
+  transition: all 0.3s ease;
+}
+.dimmed {
+  opacity: 0.25;
+}
+.highlighted {
+  opacity: 1;
+}
+.step-description {
+  background: var(--code-bg);
+  border-left: 4px solid var(--accent-color);
+  padding: 1rem;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  min-height: 4.5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-box {
+    transition: none !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-container" role="region" aria-label="Core Data Stack and Threading Diagram">
+  <div class="header">
+    <div>
+      <h1 class="title">Core Data Architecture & Concurrency</h1>
+      <div class="subtitle">How coordinator, contexts, and background queues coordinate safely</div>
+    </div>
+    <div class="stepper-nav">
+      <button id="prevBtn" aria-label="Previous Step">Back</button>
+      <span class="counter" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+      <button id="nextBtn" aria-label="Next Step">Next</button>
+    </div>
+  </div>
+
+  <div class="svg-wrapper">
+    <svg viewBox="0 0 800 360" role="img" aria-label="Interactive Core Data component diagram">
+      <defs>
+        <marker id="arrowActive" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent-color)" />
+        </marker>
+        <marker id="arrowSafe" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--safe-color)" />
+        </marker>
+        <marker id="arrowWarn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--warn-color)" />
+        </marker>
+      </defs>
+
+      <!-- Step 1: NSPersistentContainer, Coordinator & SQLite Store -->
+      <g id="step1Group" class="node-box">
+        <rect x="40" y="70" width="220" height="220" rx="10" fill="var(--code-bg)" stroke="var(--accent-color)" stroke-width="2"/>
+        <text x="150" y="100" text-anchor="middle" font-weight="700" font-size="13" fill="var(--ink)">NSPersistentContainer</text>
+        <text x="150" y="120" text-anchor="middle" font-size="11" fill="var(--muted)">Core Data Stack Host</text>
+
+        <rect x="60" y="140" width="180" height="60" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+        <text x="150" y="165" text-anchor="middle" font-weight="600" font-size="11" fill="var(--accent-color)">NSPersistentStoreCoordinator</text>
+        <text x="150" y="185" text-anchor="middle" font-size="10" fill="var(--muted)">Mediates model and disk</text>
+
+        <rect x="60" y="215" width="180" height="60" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+        <text x="150" y="240" text-anchor="middle" font-weight="600" font-size="11" fill="var(--safe-color)">SQLite Persistent Store</text>
+        <text x="150" y="260" text-anchor="middle" font-size="10" fill="var(--muted)">Physical database file</text>
+      </g>
+
+      <!-- Step 2: Background Context (Private Queue) -->
+      <g id="step2Group" class="node-box">
+        <rect x="300" y="70" width="220" height="110" rx="10" fill="var(--warn-soft)" stroke="var(--warn-color)" stroke-width="2"/>
+        <text x="410" y="98" text-anchor="middle" font-weight="700" font-size="12" fill="var(--warn-color)">Background Context</text>
+        <text x="410" y="118" text-anchor="middle" font-size="11" fill="var(--ink)">Private Queue Concurrency</text>
+        <text x="410" y="140" text-anchor="middle" font-size="10" fill="var(--warn-color)">context.perform { ... }</text>
+        <text x="410" y="160" text-anchor="middle" font-size="10" fill="var(--muted)">Heavy network/file imports</text>
+      </g>
+
+      <!-- Step 3: Arrow Save from Background to Coordinator -->
+      <g id="step3Group" class="node-box">
+        <path d="M 300 135 L 240 170" stroke="var(--warn-color)" stroke-width="2" marker-end="url(#arrowWarn)" fill="none"/>
+        <rect x="220" y="115" width="80" height="25" rx="4" fill="var(--surface)" stroke="var(--warn-color)" stroke-width="1"/>
+        <text x="260" y="132" text-anchor="middle" font-size="10" font-weight="600" fill="var(--warn-color)">Save to Disk</text>
+      </g>
+
+      <!-- Step 4: viewContext (Main Queue) and UI Updates -->
+      <g id="step4Group" class="node-box">
+        <rect x="300" y="210" width="220" height="110" rx="10" fill="var(--safe-soft)" stroke="var(--safe-color)" stroke-width="2"/>
+        <text x="410" y="238" text-anchor="middle" font-weight="700" font-size="12" fill="var(--safe-color)">viewContext (Main Queue)</text>
+        <text x="410" y="258" text-anchor="middle" font-size="11" fill="var(--ink)">Dedicated to UI & Views</text>
+        <text x="410" y="280" text-anchor="middle" font-size="10" fill="var(--safe-color)">automaticallyMergesChanges</text>
+        <text x="410" y="300" text-anchor="middle" font-size="10" fill="var(--muted)">Faulting & Uniquing active</text>
+
+        <!-- Arrow coordinator to viewContext -->
+        <path d="M 240 185 L 300 240" stroke="var(--safe-color)" stroke-width="2" marker-end="url(#arrowSafe)" fill="none"/>
+
+        <!-- UI Node -->
+        <rect x="560" y="140" width="200" height="110" rx="10" fill="var(--accent-soft)" stroke="var(--accent-color)" stroke-width="2"/>
+        <text x="660" y="170" text-anchor="middle" font-weight="700" font-size="13" fill="var(--accent-color)">UIKit / SwiftUI View</text>
+        <text x="660" y="195" text-anchor="middle" font-size="11" fill="var(--ink)">Table / Collection View</text>
+        <text x="660" y="215" text-anchor="middle" font-size="10" fill="var(--muted)">NSFetchedResultsController</text>
+        <text x="660" y="235" text-anchor="middle" font-size="10" fill="var(--safe-color)">Smooth 60/120 FPS UI</text>
+
+        <!-- Connection viewContext to UI -->
+        <path d="M 520 250 L 560 215" stroke="var(--accent-color)" stroke-width="2" marker-end="url(#arrowActive)" fill="none"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="step-description" id="stepDescription">
+    <!-- Populated by JavaScript -->
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Step 1: NSPersistentContainer Setup",
+    text: "The application initializes <strong>NSPersistentContainer</strong>. The container loads the managed object model and connects the <strong>NSPersistentStoreCoordinator</strong> to the underlying SQLite database file.",
+    highlight: ["step1Group"]
+  },
+  {
+    title: "Step 2: Private Queue Background Work",
+    text: "For heavy tasks like network ingestion, the app spawns a <strong>background context</strong> via newBackgroundContext(). All entity creation and parsing runs inside <strong>context.perform</strong> off the main thread.",
+    highlight: ["step2Group"]
+  },
+  {
+    title: "Step 3: Committing Changes to Persistent Store",
+    text: "The background context calls <strong>context.save()</strong>. The persistent store coordinator commits the modifications directly into the physical SQLite file without blocking the main queue.",
+    highlight: ["step3Group", "step1Group"]
+  },
+  {
+    title: "Step 4: Merging into viewContext and Rendering UI",
+    text: "With <strong>automaticallyMergesChangesFromParent = true</strong>, changes propagate into the main <strong>viewContext</strong>. The UI updates instantly via NSFetchedResultsController with zero frame drops.",
+    highlight: ["step4Group"]
+  }
+];
+
+let currentStep = 0;
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const stepCounter = document.getElementById("stepCounter");
+const stepDescription = document.getElementById("stepDescription");
+
+const allGroups = ["step1Group", "step2Group", "step3Group", "step4Group"];
+
+function renderStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  stepCounter.textContent = `Step ${idx + 1} of ${steps.length}`;
+  stepDescription.innerHTML = `<strong>${s.title}:</strong> ${s.text}`;
+  
+  prevBtn.disabled = (idx === 0);
+  nextBtn.disabled = (idx === steps.length - 1);
+
+  allGroups.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (s.highlight.includes(id)) {
+      el.classList.remove("dimmed");
+      el.classList.add("highlighted");
+    } else {
+      el.classList.remove("highlighted");
+      el.classList.add("dimmed");
+    }
+  });
+}
+
+prevBtn.addEventListener("click", () => {
+  if (currentStep > 0) renderStep(currentStep - 1);
+});
+
+nextBtn.addEventListener("click", () => {
+  if (currentStep < steps.length - 1) renderStep(currentStep + 1);
+});
+
+renderStep(0);
+</script>
+
+</body>
+</html>

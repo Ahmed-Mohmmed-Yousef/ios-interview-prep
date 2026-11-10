@@ -199,10 +199,10 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **deep-links** (Deep Links and Universal Links) — published (lesson, diagram, 31 questions) → [docs/topics/deep-links/review.html](docs/topics/deep-links/review.html)
     - ✅ **widgets-app-intents** (Widgets and App Intents) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/widgets-app-intents/review.html](docs/topics/widgets-app-intents/review.html)
     - ✅ **foundation-models** (On-Device AI with Foundation Models) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/foundation-models/review.html](docs/topics/foundation-models/review.html)
-  - 🔄 **Batch 3F: Data Persistence & Networking (5 topics: 1 of 5 published)**
+  - 🔄 **Batch 3F: Data Persistence & Networking (5 topics: 2 of 5 published)**
     - ✅ **swiftdata** (SwiftData) — published (lesson, diagram, 31 questions) → [docs/topics/swiftdata/review.html](docs/topics/swiftdata/review.html)
-    - 🔄 **core-data** (Core Data) — starting research
-    - ⬜ **caching** (Caching)
+    - ✅ **core-data** (Core Data) — published (lesson, diagram, 31 questions) → [docs/topics/core-data/review.html](docs/topics/core-data/review.html)
+    - 🔄 **caching** (Caching) — starting research
     - ⬜ **pagination** (Pagination)
     - ⬜ **combine-basics** (Combine Basics)
   - ⬜ **Batch 3G: Architecture & Testing Strategy (8 topics)**
@@ -376,6 +376,8 @@ New rules and changes you ask for are added here, with the date.
 Newest first.
 
 - **2026-11-10** — Starting Batch 3F: Data Persistence & Networking (5 topics: `swiftdata` through `combine-basics`). Launching dedicated autonomous subagent.
+
+- **2026-11-10** — Built and published topic `core-data` (Core Data): researched official Apple Core Data, NSPersistentContainer, and NSManagedObjectContext docs, authored lesson in simple English, interactive 4-step Core Data stack and concurrency diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/core-data/review.html`). All checks passed. Batch 3F progress: 2 of 5 published (106 total published topics across curriculum). Starting caching.
 
 - **2026-11-10** — Built and published topic `swiftdata` (SwiftData): researched official Apple SwiftData, ModelContainer, ModelContext, and WWDC23 Meet SwiftData docs, authored lesson in simple English, interactive 4-step SwiftData storage pipeline diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/swiftdata/review.html`). All checks passed. Batch 3F progress: 1 of 5 published (105 total published topics across curriculum). Starting core-data.
 
