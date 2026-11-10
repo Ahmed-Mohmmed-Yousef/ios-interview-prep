@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SwiftUI View Identity and Lifetime</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stage-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.badge.danger { background: var(--danger-soft); color: var(--danger-color); }
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-color); }
+
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.step-counter {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--ink);
+  transform: translateY(-1px);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.caption-box {
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 4px solid var(--safe-color);
+  background: var(--code-bg);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+.reduced-list {
+  display: none;
+  margin-top: 16px;
+  padding-left: 20px;
+}
+.reduced-list li {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reduced-list {
+    display: block;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="SwiftUI View Identity and Lifetime Stepper">
+  <div class="diagram-card">
+    <div class="header-row">
+      <h2 class="stage-title" id="stageTitle">Step 1: Stable Identity with Ternary Modifier</h2>
+      <span class="badge safe" id="statusBadge">STABLE IDENTITY</span>
+    </div>
+
+    <div class="stepper-controls" aria-label="Diagram stepper">
+      <span class="step-counter" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+      <div class="button-group">
+        <button id="btnBack" aria-label="Previous step" disabled>&larr; Back</button>
+        <button id="btnNext" aria-label="Next step">Next &rarr;</button>
+        <button id="btnReplay" aria-label="Restart stepper">&#8635; Replay</button>
+      </div>
+    </div>
+
+    <svg viewBox="0 0 760 280" role="img" aria-label="SwiftUI View Identity and State Lifetime Diagram">
+      <!-- View Identity Node (Left) -->
+      <g id="identityBox" transform="translate(30, 30)">
+        <rect id="idRect" width="280" height="210" rx="10" fill="var(--code-bg)" stroke="var(--safe-color)" stroke-width="2.5"/>
+        <text id="idTitle" x="18" y="32" fill="var(--safe-color)" font-weight="700" font-size="14">View Identity Node</text>
+        <text id="idCode1" x="18" y="66" fill="var(--ink)" font-family="var(--font-code)" font-size="12">CardView()</text>
+        <text id="idCode2" x="18" y="90" fill="var(--muted)" font-family="var(--font-code)" font-size="12">Position: Root.Body.Child[0]</text>
+        <text id="idStatus" x="18" y="130" fill="var(--ink)" font-size="12">Identity stable across redraws</text>
+        <rect id="idTag" x="18" y="152" width="244" height="26" rx="4" fill="var(--safe-soft)"/>
+        <text id="idTagText" x="140" y="169" fill="var(--safe-color)" font-size="11" font-weight="700" text-anchor="middle">IDENTITY MAINTAINED</text>
+      </g>
+
+      <!-- Center Association Line -->
+      <g id="flowGroup" transform="translate(330, 40)">
+        <line id="flowLine" x1="0" y1="95" x2="100" y2="95" stroke="var(--safe-color)" stroke-width="3" stroke-dasharray="6,4"/>
+        <polygon id="flowArrow" points="95,90 105,95 95,100" fill="var(--safe-color)"/>
+        <circle id="flowBall" cx="50" cy="95" r="9" fill="var(--safe-color)"/>
+        <text id="flowLabel" x="50" y="70" fill="var(--safe-color)" font-size="11" font-weight="600" text-anchor="middle">Binds Lifetime</text>
+      </g>
+
+      <!-- Associated State Storage Box (Right) -->
+      <g id="stateBox" transform="translate(450, 30)">
+        <rect id="stateRect" width="280" height="210" rx="10" fill="var(--code-bg)" stroke="var(--safe-color)" stroke-width="2"/>
+        <text id="stateTitle" x="18" y="32" fill="var(--safe-color)" font-weight="700" font-size="14">@State Storage Container</text>
+        <text id="stateCode1" x="18" y="66" fill="var(--ink)" font-family="var(--font-code)" font-size="12">@State count = 5</text>
+        <text id="stateCode2" x="18" y="90" fill="var(--muted)" font-family="var(--font-code)" font-size="12">@State text = "Draft"</text>
+        <text id="stateStatus" x="18" y="130" fill="var(--ink)" font-size="12">State storage active & preserved</text>
+        <rect id="stateTag" x="18" y="152" width="244" height="26" rx="4" fill="var(--safe-soft)"/>
+        <text id="stateTagText" x="140" y="169" fill="var(--safe-color)" font-size="11" font-weight="700" text-anchor="middle">STATE PERSISTS</text>
+      </g>
+    </svg>
+
+    <div class="caption-box" id="captionText">
+      SwiftUI views are lightweight structs created on every render. However, SwiftUI links a persistent identity node to internal @State storage as long as the view position remains stable.
+    </div>
+
+    <pre class="code-preview" id="codePreview">// Single stable identity:
+CardView()
+    .background(isSelected ? .blue : .gray) // Modifies property without changing identity</pre>
+
+    <ol class="reduced-list" aria-label="Accessible overview of diagram steps">
+      <li><strong>Step 1: Stable Identity with Ternary Modifier</strong> &mdash; A single view node in the hierarchy preserves identity and persistent @State storage.</li>
+      <li><strong>Step 2: Property Changes Animate Smoothly</strong> &mdash; Property updates on a stable view preserve @State and animate seamlessly.</li>
+      <li><strong>Step 3: Structural Branching with if/else</strong> &mdash; An if/else statement creates two distinct structural positions in the view tree.</li>
+      <li><strong>Step 4: Branch Swap Resets Lifetime</strong> &mdash; Switching branches terminates the previous identity, discarding old @State and initializing fresh state.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(function() {
+  const steps = [
+    {
+      title: "Step 1: Stable Identity with Ternary Modifier",
+      badge: "STABLE IDENTITY",
+      badgeClass: "safe",
+      idStroke: "var(--safe-color)",
+      idTagFill: "var(--safe-soft)",
+      idTagColor: "var(--safe-color)",
+      idTagText: "IDENTITY MAINTAINED",
+      idStatus: "Identity stable across redraws",
+      flowStroke: "var(--safe-color)",
+      flowFill: "var(--safe-color)",
+      flowText: "Binds Lifetime",
+      stateStroke: "var(--safe-color)",
+      stateTitleColor: "var(--safe-color)",
+      stateStatus: "State storage active & preserved",
+      stateTagFill: "var(--safe-soft)",
+      stateTagColor: "var(--safe-color)",
+      stateTagText: "STATE PERSISTS",
+      borderLeftColor: "var(--safe-color)",
+      caption: "SwiftUI views are lightweight structs created on every render. However, SwiftUI links a persistent identity node to internal @State storage as long as the view position remains stable.",
+      code: `// Single stable identity:\nCardView()\n    .background(isSelected ? .blue : .gray) // Stable identity across renders!`
+    },
+    {
+      title: "Step 2: Property Changes Animate Smoothly",
+      badge: "ANIMATED UPDATE",
+      badgeClass: "accent",
+      idStroke: "var(--accent-color)",
+      idTagFill: "var(--accent-soft)",
+      idTagColor: "var(--accent-color)",
+      idTagText: "PROPERTY ANIMATING",
+      idStatus: "Color transitions smoothly",
+      flowStroke: "var(--accent-color)",
+      flowFill: "var(--accent-color)",
+      flowText: "Maintains State",
+      stateStroke: "var(--accent-color)",
+      stateTitleColor: "var(--accent-color)",
+      stateStatus: "@State count = 5 stays intact",
+      stateTagFill: "var(--accent-soft)",
+      stateTagColor: "var(--accent-color)",
+      stateTagText: "ZERO STATE LOSS",
+      borderLeftColor: "var(--accent-color)",
+      caption: "Because the identity node does not change, SwiftUI animates the color transition smoothly. User input, scroll offsets, and active text fields retain their state.",
+      code: `withAnimation {\n    isSelected.toggle()\n    // SwiftUI animates background color\n    // All @State inside CardView remains untouched!\n}`
+    },
+    {
+      title: "Step 3: Structural Branching with if/else",
+      badge: "TWO IDENTITIES",
+      badgeClass: "warn",
+      idStroke: "var(--warn-color)",
+      idTagFill: "var(--warn-soft)",
+      idTagColor: "var(--warn-color)",
+      idTagText: "_ConditionalContent<True, False>",
+      idStatus: "True and False branches have distinct identities",
+      flowStroke: "var(--warn-color)",
+      flowFill: "var(--warn-color)",
+      flowText: "Branching Tree",
+      stateStroke: "var(--warn-color)",
+      stateTitleColor: "var(--ink)",
+      stateStatus: "Branch A state storage active",
+      stateTagFill: "var(--warn-soft)",
+      stateTagColor: "var(--warn-color)",
+      stateTagText: "SEPARATE STATE SLOTS",
+      borderLeftColor: "var(--warn-color)",
+      caption: "Writing if/else splits the view hierarchy into two distinct structural identities. SwiftUI wraps them inside _ConditionalContent with separate state allocations.",
+      code: `if isSelected {\n    CardView().border(.blue) // Structural Identity A\n} else {\n    CardView().border(.gray) // Structural Identity B\n}`
+    },
+    {
+      title: "Step 4: Branch Swap Resets Lifetime & State",
+      badge: "LIFETIME RESET",
+      badgeClass: "danger",
+      idStroke: "var(--danger-color)",
+      idTagFill: "var(--danger-soft)",
+      idTagColor: "var(--danger-color)",
+      idTagText: "IDENTITY TERMINATED",
+      idStatus: "Branch A destroyed; Branch B inserted",
+      flowStroke: "var(--danger-color)",
+      flowFill: "var(--danger-color)",
+      flowText: "State Discarded",
+      stateStroke: "var(--danger-color)",
+      stateTitleColor: "var(--danger-color)",
+      stateStatus: "Old state discarded; fresh state initialized",
+      stateTagFill: "var(--danger-soft)",
+      stateTagColor: "var(--danger-color)",
+      stateTagText: "@STATE RESET TO DEFAULT",
+      borderLeftColor: "var(--danger-color)",
+      caption: "When the condition toggles, Identity A terminates its lifetime. Its @State is discarded, tasks cancel, and fresh initial state is created for Identity B.",
+      code: `// Toggling isSelected:\n// 1. Destroys Branch A state (@State count resets to 0)\n// 2. Cancels active .task operations\n// 3. Allocates fresh state for Branch B!`
+    }
+  ];
+
+  let current = 0;
+  const stageTitle = document.getElementById("stageTitle");
+  const statusBadge = document.getElementById("statusBadge");
+  const stepCounter = document.getElementById("stepCounter");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+  const captionText = document.getElementById("captionText");
+  const codePreview = document.getElementById("codePreview");
+
+  const idRect = document.getElementById("idRect");
+  const idTag = document.getElementById("idTag");
+  const idTagText = document.getElementById("idTagText");
+  const idStatus = document.getElementById("idStatus");
+
+  const flowLine = document.getElementById("flowLine");
+  const flowArrow = document.getElementById("flowArrow");
+  const flowBall = document.getElementById("flowBall");
+  const flowLabel = document.getElementById("flowLabel");
+
+  const stateRect = document.getElementById("stateRect");
+  const stateTitle = document.getElementById("stateTitle");
+  const stateStatus = document.getElementById("stateStatus");
+  const stateTag = document.getElementById("stateTag");
+  const stateTagText = document.getElementById("stateTagText");
+
+  function render(index) {
+    const s = steps[index];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${index + 1} of ${steps.length}`;
+
+    btnBack.disabled = index === 0;
+    btnNext.disabled = index === steps.length - 1;
+
+    idRect.setAttribute("stroke", s.idStroke);
+    idTag.setAttribute("fill", s.idTagFill);
+    idTagText.setAttribute("fill", s.idTagColor);
+    idTagText.textContent = s.idTagText;
+    idStatus.textContent = s.idStatus;
+
+    flowLine.setAttribute("stroke", s.flowStroke);
+    flowArrow.setAttribute("fill", s.flowFill);
+    flowBall.setAttribute("fill", s.flowFill);
+    flowLabel.textContent = s.flowText;
+    flowLabel.setAttribute("fill", s.flowFill);
+
+    stateRect.setAttribute("stroke", s.stateStroke);
+    stateTitle.setAttribute("fill", s.stateTitleColor);
+    stateStatus.textContent = s.stateStatus;
+    stateTag.setAttribute("fill", s.stateTagFill);
+    stateTagText.setAttribute("fill", s.stateTagColor);
+    stateTagText.textContent = s.stateTagText;
+
+    captionText.style.borderLeftColor = s.borderLeftColor;
+    captionText.textContent = s.caption;
+    codePreview.textContent = s.code;
+  }
+
+  btnBack.addEventListener("click", () => {
+    if (current > 0) { current--; render(current); }
+  });
+  btnNext.addEventListener("click", () => {
+    if (current < steps.length - 1) { current++; render(current); }
+  });
+  btnReplay.addEventListener("click", () => {
+    current = 0; render(current);
+  });
+
+  render(0);
+})();
+</script>
+</body>
+</html>

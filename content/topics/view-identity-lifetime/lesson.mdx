@@ -1,0 +1,182 @@
+export const meta = {
+  id: "view-identity-lifetime",
+  summary: "Understand view identity, structural versus explicit identity, and how identity governs view lifetime and state in SwiftUI.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "WWDC21: Demystify SwiftUI",
+      url: "https://developer.apple.com/videos/play/wwdc2021/10022/"
+    },
+    {
+      title: "State (SwiftUI)",
+      url: "https://developer.apple.com/documentation/swiftui/state"
+    }
+  ]
+}
+
+<InterviewHook>
+  <Question>
+    If you toggle between two views in an `if/else` block, what happens to their `@State` variables?
+  </Question>
+  <Guess>
+    <Option id="a">SwiftUI merges both states into a single persistent dictionary.</Option>
+    <Option id="b" correct>SwiftUI treats them as distinct identities, destroying the old state and initializing fresh state.</Option>
+    <Option id="c">The compiler raises an error because `if/else` is banned in view bodies.</Option>
+    <Option id="d">The state is stored in UserDefaults across view toggles.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+SwiftUI views are structs. They are created and destroyed frequently as data changes.
+
+However, your application state persists across these redraws.
+
+How does SwiftUI know which state belongs to which view? It uses identity.
+
+Identity connects a temporary view struct to its persistent state across time.
+
+There are two kinds of identity: explicit identity and structural identity.
+
+Explicit identity uses custom identifiers. You provide an identifier with `.id()` or by conforming to `Identifiable`.
+
+Structural identity uses the view hierarchy position. SwiftUI tracks where a view sits in your code layout.
+
+<Analogy>
+  Think of hotel rooms and guests. Explicit identity is like checking in with your personal passport number. Structural identity is like sitting at room 204. If you change rooms, the hotel treats you as a new booking.
+</Analogy>
+
+When identity stays stable, SwiftUI keeps view state and smoothly animates property updates.
+
+When identity changes, SwiftUI ends the old view lifetime. It destroys previous `@State` values, cancels active tasks, and allocates new state.
+
+Branching with `if/else` creates two distinct structural identities.
+
+Using a ternary operator preserves a single identity, keeping state and animations intact.
+
+## See it
+
+<Diagram id="view-identity-lifetime" caption="See how structural branching resets view state while stable identity preserves state and animates changes." />
+
+<QuickCheck>
+  <Question>
+    Which approach preserves view identity and state when changing a view background color?
+  </Question>
+  <Option id="a">Wrapping the two colored views inside an `if/else` block.</Option>
+  <Option id="b" correct>Using a ternary operator inside a single `.background()` modifier.</Option>
+  <Option id="c">Assigning a new `UUID()` with the `.id()` modifier on every render.</Option>
+  <Option id="d">Erasing the view hierarchy with `AnyView`.</Option>
+  <Explanation>
+    A ternary operator preserves the view position in the hierarchy tree, maintaining a single stable identity.
+  </Explanation>
+</QuickCheck>
+
+## In code
+
+Here is an example showing how identity links to state storage. A stable identity preserves state, while a new identity creates fresh storage.
+
+```swift
+struct ViewNode {
+    let id: String
+    var stateValue: Int
+}
+
+struct NodeContainer {
+    var nodes: [String: ViewNode] = [:]
+
+    mutating func updateNode(id: String, newValue: Int) {
+        if var existing = nodes[id] {
+            existing.stateValue = newValue
+            nodes[id] = existing
+            print("Preserved identity: \(id), state: \(existing.stateValue)")
+        } else {
+            nodes[id] = ViewNode(id: id, stateValue: newValue)
+            print("Created identity: \(id), state: \(newValue)")
+        }
+    }
+}
+
+var container = NodeContainer()
+container.updateNode(id: "card-1", newValue: 10)
+container.updateNode(id: "card-1", newValue: 20)
+```
+```output
+Created identity: card-1, state: 10
+Preserved identity: card-1, state: 20
+```
+
+When an explicit identity changes, SwiftUI discards the existing state storage and creates a fresh state container.
+
+```swift
+struct StateStorage {
+    var storedText: String
+}
+
+func evaluateIdentityChange(previousId: Int, newId: Int, currentStorage: inout StateStorage) {
+    if previousId != newId {
+        currentStorage = StateStorage(storedText: "Initial State")
+        print("Identity reset to \(newId): \(currentStorage.storedText)")
+    } else {
+        print("Identity maintained \(newId): \(currentStorage.storedText)")
+    }
+}
+
+var storage = StateStorage(storedText: "User Input Saved")
+evaluateIdentityChange(previousId: 1, newId: 1, currentStorage: &storage)
+evaluateIdentityChange(previousId: 1, newId: 2, currentStorage: &storage)
+```
+```output
+Identity maintained 1: User Input Saved
+Identity reset to 2: Initial State
+```
+
+Understanding this rule helps you control when state resets intentionally or stays preserved.
+
+<TryIt>
+  Open a Swift Playground. Create a view with a text field and counter. Toggle between views using if/else versus a ternary operator to observe state resets.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    What happens if you assign `.id(UUID())` to a view inside its body property?
+  </Question>
+  <Option id="a">SwiftUI optimizes rendering by caching the random identifier.</Option>
+  <Option id="b">The view becomes immune to parent invalidation passes.</Option>
+  <Option id="c" correct>SwiftUI generates a new identity on every redraw, destroying state and breaking animations.</Option>
+  <Option id="d">The compiler rejects the view body with a duplicate key error.</Option>
+  <Explanation>
+    Generating dynamic identifiers inside body forces identity renewal on every evaluation, destroying state and cancelling tasks.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Do not use AnyView when static branching is possible">
+  `AnyView` erases compile-time type information and structural identity. This prevents SwiftUI from diffing view trees efficiently and causes performance regressions.
+</Trap>
+
+<Trap label="Do not use if/else for simple style toggles">
+  Writing `if isSelected { CardView().border(.blue) } else { CardView().border(.gray) }` creates two structural identities. This resets state and breaks transition animations. Use a ternary operator instead.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  SwiftUI distinguishes views using explicit and structural identity. Explicit identity relies on custom identifiers like `.id()`, while structural identity depends on view position in the code hierarchy. A view lifetime is the period during which SwiftUI associates persistent state with that identity. When identity remains stable across updates, `@State` is preserved and property changes animate smoothly. When identity changes, SwiftUI destroys the old state and creates new state.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  View identity is the foundation of SwiftUI diffing, state lifetime, and performance. Using `_ConditionalContent` via `if/else` branches creates distinct structural identities, terminating state and triggering transitions on branch swaps. For styling changes, I use modifiers with ternary expressions to maintain a stable identity and avoid state loss. I also avoid `AnyView` because type erasure hides structural identity from the diffing algorithm, impairing performance in complex hierarchies.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  SwiftUI uses explicit and structural identity to track views across time. View lifetime is the period where state remains bound to an identity. Stable identity preserves @State and enables smooth animations. Changing identity discards previous state and restarts view tasks.
+</Recap>
+
+## Go deeper
+
+- WWDC21: Demystify SwiftUI: https://developer.apple.com/videos/play/wwdc2021/10022/
+- State in SwiftUI: https://developer.apple.com/documentation/swiftui/state
