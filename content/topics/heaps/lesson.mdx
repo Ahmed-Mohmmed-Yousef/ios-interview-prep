@@ -1,0 +1,259 @@
+export const meta = {
+  id: "heaps",
+  summary: "Use binary heaps and priority queues in Swift to find minimum or maximum items in logarithmic time.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "Heap cheatsheet for coding interviews",
+      url: "https://www.techinterviewhandbook.org/algorithms/heap/"
+    },
+    {
+      title: "apple/swift-collections Heap",
+      url: "https://github.com/apple/swift-collections"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    You need to find the 10 most popular songs from a stream of 1 million items. Which data structure solves this with the least memory and time?
+  </Question>
+  <Guess>
+    <Option id="a">A sorted array that sorts the entire list after every new song arrives.</Option>
+    <Option id="b" correct>A min-heap of size 10 that keeps only the 10 highest play counts.</Option>
+    <Option id="c">A singly linked list that appends each song to the tail.</Option>
+    <Option id="d">A binary search tree that rebalances using recursion on every song.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+A heap is a tree-based data structure that keeps the smallest or largest element at the top.
+
+<Analogy>
+  Think of an emergency room triage desk. The patient with the most urgent condition is always treated first. Doctors do not sort all patients.
+</Analogy>
+
+In a **min-heap**, every parent node is smaller than or equal to its children. The smallest value sits at the root.
+
+In a **max-heap**, every parent node is larger than or equal to its children. The largest value sits at the root.
+
+A binary heap is a **complete binary tree**. Every level is completely filled, except possibly the last level. The last level fills from left to right.
+
+Because of this shape, you do not need node objects or pointers. You can store a binary heap inside a standard array:
+
+- For any element at index `i`, its left child is at `2 * i + 1`.
+- Its right child is at `2 * i + 2`.
+- Its parent is at `(i - 1) / 2`.
+
+When you insert an item, you append it to the array. Then you **sift up** until the heap property is restored.
+
+When you remove the root item, you swap it with the last element and remove it. Then you **sift down** the new root.
+
+Both insert and remove take $O(\log n)$ time. Looking at the root takes $O(1)$ time.
+
+The Swift standard library does not include a heap type. Apple provides `Heap` in the open-source `swift-collections` package. In technical interviews, you often write a simple struct.
+
+## See it
+
+<Diagram id="heaps" caption="Watch how sift-up and sift-down restore the heap order after insertions and removals." />
+
+## In code
+
+Here is a generic `Heap` struct in Swift that supports custom comparators.
+
+```swift
+struct Heap<T> {
+    var elements: [T] = []
+    let areInIncreasingOrder: (T, T) -> Bool
+
+    init(comparator: @escaping (T, T) -> Bool) {
+        self.areInIncreasingOrder = comparator
+    }
+
+    var isEmpty: Bool { elements.isEmpty }
+    var count: Int { elements.count }
+    var peek: T? { elements.first }
+
+    mutating func insert(_ value: T) {
+        elements.append(value)
+        siftUp(elements.count - 1)
+    }
+
+    mutating func pop() -> T? {
+        guard !elements.isEmpty else { return nil }
+        if elements.count == 1 { return elements.removeLast() }
+        let top = elements[0]
+        elements[0] = elements.removeLast()
+        siftDown(0)
+        return top
+    }
+
+    private mutating func siftUp(_ index: Int) {
+        var child = index
+        while child > 0 {
+            let parent = (child - 1) / 2
+            if areInIncreasingOrder(elements[child], elements[parent]) {
+                elements.swapAt(child, parent)
+                child = parent
+            } else {
+                break
+            }
+        }
+    }
+
+    private mutating func siftDown(_ index: Int) {
+        var parent = index
+        while true {
+            let left = 2 * parent + 1
+            let right = 2 * parent + 2
+            var candidate = parent
+
+            if left < elements.count && areInIncreasingOrder(elements[left], elements[candidate]) {
+                candidate = left
+            }
+            if right < elements.count && areInIncreasingOrder(elements[right], elements[candidate]) {
+                candidate = right
+            }
+            if candidate == parent { break }
+            elements.swapAt(parent, candidate)
+            parent = candidate
+        }
+    }
+}
+
+var minHeap = Heap<Int>(comparator: <)
+minHeap.insert(10)
+minHeap.insert(4)
+minHeap.insert(15)
+minHeap.insert(1)
+
+print("Smallest element: \(minHeap.peek ?? -1)")
+print("Popped smallest: \(minHeap.pop() ?? -1)")
+print("Next smallest: \(minHeap.peek ?? -1)")
+```
+```output
+Smallest element: 1
+Popped smallest: 1
+Next smallest: 4
+```
+
+Now here is how to solve the classic Kth largest element problem using a min-heap of size K.
+
+```swift
+struct MinHeap {
+    var elements: [Int] = []
+    var count: Int { elements.count }
+    var peek: Int? { elements.first }
+
+    mutating func insert(_ value: Int) {
+        elements.append(value)
+        var i = elements.count - 1
+        while i > 0 {
+            let parent = (i - 1) / 2
+            if elements[i] < elements[parent] {
+                elements.swapAt(i, parent)
+                i = parent
+            } else { break }
+        }
+    }
+
+    mutating func pop() -> Int? {
+        guard !elements.isEmpty else { return nil }
+        if elements.count == 1 { return elements.removeLast() }
+        let top = elements[0]
+        elements[0] = elements.removeLast()
+        var parent = 0
+        while true {
+            let left = 2 * parent + 1
+            let right = 2 * parent + 2
+            var candidate = parent
+            if left < elements.count && elements[left] < elements[candidate] { candidate = left }
+            if right < elements.count && elements[right] < elements[candidate] { candidate = right }
+            if candidate == parent { break }
+            elements.swapAt(parent, candidate)
+            parent = candidate
+        }
+        return top
+    }
+}
+
+func findKthLargest(_ nums: [Int], _ k: Int) -> Int {
+    var minHeap = MinHeap()
+    for num in nums {
+        minHeap.insert(num)
+        if minHeap.count > k {
+            _ = minHeap.pop()
+        }
+    }
+    return minHeap.peek ?? -1
+}
+
+let numbers = [3, 2, 1, 5, 6, 4]
+print("2nd largest element: \(findKthLargest(numbers, 2))")
+```
+```output
+2nd largest element: 5
+```
+
+<TryIt>
+  Open a Swift Playground. Create a max-heap using `>` as the comparator. Insert five numbers and print them by popping until empty.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    Why is a min-heap preferred over a max-heap when finding the K largest elements in a stream of numbers?
+  </Question>
+  <Option id="a">A min-heap automatically discards duplicates from the input stream.</Option>
+  <Option id="b" correct>A min-heap of size K lets you discard elements smaller than the current Kth largest in O(log K) time.</Option>
+  <Option id="c">A max-heap cannot store integer values larger than zero in Swift.</Option>
+  <Option id="d">Array indices in Swift only work with ascending binary trees.</Option>
+  <Explanation>
+    Keeping a min-heap of size K preserves the K largest elements seen so far. The root holds the minimum of those K items.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    What is the time complexity to build a binary heap from an unsorted array of N elements using bottom-up sift-down?
+  </Question>
+  <Option id="a">O(N squared)</Option>
+  <Option id="b">O(N log N)</Option>
+  <Option id="c" correct>O(N)</Option>
+  <Option id="d">O(1)</Option>
+  <Explanation>
+    Building a heap with bottom-up sift-down takes linear O(N) time because most nodes sit near the bottom and sift down very few levels.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Using full sorting instead of a bounded heap">
+  Sorting an entire array of size N takes O(N log N) time and O(N) memory. Using a min-heap of size K takes O(N log K) time and only O(K) memory.
+</Trap>
+
+<Trap label="Assuming Swift includes a built-in Heap type">
+  The Swift standard library does not provide a Heap type. If you write code in an interview, be ready to implement a compact Heap struct.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  I use a binary heap when I need repeated access to minimum or maximum values. For top K problems, I maintain a min-heap of size K. This achieves O(N log K) time and O(K) space. Since the Swift standard library lacks a Heap, I write a lightweight array-backed struct with sift-up and sift-down operations.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I leverage binary heaps for priority queues and streaming algorithms. In Swift, I point out that Apple provides `Heap` in `swift-collections`. An array representation gives optimal cache locality with zero pointer overhead. For Kth largest elements, a bounded min-heap saves memory. For running medians, I balance a max-heap and min-heap in O(log N) time per insertion.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  A binary heap provides O(1) peek and O(log N) insert and extract operations. Store heaps in flat arrays using simple index math. Use a min-heap of size K to find top K elements efficiently. Remember that the Swift standard library requires an external package or a custom struct.
+</Recap>
+
+## Go deeper
+
+- Tech Interview Handbook: Heap Cheatsheet: https://www.techinterviewhandbook.org/algorithms/heap/
+- Apple Swift Collections Heap: https://github.com/apple/swift-collections

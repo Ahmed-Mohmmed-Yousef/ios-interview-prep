@@ -156,7 +156,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (7 of 53 published: 5 main + 2 bonus)
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (10 of 53 published: 7 main + 3 bonus)
   - ✅ **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)** — completed (7 of 7 published)
     - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
     - ✅ **generics-associated-types** (Generics: Associated Types and Where Clauses) — published (lesson, diagram, 31 questions) → [docs/topics/generics-associated-types/review.html](docs/topics/generics-associated-types/review.html)
@@ -165,11 +165,11 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **key-paths** (Key Paths) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/key-paths/review.html](docs/topics/key-paths/review.html)
     - ✅ **property-wrappers** (Property Wrappers) — published (lesson, diagram, 31 questions) → [docs/topics/property-wrappers/review.html](docs/topics/property-wrappers/review.html)
     - ✅ **result-builders** (Result Builders) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/result-builders/review.html](docs/topics/result-builders/review.html)
-  - 🔄 **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)** — in progress (2 of 7 published)
+  - 🔄 **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)** — in progress (3 of 7 published)
     - ✅ **trees-bfs-dfs** (Trees: BFS and DFS) — published (lesson, diagram, 31 questions) → [docs/topics/trees-bfs-dfs/review.html](docs/topics/trees-bfs-dfs/review.html)
     - ✅ **graphs** (Graphs) — published (lesson, diagram, 31 questions) → [docs/topics/graphs/review.html](docs/topics/graphs/review.html)
-    - 🔄 **heaps** (Heaps) — starting research
-    - ⬜ **tries** (Tries) [bonus]
+    - ✅ **heaps** (Heaps) — published (lesson, diagram, 31 questions) → [docs/topics/heaps/review.html](docs/topics/heaps/review.html)
+    - 🔄 **tries** (Tries) [bonus] — starting research
     - ⬜ **intervals** (Intervals)
     - ⬜ **dynamic-programming** (Dynamic Programming) [bonus]
     - ⬜ **bits-math-geometry** (Bits, Math and Geometry) [bonus]
@@ -328,6 +328,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `heaps` (Heaps): researched official docs and algorithms mechanics, authored lesson in simple English, interactive diagram with sift-up/sift-down and array buffer, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/heaps/review.html`). All checks passed. Batch 3B progress: 3 of 7 published. Starting tries.
 
 - **2026-11-10** — Built and published topic `graphs` (Graphs): researched official docs and interview patterns, authored lesson in simple English, interactive diagram with topological sort, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/graphs/review.html`). All checks passed. Starting heaps.
 

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Binary Min-Heap: Sift-Up &amp; Sift-Down</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --heap-color: #0284c7; --heap-soft: #e0f2fe;
+  --done-color: #059669; --done-soft: #d1fae5;
+  --alert-color: #d97706; --alert-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --heap-color: #38bdf8; --heap-soft: #082f49;
+  --done-color: #34d399; --done-soft: #064e3b;
+  --alert-color: #fbbf24; --alert-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.controls {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  padding: 6px 14px; border-radius: 8px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: all 0.2s ease;
+}
+button:hover:not(:disabled) { border-color: var(--heap-color); color: var(--heap-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-weight: 600; font-size: 14px; color: var(--muted); }
+
+.panels { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-tree .kind { background: var(--heap-soft); color: var(--heap-color); }
+.p-array .kind { background: var(--done-soft); color: var(--done-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-circle { stroke-width: 2.5; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-circle.active-current { stroke: var(--heap-color); fill: var(--heap-soft); stroke-width: 3.5; }
+.node-circle.active-alert { stroke: var(--alert-color); fill: var(--alert-soft); stroke-width: 3.5; }
+.node-circle.active-done { stroke: var(--done-color); fill: var(--done-soft); stroke-width: 3.5; }
+.node-text { font-family: var(--font-code); font-weight: 700; font-size: 14px; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; }
+.edge { stroke: var(--line); stroke-width: 2; }
+.edge.active-edge { stroke: var(--heap-color); stroke-width: 2.5; }
+
+.array-grid {
+  display: flex; gap: 4px; overflow-x: auto; padding: 6px 0;
+}
+.array-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 44px; height: 48px; border: 1.5px solid var(--line); border-radius: 6px;
+  font-family: var(--font-code); font-weight: 600; font-size: 14px;
+  background: var(--code-bg); transition: all 0.2s ease;
+}
+.array-cell.active-cell { border-color: var(--heap-color); background: var(--heap-soft); color: var(--heap-color); }
+.array-cell.alert-cell { border-color: var(--alert-color); background: var(--alert-soft); color: var(--alert-color); }
+.array-cell.done-cell { border-color: var(--done-color); background: var(--done-soft); color: var(--done-color); }
+.cell-idx { font-size: 10px; color: var(--muted); font-weight: 400; }
+
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-badge {
+  display: inline-block; font-family: var(--font-code); font-size: 12px;
+  padding: 4px 8px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-circle, .array-cell { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="diagram-host" role="region" aria-label="Animated Binary Heap Operations Diagram">
+  <div class="controls">
+    <div class="step-label" id="stepCounter" aria-live="polite">Step 1 of 4</div>
+    <div class="btn-group">
+      <button id="btnBack" type="button" aria-label="Previous step">Back</button>
+      <button id="btnNext" type="button" aria-label="Next step">Next</button>
+      <button id="btnReplay" type="button" aria-label="Replay from start">Replay</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <!-- Tree View Panel -->
+    <div class="panel p-tree">
+      <h3><span>Binary Tree Representation</span><span class="kind">Min-Heap</span></h3>
+      <p class="caption" id="treeCaption">Initial min-heap with 4 elements. Every parent is smaller than its children.</p>
+      <svg viewBox="0 0 320 200" aria-label="Binary Min Heap Tree">
+        <line id="e01" x1="160" y1="35" x2="80" y2="95" class="edge" />
+        <line id="e02" x1="160" y1="35" x2="240" y2="95" class="edge" />
+        <line id="e13" x1="80" y1="95" x2="40" y2="155" class="edge" />
+        <line id="e14" x1="80" y1="95" x2="120" y2="155" class="edge" style="display:none;" />
+
+        <!-- Node 0: Root -->
+        <circle id="node0" cx="160" cy="35" r="18" class="node-circle active-done" />
+        <text id="text0" x="160" y="35" class="node-text">1</text>
+
+        <!-- Node 1: Left Child -->
+        <circle id="node1" cx="80" cy="95" r="18" class="node-circle" />
+        <text id="text1" x="80" y="95" class="node-text">4</text>
+
+        <!-- Node 2: Right Child -->
+        <circle id="node2" cx="240" cy="95" r="18" class="node-circle" />
+        <text id="text2" x="240" y="95" class="node-text">15</text>
+
+        <!-- Node 3: Left-Left Child -->
+        <circle id="node3" cx="40" cy="155" r="18" class="node-circle" />
+        <text id="text3" x="40" y="155" class="node-text">10</text>
+
+        <!-- Node 4: Left-Right Child (Initially hidden) -->
+        <circle id="node4" cx="120" cy="155" r="18" class="node-circle" style="display:none;" />
+        <text id="text4" x="120" y="155" class="node-text" style="display:none;">2</text>
+      </svg>
+    </div>
+
+    <!-- Array Buffer Panel -->
+    <div class="panel p-array">
+      <h3><span>Flat Array Storage</span><span class="kind">Cache-Friendly</span></h3>
+      <p class="caption" id="arrayCaption">Parent at (i - 1)/2; left child at 2i + 1; right child at 2i + 2.</p>
+      <div class="array-grid" id="arrayGrid" role="group" aria-label="Array elements">
+        <div class="array-cell done-cell" id="c0"><span>1</span><span class="cell-idx">[0]</span></div>
+        <div class="array-cell" id="c1"><span>4</span><span class="cell-idx">[1]</span></div>
+        <div class="array-cell" id="c2"><span>15</span><span class="cell-idx">[2]</span></div>
+        <div class="array-cell" id="c3"><span>10</span><span class="cell-idx">[3]</span></div>
+        <div class="array-cell" id="c4" style="display:none;"><span>2</span><span class="cell-idx">[4]</span></div>
+      </div>
+      <div class="code" id="arrayCode">elements = [1, 4, 15, 10]<br>peek() = 1 (O(1) time)</div>
+      <div class="badge-row">
+        <span class="status-badge" id="opBadge">Operation: Valid Min-Heap</span>
+        <span class="status-badge" id="compBadge">Complexity: O(1) peek</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    counter: "Step 1 of 4",
+    treeCap: "Initial min-heap with 4 elements. Every parent is smaller than its children.",
+    arrayCap: "Parent at (i - 1)/2; left child at 2i + 1; right child at 2i + 2.",
+    code: "elements = [1, 4, 15, 10]\npeek() = 1 (O(1) time)",
+    op: "Status: Valid Min-Heap",
+    comp: "Complexity: O(1) peek",
+    nodes: ["1", "4", "15", "10"],
+    show4: false,
+    classes: {
+      n0: "node-circle active-done", n1: "node-circle", n2: "node-circle", n3: "node-circle", n4: "node-circle",
+      c0: "array-cell done-cell", c1: "array-cell", c2: "array-cell", c3: "array-cell", c4: "array-cell"
+    }
+  },
+  {
+    counter: "Step 2 of 4",
+    treeCap: "Insert 2: Append 2 to the end at index 4. Heap property is violated (2 < parent 4).",
+    arrayCap: "Appended at index 4. Need to sift-up: compare index 4 with parent (4 - 1)/2 = 1.",
+    code: "insert(2) -> elements.append(2)\nsiftUp(index: 4): 2 < 4 -> SWAP required!",
+    op: "Operation: Insert & Sift-Up Start",
+    comp: "Complexity: O(log N)",
+    nodes: ["1", "4", "15", "10", "2"],
+    show4: true,
+    classes: {
+      n0: "node-circle active-done", n1: "node-circle active-alert", n2: "node-circle", n3: "node-circle", n4: "node-circle active-alert",
+      c0: "array-cell done-cell", c1: "array-cell alert-cell", c2: "array-cell", c3: "array-cell", c4: "array-cell alert-cell"
+    }
+  },
+  {
+    counter: "Step 3 of 4",
+    treeCap: "Sift-Up Complete: Swapped 2 and 4. Compare index 1 (value 2) with root 0 (value 1): 2 >= 1. Done!",
+    arrayCap: "2 is now at index 1. Parent at index 0 is 1. Min-heap order is fully restored.",
+    code: "elements.swapAt(4, 1)\nParent 1 < 2 -> sift-up terminates",
+    op: "Operation: Sift-Up Complete",
+    comp: "Heap size: 5",
+    nodes: ["1", "2", "15", "10", "4"],
+    show4: true,
+    classes: {
+      n0: "node-circle active-done", n1: "node-circle active-done", n2: "node-circle", n3: "node-circle", n4: "node-circle",
+      c0: "array-cell done-cell", c1: "array-cell done-cell", c2: "array-cell", c3: "array-cell", c4: "array-cell"
+    }
+  },
+  {
+    counter: "Step 4 of 4",
+    treeCap: "Extract-Min: Pop root 1. Move last element 4 to root. Sift-down: swap 4 with smaller child 2.",
+    arrayCap: "Root becomes 2. Array: [2, 4, 15, 10]. Both children of 2 (4 and 15) are larger. Complete!",
+    code: "pop() -> returned 1\nelements = [2, 4, 15, 10] (sift-down completed)",
+    op: "Operation: Extract-Min Sift-Down",
+    comp: "Complexity: O(log N) pop",
+    nodes: ["2", "4", "15", "10"],
+    show4: false,
+    classes: {
+      n0: "node-circle active-done", n1: "node-circle", n2: "node-circle", n3: "node-circle", n4: "node-circle",
+      c0: "array-cell done-cell", c1: "array-cell", c2: "array-cell", c3: "array-cell", c4: "array-cell"
+    }
+  }
+];
+
+let curr = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+const treeCap = document.getElementById("treeCaption");
+const arrayCap = document.getElementById("arrayCaption");
+const arrayCode = document.getElementById("arrayCode");
+const opBadge = document.getElementById("opBadge");
+const compBadge = document.getElementById("compBadge");
+
+const n0 = document.getElementById("node0"), t0 = document.getElementById("text0");
+const n1 = document.getElementById("node1"), t1 = document.getElementById("text1");
+const n2 = document.getElementById("node2"), t2 = document.getElementById("text2");
+const n3 = document.getElementById("node3"), t3 = document.getElementById("text3");
+const n4 = document.getElementById("node4"), t4 = document.getElementById("text4");
+const e14 = document.getElementById("e14");
+
+const c0 = document.getElementById("c0");
+const c1 = document.getElementById("c1");
+const c2 = document.getElementById("c2");
+const c3 = document.getElementById("c3");
+const c4 = document.getElementById("c4");
+
+function render() {
+  const s = steps[curr];
+  stepCounter.textContent = s.counter;
+  btnBack.disabled = curr === 0;
+  btnNext.disabled = curr === steps.length - 1;
+
+  treeCap.textContent = s.treeCap;
+  arrayCap.textContent = s.arrayCap;
+  arrayCode.innerHTML = s.code.replace(/\n/g, "<br>");
+  opBadge.textContent = s.op;
+  compBadge.textContent = s.comp;
+
+  t0.textContent = s.nodes[0] || "";
+  t1.textContent = s.nodes[1] || "";
+  t2.textContent = s.nodes[2] || "";
+  t3.textContent = s.nodes[3] || "";
+
+  if (s.show4) {
+    n4.style.display = "block";
+    t4.style.display = "block";
+    t4.textContent = s.nodes[4] || "";
+    e14.style.display = "block";
+    c4.style.display = "flex";
+    c4.querySelector("span:first-child").textContent = s.nodes[4] || "";
+  } else {
+    n4.style.display = "none";
+    t4.style.display = "none";
+    e14.style.display = "none";
+    c4.style.display = "none";
+  }
+
+  c0.querySelector("span:first-child").textContent = s.nodes[0] || "";
+  c1.querySelector("span:first-child").textContent = s.nodes[1] || "";
+  c2.querySelector("span:first-child").textContent = s.nodes[2] || "";
+  c3.querySelector("span:first-child").textContent = s.nodes[3] || "";
+
+  n0.className.baseVal = s.classes.n0;
+  n1.className.baseVal = s.classes.n1;
+  n2.className.baseVal = s.classes.n2;
+  n3.className.baseVal = s.classes.n3;
+  n4.className.baseVal = s.classes.n4;
+
+  c0.className = s.classes.c0;
+  c1.className = s.classes.c1;
+  c2.className = s.classes.c2;
+  c3.className = s.classes.c3;
+  c4.className = s.classes.c4;
+}
+
+btnBack.addEventListener("click", () => { if (curr > 0) { curr--; render(); } });
+btnNext.addEventListener("click", () => { if (curr < steps.length - 1) { curr++; render(); } });
+btnReplay.addEventListener("click", () => { curr = 0; render(); });
+
+render();
+</script>
+</body>
+</html>

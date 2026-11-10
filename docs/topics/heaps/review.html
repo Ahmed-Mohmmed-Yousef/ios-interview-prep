@@ -1,0 +1,679 @@
+<title>Heaps Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --heap-color: #0284c7; --heap-soft: #e0f2fe;
+  --done-color: #059669; --done-soft: #d1fae5;
+  --alert-color: #d97706; --alert-soft: #fef3c7;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658;
+  --heap-color: #38bdf8; --heap-soft: #082f49;
+  --done-color: #34d399; --done-soft: #064e3b;
+  --alert-color: #fbbf24; --alert-soft: #451a03;
+  --code-bg: #111821; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  margin: 0; padding: 20px;
+}
+.diagram-host { max-width: 840px; margin: 0 auto; display: grid; gap: 16px; }
+
+.controls {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 16px;
+}
+.btn-group { display: flex; gap: 8px; }
+button {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  padding: 6px 14px; border-radius: 8px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: all 0.2s ease;
+}
+button:hover:not(:disabled) { border-color: var(--heap-color); color: var(--heap-color); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-label { font-weight: 600; font-size: 14px; color: var(--muted); }
+
+.panels { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; }
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 10px; min-width: 0;
+}
+.panel h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.kind { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.p-tree .kind { background: var(--heap-soft); color: var(--heap-color); }
+.p-array .kind { background: var(--done-soft); color: var(--done-color); }
+
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 8px;
+  padding: 8px 12px; min-height: 3.2em; white-space: pre; overflow-x: auto;
+}
+.caption { margin: 0; font-size: 14px; font-weight: 500; min-height: 2.6em; }
+
+svg { width: 100%; height: auto; display: block; }
+.node-circle { stroke-width: 2.5; fill: var(--surface); stroke: var(--line); transition: all 0.3s ease; }
+.node-circle.active-current { stroke: var(--heap-color); fill: var(--heap-soft); stroke-width: 3.5; }
+.node-circle.active-alert { stroke: var(--alert-color); fill: var(--alert-soft); stroke-width: 3.5; }
+.node-circle.active-done { stroke: var(--done-color); fill: var(--done-soft); stroke-width: 3.5; }
+.node-text { font-family: var(--font-code); font-weight: 700; font-size: 14px; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; }
+.edge { stroke: var(--line); stroke-width: 2; }
+.edge.active-edge { stroke: var(--heap-color); stroke-width: 2.5; }
+
+.array-grid {
+  display: flex; gap: 4px; overflow-x: auto; padding: 6px 0;
+}
+.array-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 44px; height: 48px; border: 1.5px solid var(--line); border-radius: 6px;
+  font-family: var(--font-code); font-weight: 600; font-size: 14px;
+  background: var(--code-bg); transition: all 0.2s ease;
+}
+.array-cell.active-cell { border-color: var(--heap-color); background: var(--heap-soft); color: var(--heap-color); }
+.array-cell.alert-cell { border-color: var(--alert-color); background: var(--alert-soft); color: var(--alert-color); }
+.array-cell.done-cell { border-color: var(--done-color); background: var(--done-soft); color: var(--done-color); }
+.cell-idx { font-size: 10px; color: var(--muted); font-weight: 400; }
+
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-badge {
+  display: inline-block; font-family: var(--font-code); font-size: 12px;
+  padding: 4px 8px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-circle, .array-cell { transition: none !important; }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Coding Interview · Topic 3 of 7 · Prototype</p>
+    <h1>Heaps</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can use heaps to find the top items fast.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>You need to find the 10 most popular songs from a stream of 1 million items. Which data structure solves this with the least memory and time?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A sorted array that sorts the entire list after every new song arrives.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">A min-heap of size 10 that keeps only the 10 highest play counts.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">A singly linked list that appends each song to the tail.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">A binary search tree that rebalances using recursion on every song.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<p>A heap is a tree-based data structure that keeps the smallest or largest element at the top.</p>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of an emergency room triage desk. The patient with the most urgent condition is always treated first. Doctors do not sort all patients.</p></aside>
+<p>In a <strong>min-heap</strong>, every parent node is smaller than or equal to its children. The smallest value sits at the root.</p>
+<p>In a <strong>max-heap</strong>, every parent node is larger than or equal to its children. The largest value sits at the root.</p>
+<p>A binary heap is a <strong>complete binary tree</strong>. Every level is completely filled, except possibly the last level. The last level fills from left to right.</p>
+<p>Because of this shape, you do not need node objects or pointers. You can store a binary heap inside a standard array:</p>
+<ul>
+<li>For any element at index <code>i</code>, its left child is at <code>2 * i + 1</code>.</li>
+<li>Its right child is at <code>2 * i + 2</code>.</li>
+<li>Its parent is at <code>(i - 1) / 2</code>.</li>
+</ul>
+<p>When you insert an item, you append it to the array. Then you <strong>sift up</strong> until the heap property is restored.</p>
+<p>When you remove the root item, you swap it with the last element and remove it. Then you <strong>sift down</strong> the new root.</p>
+<p>Both insert and remove take $O(\log n)$ time. Looking at the root takes $O(1)$ time.</p>
+<p>The Swift standard library does not include a heap type. Apple provides <code>Heap</code> in the open-source <code>swift-collections</code> package. In technical interviews, you often write a simple struct.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<p>Here is a generic <code>Heap</code> struct in Swift that supports custom comparators.</p>
+<pre class="block swift"><code class="language-swift">struct Heap&lt;T&gt; {
+    var elements: [T] = []
+    let areInIncreasingOrder: (T, T) -&gt; Bool
+
+    init(comparator: @escaping (T, T) -&gt; Bool) {
+        self.areInIncreasingOrder = comparator
+    }
+
+    var isEmpty: Bool { elements.isEmpty }
+    var count: Int { elements.count }
+    var peek: T? { elements.first }
+
+    mutating func insert(_ value: T) {
+        elements.append(value)
+        siftUp(elements.count - 1)
+    }
+
+    mutating func pop() -&gt; T? {
+        guard !elements.isEmpty else { return nil }
+        if elements.count == 1 { return elements.removeLast() }
+        let top = elements[0]
+        elements[0] = elements.removeLast()
+        siftDown(0)
+        return top
+    }
+
+    private mutating func siftUp(_ index: Int) {
+        var child = index
+        while child &gt; 0 {
+            let parent = (child - 1) / 2
+            if areInIncreasingOrder(elements[child], elements[parent]) {
+                elements.swapAt(child, parent)
+                child = parent
+            } else {
+                break
+            }
+        }
+    }
+
+    private mutating func siftDown(_ index: Int) {
+        var parent = index
+        while true {
+            let left = 2 * parent + 1
+            let right = 2 * parent + 2
+            var candidate = parent
+
+            if left &lt; elements.count &amp;&amp; areInIncreasingOrder(elements[left], elements[candidate]) {
+                candidate = left
+            }
+            if right &lt; elements.count &amp;&amp; areInIncreasingOrder(elements[right], elements[candidate]) {
+                candidate = right
+            }
+            if candidate == parent { break }
+            elements.swapAt(parent, candidate)
+            parent = candidate
+        }
+    }
+}
+
+var minHeap = Heap&lt;Int&gt;(comparator: &lt;)
+minHeap.insert(10)
+minHeap.insert(4)
+minHeap.insert(15)
+minHeap.insert(1)
+
+print(&quot;Smallest element: \(minHeap.peek ?? -1)&quot;)
+print(&quot;Popped smallest: \(minHeap.pop() ?? -1)&quot;)
+print(&quot;Next smallest: \(minHeap.peek ?? -1)&quot;)
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Smallest element: 1
+Popped smallest: 1
+Next smallest: 4
+</code></pre>
+<p>Now here is how to solve the classic Kth largest element problem using a min-heap of size K.</p>
+<pre class="block swift"><code class="language-swift">struct MinHeap {
+    var elements: [Int] = []
+    var count: Int { elements.count }
+    var peek: Int? { elements.first }
+
+    mutating func insert(_ value: Int) {
+        elements.append(value)
+        var i = elements.count - 1
+        while i &gt; 0 {
+            let parent = (i - 1) / 2
+            if elements[i] &lt; elements[parent] {
+                elements.swapAt(i, parent)
+                i = parent
+            } else { break }
+        }
+    }
+
+    mutating func pop() -&gt; Int? {
+        guard !elements.isEmpty else { return nil }
+        if elements.count == 1 { return elements.removeLast() }
+        let top = elements[0]
+        elements[0] = elements.removeLast()
+        var parent = 0
+        while true {
+            let left = 2 * parent + 1
+            let right = 2 * parent + 2
+            var candidate = parent
+            if left &lt; elements.count &amp;&amp; elements[left] &lt; elements[candidate] { candidate = left }
+            if right &lt; elements.count &amp;&amp; elements[right] &lt; elements[candidate] { candidate = right }
+            if candidate == parent { break }
+            elements.swapAt(parent, candidate)
+            parent = candidate
+        }
+        return top
+    }
+}
+
+func findKthLargest(_ nums: [Int], _ k: Int) -&gt; Int {
+    var minHeap = MinHeap()
+    for num in nums {
+        minHeap.insert(num)
+        if minHeap.count &gt; k {
+            _ = minHeap.pop()
+        }
+    }
+    return minHeap.peek ?? -1
+}
+
+let numbers = [3, 2, 1, 5, 6, 4]
+print(&quot;2nd largest element: \(findKthLargest(numbers, 2))&quot;)
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">2nd largest element: 5
+</code></pre>
+<p class="try-it"><p>Open a Swift Playground. Create a max-heap using <code>&gt;</code> as the comparator. Insert five numbers and print them by popping until empty.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>Why is a min-heap preferred over a max-heap when finding the K largest elements in a stream of numbers?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">A min-heap automatically discards duplicates from the input stream.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">A min-heap of size K lets you discard elements smaller than the current Kth largest in O(log K) time.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">A max-heap cannot store integer values larger than zero in Swift.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Array indices in Swift only work with ascending binary trees.</span></button><p class="qc-explain" hidden=""><p>Keeping a min-heap of size K preserves the K largest elements seen so far. The root holds the minimum of those K items.</p></p></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>What is the time complexity to build a binary heap from an unsorted array of N elements using bottom-up sift-down?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">O(N squared)</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">O(N log N)</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">O(N)</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">O(1)</span></button><p class="qc-explain" hidden=""><p>Building a heap with bottom-up sift-down takes linear O(N) time because most nodes sit near the bottom and sift down very few levels.</p></p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Sorting an entire array of size N takes O(N log N) time and O(N) memory. Using a min-heap of size K takes O(N log K) time and only O(K) memory.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>The Swift standard library does not provide a Heap type. If you write code in an interview, be ready to implement a compact Heap struct.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>I use a binary heap when I need repeated access to minimum or maximum values. For top K problems, I maintain a min-heap of size K. This achieves O(N log K) time and O(K) space. Since the Swift standard library lacks a Heap, I write a lightweight array-backed struct with sift-up and sift-down operations.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>I leverage binary heaps for priority queues and streaming algorithms. In Swift, I point out that Apple provides <code>Heap</code> in <code>swift-collections</code>. An array representation gives optimal cache locality with zero pointer overhead. For Kth largest elements, a bounded min-heap saves memory. For running medians, I balance a max-heap and min-heap in O(log N) time per insertion.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><p>A binary heap provides O(1) peek and O(log N) insert and extract operations. Store heaps in flat arrays using simple index math. Use a min-heap of size K to find top K elements efficiently. Remember that the Swift standard library requires an external package or a custom struct.</p></div>
+<h2>Go deeper</h2>
+<ul>
+<li>Tech Interview Handbook: Heap Cheatsheet: <a href="https://www.techinterviewhandbook.org/algorithms/heap/">https://www.techinterviewhandbook.org/algorithms/heap/</a></li>
+<li>Apple Swift Collections Heap: <a href="https://github.com/apple/swift-collections">https://github.com/apple/swift-collections</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const steps = [
+  {
+    counter: "Step 1 of 4",
+    treeCap: "Initial min-heap with 4 elements. Every parent is smaller than its children.",
+    arrayCap: "Parent at (i - 1)/2; left child at 2i + 1; right child at 2i + 2.",
+    code: "elements = [1, 4, 15, 10]\npeek() = 1 (O(1) time)",
+    op: "Status: Valid Min-Heap",
+    comp: "Complexity: O(1) peek",
+    nodes: ["1", "4", "15", "10"],
+    show4: false,
+    classes: {
+      n0: "node-circle active-done", n1: "node-circle", n2: "node-circle", n3: "node-circle", n4: "node-circle",
+      c0: "array-cell done-cell", c1: "array-cell", c2: "array-cell", c3: "array-cell", c4: "array-cell"
+    }
+  },
+  {
+    counter: "Step 2 of 4",
+    treeCap: "Insert 2: Append 2 to the end at index 4. Heap property is violated (2 < parent 4).",
+    arrayCap: "Appended at index 4. Need to sift-up: compare index 4 with parent (4 - 1)/2 = 1.",
+    code: "insert(2) -> elements.append(2)\nsiftUp(index: 4): 2 < 4 -> SWAP required!",
+    op: "Operation: Insert & Sift-Up Start",
+    comp: "Complexity: O(log N)",
+    nodes: ["1", "4", "15", "10", "2"],
+    show4: true,
+    classes: {
+      n0: "node-circle active-done", n1: "node-circle active-alert", n2: "node-circle", n3: "node-circle", n4: "node-circle active-alert",
+      c0: "array-cell done-cell", c1: "array-cell alert-cell", c2: "array-cell", c3: "array-cell", c4: "array-cell alert-cell"
+    }
+  },
+  {
+    counter: "Step 3 of 4",
+    treeCap: "Sift-Up Complete: Swapped 2 and 4. Compare index 1 (value 2) with root 0 (value 1): 2 >= 1. Done!",
+    arrayCap: "2 is now at index 1. Parent at index 0 is 1. Min-heap order is fully restored.",
+    code: "elements.swapAt(4, 1)\nParent 1 < 2 -> sift-up terminates",
+    op: "Operation: Sift-Up Complete",
+    comp: "Heap size: 5",
+    nodes: ["1", "2", "15", "10", "4"],
+    show4: true,
+    classes: {
+      n0: "node-circle active-done", n1: "node-circle active-done", n2: "node-circle", n3: "node-circle", n4: "node-circle",
+      c0: "array-cell done-cell", c1: "array-cell done-cell", c2: "array-cell", c3: "array-cell", c4: "array-cell"
+    }
+  },
+  {
+    counter: "Step 4 of 4",
+    treeCap: "Extract-Min: Pop root 1. Move last element 4 to root. Sift-down: swap 4 with smaller child 2.",
+    arrayCap: "Root becomes 2. Array: [2, 4, 15, 10]. Both children of 2 (4 and 15) are larger. Complete!",
+    code: "pop() -> returned 1\nelements = [2, 4, 15, 10] (sift-down completed)",
+    op: "Operation: Extract-Min Sift-Down",
+    comp: "Complexity: O(log N) pop",
+    nodes: ["2", "4", "15", "10"],
+    show4: false,
+    classes: {
+      n0: "node-circle active-done", n1: "node-circle", n2: "node-circle", n3: "node-circle", n4: "node-circle",
+      c0: "array-cell done-cell", c1: "array-cell", c2: "array-cell", c3: "array-cell", c4: "array-cell"
+    }
+  }
+];
+
+let curr = 0;
+const stepCounter = document.getElementById("stepCounter");
+const btnBack = document.getElementById("btnBack");
+const btnNext = document.getElementById("btnNext");
+const btnReplay = document.getElementById("btnReplay");
+
+const treeCap = document.getElementById("treeCaption");
+const arrayCap = document.getElementById("arrayCaption");
+const arrayCode = document.getElementById("arrayCode");
+const opBadge = document.getElementById("opBadge");
+const compBadge = document.getElementById("compBadge");
+
+const n0 = document.getElementById("node0"), t0 = document.getElementById("text0");
+const n1 = document.getElementById("node1"), t1 = document.getElementById("text1");
+const n2 = document.getElementById("node2"), t2 = document.getElementById("text2");
+const n3 = document.getElementById("node3"), t3 = document.getElementById("text3");
+const n4 = document.getElementById("node4"), t4 = document.getElementById("text4");
+const e14 = document.getElementById("e14");
+
+const c0 = document.getElementById("c0");
+const c1 = document.getElementById("c1");
+const c2 = document.getElementById("c2");
+const c3 = document.getElementById("c3");
+const c4 = document.getElementById("c4");
+
+function render() {
+  const s = steps[curr];
+  stepCounter.textContent = s.counter;
+  btnBack.disabled = curr === 0;
+  btnNext.disabled = curr === steps.length - 1;
+
+  treeCap.textContent = s.treeCap;
+  arrayCap.textContent = s.arrayCap;
+  arrayCode.innerHTML = s.code.replace(/\n/g, "<br>");
+  opBadge.textContent = s.op;
+  compBadge.textContent = s.comp;
+
+  t0.textContent = s.nodes[0] || "";
+  t1.textContent = s.nodes[1] || "";
+  t2.textContent = s.nodes[2] || "";
+  t3.textContent = s.nodes[3] || "";
+
+  if (s.show4) {
+    n4.style.display = "block";
+    t4.style.display = "block";
+    t4.textContent = s.nodes[4] || "";
+    e14.style.display = "block";
+    c4.style.display = "flex";
+    c4.querySelector("span:first-child").textContent = s.nodes[4] || "";
+  } else {
+    n4.style.display = "none";
+    t4.style.display = "none";
+    e14.style.display = "none";
+    c4.style.display = "none";
+  }
+
+  c0.querySelector("span:first-child").textContent = s.nodes[0] || "";
+  c1.querySelector("span:first-child").textContent = s.nodes[1] || "";
+  c2.querySelector("span:first-child").textContent = s.nodes[2] || "";
+  c3.querySelector("span:first-child").textContent = s.nodes[3] || "";
+
+  n0.className.baseVal = s.classes.n0;
+  n1.className.baseVal = s.classes.n1;
+  n2.className.baseVal = s.classes.n2;
+  n3.className.baseVal = s.classes.n3;
+  n4.className.baseVal = s.classes.n4;
+
+  c0.className = s.classes.c0;
+  c1.className = s.classes.c1;
+  c2.className = s.classes.c2;
+  c3.className = s.classes.c3;
+  c4.className = s.classes.c4;
+}
+
+btnBack.addEventListener("click", () => { if (curr > 0) { curr--; render(); } });
+btnNext.addEventListener("click", () => { if (curr < steps.length - 1) { curr++; render(); } });
+btnReplay.addEventListener("click", () => { curr = 0; render(); });
+
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"heaps","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"heap-q1","type":"mcq","difficulty":1,"prompt":"What is the defining property of a binary min-heap?","options":[{"id":"a","text":"Every parent node is smaller than or equal to its child nodes.","explanation":"In a min-heap, the root holds the smallest element and every parent is less than or equal to its children."},{"id":"b","text":"Every node has exactly two children with ascending integer values.","explanation":"Heaps are not sorted left to right like binary search trees; only the parent-child relationship matters."},{"id":"c","text":"Left child values must always be strictly greater than right child values.","explanation":"Binary heaps do not require any ordering relationship between sibling nodes."},{"id":"d","text":"All leaf nodes must contain negative floating-point numbers.","explanation":"Binary heaps work with any comparable element type, positive or negative."}],"answer":"a"},{"id":"heap-q2","type":"mcq","difficulty":1,"prompt":"In a 0-indexed binary heap array, which formula finds the left child of an element at index i?","options":[{"id":"a","text":"2 * i","explanation":"2 * i applies to 1-indexed heap arrays, not 0-indexed arrays."},{"id":"b","text":"2 * i + 1","explanation":"In 0-indexed arrays, the left child of index i is always at 2 * i + 1."},{"id":"c","text":"2 * i + 2","explanation":"2 * i + 2 finds the right child of index i, not the left child."},{"id":"d","text":"(i - 1) / 2","explanation":"(i - 1) / 2 finds the parent node index, not the left child."}],"answer":"b"},{"id":"heap-q3","type":"mcq","difficulty":1,"prompt":"In a 0-indexed binary heap array, which formula computes the parent of an element at index i?","options":[{"id":"a","text":"i / 2","explanation":"i / 2 is used in 1-indexed heaps; in 0-indexed heaps index 0 would yield invalid parent math."},{"id":"b","text":"2 * i - 1","explanation":"2 * i - 1 does not compute the parent index in a binary heap."},{"id":"c","text":"(i - 1) / 2","explanation":"Integer division (i - 1) / 2 correctly maps both left (2p + 1) and right (2p + 2) children back to parent p."},{"id":"d","text":"(i + 1) / 2","explanation":"(i + 1) / 2 computes an incorrect forward index rather than the parent."}],"answer":"c"},{"id":"heap-q4","type":"mcq","difficulty":1,"prompt":"What is the worst-case time complexity of extracting the minimum element from a binary min-heap with N elements?","options":[{"id":"a","text":"O(1)","explanation":"Inspecting the minimum takes O(1), but removing it requires sifting down."},{"id":"b","text":"O(N)","explanation":"O(N) is linear scan time; heaps do not scan all elements to extract."},{"id":"c","text":"O(N log N)","explanation":"O(N log N) is the time to sort an entire array, not a single extraction."},{"id":"d","text":"O(log N)","explanation":"Extracting the minimum swaps the last item to the root and sifts down at most the height of the tree, which is O(log N)."}],"answer":"d"},{"id":"heap-q5","type":"mcq","difficulty":1,"prompt":"What is the time complexity to inspect the root element using peek on a binary heap?","options":[{"id":"a","text":"O(1) constant time, because the root always sits at array index zero.","explanation":"The extreme element (min or max) is always stored at index 0, allowing instant access."},{"id":"b","text":"O(log N) time, because the root must be verified against leaf nodes.","explanation":"No verification or tree traversal is needed to read index 0."},{"id":"c","text":"O(N) time, because all array elements must be scanned sequentially.","explanation":"A full scan is only required in an unsorted array, not a heap."},{"id":"d","text":"O(N squared) time, because comparisons trigger an internal sort pass.","explanation":"Peek does not mutate or sort the underlying collection."}],"answer":"a"},{"id":"heap-q6","type":"mcq","difficulty":1,"prompt":"Why can a binary heap be stored in a contiguous array without using node pointers?","options":[{"id":"a","text":"Because Swift arrays allocate recursive memory cells automatically.","explanation":"Array memory is flat and contiguous, not recursive."},{"id":"b","text":"Because a heap is a complete binary tree with predictable child indices.","explanation":"A complete binary tree has no gaps, so parent and child positions are computed directly with simple arithmetic."},{"id":"c","text":"Because every heap element must be a hashable 64-bit integer type.","explanation":"Binary heaps support any comparable type, not just 64-bit integers."},{"id":"d","text":"Because Swift standard library dictionaries store heap links in memory.","explanation":"A binary heap uses an array, not a dictionary or hash map."}],"answer":"b"},{"id":"heap-q7","type":"mcq","difficulty":2,"prompt":"What is the worst-case time complexity to build a binary heap from an unsorted array of N elements using bottom-up sift-down?","options":[{"id":"a","text":"O(N squared)","explanation":"O(N^2) would be worse than standard bubble sort."},{"id":"b","text":"O(N log N)","explanation":"Repeatedly calling insert takes O(N log N), but bottom-up heapify runs in linear time."},{"id":"c","text":"O(N)","explanation":"Bottom-up heapify takes O(N) because half the nodes are leaves requiring 0 swaps and higher levels have exponentially fewer nodes."},{"id":"d","text":"O(log N)","explanation":"A sub-linear time is impossible because every element must be processed."}],"answer":"c"},{"id":"heap-q8","type":"mcq","difficulty":1,"prompt":"Which package from Apple provides an official Heap implementation for Swift?","options":[{"id":"a","text":"Foundation Essentials CoreKit","explanation":"Foundation Essentials does not export a Heap structure."},{"id":"b","text":"SwiftUI DataStructures","explanation":"SwiftUI is an Apple UI framework, not a data structure package."},{"id":"c","text":"Swift System Utilities","explanation":"System provides low-level OS system call interfaces."},{"id":"d","text":"apple/swift-collections","explanation":"Apple publishes Heap and Deque in the open-source apple/swift-collections package."}],"answer":"d"},{"id":"heap-q9","type":"mcq","difficulty":2,"prompt":"Why is a min-heap of size K used instead of a max-heap to find the K largest elements in a stream?","options":[{"id":"a","text":"The min-heap root holds the smallest of the top K, so smaller items can be discarded quickly.","explanation":"Keeping a min-heap of size K bounds space to O(K). If a new number exceeds the root, replace it and sift down in O(log K) time."},{"id":"b","text":"A max-heap cannot accept more than K elements before throwing a runtime exception.","explanation":"Max-heaps can hold any number of elements without runtime errors."},{"id":"c","text":"Swift language rules forbid reversing array order when comparing integers.","explanation":"Swift supports custom comparators including greater-than closures."},{"id":"d","text":"Min-heaps store all stream elements inside a private secondary SQLite database.","explanation":"Min-heaps operate purely in memory using standard array allocations."}],"answer":"a"},{"id":"heap-q10","type":"mcq","difficulty":1,"prompt":"Where is a newly inserted element initially placed before sifting up in an array-backed binary heap?","options":[{"id":"a","text":"At index zero, shifting all existing elements one position to the right.","explanation":"Inserting at index 0 would require O(N) array shifting."},{"id":"b","text":"At the very end of the array, preserving the complete binary tree structure.","explanation":"Appending to the end takes amortized O(1) time and preserves the complete tree shape before sifting up."},{"id":"c","text":"In the exact middle index of the array buffer.","explanation":"Inserting in the middle violates the complete binary tree property."},{"id":"d","text":"Inside a temporary global cache outside the heap array.","explanation":"The element is placed directly into the heap array."}],"answer":"b"},{"id":"heap-q11","type":"mcq","difficulty":1,"prompt":"When deleting the root of a binary min-heap, which element replaces the root before sifting down begins?","options":[{"id":"a","text":"The left child of the root node.","explanation":"Promoting the left child leaves an empty hole in the tree."},{"id":"b","text":"The right child of the root node.","explanation":"Promoting the right child leaves a gap and breaks tree completeness."},{"id":"c","text":"The last element in the array.","explanation":"Moving the last element to index 0 preserves tree completeness, followed by sifting down to restore heap order."},{"id":"d","text":"The median value across all leaf nodes.","explanation":"Finding the median across leaves would take O(N) time."}],"answer":"c"},{"id":"heap-q12","type":"mcq","difficulty":2,"prompt":"What is the time complexity to find the median of numbers from a data stream using two balanced heaps?","options":[{"id":"a","text":"O(N log N) time for each median query.","explanation":"Sorting on every query takes O(N log N), but two heaps avoid full sorting."},{"id":"b","text":"O(N) time to scan both heap buffers.","explanation":"Two heaps provide direct access to median values at the roots."},{"id":"c","text":"O(log N) time to traverse tree levels.","explanation":"Insertion takes O(log N), but reading the median takes constant time."},{"id":"d","text":"O(1) time to inspect the root elements.","explanation":"The median is calculated directly in O(1) time from the roots of the max-heap and min-heap."}],"answer":"d"},{"id":"heap-q13","type":"mcq","difficulty":2,"prompt":"What is a primary operational difference between a binary search tree (BST) and a binary heap?","options":[{"id":"a","text":"A BST orders left child \u003c parent \u003c right child, while a heap only orders parent versus children.","explanation":"A BST maintains total horizontal order across all keys, while a heap only maintains vertical parent-child priority."},{"id":"b","text":"A binary heap requires linked pointers while a BST must use contiguous flat arrays.","explanation":"The opposite is true: heaps use arrays while BSTs typically use node pointers."},{"id":"c","text":"Searching for an arbitrary value takes O(1) in a heap and O(N squared) in a BST.","explanation":"Searching an arbitrary value in a heap takes O(N) linear scan time."},{"id":"d","text":"Binary search trees only permit integer keys while binary heaps permit any type.","explanation":"Both structures support any comparable data type."}],"answer":"a"},{"id":"heap-q14","type":"mcq","difficulty":1,"prompt":"Which operation restores the heap property after appending a new element to the end of a binary heap?","options":[{"id":"a","text":"Sift-down from the root to the leaf.","explanation":"Sift-down is used when removing the root, not after appending to the leaf."},{"id":"b","text":"Sift-up from the newly appended leaf toward the root.","explanation":"The newly appended item bubbles up by swapping with its parent until the heap property holds."},{"id":"c","text":"Rotating the binary tree using an AVL rebalance operation.","explanation":"Binary heaps use sifting in arrays, not AVL tree rotations."},{"id":"d","text":"Reversing the entire underlying array.","explanation":"Reversing an array does not restore heap order."}],"answer":"b"},{"id":"heap-q15","type":"mcq","difficulty":2,"prompt":"In a max-heap containing 100 distinct positive integers, where can the smallest element be located?","options":[{"id":"a","text":"Only at the root index zero.","explanation":"The root of a max-heap contains the maximum value, not the minimum."},{"id":"b","text":"Only at index 99 at the very end of the array.","explanation":"The minimum can be at any leaf node, not necessarily the last array index."},{"id":"c","text":"At any one of the leaf nodes.","explanation":"In a max-heap, every parent is greater than its children, so the minimum must reside in one of the leaf nodes."},{"id":"d","text":"At either index 1 or index 2.","explanation":"Indices 1 and 2 are immediate children of the root and typically hold large values."}],"answer":"c"},{"id":"heap-q16","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"let index = 5\nlet parent = (index - 1) / 2\nprint(parent)","options":[{"id":"a","text":"1","explanation":"1 is the parent of index 3 and 4, not index 5."},{"id":"b","text":"3","explanation":"3 is not (5 - 1) / 2."},{"id":"c","text":"4","explanation":"4 is 5 - 1 without division by 2."},{"id":"d","text":"2","explanation":"(5 - 1) / 2 equals 4 / 2 = 2."}],"answer":"d"},{"id":"heap-q17","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"struct SimpleMinHeap {\n    var items: [Int] = []\n    mutating func insert(_ val: Int) {\n        items.append(val)\n        var i = items.count - 1\n        while i > 0 {\n            let p = (i - 1) / 2\n            if items[i] \u003c items[p] { items.swapAt(i, p); i = p } else { break }\n        }\n    }\n}\nvar h = SimpleMinHeap()\nfor v in [9, 3, 7, 1] { h.insert(v) }\nprint(h.items[0])","options":[{"id":"a","text":"1","explanation":"After inserting 9, 3, 7, and 1, min-heap sift-up moves 1 to the root at index 0."},{"id":"b","text":"9","explanation":"9 was the first element inserted but was sifted down when smaller items were added."},{"id":"c","text":"3","explanation":"3 is greater than 1, so it cannot stay at the root."},{"id":"d","text":"7","explanation":"7 is greater than 1 and sits as a child node."}],"answer":"a"},{"id":"heap-q18","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"struct SimpleMinHeap {\n    var items: [Int] = []\n    mutating func insert(_ val: Int) {\n        items.append(val)\n        var i = items.count - 1\n        while i > 0 {\n            let p = (i - 1) / 2\n            if items[i] \u003c items[p] { items.swapAt(i, p); i = p } else { break }\n        }\n    }\n    mutating func pop() -> Int? {\n        guard !items.isEmpty else { return nil }\n        if items.count == 1 { return items.removeLast() }\n        let top = items[0]\n        items[0] = items.removeLast()\n        var p = 0\n        while true {\n            let l = 2 * p + 1, r = 2 * p + 2\n            var c = p\n            if l \u003c items.count && items[l] \u003c items[c] { c = l }\n            if r \u003c items.count && items[r] \u003c items[c] { c = r }\n            if c == p { break }\n            items.swapAt(p, c)\n            p = c\n        }\n        return top\n    }\n}\nvar h = SimpleMinHeap()\nfor v in [8, 4, 12] { h.insert(v) }\nprint(h.pop() ?? -1)","options":[{"id":"a","text":"8","explanation":"8 is larger than 4 and is not the root."},{"id":"b","text":"4","explanation":"4 is the smallest element inserted and resides at root index 0, so pop() returns 4."},{"id":"c","text":"12","explanation":"12 is the maximum value inserted, not the minimum."},{"id":"d","text":"-1","explanation":"The heap is not empty, so the nil-coalescing default -1 is not reached."}],"answer":"b"},{"id":"heap-q19","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"struct MinHeap {\n    var items: [Int] = []\n    mutating func insert(_ v: Int) {\n        items.append(v)\n        var i = items.count - 1\n        while i > 0 {\n            let p = (i - 1) / 2\n            if items[i] \u003c items[p] { items.swapAt(i, p); i = p } else { break }\n        }\n    }\n    mutating func pop() -> Int? {\n        if items.isEmpty { return nil }\n        if items.count == 1 { return items.removeLast() }\n        let top = items[0]\n        items[0] = items.removeLast()\n        var p = 0\n        while true {\n            let l = 2 * p + 1, r = 2 * p + 2\n            var c = p\n            if l \u003c items.count && items[l] \u003c items[c] { c = l }\n            if r \u003c items.count && items[r] \u003c items[c] { c = r }\n            if c == p { break }\n            items.swapAt(p, c)\n            p = c\n        }\n        return top\n    }\n}\nvar h = MinHeap()\nfor n in [7, 10, 4, 3, 20, 15] {\n    h.insert(n)\n    if h.items.count > 3 { _ = h.pop() }\n}\nprint(h.items[0])","options":[{"id":"a","text":"7","explanation":"7 was popped earlier as smaller than 10, 15, and 20."},{"id":"b","text":"15","explanation":"15 is in the top 3, but 10 is the root of the min-heap."},{"id":"c","text":"10","explanation":"The top 3 largest numbers are 10, 15, and 20. In a min-heap of size 3, the root is the 3rd largest: 10."},{"id":"d","text":"20","explanation":"20 is the 1st largest number, not the root of the min-heap."}],"answer":"c"},{"id":"heap-q20","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"var arr = [1, 3, 5, 2]\nvar child = 3\nwhile child > 0 {\n    let parent = (child - 1) / 2\n    if arr[child] \u003c arr[parent] {\n        arr.swapAt(child, parent)\n        child = parent\n    } else { break }\n}\nprint(arr)","options":[{"id":"a","text":"[1, 3, 5, 2]","explanation":"2 is smaller than parent 3 at index 1, so a swap occurred."},{"id":"b","text":"[2, 1, 5, 3]","explanation":"2 does not swap with 1 because 1 is less than 2."},{"id":"c","text":"[1, 2, 3, 5]","explanation":"The array is not fully sorted; only index 3 and index 1 were swapped."},{"id":"d","text":"[1, 2, 5, 3]","explanation":"Index 3 (value 2) swapped with parent index 1 (value 3). Then 2 >= parent 1, so the loop stopped."}],"answer":"d"},{"id":"heap-q21","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"struct Counter {\n    var count = 0\n    mutating func insert() { count += 1 }\n    mutating func pop() { if count > 0 { count -= 1 } }\n}\nvar c = Counter()\nc.insert(); c.insert(); c.insert(); c.pop()\nprint(c.count)","options":[{"id":"a","text":"2","explanation":"Three insertions increment count to 3, and one pop decrements it to 2."},{"id":"b","text":"3","explanation":"3 ignores the pop operation."},{"id":"c","text":"1","explanation":"1 assumes multiple pops were performed."},{"id":"d","text":"0","explanation":"0 would mean all elements were removed."}],"answer":"a"},{"id":"heap-q22","type":"code-reading","difficulty":1,"prompt":"What does this Swift code print when executed?","code":"struct MaxHeapSimple {\n    var elements = [14]\n    mutating func push(_ v: Int) {\n        elements.append(v)\n        var i = elements.count - 1\n        while i > 0 {\n            let p = (i - 1) / 2\n            if elements[i] > elements[p] { elements.swapAt(i, p); i = p } else { break }\n        }\n    }\n}\nvar h = MaxHeapSimple()\nh.push(25)\nh.push(9)\nprint(h.elements[0])","options":[{"id":"a","text":"14","explanation":"14 was pushed down when 25 was inserted."},{"id":"b","text":"25","explanation":"In a max-heap with values [14, 25, 9], 25 sifts up to index 0."},{"id":"c","text":"9","explanation":"9 is the minimum element, which cannot be at the root of a max-heap."},{"id":"d","text":"48","explanation":"48 is the sum of the elements, not the root."}],"answer":"b"},{"id":"heap-q23","type":"code-reading","difficulty":2,"prompt":"What does this Swift code print when executed?","code":"var heap = [1, 4, 3, 8]\n_ = heap.removeLast()\nheap[0] = 3\nvar p = 0\nlet l = 2 * p + 1, r = 2 * p + 2\nvar c = p\nif l \u003c heap.count && heap[l] \u003c heap[c] { c = l }\nif r \u003c heap.count && heap[r] \u003c heap[c] { c = r }\nif c != p { heap.swapAt(p, c) }\nprint(heap[0])","options":[{"id":"a","text":"1","explanation":"1 was overwritten by 3 at the start."},{"id":"b","text":"4","explanation":"4 is at index 1 and is greater than 3, so it does not become the root."},{"id":"c","text":"3","explanation":"Both children at index 1 (value 4) and index 2 (value 3) are >= root 3, so c remains p and heap[0] is 3."},{"id":"d","text":"8","explanation":"8 was removed with removeLast()."}],"answer":"c"},{"id":"heap-q24","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain why a min-heap of size K is faster than sorting the entire array. Mention both time and space complexity.","rubric":[{"criterion":"Explains that sorting the entire array takes O(N log N) time and O(N) auxiliary space","weight":35,"key":true},{"criterion":"Explains that a min-heap of size K takes O(N log K) time and O(K) space","weight":40,"key":true},{"criterion":"Notes that smaller items can be discarded as soon as they are smaller than the min-heap root","weight":25}],"modelAnswer":"Sorting an entire array of size N requires O(N log N) time and O(N) space. Using a min-heap of size K bounds auxiliary space to O(K) and runs in O(N log K) time. When K is much smaller than N, this saves significant memory and CPU time because numbers smaller than the heap root are discarded immediately."},{"id":"heap-q25","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain the difference between sift-up and sift-down in a binary heap. Identify which operation is triggered during insertion and which during extraction.","rubric":[{"criterion":"Identifies that sift-up is used after insertion at the array tail","weight":35,"key":true},{"criterion":"Identifies that sift-down is used after extracting the root element","weight":35,"key":true},{"criterion":"Describes movement direction (sift-up travels up toward parent, sift-down travels down comparing with children)","weight":30}],"modelAnswer":"Sift-up is used during insertion when a new item is appended to the end of the heap array. It compares the element with its parent and bubbles up toward the root. Sift-down is used during root extraction when the last array element replaces the deleted root. It compares the element with both children and swaps downward with the smaller child until heap order is restored."},{"id":"heap-q26","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, explain why building a binary heap using bottom-up sift-down takes O(N) time instead of O(N log N).","rubric":[{"criterion":"Explains that leaves make up roughly half the nodes (N / 2) and require zero sifting","weight":40,"key":true},{"criterion":"Notes that higher levels require more sift work but contain exponentially fewer nodes","weight":35,"key":true},{"criterion":"Mentions that repeated insertion takes O(N log N) because most nodes sift all the way up","weight":25}],"modelAnswer":"Building a heap with bottom-up sift-down takes O(N) time because roughly half the nodes are leaves that require zero swaps. As you move up the tree, the maximum number of swaps increases linearly with height, but the number of nodes at each level decreases exponentially. The resulting mathematical summation converges to O(N), whereas repeated insertion takes O(N log N)."},{"id":"heap-q27","type":"written","difficulty":3,"prompt":"In 2 to 5 sentences, describe how to find the running median of a data stream using two heaps. Name the two heaps and state their balancing condition.","rubric":[{"criterion":"Specifies a max-heap for the lower half of values and a min-heap for the upper half","weight":40,"key":true},{"criterion":"States that the size difference between the two heaps must never exceed one","weight":35,"key":true},{"criterion":"Explains how the median is computed from the roots in O(1) time","weight":25}],"modelAnswer":"We maintain two heaps: a max-heap for the smaller half of numbers and a min-heap for the larger half. We keep the two heaps balanced so their sizes differ by at most one element. To compute the median in O(1) time, read the root of the larger heap. Average the two roots when both sizes are equal."},{"id":"heap-q28","type":"written","difficulty":2,"prompt":"In 2 to 5 sentences, compare a binary heap with a binary search tree (BST). When would you choose a heap over a BST in an iOS application?","rubric":[{"criterion":"Compares heap (only vertical priority order) with BST (complete horizontal key order)","weight":35,"key":true},{"criterion":"Notes heap storage advantage (flat array with cache locality and zero pointer overhead)","weight":35,"key":true},{"criterion":"Identifies scenario: choose heap for priority queues / top K items; choose BST for arbitrary key search or range queries","weight":30}],"modelAnswer":"A binary heap only maintains vertical parent-child priority, whereas a binary search tree maintains total order across all keys. A heap is stored in a flat array, providing excellent cache locality with zero pointer overhead. Choose a heap when you only need fast access to extreme values or priority scheduling. Choose a BST when you need arbitrary key lookups or ordered range searches."},{"id":"heap-q29","type":"code-write","difficulty":2,"prompt":"Write a function kthSmallest(_ nums: [Int], _ k: Int) -> Int that finds the Kth smallest element in an array using a max-heap of size K. Test with nums = [7, 10, 4, 3, 20, 15] and k = 3. Print the result.","starterCode":"func kthSmallest(_ nums: [Int], _ k: Int) -> Int {\n    // Implement using a max-heap of size k\n}\n\n// Test with nums = [7, 10, 4, 3, 20, 15], k = 3\n// Print kthSmallest(nums, 3)","rubric":[{"criterion":"Maintains a max-heap where the root is the maximum among the smallest k elements","weight":40,"key":true},{"criterion":"Pops the maximum when heap size exceeds k","weight":35,"key":true},{"criterion":"Returns the root of the heap which represents the kth smallest element","weight":25}],"modelAnswer":"struct MaxHeap {\n    var items: [Int] = []\n    var count: Int { items.count }\n    var peek: Int? { items.first }\n    mutating func insert(_ v: Int) {\n        items.append(v)\n        var i = items.count - 1\n        while i > 0 {\n            let p = (i - 1) / 2\n            if items[i] > items[p] { items.swapAt(i, p); i = p } else { break }\n        }\n    }\n    mutating func pop() -> Int? {\n        if items.isEmpty { return nil }\n        if items.count == 1 { return items.removeLast() }\n        let top = items[0]\n        items[0] = items.removeLast()\n        var p = 0\n        while true {\n            let l = 2 * p + 1, r = 2 * p + 2\n            var c = p\n            if l \u003c items.count && items[l] > items[c] { c = l }\n            if r \u003c items.count && items[r] > items[c] { c = r }\n            if c == p { break }\n            items.swapAt(p, c)\n            p = c\n        }\n        return top\n    }\n}\nfunc kthSmallest(_ nums: [Int], _ k: Int) -> Int {\n    var maxHeap = MaxHeap()\n    for num in nums {\n        maxHeap.insert(num)\n        if maxHeap.count > k {\n            _ = maxHeap.pop()\n        }\n    }\n    return maxHeap.peek ?? -1\n}\nlet numbers = [7, 10, 4, 3, 20, 15]\nprint(kthSmallest(numbers, 3))"},{"id":"heap-q30","type":"code-write","difficulty":2,"prompt":"Write a function heapSort(_ nums: [Int]) -> [Int] that sorts an array in ascending order using a min-heap. Test with [5, 2, 8, 1, 9] and print the result.","starterCode":"func heapSort(_ nums: [Int]) -> [Int] {\n    // Implement heap sort using a min-heap\n}\n\n// Test with [5, 2, 8, 1, 9]\n// Print heapSort([5, 2, 8, 1, 9])","rubric":[{"criterion":"Inserts all input elements into a min-heap in O(N log N) time","weight":35,"key":true},{"criterion":"Repeatedly extracts the minimum root element until the heap is empty","weight":40,"key":true},{"criterion":"Returns the sorted array in ascending order","weight":25}],"modelAnswer":"struct MinHeap {\n    var items: [Int] = []\n    var isEmpty: Bool { items.isEmpty }\n    mutating func insert(_ v: Int) {\n        items.append(v)\n        var i = items.count - 1\n        while i > 0 {\n            let p = (i - 1) / 2\n            if items[i] \u003c items[p] { items.swapAt(i, p); i = p } else { break }\n        }\n    }\n    mutating func pop() -> Int? {\n        if items.isEmpty { return nil }\n        if items.count == 1 { return items.removeLast() }\n        let top = items[0]\n        items[0] = items.removeLast()\n        var p = 0\n        while true {\n            let l = 2 * p + 1, r = 2 * p + 2\n            var c = p\n            if l \u003c items.count && items[l] \u003c items[c] { c = l }\n            if r \u003c items.count && items[r] \u003c items[c] { c = r }\n            if c == p { break }\n            items.swapAt(p, c)\n            p = c\n        }\n        return top\n    }\n}\nfunc heapSort(_ nums: [Int]) -> [Int] {\n    var minHeap = MinHeap()\n    for n in nums { minHeap.insert(n) }\n    var result: [Int] = []\n    while let minVal = minHeap.pop() {\n        result.append(minVal)\n    }\n    return result\n}\nlet arr = [5, 2, 8, 1, 9]\nprint(heapSort(arr))"},{"id":"heap-q31","type":"code-write","difficulty":1,"prompt":"Write a function isMinHeap(_ arr: [Int]) -> Bool that verifies whether a 0-indexed integer array satisfies the min-heap property. Test with validHeap = [1, 3, 5, 7, 9, 8] and invalidHeap = [1, 10, 5, 4, 9, 8]. Print both results separated by a space.","starterCode":"func isMinHeap(_ arr: [Int]) -> Bool {\n    // Verify min-heap parent \u003c= children property for all valid indices\n}\n\n// Test with validHeap = [1, 3, 5, 7, 9, 8]\n// Test with invalidHeap = [1, 10, 5, 4, 9, 8]\n// Print isMinHeap(validHeap) and isMinHeap(invalidHeap)","rubric":[{"criterion":"Iterates through array indices checking left child (2 * i + 1) and right child (2 * i + 2)","weight":40,"key":true},{"criterion":"Returns false as soon as any child is strictly smaller than its parent","weight":40,"key":true},{"criterion":"Handles boundary checks and returns true for valid heaps and empty arrays","weight":20}],"modelAnswer":"func isMinHeap(_ arr: [Int]) -> Bool {\n    guard !arr.isEmpty else { return true }\n    for i in 0..\u003carr.count {\n        let left = 2 * i + 1\n        let right = 2 * i + 2\n        if left \u003c arr.count && arr[left] \u003c arr[i] { return false }\n        if right \u003c arr.count && arr[right] \u003c arr[i] { return false }\n    }\n    return true\n}\nlet validHeap = [1, 3, 5, 7, 9, 8]\nlet invalidHeap = [1, 10, 5, 4, 9, 8]\nprint(\"\\(isMinHeap(validHeap)) \\(isMinHeap(invalidHeap))\")"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
