@@ -156,7 +156,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (21 of 53 published: 15 main + 6 bonus)
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (22 of 53 published: 16 main + 6 bonus)
   - ✅ **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)** — completed (7 of 7 published)
     - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
     - ✅ **generics-associated-types** (Generics: Associated Types and Where Clauses) — published (lesson, diagram, 31 questions) → [docs/topics/generics-associated-types/review.html](docs/topics/generics-associated-types/review.html)
@@ -173,7 +173,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **intervals** (Intervals) — published (lesson, diagram, 31 questions) → [docs/topics/intervals/review.html](docs/topics/intervals/review.html)
     - ✅ **dynamic-programming** (Dynamic Programming) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/dynamic-programming/review.html](docs/topics/dynamic-programming/review.html)
     - ✅ **bits-math-geometry** (Bits, Math and Geometry) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/bits-math-geometry/review.html](docs/topics/bits-math-geometry/review.html)
-  - 🔄 **Batch 3C: Memory Profiling & Swift Concurrency (8 topics: 1 memory + 7 concurrency)**
+  - ✅ **Batch 3C: Memory Profiling & Swift Concurrency (8 topics: 1 memory + 7 concurrency)** — completed (8 of 8 published)
     - ✅ **memory-graph-debugger** (Finding Leaks with the Memory Graph) — published (lesson, diagram, 31 questions) → [docs/topics/memory-graph-debugger/review.html](docs/topics/memory-graph-debugger/review.html)
     - ✅ **structured-concurrency** (Tasks and Task Groups) — published (lesson, diagram, 31 questions) → [docs/topics/structured-concurrency/review.html](docs/topics/structured-concurrency/review.html)
     - ✅ **task-cancellation** (Task Cancellation) — published (lesson, diagram, 31 questions) → [docs/topics/task-cancellation/review.html](docs/topics/task-cancellation/review.html)
@@ -181,9 +181,9 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **actors-and-main-actor** (Actors and @MainActor) — published (lesson, diagram, 31 questions) → [docs/topics/actors-and-main-actor/review.html](docs/topics/actors-and-main-actor/review.html)
     - ✅ **sendable-data-races** (Sendable and Data Races) — published (lesson, diagram, 31 questions) → [docs/topics/sendable-data-races/review.html](docs/topics/sendable-data-races/review.html)
     - ✅ **swift-6-strict-concurrency** (Swift 6 Strict Concurrency) — published (lesson, diagram, 31 questions) → [docs/topics/swift-6-strict-concurrency/review.html](docs/topics/swift-6-strict-concurrency/review.html)
-    - 🔄 **approachable-concurrency** (Approachable Concurrency) — in progress
-  - ⬜ **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)**
-    - ⬜ **swiftui-loading-data** (Loading Data in SwiftUI)
+    - ✅ **approachable-concurrency** (Approachable Concurrency) — published (lesson, diagram, 31 questions) → [docs/topics/approachable-concurrency/review.html](docs/topics/approachable-concurrency/review.html)
+  - 🔄 **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)**
+    - 🔄 **swiftui-loading-data** (Loading Data in SwiftUI) — in progress
     - ⬜ **view-identity-lifetime** (View Identity and Lifetime)
     - ⬜ **swiftui-animations** (Animations and Transitions)
     - ⬜ **custom-layouts** (Custom Layouts) [bonus]
@@ -344,6 +344,7 @@ New rules and changes you ask for are added here, with the date.
 
 Newest first.
 
+- **2026-11-10** — Built and published topic `approachable-concurrency` (Approachable Concurrency): researched official WWDC25 Session 268 and Swift 6.2 release, authored lesson in simple English, interactive 4-step diagram with stepper illustrating default main actor isolation and off-actor hops, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/approachable-concurrency/review.html`). All checks passed. Batch 3C is now 100% COMPLETE (8 of 8 published). Mid level progress: 22 of 53 published. Starting Batch 3D with `swiftui-loading-data`.
 - **2026-11-10** — Resumed Batch 3C: finishing `approachable-concurrency` and queued Batch 3D (SwiftUI & UIKit Advanced). Launching dedicated autonomous subagent.
 
 - **2026-11-10** — Built and published topic `swift-6-strict-concurrency` (Swift 6 Strict Concurrency): researched official Swift.org migration guide and WWDC24 migrate to Swift 6, authored lesson in simple English, interactive 4-step strict concurrency diagnostic diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/swift-6-strict-concurrency/review.html`). All checks passed. Batch 3C progress: 7 of 8 published. Starting approachable-concurrency.

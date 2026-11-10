@@ -1,0 +1,696 @@
+<title>Approachable Concurrency Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stage-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.badge.danger { background: var(--danger-soft); color: var(--danger-color); }
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-color); }
+
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.step-counter {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--ink);
+  transform: translateY(-1px);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.caption-box {
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 4px solid var(--safe-color);
+  background: var(--code-bg);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+.reduced-list {
+  display: none;
+  margin-top: 16px;
+  padding-left: 20px;
+}
+.reduced-list li {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reduced-list {
+    display: block;
+  }
+}
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Concurrency · Topic 7 of 7 · Prototype</p>
+    <h1>Approachable Concurrency</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain default main actor isolation, @concurrent and nonisolated.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text"><p>In modern Swift, an iOS app target isolates most code to the main actor by default. Why did Apple make this change?</p></p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Apple disabled background threads completely on iOS devices.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Most app code touches UI and state, so defaulting to the main actor eliminates endless boilerplate.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">The Swift compiler cannot compile async functions on secondary threads.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">To prevent developers from creating custom structs.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<p>In early Swift Concurrency, all code was non-isolated by default. You had to add <code>@MainActor</code> to almost every view model and controller.</p>
+<p>This created endless boilerplate annotations. It also caused accidental threading errors when developers forgot an annotation.</p>
+<p>Modern Swift introduces approachable concurrency. In app targets, code isolates to <code>@MainActor</code> by default.</p>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of working in an office building. In the past, every door was locked. You had to swipe an access card for every single room. Now, the main office floor is open by default. You only need a keycard when entering the high-security server room.</p></aside>
+<p>Your view models, views, and presentation state run on the main thread automatically. You do not need <code>@MainActor</code> on every class.</p>
+<p>When you need to run heavy work off the main thread, you opt out.</p>
+<p>You use <code>nonisolated</code> to mark methods or types that should not run on the main actor.</p>
+<p>For heavy asynchronous background tasks, Swift uses <code>@concurrent</code> functions. Calling a <code>@concurrent</code> function hops off the main thread automatically.</p>
+<p>This flips the mental model: stay on the main actor by default, and opt out for heavy background work.</p>
+<h2>See it</h2>
+<div class="diagram-host"></div>
+<h2>In code</h2>
+<p>Here is an example of a view model calling an off-actor background function. The UI state stays protected on the main thread.</p>
+<pre class="block swift"><code class="language-swift">@MainActor
+final class FeedViewModel {
+    var title = &quot;Loading&quot;
+
+    func refresh() async {
+        let result = await fetchFeedBackground()
+        title = result
+        print(&quot;Updated on main: \(title)&quot;)
+    }
+}
+
+nonisolated func fetchFeedBackground() async -&gt; String {
+    &quot;Latest Posts&quot;
+}
+
+func testFeed() async {
+    let model = await FeedViewModel()
+    await model.refresh()
+}
+
+await testFeed()
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Updated on main: Latest Posts
+</code></pre>
+<p>Notice that <code>fetchFeedBackground</code> is <code>nonisolated</code>. It runs off the main actor, preventing UI freezes during data loading.</p>
+<p>Next, here is how you use <code>nonisolated</code> on a synchronous helper method to keep heavy calculations off the actor.</p>
+<pre class="block swift"><code class="language-swift">@MainActor
+final class ImageProcessor {
+    var filterName = &quot;Sepia&quot;
+
+    nonisolated func calculatePixelCount(width: Int, height: Int) -&gt; Int {
+        width * height
+    }
+
+    func applyFilter(width: Int, height: Int) {
+        let pixels = calculatePixelCount(width: width, height: height)
+        print(&quot;Filter \(filterName) applied to \(pixels) pixels&quot;)
+    }
+}
+
+func execute() async {
+    let processor = await ImageProcessor()
+    await processor.applyFilter(width: 1920, height: 1080)
+}
+
+await execute()
+</code></pre>
+<pre class="block output"><span class="out-label">Output</span><code class="language-output">Filter Sepia applied to 2073600 pixels
+</code></pre>
+<p>Marking <code>calculatePixelCount</code> as <code>nonisolated</code> allows callers to run calculations independently without locking the actor state.</p>
+<p class="try-it"><p>Open a Swift Playground. Write a class isolated to the main actor. Add a nonisolated calculation helper and verify when await is required.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>What is the core principle of approachable concurrency in modern Swift?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">All functions must be marked with the dynamic keyword.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">App code isolates to the main actor by default, and heavy background work opts out explicitly.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Background tasks run with higher priority than main thread animations.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Classes can no longer declare stored properties.</span></button><p class="qc-explain" hidden=""><p>Approachable concurrency defaults app targets to the main actor. Developers opt out for background work using nonisolated or concurrent functions.</p></p></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text"><p>Why would you mark an async function as nonisolated or @concurrent?</p></p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">To force it to execute on the main thread run loop.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">To prevent other functions from passing Sendable arguments.</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">To run heavy computation off the main actor so the user interface remains responsive.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">To store the function binary code in persistent disk cache.</span></button><p class="qc-explain" hidden=""><p>Running heavy work on the main actor drops frames and stutters the UI. Opting out runs the work on background threads.</p></p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Because approachable concurrency defaults to the main actor, forgetting to opt out keeps heavy processing on the main thread. This causes UI hitches. Always move heavy JSON parsing and image decoding to nonisolated or concurrent functions.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> </p><p>Default main actor isolation is designed for application targets. Shared utility packages and libraries still default to non-isolated code to remain versatile across server and client platforms.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>Approachable concurrency flips the default isolation model for app targets. Instead of annotating every class with <code>@MainActor</code>, code is isolated to the main actor by default. This matches how iOS apps work because most code touches UI state. When I need to run heavy tasks, I opt out using <code>nonisolated</code> or concurrent background functions.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>In early Swift Concurrency, non-isolated defaults created boilerplate and cognitive overload. Approachable concurrency recognizes that 90% of app target code is UI-driven, isolating apps to <code>@MainActor</code> by default. For CPU-bound pipelines, I explicitly structure work with <code>@concurrent</code> and <code>nonisolated</code> boundaries. This provides safety by default while maintaining 120 fps smoothness for interactive user interfaces.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><p>Approachable concurrency isolates app targets to the main actor by default. This eliminates repetitive @MainActor annotations on UI code and view models. Opt out for heavy background work using nonisolated and @concurrent functions. Keep heavy calculations off the main thread to keep UI performance smooth.</p></div>
+<h2>Go deeper</h2>
+<ul>
+<li>WWDC25: Embracing Swift concurrency: <a href="https://developer.apple.com/videos/play/wwdc2025/268/">https://developer.apple.com/videos/play/wwdc2025/268/</a></li>
+<li>Swift 6.2 Released: <a href="https://www.swift.org/blog/swift-6.2-released/">https://www.swift.org/blog/swift-6.2-released/</a></li>
+</ul></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+(function() {
+  const steps = [
+    {
+      title: "Step 1: Default @MainActor Isolation",
+      badge: "DEFAULT MAIN ACTOR",
+      badgeClass: "safe",
+      mainStroke: "var(--safe-color)",
+      mainTagFill: "var(--safe-soft)",
+      mainTagColor: "var(--safe-color)",
+      mainStatus: "UI thread safety by default",
+      flowStroke: "var(--line)",
+      flowFill: "var(--line)",
+      flowText: "Direct Call",
+      bgStroke: "var(--line)",
+      bgTitleColor: "var(--muted)",
+      bgStatus: "Idle cooperative threads",
+      bgTagFill: "var(--surface)",
+      bgTagColor: "var(--muted)",
+      borderLeftColor: "var(--safe-color)",
+      caption: "In modern Swift approachable concurrency, application target code is isolated to @MainActor by default. Classes, view models, and UI state run on the main thread automatically without repetitive annotations.",
+      code: `// Modern Swift: app target defaults to @MainActor\nfinal class FeedViewModel {\n    var title = "Loading"\n    // No explicit @MainActor required!\n}`
+    },
+    {
+      title: "Step 2: Calling Off-Actor Work with await",
+      badge: "AWAIT OFF-ACTOR",
+      badgeClass: "warn",
+      mainStroke: "var(--safe-color)",
+      mainTagFill: "var(--safe-soft)",
+      mainTagColor: "var(--safe-color)",
+      mainStatus: "Initiating actor hop...",
+      flowStroke: "var(--warn-color)",
+      flowFill: "var(--warn-color)",
+      flowText: "await hop",
+      bgStroke: "var(--warn-color)",
+      bgTitleColor: "var(--ink)",
+      bgStatus: "Preparing background task",
+      bgTagFill: "var(--warn-soft)",
+      bgTagColor: "var(--warn-color)",
+      borderLeftColor: "var(--warn-color)",
+      caption: "When a method performs intensive background calculations, file operations, or network calls, calling an off-actor function initiates an asynchronous actor hop away from the main thread.",
+      code: `func refresh() async {\n    // Awaiting an off-actor function hops off the main thread\n    let result = await fetchFeedBackground()\n}`
+    },
+    {
+      title: "Step 3: Background Cooperative Thread Pool",
+      badge: "COOPERATIVE POOL",
+      badgeClass: "accent",
+      mainStroke: "var(--line)",
+      mainTagFill: "var(--surface)",
+      mainTagColor: "var(--muted)",
+      mainStatus: "Main thread remains 120 FPS smooth",
+      flowStroke: "var(--accent-color)",
+      flowFill: "var(--accent-color)",
+      flowText: "Working off-actor",
+      bgStroke: "var(--accent-color)",
+      bgTitleColor: "var(--accent-color)",
+      bgStatus: "Heavy computation in progress",
+      bgTagFill: "var(--accent-soft)",
+      bgTagColor: "var(--accent-color)",
+      borderLeftColor: "var(--accent-color)",
+      caption: "Functions marked nonisolated or @concurrent run on the cooperative background thread pool. The main thread remains completely unblocked to handle gestures and animations without dropped frames.",
+      code: `nonisolated func fetchFeedBackground() async -> String {\n    // Runs safely on cooperative background worker\n    return "Latest Posts"\n}`
+    },
+    {
+      title: "Step 4: Seamless Return & UI Update",
+      badge: "MAIN ACTOR SAFE",
+      badgeClass: "safe",
+      mainStroke: "var(--safe-color)",
+      mainTagFill: "var(--safe-soft)",
+      mainTagColor: "var(--safe-color)",
+      mainStatus: "Updated state on MainActor!",
+      flowStroke: "var(--safe-color)",
+      flowFill: "var(--safe-color)",
+      flowText: "Result hops back",
+      bgStroke: "var(--line)",
+      bgTitleColor: "var(--muted)",
+      bgStatus: "Task completed",
+      bgTagFill: "var(--surface)",
+      bgTagColor: "var(--muted)",
+      borderLeftColor: "var(--safe-color)",
+      caption: "When the background task completes, execution returns seamlessly to the caller on @MainActor. View model state updates are guaranteed to happen on the main thread with zero data races.",
+      code: `// Resumes automatically on @MainActor\ntitle = result\nprint("Updated on main: \\(title)")\n// Output: Updated on main: Latest Posts`
+    }
+  ];
+
+  let current = 0;
+  const stageTitle = document.getElementById("stageTitle");
+  const statusBadge = document.getElementById("statusBadge");
+  const stepCounter = document.getElementById("stepCounter");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+  const captionText = document.getElementById("captionText");
+  const codePreview = document.getElementById("codePreview");
+
+  const mainRect = document.getElementById("mainRect");
+  const mainTag = document.getElementById("mainTag");
+  const mainTagText = document.getElementById("mainTagText");
+  const mainStatus = document.getElementById("mainStatus");
+
+  const flowLine = document.getElementById("flowLine");
+  const flowArrow = document.getElementById("flowArrow");
+  const flowBall = document.getElementById("flowBall");
+  const flowLabel = document.getElementById("flowLabel");
+
+  const bgRect = document.getElementById("bgRect");
+  const bgTitle = document.getElementById("bgTitle");
+  const bgStatus = document.getElementById("bgStatus");
+  const bgTag = document.getElementById("bgTag");
+  const bgTagText = document.getElementById("bgTagText");
+
+  function render(index) {
+    const s = steps[index];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${index + 1} of ${steps.length}`;
+
+    btnBack.disabled = index === 0;
+    btnNext.disabled = index === steps.length - 1;
+
+    mainRect.setAttribute("stroke", s.mainStroke);
+    mainTag.setAttribute("fill", s.mainTagFill);
+    mainTagText.setAttribute("fill", s.mainTagColor);
+    mainStatus.textContent = s.mainStatus;
+
+    flowLine.setAttribute("stroke", s.flowStroke);
+    flowArrow.setAttribute("fill", s.flowFill);
+    flowBall.setAttribute("fill", s.flowFill);
+    flowLabel.textContent = s.flowText;
+    flowLabel.setAttribute("fill", s.flowFill);
+
+    bgRect.setAttribute("stroke", s.bgStroke);
+    bgTitle.setAttribute("fill", s.bgTitleColor);
+    bgStatus.textContent = s.bgStatus;
+    bgTag.setAttribute("fill", s.bgTagFill);
+    bgTagText.setAttribute("fill", s.bgTagColor);
+
+    captionText.style.borderLeftColor = s.borderLeftColor;
+    captionText.textContent = s.caption;
+    codePreview.textContent = s.code;
+  }
+
+  btnBack.addEventListener("click", () => {
+    if (current > 0) { current--; render(current); }
+  });
+  btnNext.addEventListener("click", () => {
+    if (current < steps.length - 1) { current++; render(current); }
+  });
+  btnReplay.addEventListener("click", () => {
+    current = 0; render(current);
+  });
+
+  render(0);
+})();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"approachable-concurrency","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"ac-q01","type":"mcq","difficulty":1,"prompt":"What is the default isolation behavior for application target code in modern approachable concurrency?","answer":"a","options":[{"id":"a","text":"Code isolates to the main actor by default unless marked otherwise.","explanation":"Modern Swift isolates app target code to @MainActor by default. This eliminates boilerplate annotations across user interface files."},{"id":"b","text":"Code executes in an uncoordinated global background thread pool.","explanation":"Uncoordinated execution was the older default model that required manual main actor annotations everywhere."},{"id":"c","text":"Code runs strictly inside background tasks with low execution priority.","explanation":"App code does not default to low priority background tasks. It runs on the main actor to protect UI state."},{"id":"d","text":"Code disables compile-time concurrency checking across all modules.","explanation":"Approachable concurrency maintains strict concurrency checking while simplifying default actor isolation."}]},{"id":"ac-q02","type":"mcq","difficulty":1,"prompt":"Why did Swift adopt default main actor isolation for application targets?","answer":"b","options":[{"id":"a","text":"Apple removed multi-core processor scheduling support on modern iOS devices.","explanation":"iOS devices retain full multi-core processing capabilities and background task pools."},{"id":"b","text":"Most app target code touches user interface state and presentation views.","explanation":"The vast majority of app code touches UI and view models. Defaulting to the main actor removes repetitive annotations."},{"id":"c","text":"The Swift compiler cannot generate asynchronous code on background queues.","explanation":"The compiler easily generates asynchronous tasks on background cooperative threads."},{"id":"d","text":"Main actor code consumes less physical memory than background thread code.","explanation":"Actor isolation governs data race safety and execution context rather than raw memory allocation."}]},{"id":"ac-q03","type":"mcq","difficulty":2,"prompt":"Which keyword allows a synchronous method inside a main-actor-isolated type to opt out of actor isolation?","answer":"c","options":[{"id":"a","text":"override","explanation":"The override keyword provides a new implementation for a superclass method, not actor detachment."},{"id":"b","text":"convenience","explanation":"The convenience keyword marks secondary initializers on classes."},{"id":"c","text":"nonisolated","explanation":"Marking a member nonisolated detaches it from the enclosing type actor isolation."},{"id":"d","text":"dynamic","explanation":"The dynamic keyword directs member invocation through Objective-C runtime dispatch."}]},{"id":"ac-q04","type":"mcq","difficulty":2,"prompt":"What happens when an async function on the main actor awaits an off-actor background function?","answer":"d","options":[{"id":"a","text":"The main thread freezes synchronously until the background worker finishes.","explanation":"Awaiting does not block the thread synchronously. It suspends execution non-blockingly."},{"id":"b","text":"The Swift runtime terminates the process due to an actor boundary mismatch.","explanation":"Awaiting across actor boundaries is a standard, safe operation supported by Swift Concurrency."},{"id":"c","text":"The background function is forced to execute on the main thread run loop.","explanation":"Off-actor functions run on background cooperative threads rather than on the main actor."},{"id":"d","text":"Execution hops off the main actor, leaving the UI thread unblocked.","explanation":"Calling an off-actor function suspends the caller and hops to background worker threads, keeping UI smooth."}]},{"id":"ac-q05","type":"mcq","difficulty":2,"prompt":"How does approachable concurrency affect shared utility packages and libraries?","answer":"a","options":[{"id":"a","text":"Shared packages still default to non-isolated code to remain versatile.","explanation":"Default main actor isolation is tailored for app targets. Libraries remain non-isolated to serve multiple platforms."},{"id":"b","text":"Shared packages cannot import the Swift Concurrency standard library module.","explanation":"Shared packages fully support and import the standard concurrency module."},{"id":"c","text":"Shared packages are converted automatically into UIKit view subclasses.","explanation":"Library code remains platform-agnostic and is not transformed into UI classes."},{"id":"d","text":"Shared packages refuse to compile unless every function is marked async.","explanation":"Libraries can freely include both synchronous and asynchronous functions."}]},{"id":"ac-q06","type":"mcq","difficulty":2,"prompt":"What performance issue happens if you forget to opt out of main actor isolation for heavy JSON decoding?","answer":"b","options":[{"id":"a","text":"The compiler emits a memory leak diagnostic and halts compilation.","explanation":"Running heavy code on the main actor does not cause memory leaks or compiler errors."},{"id":"b","text":"The main thread blocks during decoding, causing UI hitches and frame drops.","explanation":"Running heavy work on the main actor monopolizes the main thread run loop, leading to dropped frames."},{"id":"c","text":"The operating system crashes the application with a thread deadlock code.","explanation":"Executing heavy synchronous work on the main thread causes stutter, not immediate deadlock."},{"id":"d","text":"The JSONDecoder automatically moves the parsing work to GPU hardware.","explanation":"JSONDecoder does not offload parsing to the GPU. It runs on whatever thread calls it."}]},{"id":"ac-q07","type":"mcq","difficulty":1,"prompt":"In an approachable concurrency app target, what annotation is needed on a standard SwiftUI ViewModel?","answer":"c","options":[{"id":"a","text":"Every class must still declare explicit @MainActor attribute.","explanation":"The primary benefit of approachable concurrency is removing the need for explicit @MainActor on app target classes."},{"id":"b","text":"Every class must inherit from a special NSObject actor base class.","explanation":"Swift view models do not need to inherit from NSObject or an actor base class."},{"id":"c","text":"No explicit annotation is required because app code defaults to @MainActor.","explanation":"Under approachable concurrency, application classes and structs default to the main actor automatically."},{"id":"d","text":"Every class must use the @preconcurrency attribute on all properties.","explanation":"@preconcurrency is used during library migration, not on regular app view models."}]},{"id":"ac-q08","type":"mcq","difficulty":2,"prompt":"What is the role of the @concurrent attribute on an asynchronous function?","answer":"d","options":[{"id":"a","text":"It forces synchronous serial execution on the primary thread run loop.","explanation":"@concurrent specifies execution on background worker threads, not the main thread."},{"id":"b","text":"It turns the function into an atomic hardware transaction.","explanation":"@concurrent does not provide hardware transaction memory."},{"id":"c","text":"It disables cooperative task cancellation for the duration of the call.","explanation":"@concurrent functions remain fully cooperative and support task cancellation."},{"id":"d","text":"It marks the function to run off the main actor on background threads.","explanation":"@concurrent indicates that the async function should execute on the cooperative background thread pool."}]},{"id":"ac-q09","type":"mcq","difficulty":3,"prompt":"When can a synchronous function inside a @MainActor class be marked nonisolated?","answer":"a","options":[{"id":"a","text":"When it does not read or mutate mutable actor-isolated stored properties.","explanation":"A synchronous nonisolated method cannot access mutable actor state because it runs outside the actor protection boundary."},{"id":"b","text":"Only when it modifies at least two private properties simultaneously.","explanation":"A nonisolated method cannot modify any isolated mutable properties."},{"id":"c","text":"Only when the enclosing class conforms to the Objective-C NSCopying protocol.","explanation":"Actor isolation does not depend on NSCopying protocol conformance."},{"id":"d","text":"When the method is called exclusively from background Grand Central Dispatch queues.","explanation":"nonisolated methods can be called from any thread context synchronously."}]},{"id":"ac-q10","type":"mcq","difficulty":2,"prompt":"How does modern approachable concurrency compare to early Swift 5.5 concurrency defaults?","answer":"b","options":[{"id":"a","text":"Swift 5.5 defaulted to the main actor, while modern Swift defaults to actors.","explanation":"Swift 5.5 defaulted to non-isolated code, not main actor isolation."},{"id":"b","text":"Swift 5.5 defaulted to non-isolated, while modern Swift defaults to @MainActor.","explanation":"Early concurrency required manual main actor annotations. Modern Swift flips the default for app targets."},{"id":"c","text":"Swift 5.5 banned background threads, while modern Swift enables them.","explanation":"Both versions support background threads through cooperative thread pools."},{"id":"d","text":"There is no difference in default isolation between the two versions.","explanation":"The isolation default changed significantly from non-isolated to main actor default in app targets."}]},{"id":"ac-q11","type":"mcq","difficulty":2,"prompt":"What is the recommended mental model for developers using approachable concurrency?","answer":"c","options":[{"id":"a","text":"Run everything on background queues and manually sync to main with locks.","explanation":"Modern Swift avoids manual locks and dispatch syncs in favor of language-level actors."},{"id":"b","text":"Avoid using async and await in any code that interacts with SwiftUI.","explanation":"SwiftUI is designed to work seamlessly with async and await."},{"id":"c","text":"Stay on the main actor by default, and opt out for heavy background work.","explanation":"This mental model keeps UI state safe by default while offloading heavy workloads explicitly."},{"id":"d","text":"Annotate every function with dynamic and nonisolated unconditionally.","explanation":"Annotating everything nonisolated defeats the safety and ergonomics of default main actor isolation."}]},{"id":"ac-q12","type":"mcq","difficulty":2,"prompt":"Why can an asynchronous nonisolated function be called from a main-actor view model using await?","answer":"d","options":[{"id":"a","text":"Because await converts the nonisolated function into a main actor function.","explanation":"Await does not change the isolation of the target function."},{"id":"b","text":"Because the compiler clones the view model instance onto the background thread.","explanation":"The compiler does not clone view model instances across threads."},{"id":"c","text":"Because nonisolated functions can only return primitive integer literals.","explanation":"Nonisolated functions can return any Sendable data type."},{"id":"d","text":"Because await provides a safe suspension point across isolation domains.","explanation":"The await keyword marks an asynchronous suspension point, allowing safe execution across actor boundaries."}]},{"id":"ac-q13","type":"mcq","difficulty":1,"prompt":"What happens to UI state mutations when an awaited background function returns to the caller?","answer":"a","options":[{"id":"a","text":"Mutations run safely on @MainActor without needing DispatchQueue.main.","explanation":"Execution resumes in the caller actor domain, which is @MainActor, ensuring thread-safe state mutation."},{"id":"b","text":"Mutations trigger a fatal thread sanitizer assertion on device launch.","explanation":"Thread Sanitizer verifies that resuming on the main actor is completely thread-safe."},{"id":"c","text":"Mutations fail silently until the user taps another button on screen.","explanation":"Resumed execution updates state immediately on the main run loop."},{"id":"d","text":"Mutations require manual calls to NSLock.lock and NSLock.unlock.","explanation":"Actor isolation replaces manual lock primitives with compiler-enforced guarantees."}]},{"id":"ac-q14","type":"mcq","difficulty":2,"prompt":"Which of these tasks should be moved off the main actor using nonisolated or @concurrent?","answer":"b","options":[{"id":"a","text":"Toggling a boolean flag when the user taps a standard SwiftUI toggle switch.","explanation":"Toggling a UI flag is a fast operation that belongs directly on the main actor."},{"id":"b","text":"Applying a complex blur and edge detection algorithm to a four-megabyte image.","explanation":"Heavy pixel processing takes dozens of milliseconds and must run off the main thread to prevent frame drops."},{"id":"c","text":"Updating a navigation title text string inside a SwiftUI navigation stack.","explanation":"Updating navigation titles is UI work and must remain on the main actor."},{"id":"d","text":"Presenting an error alert banner when a form field is left empty.","explanation":"Presenting alert dialogs is UI presentation logic and belongs on the main actor."}]},{"id":"ac-q15","type":"mcq","difficulty":3,"prompt":"How does approachable concurrency assist beginner iOS developers who are new to concurrency?","answer":"c","options":[{"id":"a","text":"It eliminates the need to learn value types and reference types.","explanation":"Understanding value and reference semantics remains fundamental in Swift development."},{"id":"b","text":"It removes all compiler diagnostics and warning messages from Xcode.","explanation":"The compiler retains full diagnostic reporting and strict checks."},{"id":"c","text":"It provides safe UI execution by default without requiring complex annotations.","explanation":"Beginners can write standard UI code naturally without encountering accidental threading mistakes."},{"id":"d","text":"It automatically converts synchronous disk reads into network requests.","explanation":"Disk and network operations remain distinct APIs in the SDK."}]},{"id":"ac-q16","type":"code-reading","difficulty":2,"prompt":"What does this code print when compiled and run in Swift 6?","code":"@MainActor\nfinal class TitleModel {\n    var title = \"Draft\"\n    nonisolated func makeHeader(text: String) -> String {\n        \"Header: \\(text)\"\n    }\n}\nlet model = TitleModel()\nlet header = model.makeHeader(text: \"News\")\nprint(header)","answer":"d","options":[{"id":"a","text":"It fails to compile because makeHeader is not marked with the async keyword.","explanation":"nonisolated synchronous functions are valid when they do not access mutable actor state."},{"id":"b","text":"It crashes at runtime due to an actor boundary access exception.","explanation":"Calling a nonisolated helper from the same actor instance is completely safe and valid."},{"id":"c","text":"Header: Draft","explanation":"makeHeader uses the parameter text 'News', not the title property 'Draft'."},{"id":"d","text":"Header: News","explanation":"makeHeader is nonisolated and can be invoked synchronously, returning 'Header: News'."}]},{"id":"ac-q17","type":"code-reading","difficulty":2,"prompt":"What does this asynchronous program print when executed in Swift 6?","code":"@MainActor\nfinal class Counter {\n    var count = 5\n    func bump() { count += 1 }\n}\n\nnonisolated func readValue() async -> Int {\n    10\n}\n\n@MainActor\nfunc run() async {\n    let c = Counter()\n    let extra = await readValue()\n    c.bump()\n    let total = c.count + extra\n    print(\"Total: \\(total)\")\n}\n\nawait run()","answer":"a","options":[{"id":"a","text":"Total: 16","explanation":"c.count starts at 5 and bumps to 6. extra is 10. The sum of 6 and 10 is 16."},{"id":"b","text":"Total: 15","explanation":"15 ignores the increment performed by c.bump()."},{"id":"c","text":"Total: 10","explanation":"10 only accounts for the value returned by readValue()."},{"id":"d","text":"It fails to compile due to missing TaskGroup structure.","explanation":"Standard async function calls do not require TaskGroup instances."}]},{"id":"ac-q18","type":"code-reading","difficulty":1,"prompt":"What output is produced by this Swift 6 struct example?","code":"@MainActor\nstruct AppConfig {\n    var maxRetries: Int = 3\n    nonisolated func displayMode() -> String {\n        \"Standard\"\n    }\n}\n\nlet cfg = AppConfig()\nprint(\"Mode: \\(cfg.displayMode())\")","answer":"b","options":[{"id":"a","text":"Mode: 3","explanation":"3 is the value of maxRetries, not displayMode()."},{"id":"b","text":"Mode: Standard","explanation":"The nonisolated displayMode method returns 'Standard' directly."},{"id":"c","text":"It fails to compile because structs cannot be isolated to @MainActor.","explanation":"Value types such as structs can be annotated with actor isolation attributes."},{"id":"d","text":"Mode: nil","explanation":"displayMode returns a non-optional String, never nil."}]},{"id":"ac-q19","type":"code-reading","difficulty":2,"prompt":"What does this program print when executed in Swift 6?","code":"@MainActor\nfinal class UserManager {\n    var name = \"Guest\"\n}\n\nnonisolated func formatUser(manager: UserManager) async -> String {\n    let current = await manager.name\n    return \"User: \\(current)\"\n}\n\n@MainActor\nfunc execute() async {\n    let mgr = UserManager()\n    let text = await formatUser(manager: mgr)\n    print(text)\n}\n\nawait execute()","answer":"c","options":[{"id":"a","text":"User: Unknown","explanation":"name is initialized to 'Guest', not 'Unknown'."},{"id":"b","text":"It fails to compile because formatUser cannot await actor properties.","explanation":"Nonisolated async functions can await properties on actor instances."},{"id":"c","text":"User: Guest","explanation":"formatUser awaits manager.name safely across the actor boundary and returns 'User: Guest'."},{"id":"d","text":"User: \\(current)","explanation":"String interpolation evaluates current to 'Guest' rather than printing the literal symbol."}]},{"id":"ac-q20","type":"code-reading","difficulty":1,"prompt":"What output is printed by this program when executed?","code":"@MainActor\nfinal class CacheStore {\n    var size = 0\n    nonisolated func doubleSize(value: Int) -> Int {\n        value * 2\n    }\n}\n\n@MainActor\nfunc runCache() {\n    let store = CacheStore()\n    let doubled = store.doubleSize(value: 64)\n    print(\"Doubled: \\(doubled)\")\n}\n\nrunCache()","answer":"d","options":[{"id":"a","text":"Doubled: 64","explanation":"64 is the input value before doubling."},{"id":"b","text":"Doubled: 0","explanation":"0 is the default size property, which is unused in doubleSize."},{"id":"c","text":"It fails to compile because nonisolated functions require the async keyword.","explanation":"Synchronous functions can be marked nonisolated when they do not access mutable state."},{"id":"d","text":"Doubled: 128","explanation":"doubleSize calculates 64 multiplied by 2, returning 128."}]},{"id":"ac-q21","type":"code-reading","difficulty":2,"prompt":"What does this Swift program print?","code":"@MainActor\nfinal class StatusReporter {\n    var isOnline = true\n\n    nonisolated func checkConnection() -> String {\n        \"Connected\"\n    }\n\n    func printStatus() {\n        let conn = checkConnection()\n        print(\"Status: \\(conn)\")\n    }\n}\n\n@MainActor\nfunc runReporter() {\n    let rep = StatusReporter()\n    rep.printStatus()\n}\n\nrunReporter()","answer":"a","options":[{"id":"a","text":"Status: Connected","explanation":"checkConnection is nonisolated and called synchronously, printing 'Status: Connected'."},{"id":"b","text":"Status: true","explanation":"true is the boolean value of isOnline, not the string from checkConnection."},{"id":"c","text":"Status: Disconnected","explanation":"checkConnection explicitly returns 'Connected'."},{"id":"d","text":"It halts with a compile-time actor isolation violation diagnostic.","explanation":"Calling a nonisolated helper from an isolated method is completely valid."}]},{"id":"ac-q22","type":"code-reading","difficulty":2,"prompt":"What is printed by this queue inspection snippet?","code":"@MainActor\nfinal class WorkerQueue {\n    var pendingJobs = 3\n\n    nonisolated func describePriority(level: Int) -> String {\n        level > 5 ? \"High\" : \"Normal\"\n    }\n}\n\n@MainActor\nfunc inspect() {\n    let q = WorkerQueue()\n    let p = q.describePriority(level: 8)\n    print(\"Priority: \\(p)\")\n}\n\ninspect()","answer":"b","options":[{"id":"a","text":"Priority: Normal","explanation":"Level 8 is greater than 5, so the ternary expression resolves to 'High'."},{"id":"b","text":"Priority: High","explanation":"Since 8 is greater than 5, describePriority returns 'High'."},{"id":"c","text":"Priority: 3","explanation":"3 is pendingJobs, which is not referenced by describePriority."},{"id":"d","text":"Priority: 8","explanation":"The method returns the string priority evaluation, not the raw integer."}]},{"id":"ac-q23","type":"code-reading","difficulty":2,"prompt":"What output does this log collector print?","code":"@MainActor\nfinal class LogCollector {\n    var logs: [String] = []\n\n    func addLog(_ text: String) {\n        logs.append(text)\n    }\n}\n\nnonisolated func generateTimestamp() -> String {\n    \"12:00:00\"\n}\n\n@MainActor\nfunc testLog() {\n    let collector = LogCollector()\n    let stamp = generateTimestamp()\n    collector.addLog(stamp)\n    print(\"Logged: \\(collector.logs.first ?? \"\")\")\n}\n\ntestLog()","answer":"c","options":[{"id":"a","text":"Logged:","explanation":"The logs array contains one element, so first produces '12:00:00'."},{"id":"b","text":"Logged: empty","explanation":"generateTimestamp returned a valid non-empty string."},{"id":"c","text":"Logged: 12:00:00","explanation":"The nonisolated timestamp generator returns '12:00:00', which is added and printed."},{"id":"d","text":"It throws an unhandled concurrency runtime exception.","explanation":"Calling a nonisolated synchronous pure function from the main actor is valid."}]},{"id":"ac-q24","type":"written","difficulty":2,"prompt":"Explain what approachable concurrency changes for application targets in modern Swift, and why Apple chose this default.","rubric":[{"criterion":"Explains that application target code isolates to @MainActor by default","weight":40,"key":true},{"criterion":"Explains that this eliminates repetitive @MainActor annotations on UI code and view models","weight":35,"key":true},{"criterion":"Notes that most app code touches user interface state and presentation logic","weight":25}],"modelAnswer":"Approachable concurrency changes the default isolation of application targets to @MainActor. Because most iOS app code directly manipulates user interface state and view models, defaulting to the main actor eliminates repetitive annotations. Developers write standard UI code safely by default and opt out only when performing heavy background work."},{"id":"ac-q25","type":"written","difficulty":2,"prompt":"How does a developer move heavy or long-running work off the main actor in an approachable concurrency project?","rubric":[{"criterion":"Identifies using nonisolated or @concurrent to opt out of main actor isolation","weight":40,"key":true},{"criterion":"Explains that calling the background function uses await to hop off the main actor","weight":35,"key":true},{"criterion":"Mentions that keeping heavy computation off the main thread preserves 60 or 120 frames per second UI smoothness","weight":25}],"modelAnswer":"Developers move heavy work off the main actor by marking functions as nonisolated or @concurrent. When a main actor caller awaits these functions, execution hops off the main thread to cooperative background threads. This keeps intensive parsing or image calculations from blocking the main run loop, preserving smooth user interface animations."},{"id":"ac-q26","type":"written","difficulty":3,"prompt":"Why do shared utility libraries and framework packages still default to non-isolated code rather than @MainActor?","rubric":[{"criterion":"Explains that libraries and shared packages must remain platform-agnostic and versatile","weight":45,"key":true},{"criterion":"Points out that shared packages run in environments without a UI run loop, such as servers or command-line tools","weight":35,"key":true},{"criterion":"Notes that forcing main actor isolation on libraries would cause unnecessary actor hops on server or background systems","weight":20}],"modelAnswer":"Shared libraries and framework packages default to non-isolated code because they are designed to be versatile across diverse environments. Unlike client applications, libraries may run on servers, background daemons, or command-line utilities that have no user interface run loop. Defaulting to non-isolated code avoids unnecessary actor hops and keeps shared logic reusable everywhere."},{"id":"ac-q27","type":"written","difficulty":3,"prompt":"Describe what restrictions apply when marking a synchronous method inside a @MainActor class as nonisolated.","rubric":[{"criterion":"States that the nonisolated method cannot access or mutate mutable actor-isolated stored properties","weight":45,"key":true},{"criterion":"Explains that synchronous access to isolated mutable state from outside the actor would cause data races","weight":35,"key":true},{"criterion":"Notes that the method can only access parameters, immutable constants, or its own local variables","weight":20}],"modelAnswer":"A synchronous nonisolated method inside a @MainActor class cannot read or mutate any mutable actor-isolated stored properties. Allowing direct synchronous access from outside the actor boundary would create data races. Therefore, the method may only operate on passed parameters, immutable constants, or its own internal local variables."},{"id":"ac-q28","type":"written","difficulty":2,"prompt":"Compare the developer experience of early Swift Concurrency with modern approachable concurrency in an interview context.","rubric":[{"criterion":"Contrasts early Swift non-isolated default with modern @MainActor default for apps","weight":40,"key":true},{"criterion":"Mentions the reduction in boilerplate annotations and fewer accidental threading mistakes","weight":35,"key":true},{"criterion":"Explains that developers now follow an opt-out model for heavy background work","weight":25}],"modelAnswer":"Early Swift Concurrency defaulted all code to non-isolated execution, requiring explicit @MainActor annotations on almost every view model and controller. Approachable concurrency recognizes that app development is UI-centric and defaults application targets to @MainActor. This removes repetitive annotations, lowers cognitive load, and shifts developers to an opt-out model for background work."},{"id":"ac-q29","type":"code-write","difficulty":2,"prompt":"Write a class named DataTransformer isolated to @MainActor. Include a nonisolated func computeHash(text: String) -> String that returns 'HASH:' plus the text. In an asynchronous function runTransform(), create an instance of DataTransformer, call computeHash with 'apple', and print 'Result: {hash}'. Finally, await runTransform().","starterCode":"@MainActor\nfinal class DataTransformer {\n    // Implement nonisolated computeHash\n}\n\n@MainActor\nfunc runTransform() async {\n    // Call computeHash and print result\n}\n\n// Await runTransform()","rubric":[{"criterion":"Declares DataTransformer with @MainActor isolation and a nonisolated computeHash method","weight":40,"key":true},{"criterion":"Correctly concatenates 'HASH:' with the input text parameter","weight":30},{"criterion":"Calls computeHash and prints 'Result: HASH:apple'","weight":30,"key":true}],"modelAnswer":"@MainActor\nfinal class DataTransformer {\n    nonisolated func computeHash(text: String) -> String {\n        \"HASH:\" + text\n    }\n}\n\n@MainActor\nfunc runTransform() async {\n    let transformer = DataTransformer()\n    let hash = transformer.computeHash(text: \"apple\")\n    print(\"Result: \\(hash)\")\n}\n\nawait runTransform()"},{"id":"ac-q30","type":"code-write","difficulty":2,"prompt":"Write a nonisolated func fetchRemoteStatus() async -> String that returns 'All Systems Normal'. Write a @MainActor class DashboardModel with var status = 'Offline' and an async func loadStatus() that awaits fetchRemoteStatus() and updates status. In testDashboard(), call loadStatus() and print 'Dashboard: {status}'. Await testDashboard().","starterCode":"nonisolated func fetchRemoteStatus() async -> String {\n    // Return status\n}\n\n@MainActor\nfinal class DashboardModel {\n    // Implement status and loadStatus\n}\n\n// Implement testDashboard and await it","rubric":[{"criterion":"Declares nonisolated async function fetchRemoteStatus returning 'All Systems Normal'","weight":35,"key":true},{"criterion":"Declares DashboardModel with @MainActor isolation and updates status after awaiting","weight":35,"key":true},{"criterion":"Prints exact output 'Dashboard: All Systems Normal'","weight":30,"key":true}],"modelAnswer":"nonisolated func fetchRemoteStatus() async -> String {\n    \"All Systems Normal\"\n}\n\n@MainActor\nfinal class DashboardModel {\n    var status = \"Offline\"\n\n    func loadStatus() async {\n        let result = await fetchRemoteStatus()\n        status = result\n    }\n}\n\n@MainActor\nfunc testDashboard() async {\n    let model = DashboardModel()\n    await model.loadStatus()\n    print(\"Dashboard: \\(model.status)\")\n}\n\nawait testDashboard()"},{"id":"ac-q31","type":"code-write","difficulty":2,"prompt":"Write a @MainActor class ScoreKeeper with var score: Int = 10 and a nonisolated func calculateBonus(points: Int) -> Int that returns points * 3. Add a method applyBonus() that calls calculateBonus(points: 5), adds the result to score, and prints 'Final Score: {score}'. In runScoreTest(), instantiate ScoreKeeper and call applyBonus().","starterCode":"@MainActor\nfinal class ScoreKeeper {\n    // Declare score, nonisolated calculateBonus, and applyBonus\n}\n\n// Call runScoreTest()","rubric":[{"criterion":"Declares ScoreKeeper with @MainActor and a nonisolated calculateBonus helper returning points * 3","weight":40,"key":true},{"criterion":"Calculates bonus points (5 * 3 = 15) and adds to initial score 10","weight":30},{"criterion":"Prints exact output 'Final Score: 25'","weight":30,"key":true}],"modelAnswer":"@MainActor\nfinal class ScoreKeeper {\n    var score: Int = 10\n\n    nonisolated func calculateBonus(points: Int) -> Int {\n        points * 3\n    }\n\n    func applyBonus() {\n        let bonus = calculateBonus(points: 5)\n        score += bonus\n        print(\"Final Score: \\(score)\")\n    }\n}\n\n@MainActor\nfunc runScoreTest() {\n    let keeper = ScoreKeeper()\n    keeper.applyBonus()\n}\n\nrunScoreTest()"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

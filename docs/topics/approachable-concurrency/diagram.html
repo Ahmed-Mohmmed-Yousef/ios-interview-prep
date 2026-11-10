@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Approachable Concurrency: Default MainActor & Off-Actor Hops</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #5a6478;
+  --line: #c9d1df;
+  --danger-color: #dc2626;
+  --danger-soft: #fee2e2;
+  --safe-color: #059669;
+  --safe-soft: #d1fae5;
+  --warn-color: #d97706;
+  --warn-soft: #fef3c7;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c;
+    --surface: #171e29;
+    --ink: #e6ebf2;
+    --muted: #9aa5b8;
+    --line: #3a4658;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --warn-color: #fbbf24;
+    --warn-soft: #451a03;
+    --accent-color: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #111821;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  margin: 0;
+  padding: 20px;
+}
+.diagram-host {
+  max-width: 840px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stage-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.badge.danger { background: var(--danger-soft); color: var(--danger-color); }
+.badge.safe { background: var(--safe-soft); color: var(--safe-color); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-color); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-color); }
+
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.step-counter {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--ink);
+  transform: translateY(-1px);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.caption-box {
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 4px solid var(--safe-color);
+  background: var(--code-bg);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.code-preview {
+  margin-top: 12px;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+.reduced-list {
+  display: none;
+  margin-top: 16px;
+  padding-left: 20px;
+}
+.reduced-list li {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reduced-list {
+    display: block;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram-host" role="region" aria-label="Approachable Concurrency Stepper">
+  <div class="diagram-card">
+    <div class="header-row">
+      <h2 class="stage-title" id="stageTitle">Step 1: Default @MainActor Isolation</h2>
+      <span class="badge safe" id="statusBadge">DEFAULT MAIN ACTOR</span>
+    </div>
+
+    <div class="stepper-controls" aria-label="Diagram stepper">
+      <span class="step-counter" id="stepCounter" aria-live="polite">Step 1 of 4</span>
+      <div class="button-group">
+        <button id="btnBack" aria-label="Previous step" disabled>&larr; Back</button>
+        <button id="btnNext" aria-label="Next step">Next &rarr;</button>
+        <button id="btnReplay" aria-label="Restart stepper">&#8635; Replay</button>
+      </div>
+    </div>
+
+    <svg viewBox="0 0 760 280" role="img" aria-label="Approachable Concurrency Flow Diagram">
+      <!-- Main Actor Context Box (Left) -->
+      <g id="mainActorBox" transform="translate(30, 30)">
+        <rect id="mainRect" width="280" height="210" rx="10" fill="var(--code-bg)" stroke="var(--safe-color)" stroke-width="2.5"/>
+        <text id="mainTitle" x="18" y="32" fill="var(--safe-color)" font-weight="700" font-size="14">App Target (@MainActor Default)</text>
+        <text id="mainCode1" x="18" y="66" fill="var(--ink)" font-family="var(--font-code)" font-size="12">FeedViewModel</text>
+        <text id="mainCode2" x="18" y="90" fill="var(--muted)" font-family="var(--font-code)" font-size="12">var title = "Loading"</text>
+        <text id="mainStatus" x="18" y="130" fill="var(--ink)" font-size="12">UI thread safety by default</text>
+        <rect id="mainTag" x="18" y="152" width="244" height="26" rx="4" fill="var(--safe-soft)"/>
+        <text id="mainTagText" x="140" y="169" fill="var(--safe-color)" font-size="11" font-weight="700" text-anchor="middle">MAIN ACTOR BOUND</text>
+      </g>
+
+      <!-- Center Hop Flow (Arrow & Particles) -->
+      <g id="flowGroup" transform="translate(330, 40)">
+        <line id="flowLine" x1="0" y1="95" x2="100" y2="95" stroke="var(--line)" stroke-width="3" stroke-dasharray="6,4"/>
+        <polygon id="flowArrow" points="95,90 105,95 95,100" fill="var(--line)"/>
+        <circle id="flowBall" cx="50" cy="95" r="9" fill="var(--line)"/>
+        <text id="flowLabel" x="50" y="70" fill="var(--muted)" font-size="11" font-weight="600" text-anchor="middle">Direct Call</text>
+      </g>
+
+      <!-- Background Cooperative Thread Pool (Right) -->
+      <g id="bgBox" transform="translate(450, 30)">
+        <rect id="bgRect" width="280" height="210" rx="10" fill="var(--code-bg)" stroke="var(--line)" stroke-width="2"/>
+        <text id="bgTitle" x="18" y="32" fill="var(--muted)" font-weight="700" font-size="14">Background Thread Pool</text>
+        <text id="bgCode1" x="18" y="66" fill="var(--muted)" font-family="var(--font-code)" font-size="12">fetchFeedBackground()</text>
+        <text id="bgCode2" x="18" y="90" fill="var(--muted)" font-family="var(--font-code)" font-size="12">nonisolated / @concurrent</text>
+        <text id="bgStatus" x="18" y="130" fill="var(--muted)" font-size="12">Idle cooperative threads</text>
+        <rect id="bgTag" x="18" y="152" width="244" height="26" rx="4" fill="var(--surface)"/>
+        <text id="bgTagText" x="140" y="169" fill="var(--muted)" font-size="11" font-weight="700" text-anchor="middle">OFF-ACTOR WORKER</text>
+      </g>
+    </svg>
+
+    <div class="caption-box" id="captionText">
+      In modern Swift approachable concurrency, application target code is isolated to @MainActor by default. Classes, view models, and UI state run on the main thread automatically without repetitive annotations.
+    </div>
+
+    <pre class="code-preview" id="codePreview">// Modern Swift: app target defaults to @MainActor
+final class FeedViewModel {
+    var title = "Loading"
+    // No explicit @MainActor required!
+}</pre>
+
+    <ol class="reduced-list" aria-label="Accessible overview of diagram steps">
+      <li><strong>Step 1: Default MainActor Isolation</strong> &mdash; App target classes and view models run on the main thread automatically.</li>
+      <li><strong>Step 2: Calling Off-Actor Work</strong> &mdash; View models initiate an asynchronous hop with await when heavy processing is needed.</li>
+      <li><strong>Step 3: Background Worker Pool</strong> &mdash; Functions marked nonisolated or @concurrent execute on background cooperative threads to prevent frame drops.</li>
+      <li><strong>Step 4: Safe Return to Main</strong> &mdash; The awaited result hops back to @MainActor safely, updating UI state without data races.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(function() {
+  const steps = [
+    {
+      title: "Step 1: Default @MainActor Isolation",
+      badge: "DEFAULT MAIN ACTOR",
+      badgeClass: "safe",
+      mainStroke: "var(--safe-color)",
+      mainTagFill: "var(--safe-soft)",
+      mainTagColor: "var(--safe-color)",
+      mainStatus: "UI thread safety by default",
+      flowStroke: "var(--line)",
+      flowFill: "var(--line)",
+      flowText: "Direct Call",
+      bgStroke: "var(--line)",
+      bgTitleColor: "var(--muted)",
+      bgStatus: "Idle cooperative threads",
+      bgTagFill: "var(--surface)",
+      bgTagColor: "var(--muted)",
+      borderLeftColor: "var(--safe-color)",
+      caption: "In modern Swift approachable concurrency, application target code is isolated to @MainActor by default. Classes, view models, and UI state run on the main thread automatically without repetitive annotations.",
+      code: `// Modern Swift: app target defaults to @MainActor\nfinal class FeedViewModel {\n    var title = "Loading"\n    // No explicit @MainActor required!\n}`
+    },
+    {
+      title: "Step 2: Calling Off-Actor Work with await",
+      badge: "AWAIT OFF-ACTOR",
+      badgeClass: "warn",
+      mainStroke: "var(--safe-color)",
+      mainTagFill: "var(--safe-soft)",
+      mainTagColor: "var(--safe-color)",
+      mainStatus: "Initiating actor hop...",
+      flowStroke: "var(--warn-color)",
+      flowFill: "var(--warn-color)",
+      flowText: "await hop",
+      bgStroke: "var(--warn-color)",
+      bgTitleColor: "var(--ink)",
+      bgStatus: "Preparing background task",
+      bgTagFill: "var(--warn-soft)",
+      bgTagColor: "var(--warn-color)",
+      borderLeftColor: "var(--warn-color)",
+      caption: "When a method performs intensive background calculations, file operations, or network calls, calling an off-actor function initiates an asynchronous actor hop away from the main thread.",
+      code: `func refresh() async {\n    // Awaiting an off-actor function hops off the main thread\n    let result = await fetchFeedBackground()\n}`
+    },
+    {
+      title: "Step 3: Background Cooperative Thread Pool",
+      badge: "COOPERATIVE POOL",
+      badgeClass: "accent",
+      mainStroke: "var(--line)",
+      mainTagFill: "var(--surface)",
+      mainTagColor: "var(--muted)",
+      mainStatus: "Main thread remains 120 FPS smooth",
+      flowStroke: "var(--accent-color)",
+      flowFill: "var(--accent-color)",
+      flowText: "Working off-actor",
+      bgStroke: "var(--accent-color)",
+      bgTitleColor: "var(--accent-color)",
+      bgStatus: "Heavy computation in progress",
+      bgTagFill: "var(--accent-soft)",
+      bgTagColor: "var(--accent-color)",
+      borderLeftColor: "var(--accent-color)",
+      caption: "Functions marked nonisolated or @concurrent run on the cooperative background thread pool. The main thread remains completely unblocked to handle gestures and animations without dropped frames.",
+      code: `nonisolated func fetchFeedBackground() async -> String {\n    // Runs safely on cooperative background worker\n    return "Latest Posts"\n}`
+    },
+    {
+      title: "Step 4: Seamless Return & UI Update",
+      badge: "MAIN ACTOR SAFE",
+      badgeClass: "safe",
+      mainStroke: "var(--safe-color)",
+      mainTagFill: "var(--safe-soft)",
+      mainTagColor: "var(--safe-color)",
+      mainStatus: "Updated state on MainActor!",
+      flowStroke: "var(--safe-color)",
+      flowFill: "var(--safe-color)",
+      flowText: "Result hops back",
+      bgStroke: "var(--line)",
+      bgTitleColor: "var(--muted)",
+      bgStatus: "Task completed",
+      bgTagFill: "var(--surface)",
+      bgTagColor: "var(--muted)",
+      borderLeftColor: "var(--safe-color)",
+      caption: "When the background task completes, execution returns seamlessly to the caller on @MainActor. View model state updates are guaranteed to happen on the main thread with zero data races.",
+      code: `// Resumes automatically on @MainActor\ntitle = result\nprint("Updated on main: \\(title)")\n// Output: Updated on main: Latest Posts`
+    }
+  ];
+
+  let current = 0;
+  const stageTitle = document.getElementById("stageTitle");
+  const statusBadge = document.getElementById("statusBadge");
+  const stepCounter = document.getElementById("stepCounter");
+  const btnBack = document.getElementById("btnBack");
+  const btnNext = document.getElementById("btnNext");
+  const btnReplay = document.getElementById("btnReplay");
+  const captionText = document.getElementById("captionText");
+  const codePreview = document.getElementById("codePreview");
+
+  const mainRect = document.getElementById("mainRect");
+  const mainTag = document.getElementById("mainTag");
+  const mainTagText = document.getElementById("mainTagText");
+  const mainStatus = document.getElementById("mainStatus");
+
+  const flowLine = document.getElementById("flowLine");
+  const flowArrow = document.getElementById("flowArrow");
+  const flowBall = document.getElementById("flowBall");
+  const flowLabel = document.getElementById("flowLabel");
+
+  const bgRect = document.getElementById("bgRect");
+  const bgTitle = document.getElementById("bgTitle");
+  const bgStatus = document.getElementById("bgStatus");
+  const bgTag = document.getElementById("bgTag");
+  const bgTagText = document.getElementById("bgTagText");
+
+  function render(index) {
+    const s = steps[index];
+    stageTitle.textContent = s.title;
+    statusBadge.textContent = s.badge;
+    statusBadge.className = "badge " + s.badgeClass;
+    stepCounter.textContent = `Step ${index + 1} of ${steps.length}`;
+
+    btnBack.disabled = index === 0;
+    btnNext.disabled = index === steps.length - 1;
+
+    mainRect.setAttribute("stroke", s.mainStroke);
+    mainTag.setAttribute("fill", s.mainTagFill);
+    mainTagText.setAttribute("fill", s.mainTagColor);
+    mainStatus.textContent = s.mainStatus;
+
+    flowLine.setAttribute("stroke", s.flowStroke);
+    flowArrow.setAttribute("fill", s.flowFill);
+    flowBall.setAttribute("fill", s.flowFill);
+    flowLabel.textContent = s.flowText;
+    flowLabel.setAttribute("fill", s.flowFill);
+
+    bgRect.setAttribute("stroke", s.bgStroke);
+    bgTitle.setAttribute("fill", s.bgTitleColor);
+    bgStatus.textContent = s.bgStatus;
+    bgTag.setAttribute("fill", s.bgTagFill);
+    bgTagText.setAttribute("fill", s.bgTagColor);
+
+    captionText.style.borderLeftColor = s.borderLeftColor;
+    captionText.textContent = s.caption;
+    codePreview.textContent = s.code;
+  }
+
+  btnBack.addEventListener("click", () => {
+    if (current > 0) { current--; render(current); }
+  });
+  btnNext.addEventListener("click", () => {
+    if (current < steps.length - 1) { current++; render(current); }
+  });
+  btnReplay.addEventListener("click", () => {
+    current = 0; render(current);
+  });
+
+  render(0);
+})();
+</script>
+</body>
+</html>

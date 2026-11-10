@@ -1,0 +1,178 @@
+export const meta = {
+  id: "approachable-concurrency",
+  summary: "Understand approachable concurrency in modern Swift, defaulting to main actor isolation, and using nonisolated and concurrent work.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "WWDC25: Embracing Swift concurrency",
+      url: "https://developer.apple.com/videos/play/wwdc2025/268/"
+    },
+    {
+      title: "Swift 6.2 Released | Swift.org",
+      url: "https://www.swift.org/blog/swift-6.2-released/"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    In modern Swift, an iOS app target isolates most code to the main actor by default. Why did Apple make this change?
+  </Question>
+  <Guess>
+    <Option id="a">Apple disabled background threads completely on iOS devices.</Option>
+    <Option id="b" correct>Most app code touches UI and state, so defaulting to the main actor eliminates endless boilerplate.</Option>
+    <Option id="c">The Swift compiler cannot compile async functions on secondary threads.</Option>
+    <Option id="d">To prevent developers from creating custom structs.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+In early Swift Concurrency, all code was non-isolated by default. You had to add `@MainActor` to almost every view model and controller.
+
+This created endless boilerplate annotations. It also caused accidental threading errors when developers forgot an annotation.
+
+Modern Swift introduces approachable concurrency. In app targets, code isolates to `@MainActor` by default.
+
+<Analogy>
+  Think of working in an office building. In the past, every door was locked. You had to swipe an access card for every single room. Now, the main office floor is open by default. You only need a keycard when entering the high-security server room.
+</Analogy>
+
+Your view models, views, and presentation state run on the main thread automatically. You do not need `@MainActor` on every class.
+
+When you need to run heavy work off the main thread, you opt out.
+
+You use `nonisolated` to mark methods or types that should not run on the main actor.
+
+For heavy asynchronous background tasks, Swift uses `@concurrent` functions. Calling a `@concurrent` function hops off the main thread automatically.
+
+This flips the mental model: stay on the main actor by default, and opt out for heavy background work.
+
+## See it
+
+<Diagram id="approachable-concurrency" caption="Visualize approachable concurrency: default main actor isolation with explicit off-actor hops for heavy background work." />
+
+## In code
+
+Here is an example of a view model calling an off-actor background function. The UI state stays protected on the main thread.
+
+```swift
+@MainActor
+final class FeedViewModel {
+    var title = "Loading"
+
+    func refresh() async {
+        let result = await fetchFeedBackground()
+        title = result
+        print("Updated on main: \(title)")
+    }
+}
+
+nonisolated func fetchFeedBackground() async -> String {
+    "Latest Posts"
+}
+
+func testFeed() async {
+    let model = await FeedViewModel()
+    await model.refresh()
+}
+
+await testFeed()
+```
+```output
+Updated on main: Latest Posts
+```
+
+Notice that `fetchFeedBackground` is `nonisolated`. It runs off the main actor, preventing UI freezes during data loading.
+
+Next, here is how you use `nonisolated` on a synchronous helper method to keep heavy calculations off the actor.
+
+```swift
+@MainActor
+final class ImageProcessor {
+    var filterName = "Sepia"
+
+    nonisolated func calculatePixelCount(width: Int, height: Int) -> Int {
+        width * height
+    }
+
+    func applyFilter(width: Int, height: Int) {
+        let pixels = calculatePixelCount(width: width, height: height)
+        print("Filter \(filterName) applied to \(pixels) pixels")
+    }
+}
+
+func execute() async {
+    let processor = await ImageProcessor()
+    await processor.applyFilter(width: 1920, height: 1080)
+}
+
+await execute()
+```
+```output
+Filter Sepia applied to 2073600 pixels
+```
+
+Marking `calculatePixelCount` as `nonisolated` allows callers to run calculations independently without locking the actor state.
+
+<TryIt>
+  Open a Swift Playground. Write a class isolated to the main actor. Add a nonisolated calculation helper and verify when await is required.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    What is the core principle of approachable concurrency in modern Swift?
+  </Question>
+  <Option id="a">All functions must be marked with the dynamic keyword.</Option>
+  <Option id="b" correct>App code isolates to the main actor by default, and heavy background work opts out explicitly.</Option>
+  <Option id="c">Background tasks run with higher priority than main thread animations.</Option>
+  <Option id="d">Classes can no longer declare stored properties.</Option>
+  <Explanation>
+    Approachable concurrency defaults app targets to the main actor. Developers opt out for background work using nonisolated or concurrent functions.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    Why would you mark an async function as nonisolated or @concurrent?
+  </Question>
+  <Option id="a">To force it to execute on the main thread run loop.</Option>
+  <Option id="b">To prevent other functions from passing Sendable arguments.</Option>
+  <Option id="c" correct>To run heavy computation off the main actor so the user interface remains responsive.</Option>
+  <Option id="d">To store the function binary code in persistent disk cache.</Option>
+  <Explanation>
+    Running heavy work on the main actor drops frames and stutters the UI. Opting out runs the work on background threads.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Do not run heavy image or database decoding on the main actor">
+  Because approachable concurrency defaults to the main actor, forgetting to opt out keeps heavy processing on the main thread. This causes UI hitches. Always move heavy JSON parsing and image decoding to nonisolated or concurrent functions.
+</Trap>
+
+<Trap label="Do not confuse app targets with shared framework packages">
+  Default main actor isolation is designed for application targets. Shared utility packages and libraries still default to non-isolated code to remain versatile across server and client platforms.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  Approachable concurrency flips the default isolation model for app targets. Instead of annotating every class with `@MainActor`, code is isolated to the main actor by default. This matches how iOS apps work because most code touches UI state. When I need to run heavy tasks, I opt out using `nonisolated` or concurrent background functions.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  In early Swift Concurrency, non-isolated defaults created boilerplate and cognitive overload. Approachable concurrency recognizes that 90% of app target code is UI-driven, isolating apps to `@MainActor` by default. For CPU-bound pipelines, I explicitly structure work with `@concurrent` and `nonisolated` boundaries. This provides safety by default while maintaining 120 fps smoothness for interactive user interfaces.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Approachable concurrency isolates app targets to the main actor by default. This eliminates repetitive @MainActor annotations on UI code and view models. Opt out for heavy background work using nonisolated and @concurrent functions. Keep heavy calculations off the main thread to keep UI performance smooth.
+</Recap>
+
+## Go deeper
+
+- WWDC25: Embracing Swift concurrency: https://developer.apple.com/videos/play/wwdc2025/268/
+- Swift 6.2 Released: https://www.swift.org/blog/swift-6.2-released/
