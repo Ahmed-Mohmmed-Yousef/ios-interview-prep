@@ -156,7 +156,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (12 of 53 published: 8 main + 4 bonus)
+- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (13 of 53 published: 8 main + 5 bonus)
   - ✅ **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)** — completed (7 of 7 published)
     - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
     - ✅ **generics-associated-types** (Generics: Associated Types and Where Clauses) — published (lesson, diagram, 31 questions) → [docs/topics/generics-associated-types/review.html](docs/topics/generics-associated-types/review.html)
@@ -165,14 +165,14 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **key-paths** (Key Paths) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/key-paths/review.html](docs/topics/key-paths/review.html)
     - ✅ **property-wrappers** (Property Wrappers) — published (lesson, diagram, 31 questions) → [docs/topics/property-wrappers/review.html](docs/topics/property-wrappers/review.html)
     - ✅ **result-builders** (Result Builders) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/result-builders/review.html](docs/topics/result-builders/review.html)
-  - 🔄 **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)** — in progress (5 of 7 published)
+  - 🔄 **Batch 3B: Advanced Algorithms & Data Structures (7 topics: 4 main + 3 bonus)** — in progress (6 of 7 published)
     - ✅ **trees-bfs-dfs** (Trees: BFS and DFS) — published (lesson, diagram, 31 questions) → [docs/topics/trees-bfs-dfs/review.html](docs/topics/trees-bfs-dfs/review.html)
     - ✅ **graphs** (Graphs) — published (lesson, diagram, 31 questions) → [docs/topics/graphs/review.html](docs/topics/graphs/review.html)
     - ✅ **heaps** (Heaps) — published (lesson, diagram, 31 questions) → [docs/topics/heaps/review.html](docs/topics/heaps/review.html)
     - ✅ **tries** (Tries) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/tries/review.html](docs/topics/tries/review.html)
     - ✅ **intervals** (Intervals) — published (lesson, diagram, 31 questions) → [docs/topics/intervals/review.html](docs/topics/intervals/review.html)
-    - 🔄 **dynamic-programming** (Dynamic Programming) [bonus] — starting research
-    - ⬜ **bits-math-geometry** (Bits, Math and Geometry) [bonus]
+    - ✅ **dynamic-programming** (Dynamic Programming) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/dynamic-programming/review.html](docs/topics/dynamic-programming/review.html)
+    - 🔄 **bits-math-geometry** (Bits, Math and Geometry) [bonus] — starting research
   - ⬜ **Batch 3C: Memory Profiling & Swift Concurrency (8 topics: 1 memory + 7 concurrency)**
   - ⬜ **Batch 3D: SwiftUI & UIKit Advanced (7 topics: 6 SwiftUI + 1 UIKit)**
   - ⬜ **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
@@ -328,6 +328,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `dynamic-programming` (Dynamic Programming) [bonus]: researched official Array/NSCache docs and DP mechanics, authored lesson in simple English, interactive diagram with bottom-up tabulation and state rolling, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/dynamic-programming/review.html`). All checks passed. Batch 3B progress: 6 of 7 published. Starting bits-math-geometry.
 
 - **2026-11-10** — Built and published topic `intervals` (Intervals): researched official ClosedRange/DateInterval docs and interval mechanics, authored lesson in simple English, interactive timeline diagram with interval merging, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, and review page generated (`docs/topics/intervals/review.html`). All checks passed. Batch 3B progress: 5 of 7 published. Starting dynamic-programming.
 
