@@ -190,7 +190,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **swiftui-uikit-interop** (SwiftUI and UIKit Together) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-uikit-interop/review.html](docs/topics/swiftui-uikit-interop/review.html)
     - ✅ **swiftui-performance** (SwiftUI Performance) — published (lesson, diagram, 31 questions) → [docs/topics/swiftui-performance/review.html](docs/topics/swiftui-performance/review.html)
     - ✅ **custom-views-layout-pass** (Custom Views and the Layout Pass) — published (lesson, diagram, 31 questions) → [docs/topics/custom-views-layout-pass/review.html](docs/topics/custom-views-layout-pass/review.html)
-  - 🔄 **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system)**
+  - ✅ **Batch 3E: Design, Accessibility & System Integration (8 topics: 3 design + 5 system) — COMPLETE (8 of 8 published)**
     - ✅ **accessibility** (Accessibility) — published (lesson, diagram, 31 questions) → [docs/topics/accessibility/review.html](docs/topics/accessibility/review.html)
     - ✅ **localization** (Localization) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/localization/review.html](docs/topics/localization/review.html)
     - ✅ **ipad-adaptive-layout** (iPad and Adaptive Layout) — published (lesson, diagram, 31 questions) → [docs/topics/ipad-adaptive-layout/review.html](docs/topics/ipad-adaptive-layout/review.html)
@@ -198,7 +198,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **background-tasks** (Background Work) — published (lesson, diagram, 31 questions) → [docs/topics/background-tasks/review.html](docs/topics/background-tasks/review.html)
     - ✅ **deep-links** (Deep Links and Universal Links) — published (lesson, diagram, 31 questions) → [docs/topics/deep-links/review.html](docs/topics/deep-links/review.html)
     - ✅ **widgets-app-intents** (Widgets and App Intents) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/widgets-app-intents/review.html](docs/topics/widgets-app-intents/review.html)
-    - 🔄 **foundation-models** (On-Device AI with Foundation Models) [bonus] — starting research
+    - ✅ **foundation-models** (On-Device AI with Foundation Models) [bonus] — published (lesson, diagram, 31 questions) → [docs/topics/foundation-models/review.html](docs/topics/foundation-models/review.html)
   - ⬜ **Batch 3F: Data Persistence & Networking (5 topics)**
   - ⬜ **Batch 3G: Architecture & Testing Strategy (8 topics)**
   - ⬜ **Batch 3H: Performance & System Design Foundations (3 topics)**
@@ -369,6 +369,8 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-10** — Built and published topic `foundation-models` (On-Device AI with Foundation Models) [bonus]: researched official Apple Intelligence, Foundation Models, Writing Tools API, and NaturalLanguage framework docs, authored lesson in simple English, interactive 4-step on-device Neural Engine inference and Private Cloud Compute escalation diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/foundation-models/review.html`). All checks passed. Batch 3E (Design, Accessibility & System Integration) is now 100% COMPLETE (8 of 8 published)! Mid level progress: 37 of 53 published (104 total published topics across curriculum).
 
 - **2026-11-10** — Built and published topic `widgets-app-intents` (Widgets and App Intents) [bonus]: researched official Apple WidgetKit, App Intents, AppIntentTimelineProvider, and WWDC23 interactive widgets docs, authored lesson in simple English, interactive 4-step WidgetKit timeline and AppIntent lifecycle diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/widgets-app-intents/review.html`). All checks passed. Batch 3E progress: 7 of 8 published (103 total published topics across curriculum). Starting foundation-models.
 

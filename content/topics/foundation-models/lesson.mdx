@@ -1,0 +1,209 @@
+export const meta = {
+  id: "foundation-models",
+  summary: "Run AI models directly on Apple Silicon devices using on-device foundation models and system Writing Tools.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.0", xcode: "16.0", ios: "18.0" },
+  lastVerified: "2026-11-10",
+  sources: [
+    { title: "Foundation Models", url: "https://developer.apple.com/documentation/foundationmodels", kind: "official" },
+    { title: "Writing Tools API (UIKit)", url: "https://developer.apple.com/documentation/uikit/uitextview/writingtoolsbehavior", kind: "official" },
+    { title: "NaturalLanguage", url: "https://developer.apple.com/documentation/naturallanguage", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>Why does running foundation models directly on-device provide superior privacy compared to traditional cloud AI APIs?</Question>
+  <Guess>
+    <Option id="a">On-device models delete the device operating system kernel after generating each token.</Option>
+    <Option id="b" correct>Prompts and user data never leave the device, eliminating network transmission and third-party data collection.</Option>
+    <Option id="c">Cloud AI servers require paying cash tips to data center technicians for each prompt.</Option>
+    <Option id="d">On-device models only run while the device is in airplane mode without battery power.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Imagine having an expert editor who sits directly at your desk.
+You do not need to put your secret letters into envelopes, pay courier postage, or wait for the mail truck.
+Your editor reads your drafts right in your office and suggests improvements without anyone else seeing your notes.
+If you need an answer that requires an entire library, your editor consults a private locked vault.
+The vault answers the single question and destroys all scratch paper immediately.
+Apple on-device AI acts like this editor, keeping your personal notes private while delivering fast answers.
+</Analogy>
+
+**On-device foundation models** run directly on Apple Silicon using the Apple Neural Engine.
+Traditional cloud AI models require sending text, images, and user prompts across the internet to remote servers.
+In contrast, on-device models offer distinct advantages:
+1. **Complete Privacy**: Personal text and sensitive user data never leave the user's iPhone or Mac.
+2. **Zero Network Latency**: Models process prompts locally even when the device is completely offline.
+3. **No Per-Request Costs**: Running on-device models does not incur cloud server or token subscription fees.
+
+### Private Cloud Compute
+
+When a complex task requires a larger model than fits on a phone, Apple uses **Private Cloud Compute**.
+Private Cloud Compute runs larger models on dedicated Apple Silicon servers.
+These servers never store user data and allow independent security researchers to inspect their software.
+
+### System Writing Tools
+
+In iOS 18 and later, Apple integrates on-device models into standard UI text controls.
+Users can proofread, rewrite, and summarize text using built-in Writing Tools in `UITextView` and `WKWebView`.
+Developers can control this behavior using the `writingToolsBehavior` property.
+
+**On-device foundation models deliver fast, private, and offline intelligence powered by Apple Silicon hardware.**
+
+## See it
+
+<Diagram id="foundation-models-main" caption="How iOS routes user prompts to on-device models on Apple Silicon or escalates to Private Cloud Compute for heavy tasks.">
+{/*
+  Spec for /diagram-animator:
+  - Elements: User Prompt Input, On-Device Neural Engine Node, Local Model Output Node, Private Cloud Compute Escalation Node.
+  - Step 1: User enters text prompt in an app (e.g. summarize notes).
+  - Step 2: System routes prompt to the local Apple Neural Engine running an on-device foundation model.
+  - Step 3: Local model generates response tokens entirely on-device with zero network traffic.
+  - Step 4: For complex queries exceeding local capacity, request escalates to Private Cloud Compute with cryptographic privacy.
+  - Static version (reduced motion): Shows decision tree comparing local Neural Engine execution versus Private Cloud Compute escalation.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Where do standard on-device foundation models execute user prompts?</Question>
+  <Option id="a">On public third-party web scraper servers across the internet.</Option>
+  <Option id="b" correct>Directly on the Apple Neural Engine and unified memory of the device.</Option>
+  <Option id="c">Inside the cellular carrier base station antenna firmware.</Option>
+  <Explanation>On-device models run locally on Apple Silicon using the hardware Apple Neural Engine without network calls.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Classifying emotional tone with on-device sentiment analysis
+
+Use the `NaturalLanguage` framework to analyze text sentiment on-device without cloud API dependencies.
+
+```swift
+import Foundation
+import NaturalLanguage
+
+func analyzeTone(text: String) -> String {
+    let tagger = NLTagger(tagSchemes: [.sentimentScore])
+    tagger.string = text
+    let range = text.startIndex..<text.endIndex
+    var scoreValue: Double = 0.0
+
+    tagger.enumerateTags(in: range, unit: .paragraph, scheme: .sentimentScore, options: [.omitWhitespace]) { tag, _ in
+        if let tag = tag, let score = Double(tag.rawValue) {
+            scoreValue = score
+        }
+        return true
+    }
+
+    if scoreValue > 0.2 {
+        return "Positive"
+    } else if scoreValue < -0.2 {
+        return "Negative"
+    }
+    return "Neutral"
+}
+
+let feedback = "This application is wonderfully fast and delightful to use!"
+let tone = analyzeTone(text: feedback)
+print("Feedback tone: \(tone)")
+```
+
+```output
+Feedback tone: Positive
+```
+
+The tagger scores text from `-1.0` (very negative) to `1.0` (very positive).
+
+### Detecting languages and routing prompts with async tasks
+
+Always run machine learning inference and language detection asynchronously to keep the main thread responsive.
+
+```swift
+import Foundation
+import NaturalLanguage
+
+func identifyLanguage(input: String) async -> String {
+    let recognizer = NLLanguageRecognizer()
+    recognizer.processString(input)
+    if let language = recognizer.dominantLanguage {
+        return language.rawValue
+    }
+    return "unknown"
+}
+
+let sampleText = "Swift concurrency makes asynchronous code clean and safe."
+let detected = await identifyLanguage(input: sampleText)
+print("Language code: \(detected)")
+```
+
+```output
+Language code: en
+```
+
+Using `async` functions ensures heavy text analysis does not cause frame drops during animations.
+
+<QuickCheck>
+  <Question>Which value for writingToolsBehavior completely disables Writing Tools on a text view?</Question>
+  <Option id="a">.default</Option>
+  <Option id="b" correct>.none</Option>
+  <Option id="c">.limited</Option>
+  <Explanation>Setting writingToolsBehavior to .none disables Writing Tools for sensitive fields like passwords or codes.</Explanation>
+</QuickCheck>
+
+<TryIt>
+Create a SwiftUI text editor, inspect the Writing Tools options in iOS 18 Simulator, and test inline rewriting.
+</TryIt>
+
+## Interview traps
+
+<Trap title="Running model inference on the main thread">
+Machine learning inference requires significant processing from the Neural Engine and GPU.
+Executing inference synchronously on the main thread causes hitching and freezes the user interface.
+Always run model inference inside asynchronous tasks using Swift concurrency.
+</Trap>
+
+<Trap title="Forgetting to pause cloud sync during Writing Tools sessions">
+When a user activates Writing Tools, the system rewrites text directly inside the text container.
+If your app performs active background sync (like CloudKit or Core Data synchronization), incoming updates can collide with the active rewrite.
+Implement `textViewWritingToolsWillBegin` in your delegate to pause sync until `textViewWritingToolsDidEnd` fires.
+</Trap>
+
+<Trap title="Allowing Writing Tools on sensitive or code fields">
+Not all text inputs should be rewritten by foundation models.
+Fields containing passwords, credit card numbers, or markdown code blocks should disable Writing Tools.
+Set `writingToolsBehavior = .none` on these fields to protect user security and prevent corrupted code syntax.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="fresh">
+On-device foundation models run directly on the device using Apple Silicon and the Apple Neural Engine.
+They provide complete privacy because user prompts and text never leave the device.
+They also work without an internet connection and have zero cloud token costs.
+In iOS 18, Apple provides Writing Tools APIs in `UITextView` and frameworks like `NaturalLanguage` for local processing.
+I make sure to run all model inference asynchronously to avoid freezing the UI.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+Apple Intelligence uses a hybrid on-device and private cloud architecture.
+Everyday tasks run on-device via quantized foundation models running on the Apple Neural Engine with low latency and total privacy.
+When queries exceed local compute limits, requests route to Private Cloud Compute on hardened Apple Silicon nodes with verifiable privacy.
+In client code, I configure `writingToolsBehavior` appropriately, setting `.none` for code editors or sensitive fields.
+I also use `UITextViewDelegate` lifecycle methods to pause background persistence and sync during active Writing Tools sessions, avoiding data races.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- On-device foundation models execute locally on Apple Silicon using the Apple Neural Engine.
+- On-device processing guarantees privacy, zero network latency, and offline availability.
+- Private Cloud Compute handles larger models on secure Apple Silicon servers without storing data.
+- Writing Tools in iOS 18 provides system-wide rewriting, proofreading, and summarization.
+- Set `writingToolsBehavior = .none` on sensitive fields like passwords or code editors.
+- Use `UITextViewDelegate` callbacks to pause cloud synchronization during active AI rewrites.
+- Always execute model inference asynchronously using Swift concurrency to protect UI frame rates.
+- The `NaturalLanguage` framework offers built-in sentiment analysis and language detection offline.
+</Recap>
