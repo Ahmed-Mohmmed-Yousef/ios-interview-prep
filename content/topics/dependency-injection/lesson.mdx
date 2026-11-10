@@ -1,0 +1,240 @@
+export const meta = {
+  id: "dependency-injection",
+  title: "Dependency Injection",
+  summary: "Pass external dependencies into your objects using initializers and protocols to build testable, modular iOS apps.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "Environment (SwiftUI)",
+      url: "https://developer.apple.com/documentation/swiftui/environment",
+      kind: "official"
+    },
+    {
+      title: "Inversion of Control Containers and the Dependency Injection pattern",
+      url: "https://martinfowler.com/articles/injection.html",
+      kind: "community"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    Which dependency injection pattern is preferred in Swift because it enables constants and avoids invalid state?
+  </Question>
+  <Guess>
+    <Option id="a">Property injection with optional variables</Option>
+    <Option id="b" correct>Initializer injection using non-optional constants</Option>
+    <Option id="c">Service Locator registries using global dictionaries</Option>
+    <Option id="d">Direct singleton instantiation inside method bodies</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+In software design, an object often relies on helper objects to do its job.
+For example, a view model might need a network client to download user data.
+If the view model creates the network client internally, the two classes become tightly coupled.
+
+Dependency Injection (DI) means passing needed helper objects in from the outside instead of creating them internally.
+The object receives what it needs to work.
+
+<Analogy>
+  Think of an electric car.
+  The car needs a charging cable to receive electricity.
+  If the manufacturer solders a specific wall plug directly into the car engine, you can never change charging stations.
+  Instead, the car provides an external charging socket.
+  You can plug in a home wall charger, a public fast charger, or a portable test battery.
+  The car does not care who supplies the power as long as the cable fits the socket.
+</Analogy>
+
+### Why inject dependencies?
+
+1. **Testability**: You can inject mock objects or stubs during unit tests without making real network requests.
+2. **Loose coupling**: Your class depends on an abstract protocol instead of a concrete type.
+3. **Flexibility**: You can swap implementations for previews, tests, or different app environments.
+
+## See it
+
+<Diagram id="di-flow" caption="How dependency injection replaces hardcoded dependencies with protocol-based injected services.">
+{/*
+  Interactive stepper:
+  Step 1: Without DI, the consumer instantiates a concrete network client directly.
+  Step 2: A protocol defines the required operations, decoupling the consumer.
+  Step 3: An external factory or initializer injects the concrete client in production.
+  Step 4: Unit tests inject a mock implementation through the exact same initializer.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What is the main testing benefit of dependency injection?</Question>
+  <Option id="a">It speeds up the Swift compiler during builds</Option>
+  <Option id="b" correct>It allows tests to replace real network services with predictable test doubles</Option>
+  <Option id="c">It reduces app memory usage to zero</Option>
+  <Option id="d">It prevents your code from requiring initializers</Option>
+  <Explanation>By injecting dependencies through protocols, unit tests can provide deterministic mocks without triggering real network side effects.</Explanation>
+</QuickCheck>
+
+## In code
+
+In Swift, initializer injection is the standard choice.
+We define a protocol for the dependency and inject it into the consumer initializer.
+
+<CodeExample title="Injecting a protocol-based service through an initializer">
+```swift
+import Foundation
+
+// 1. Abstract protocol for weather data
+protocol WeatherService: Sendable {
+    func fetchTemperature() -> Int
+}
+
+// 2. Production implementation
+struct LiveWeatherService: WeatherService {
+    func fetchTemperature() -> Int {
+        return 22
+    }
+}
+
+// 3. Test mock implementation
+struct MockWeatherService: WeatherService {
+    let stubbedTemperature: Int
+    func fetchTemperature() -> Int {
+        return stubbedTemperature
+    }
+}
+
+// 4. Consumer receives dependency from outside
+final class WeatherViewModel {
+    private let service: WeatherService
+
+    init(service: WeatherService) {
+        self.service = service
+    }
+
+    func temperatureText() -> String {
+        return "\(service.fetchTemperature())°C"
+    }
+}
+
+// Production use
+let liveVM = WeatherViewModel(service: LiveWeatherService())
+print("Live: \(liveVM.temperatureText())")
+
+// Unit test use
+let mockVM = WeatherViewModel(service: MockWeatherService(stubbedTemperature: 15))
+print("Mock: \(mockVM.temperatureText())")
+```
+```output
+Live: 22°C
+Mock: 15°C
+```
+</CodeExample>
+
+<CodeExample title="Providing default values for convenient initialization">
+```swift
+import Foundation
+
+protocol AnalyticsLogger: Sendable {
+    func log(event: String)
+}
+
+struct ConsoleAnalytics: AnalyticsLogger {
+    func log(event: String) {
+        print("Logged: \(event)")
+    }
+}
+
+struct TestAnalytics: AnalyticsLogger {
+    func log(event: String) {
+        print("Test received: \(event)")
+    }
+}
+
+final class LoginTracker {
+    private let logger: AnalyticsLogger
+
+    // Default parameter provides convenience without sacrificing testability
+    init(logger: AnalyticsLogger = ConsoleAnalytics()) {
+        self.logger = logger
+    }
+
+    func userDidLogin(name: String) {
+        logger.log(event: "login_\(name)")
+    }
+}
+
+let productionTracker = LoginTracker()
+productionTracker.userDidLogin(name: "alex")
+
+let testTracker = LoginTracker(logger: TestAnalytics())
+testTracker.userDidLogin(name: "sam")
+```
+```output
+Logged: login_alex
+Test received: login_sam
+```
+</CodeExample>
+
+<TryIt>
+  Try writing a custom mock service in Swift Playground to test error scenarios.
+</TryIt>
+
+<QuickCheck>
+  <Question>Why is providing a default parameter in an initializer helpful for dependency injection?</Question>
+  <Option id="a">It converts reference types into value types</Option>
+  <Option id="b">It stops other developers from creating mocks</Option>
+  <Option id="c" correct>It keeps production call sites concise while still allowing tests to inject custom mocks</Option>
+  <Option id="d">It hides dependencies inside global storage</Option>
+  <Explanation>Default arguments keep production calls simple without breaking the ability to inject mocks in unit tests.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Hardcoding Singletons">
+  Calling `URLSession.shared` or `UserDefaults.standard` directly inside business logic makes classes impossible to test in isolation.
+  Instead of referencing global singletons directly, wrap them in protocols or inject `URLSession` instances through initializers.
+</Trap>
+
+<Trap title="The Service Locator Anti-Pattern">
+  Using a global dictionary or service locator conceals class dependencies from the compiler.
+  Callers cannot see what an object requires until runtime crashes occur.
+  Always prefer explicit initializer injection so dependencies are visible at compile time.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="junior">
+  Dependency injection means passing helper objects into a class instead of creating them inside that class.
+  In Swift, we usually pass dependencies through initializers.
+  This makes our code flexible because unit tests can pass mock objects instead of real network services.
+</InterviewAnswer>
+
+<InterviewAnswer level="mid">
+  Dependency injection implements Inversion of Control by supplying collaborators from the outside.
+  We prefer initializer injection because it allows dependencies to be stored as immutable `let` constants and avoids invalid state.
+  By programming to protocols rather than concrete classes, we can swap production network clients with fast stubs in automated tests.
+  In SwiftUI, we also use the environment system to pass shared dependencies down the view hierarchy.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  In production iOS architecture, dependency injection is essential for modularity, parallel builds, and test isolation.
+  I advocate for pure initializer injection backed by protocol abstractions over complex third-party runtime containers.
+  Pure DI keeps dependency graphs explicit and verified at compile time.
+  When building modular frameworks, we define domain protocols in feature interfaces and inject concrete implementations at the app composition root.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  - Dependency Injection supplies collaborator objects from outside a class instead of creating them inside.
+  - Initializer injection is the preferred approach in Swift because it supports constant properties and compile-time safety.
+  - Programming to protocols allows unit tests to inject mock objects without triggering real network or disk operations.
+  - Avoid hardcoded singletons and service locators that hide class dependencies.
+  - SwiftUI provides `@Environment` for injecting dependencies down the view hierarchy.
+</Recap>
+
+## Go deeper
+
+- [Environment (Apple Developer Documentation)](https://developer.apple.com/documentation/swiftui/environment)
+- [Inversion of Control Containers and the Dependency Injection pattern (Martin Fowler)](https://martinfowler.com/articles/injection.html)
