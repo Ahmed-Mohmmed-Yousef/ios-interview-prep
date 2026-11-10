@@ -1,0 +1,175 @@
+export const meta = {
+  id: "structured-concurrency",
+  summary: "Organize concurrent work into clear parent-child task trees with automatic cancellation and error propagation in Swift.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-10-22",
+  sources: [
+    {
+      title: "The Swift Programming Language: Concurrency",
+      url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency"
+    },
+    {
+      title: "WWDC21: Explore structured concurrency in Swift",
+      url: "https://developer.apple.com/videos/play/wwdc2021/10134/"
+    },
+    {
+      title: "TaskGroup (Swift)",
+      url: "https://developer.apple.com/documentation/swift/taskgroup"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    You need to download three images in parallel before refreshing a view. Which Swift concurrency tool should you choose?
+  </Question>
+  <Guess>
+    <Option id="a">DispatchGroup with notify on the global concurrent queue.</Option>
+    <Option id="b" correct>A TaskGroup using withTaskGroup to run child tasks concurrently.</Option>
+    <Option id="c">Three unstructured Task blocks without saving their handles.</Option>
+    <Option id="d">A background OperationQueue with maxConcurrentOperationCount set to one.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+In earlier iOS code, starting asynchronous work was like sending a letter. You launched a closure on a background queue, but your function returned immediately. The background work floated on its own.
+
+Structured concurrency changes this model. Work runs in a clear tree of parent and child tasks.
+
+<Analogy>
+  Think of a company project. The project lead assigns three tasks to team members. The project cannot finish until all team members finish their work. If the client cancels the project, the lead cancels all team tasks at once.
+</Analogy>
+
+In structured concurrency, every child task has a parent. A parent task cannot complete until all its child tasks have finished.
+
+Structured concurrency gives you two critical features:
+
+1. **Automatic lifetime control**: When a scope exits, Swift makes sure all child tasks finish or cancel. No background task is left running by mistake.
+2. **Automatic cancellation propagation**: When a parent task cancels, cancellation signals flow down to every child task in the tree.
+
+Swift provides two ways to build structured concurrency:
+
+- `async let`: Spawns a fixed number of child tasks concurrently in the current scope.
+- `withTaskGroup`: Spawns a dynamic number of child tasks using a loop.
+
+## See it
+
+<Diagram id="structured-concurrency" caption="Observe how parent tasks spawn, await, and cancel child tasks in a structured tree." />
+
+## In code
+
+Use `async let` when you know the exact number of concurrent operations at compile time.
+
+```swift
+func fetchUser() async -> String {
+    return "Alex"
+}
+
+func fetchScore() async -> Int {
+    return 95
+}
+
+func loadDashboard() async {
+    async let user = fetchUser()
+    async let score = fetchScore()
+    let result = await "\(user) scored \(score)"
+    print(result)
+}
+
+await loadDashboard()
+```
+```output
+Alex scored 95
+```
+
+Both `fetchUser()` and `fetchScore()` run at the same time. The parent task awaits their results before continuing.
+
+When you need to run an unknown number of concurrent tasks, use `withTaskGroup`.
+
+```swift
+func loadNumbers() async -> [Int] {
+    await withTaskGroup(of: Int.self) { group in
+        for i in 1...3 {
+            group.addTask {
+                return i * 10
+            }
+        }
+        var numbers: [Int] = []
+        for await value in group {
+            numbers.append(value)
+        }
+        return numbers.sorted()
+    }
+}
+
+let values = await loadNumbers()
+print("Numbers: \(values)")
+```
+```output
+Numbers: [10, 20, 30]
+```
+
+`withTaskGroup` suspends until all child tasks finish. The closure returns the combined result cleanly.
+
+<TryIt>
+  Open a Swift Playground. Create a task group that fetches three mock website titles concurrently and prints the collected array.
+</TryIt>
+
+<QuickCheck>
+  <Question>
+    What happens if a function exits while an async let child task is still running?
+  </Question>
+  <Option id="a">The child task is promoted to a detached background thread.</Option>
+  <Option id="b" correct>Swift automatically cancels the child task and awaits its completion before leaving the scope.</Option>
+  <Option id="c">The app crashes immediately with a concurrency fatal error.</Option>
+  <Option id="d">The child task pauses permanently until the app enters the background.</Option>
+  <Explanation>
+    Structured concurrency guarantees child tasks never escape their parent scope. Swift marks the task cancelled and awaits it before the scope returns.
+  </Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>
+    How does Task.detached differ from an ordinary Task { } block?
+  </Question>
+  <Option id="a">Task.detached cannot execute asynchronous code.</Option>
+  <Option id="b" correct>Task.detached does not inherit the calling actor context, priority, or task-local values.</Option>
+  <Option id="c">Task.detached runs strictly on the main thread.</Option>
+  <Option id="d">Task.detached blocks the calling thread synchronously.</Option>
+  <Explanation>
+    An ordinary Task { } inherits the caller actor isolation and priority. A detached task runs completely independently on the global executor.
+  </Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap label="Task { } is not structured concurrency">
+  Writing `Task { }` creates an unstructured task. Its lifetime is not bound to the surrounding function. If the function returns, the task continues running in the background. To keep work structured, use `async let` or `withTaskGroup`.
+</Trap>
+
+<Trap label="Cancellation is cooperative">
+  Cancelling a task group does not stop child tasks by force. Child tasks must check `Task.isCancelled` or call `Task.checkCancellation()` to stop their own loops. Without these checks, child tasks keep consuming CPU cycles.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+  Structured concurrency organizes asynchronous work into parent and child relationships. A parent cannot finish until all its child tasks complete. Swift provides `async let` for a fixed number of concurrent calls and `withTaskGroup` for dynamic loops. If a parent cancels or throws, cancellation propagates down to all child tasks automatically.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  I design concurrent systems using structured task hierarchies to avoid orphaned work and resource leaks. Child tasks inherit priority and actor isolation from their parent, which prevents priority inversions. In task groups, I prefer `group.addTaskUnlessCancelled` to avoid scheduling work into cancelled scopes. When building producer-consumer streams, I use discarding task groups to prevent memory accumulation from completed child tasks.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  Structured concurrency links child tasks to their parent scope. Parents wait for child tasks before returning. Use `async let` for fixed parallel calls and `withTaskGroup` for dynamic collections. Remember that `Task { }` is unstructured, and cancellation requires cooperative checks inside child task code.
+</Recap>
+
+## Go deeper
+
+- The Swift Programming Language: Concurrency: https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency
+- WWDC21: Explore structured concurrency in Swift: https://developer.apple.com/videos/play/wwdc2021/10134/
+- Apple Developer Documentation: TaskGroup: https://developer.apple.com/documentation/swift/taskgroup
