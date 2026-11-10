@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>iOS UI Testing Architecture Stepper</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --ink: #0f172a;
+  --muted: #475569;
+  --line: #cbd5e1;
+  --accent-color: #2563eb;
+  --accent-soft: #dbeafe;
+  --active-node: #3b82f6;
+  --danger-color: #ef4444;
+  --danger-soft: #fee2e2;
+  --safe-color: #10b981;
+  --safe-soft: #d1fae5;
+  --card-bg: #f1f5f9;
+  --code-bg: #e2e8f0;
+  --font-body: "Lexend", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f17;
+    --surface: #131b26;
+    --ink: #f1f5f9;
+    --muted: #94a3b8;
+    --line: #2d3748;
+    --accent-color: #3b82f6;
+    --accent-soft: #1e293b;
+    --active-node: #60a5fa;
+    --danger-color: #f87171;
+    --danger-soft: #450a0a;
+    --safe-color: #34d399;
+    --safe-soft: #064e3b;
+    --card-bg: #1a2230;
+    --code-bg: #0d121c;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.diagram-container {
+  max-width: 820px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+.step-pill {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  background: var(--accent-soft);
+  color: var(--accent-color);
+  border-radius: 9999px;
+}
+.flow-canvas {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 0.5rem;
+  position: relative;
+  min-height: 220px;
+}
+.process-box {
+  flex: 1;
+  background: var(--card-bg);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem;
+  transition: all 0.25s ease;
+  position: relative;
+}
+.process-box.active {
+  border-color: var(--active-node);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.process-box.safe {
+  border-color: var(--safe-color);
+}
+.process-box.danger {
+  border-color: var(--danger-color);
+}
+.box-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+.box-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.box-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.connector {
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+.connector-line {
+  width: 100%;
+  height: 2px;
+  background: var(--line);
+  position: relative;
+  transition: all 0.25s ease;
+}
+.connector.active .connector-line {
+  background: var(--accent-color);
+  height: 3px;
+}
+.connector-label {
+  font-size: 0.7rem;
+  margin-top: 0.35rem;
+  text-align: center;
+  font-weight: 500;
+}
+.explanation-panel {
+  margin-top: 1.25rem;
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.25rem;
+  border-left: 4px solid var(--accent-color);
+}
+.explanation-title {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+}
+.explanation-text {
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+.code-preview {
+  margin-top: 0.75rem;
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-code);
+  font-size: 0.825rem;
+  line-height: 1.45;
+  overflow-x: auto;
+  white-space: pre;
+}
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.25rem;
+}
+.btn {
+  background: var(--accent-color);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background: var(--card-bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+@media (prefers-reduced-motion: reduce) {
+  .process-box, .connector-line {
+    transition: none !important;
+  }
+}
+</style>
+</head>
+<body>
+<div class="diagram-container" role="region" aria-label="iOS UI Testing Architecture Stepper">
+  <div class="header-row">
+    <div style="font-weight: 700; font-size: 1.1rem;">XCUITest Execution Flow</div>
+    <div class="step-pill" id="stepIndicator">Step 1 of 4</div>
+  </div>
+
+  <div class="flow-canvas" id="canvas">
+    <div class="process-box" id="testRunnerBox">
+      <div class="box-header">Test Runner Process</div>
+      <div class="box-title" id="testRunnerTitle">XCUI Runner</div>
+      <div class="box-desc" id="testRunnerDesc">Isolated test host process executing XCTestCase</div>
+    </div>
+
+    <div class="connector" id="conn1">
+      <div class="connector-line"></div>
+      <div class="connector-label" id="connLabel1">IPC</div>
+    </div>
+
+    <div class="process-box" id="systemBridgeBox">
+      <div class="box-header">System Layer</div>
+      <div class="box-title" id="systemBridgeTitle">Accessibility APIs</div>
+      <div class="box-desc" id="systemBridgeDesc">macOS / iOS accessibility tree daemon</div>
+    </div>
+
+    <div class="connector" id="conn2">
+      <div class="connector-line"></div>
+      <div class="connector-label" id="connLabel2">Query</div>
+    </div>
+
+    <div class="process-box" id="appTargetBox">
+      <div class="box-header">Target Application Process</div>
+      <div class="box-title" id="appTargetTitle">App Under Test</div>
+      <div class="box-desc" id="appTargetDesc">Target app running views with accessibilityIdentifiers</div>
+    </div>
+  </div>
+
+  <div class="explanation-panel" aria-live="polite">
+    <div class="explanation-title" id="stepTitle">Process Separation</div>
+    <p class="explanation-text" id="stepExplanation">
+      UI tests run in an independent process separate from the application under test. The test runner cannot access application memory directly.
+    </p>
+    <div class="code-preview" id="codePreview">let app = XCUIApplication()</div>
+  </div>
+
+  <div class="controls-row">
+    <button class="btn btn-secondary" id="prevBtn" onclick="prevStep()" disabled>Back</button>
+    <button class="btn" id="nextBtn" onclick="nextStep()">Next</button>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: "Step 1: Process Separation",
+    desc: "UI tests run in an independent process separate from the application under test. The test runner cannot inspect app memory, variables, or private Swift types directly.",
+    code: "import XCTest\n\nfinal class LoginUITests: XCTestCase {\n    let app = XCUIApplication()\n}",
+    runnerClass: "process-box active",
+    systemClass: "process-box",
+    appClass: "process-box",
+    conn1Active: false,
+    conn2Active: false,
+    conn1Text: "IPC",
+    conn2Text: "Bridge",
+    appTitle: "App Under Test",
+    appDesc: "Target app running in its own sandboxed process"
+  },
+  {
+    title: "Step 2: Launch Arguments & Injection",
+    desc: "Before launching the app, the test runner passes launchArguments. The app reads ProcessInfo.processInfo.arguments to mock API calls, clear databases, and disable animations.",
+    code: "app.launchArguments.append(\"--ui-testing\")\napp.launchArguments.append(\"--mock-network\")\napp.launch()",
+    runnerClass: "process-box active",
+    systemClass: "process-box active",
+    appClass: "process-box safe",
+    conn1Active: true,
+    conn2Active: true,
+    conn1Text: "Launch",
+    conn2Text: "Args",
+    appTitle: "Configured App",
+    appDesc: "Running in mock test mode with animations disabled"
+  },
+  {
+    title: "Step 3: Accessibility Hierarchy Query",
+    desc: "The test queries the screen through the accessibility system. Using a stable accessibilityIdentifier prevents brittle failures caused by translated or edited button text.",
+    code: "let usernameField = app.textFields[\"login_username\"]\nlet submitButton = app.buttons[\"login_submit\"]\nXCTAssertTrue(submitButton.waitForExistence(timeout: 5))",
+    runnerClass: "process-box active",
+    systemClass: "process-box active safe",
+    appClass: "process-box active",
+    conn1Active: true,
+    conn2Active: true,
+    conn1Text: "Find",
+    conn2Text: "Query",
+    appTitle: "Accessibility Tree",
+    appDesc: "Resolving elements by unique accessibilityIdentifier"
+  },
+  {
+    title: "Step 4: Synthetic Events & Assertions",
+    desc: "The runner synthesizes user touch and keyboard events across the process boundary. It waits for UI transitions to complete and asserts on the resulting accessibility states.",
+    code: "usernameField.tap()\nusernameField.typeText(\"alex@example.com\")\nsubmitButton.tap()\n\nXCTAssertTrue(app.staticTexts[\"welcome_banner\"].waitForExistence(timeout: 5))",
+    runnerClass: "process-box safe",
+    systemClass: "process-box safe",
+    appClass: "process-box safe",
+    conn1Active: true,
+    conn2Active: true,
+    conn1Text: "Tap",
+    conn2Text: "Assert",
+    appTitle: "Verified Screen",
+    appDesc: "Welcome banner exists; test completes successfully"
+  }
+];
+
+let currentStep = 0;
+
+function updateStep() {
+  const step = steps[currentStep];
+  document.getElementById("stepIndicator").textContent = `Step ${currentStep + 1} of ${steps.length}`;
+  document.getElementById("stepTitle").textContent = step.title;
+  document.getElementById("stepExplanation").textContent = step.desc;
+  document.getElementById("codePreview").textContent = step.code;
+
+  document.getElementById("prevBtn").disabled = currentStep === 0;
+  document.getElementById("nextBtn").disabled = currentStep === steps.length - 1;
+
+  document.getElementById("testRunnerBox").className = step.runnerClass;
+  document.getElementById("systemBridgeBox").className = step.systemClass;
+  document.getElementById("appTargetBox").className = step.appClass;
+
+  document.getElementById("conn1").classList.toggle("active", step.conn1Active);
+  document.getElementById("conn2").classList.toggle("active", step.conn2Active);
+
+  document.getElementById("connLabel1").textContent = step.conn1Text;
+  document.getElementById("connLabel2").textContent = step.conn2Text;
+
+  document.getElementById("appTargetTitle").textContent = step.appTitle;
+  document.getElementById("appTargetDesc").textContent = step.appDesc;
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    updateStep();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    updateStep();
+  }
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") nextStep();
+  if (e.key === "ArrowLeft") prevStep();
+});
+
+updateStep();
+</script>
+</body>
+</html>

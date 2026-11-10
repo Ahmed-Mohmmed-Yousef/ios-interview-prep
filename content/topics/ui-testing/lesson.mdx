@@ -1,0 +1,212 @@
+export const meta = {
+  id: "ui-testing",
+  title: "UI Tests",
+  summary: "Write automated UI tests using XCUIAutomation, accessibility identifiers, launch arguments, and page objects.",
+  estimatedMinutes: 10,
+  lastVerified: "2026-11-10",
+  sources: [
+    {
+      title: "XCUIAutomation",
+      url: "https://developer.apple.com/documentation/xcuiautomation",
+      kind: "official"
+    },
+    {
+      title: "XCUIApplication (XCUIAutomation)",
+      url: "https://developer.apple.com/documentation/xcuiautomation/xcuiapplication",
+      kind: "official"
+    }
+  ]
+};
+
+<InterviewHook>
+  <Question>
+    How does an iOS UI test interact with your app, and why should you use accessibility identifiers instead of button labels?
+  </Question>
+  <Guess>
+    <Option id="a">The test runs in your app process and calls view controller methods directly</Option>
+    <Option id="b" correct>The test runs in an external process and interacts through accessibility APIs using stable identifiers</Option>
+    <Option id="c">The test runs only when you connect a physical iPhone to Xcode</Option>
+    <Option id="d">The test modifies compiled binary instructions during app execution</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+Unit tests run inside your app process. They call functions and check return values directly.
+
+UI tests work very differently. A UI test runs in its own separate process. It cannot inspect your app memory, variables, or Swift types.
+
+Instead, the UI test runner acts like an external robot user. It looks at the screen through the iOS accessibility system. The test runner queries on-screen elements, taps buttons, types text, and checks what appears.
+
+<Analogy>
+  Think of a unit test as a car mechanic inspecting engine parts on a workbench.
+
+  A UI test is a test driver sitting in the driver seat. The driver presses pedals, turns the steering wheel, and checks if headlights turn on. The driver cannot touch internal wiring directly.
+</Analogy>
+
+Because UI tests inspect the accessibility hierarchy, element identifiers matter.
+
+Using user-facing button labels is fragile. When copywriters change "Log In" to "Sign In", your test fails. When you translate your app into Spanish, the test breaks.
+
+Instead, you set a stable `accessibilityIdentifier`. This identifier is invisible to users and stays the same across all languages.
+
+## See it
+
+Open the interactive diagram to see how the UI test runner process controls the separate app process through accessibility queries.
+
+<Diagram spec="docs/topics/ui-testing/diagram.html" />
+
+## In code
+
+Let us look at how you structure automated tests using the Page Object pattern.
+
+The Page Object pattern organizes UI selectors and user actions into dedicated objects. This pattern prevents duplicate queries across your test suite.
+
+<CodeExample title="Simulating a login screen Page Object with element queries">
+
+```swift
+import Foundation
+
+struct TestElement {
+    let identifier: String
+    var text: String
+    var isTapped = false
+
+    mutating func tap() {
+        isTapped = true
+    }
+
+    mutating func typeText(_ input: String) {
+        text = input
+    }
+}
+
+final class LoginPageObject {
+    var usernameField = TestElement(identifier: "login_username", text: "")
+    var passwordField = TestElement(identifier: "login_password", text: "")
+    var submitButton = TestElement(identifier: "login_submit", text: "Submit")
+
+    func enterCredentials(user: String, pass: String) {
+        usernameField.typeText(user)
+        passwordField.typeText(pass)
+    }
+
+    func submit() {
+        submitButton.tap()
+    }
+}
+
+let page = LoginPageObject()
+page.enterCredentials(user: "alex@example.com", pass: "secret123")
+page.submit()
+
+assert(page.submitButton.isTapped)
+print("Login action submitted for user: \(page.usernameField.text)")
+```
+
+```output
+Login action submitted for user: alex@example.com
+```
+
+</CodeExample>
+
+Now look at configuring app launch arguments.
+
+You can pass arguments to your app at launch time. Your app reads these arguments to enable mock network data or disable animations.
+
+<CodeExample title="Configuring test launch arguments for deterministic testing">
+
+```swift
+import Foundation
+
+struct AppLaunchConfig {
+    let arguments: [String]
+
+    var isUITesting: Bool {
+        arguments.contains("--ui-testing")
+    }
+
+    var shouldUseMockData: Bool {
+        arguments.contains("--mock-network")
+    }
+}
+
+let testArguments = ["--ui-testing", "--mock-network"]
+let config = AppLaunchConfig(arguments: testArguments)
+
+if config.isUITesting {
+    print("UI Test mode active")
+}
+
+if config.shouldUseMockData {
+    print("Using local mock responses")
+}
+```
+
+```output
+UI Test mode active
+Using local mock responses
+```
+
+</CodeExample>
+
+<TryIt>
+  Open your project in Xcode. Add a UI Test Target. Set accessibilityIdentifier on a button and write an XCUI test.
+</TryIt>
+
+<QuickCheck>
+  <Question>Why should you pass custom flags in launchArguments during automated UI tests?</Question>
+  <Option id="a">Launch arguments increase CPU clock speed on iOS devices</Option>
+  <Option id="b" correct>Launch arguments let your app switch to mock network data, clear state, and disable animations</Option>
+  <Option id="c">Launch arguments convert UIKit views into SwiftUI automatically</Option>
+  <Option id="d">Launch arguments bypass iOS code signing checks</Option>
+  <Explanation>Passing launch arguments allows your application to detect test runs, disable slow animations, and use deterministic mock data.</Explanation>
+</QuickCheck>
+
+<QuickCheck>
+  <Question>What is the key difference between accessibilityLabel and accessibilityIdentifier?</Question>
+  <Option id="a">accessibilityLabel is only for games, while accessibilityIdentifier is for UIKit</Option>
+  <Option id="b">accessibilityIdentifier is spoken by VoiceOver, while accessibilityLabel is hidden</Option>
+  <Option id="c" correct>accessibilityLabel is spoken by VoiceOver and localized, while accessibilityIdentifier is a hidden stable test key</Option>
+  <Option id="d">accessibilityLabel requires a paid developer account</Option>
+  <Explanation>accessibilityLabel provides localized descriptive text for screen readers. accessibilityIdentifier provides a stable string key for automated testing.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Querying elements by localized button text">
+  Do not write `app.buttons["Submit"]`. If your app changes copy to "Continue" or runs in French, the test fails. Always query with `app.buttons["submit_button"]` using a stable `accessibilityIdentifier`.
+</Trap>
+
+<Trap title="Using sleep() to wait for network or animations">
+  Never add `sleep(3)` in a UI test. Hardcoded delays make test suites slow and fail on busy CI machines. Use `element.waitForExistence(timeout: 5)` to continue as soon as the element appears.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="junior">
+  UI tests verify user flows by tapping buttons and typing text on the screen. The test runner uses the accessibility hierarchy to find elements. We use accessibility identifiers so tests stay reliable even when button text or languages change.
+</InterviewAnswer>
+
+<InterviewAnswer level="mid">
+  UI tests run in a separate process using the XCUITest framework. They interact with the app via the accessibility tree. We assign stable accessibility identifiers to views instead of relying on localized text. We use `waitForExistence(timeout:)` instead of hardcoded sleeps to handle asynchronous UI updates reliably.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+  In production apps, UI tests should focus on critical user journeys rather than testing every edge case. We use the Page Object pattern to decouple tests from UI hierarchy details. To keep tests fast and deterministic, we pass custom `launchArguments` to mock networking, reset local databases, and disable animations.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+  - UI tests run in a separate process and communicate across processes via iOS accessibility APIs.
+  - The `XCUIApplication` proxy launches and manages the application under test.
+  - Always use `accessibilityIdentifier` for stable test queries rather than localized text.
+  - Configure `launchArguments` to bypass network latency, disable animations, and reset test state.
+  - Use the Page Object pattern to build clean, maintainable test suites.
+</Recap>
+
+## Go deeper
+
+- [XCUIAutomation (Apple Developer Documentation)](https://developer.apple.com/documentation/xcuiautomation)
+- [XCUIApplication (Apple Developer Documentation)](https://developer.apple.com/documentation/xcuiautomation/xcuiapplication)
