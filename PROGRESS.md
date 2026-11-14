@@ -1,6 +1,6 @@
 # Project Progress
 
-Last updated: **2026-11-10**
+Last updated: **2026-11-14**
 
 **Status marks:** ✅ done · 🟡 done, waiting for your review · 🔄 in progress · ⬜ not started · ⏸️ paused · ❌ dropped
 
@@ -156,7 +156,7 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **debugging-lldb** (Debugging with Breakpoints and LLDB) — published (lesson, diagram, 31 questions) → [docs/topics/debugging-lldb/review.html](docs/topics/debugging-lldb/review.html)
     - ✅ **logging-oslog** (Logging with OSLog) — published (lesson, diagram, 31 questions) → [docs/topics/logging-oslog/review.html](docs/topics/logging-oslog/review.html)
     - ✅ **unit-testing** (Unit Tests) — published (lesson, diagram, 31 questions) → [docs/topics/unit-testing/review.html](docs/topics/unit-testing/review.html)
-- 🔄 **4.3 Mid level topics (Wave 3)** — in progress (29 of 53 published: 22 main + 7 bonus)
+- ✅ **4.3 Mid level topics (Wave 3)** — Complete (53 of 53 published: 44 main + 9 bonus)
   - ✅ **Batch 3A: Swift Language Deep Dive (7 topics: 5 main + 2 bonus)** — completed (7 of 7 published)
     - ✅ **protocol-oriented-programming** (Protocol-Oriented Programming) — published (lesson, diagram, 31 questions) → [docs/topics/protocol-oriented-programming/review.html](docs/topics/protocol-oriented-programming/review.html)
     - ✅ **generics-associated-types** (Generics: Associated Types and Where Clauses) — published (lesson, diagram, 31 questions) → [docs/topics/generics-associated-types/review.html](docs/topics/generics-associated-types/review.html)
@@ -214,7 +214,10 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **testing-async-code** (Testing Async Code) — published (lesson, diagram, 31 questions) → [docs/topics/testing-async-code/review.html](docs/topics/testing-async-code/review.html)
     - ✅ **ui-testing** (UI Tests) — published (lesson, diagram, 31 questions) → [docs/topics/ui-testing/review.html](docs/topics/ui-testing/review.html)
     - ✅ **code-review** (Code Review) — published (lesson, diagram, 31 questions) → [docs/topics/code-review/review.html](docs/topics/code-review/review.html)
-  - ⬜ **Batch 3H: Performance & System Design Foundations (3 topics)**
+  - ✅ **Batch 3H: Performance & System Design Foundations (3 topics) — COMPLETE (3 of 3 published)**
+    - ✅ **app-launch-time** (App Launch Time) — published (lesson, diagram, 32 questions, independent audit passed) → [docs/topics/app-launch-time/review.html](docs/topics/app-launch-time/review.html)
+    - ✅ **smooth-ui** (Keeping the UI Smooth) — published (lesson, diagram, 32 questions, independent audit passed) → [docs/topics/smooth-ui/review.html](docs/topics/smooth-ui/review.html)
+    - ✅ **system-design-interview-intro** (How a Mobile System Design Interview Works) — published (lesson, diagram, 32 questions, independent audit passed) → [docs/topics/system-design-interview-intro/review.html](docs/topics/system-design-interview-intro/review.html)
 - ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
 - ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
 - ⬜ **4.6 Phase 4 summary and final verification**
@@ -223,13 +226,13 @@ Write all lessons and question banks, level by level, with fact checks.
   - ✅ Coverage script [scripts/check-coverage.mjs](scripts/check-coverage.mjs): real lesson headings, possibly untaught ideas, the 2–5 sentence rule, the mix, matching dates. First run on 92 published topics: 103 errors (90 written prompts ask for 2–4 sentences, 13 questions point at "Go deeper" or a missing heading) and 166 questions flagged as possibly untaught
   - ✅ Publish gate [scripts/check-publish-gate.mjs](scripts/check-publish-gate.mjs): coverage + an independent fact check (`docs/topics/<id>/audit.json`) + the code runner. The validator now blocks publishing without a passing audit. The 92 topics published before the gate are listed in [docs/audit/legacy-unaudited.json](docs/audit/legacy-unaudited.json)
   - ✅ Workflow, `new-topic` and `content-fact-checker` skills and `AGENTS.md` updated for the gate. New topics continue, but each must pass the gate
-  - 🔄 Fresh level audit (22 topics) → re-check 3 random topics → report. **1 of 22 passes the gate.** Findings for every topic are in `docs/topics/<id>/audit.md`
+  - 🔄 Fresh level audit (22 topics) → re-check 3 random topics → report. **6 of 22 pass the gate** (86 legacy topics remain across Fresh, Junior, and Mid). Findings for every audited topic are in `docs/topics/<id>/audit.md`
     - ✅ `structs-vs-classes`: passes the gate (2 wrong facts, 2 untaught ideas and 10 rule problems fixed; topic version 3)
-    - 🔄 `control-flow`: lesson fixed (guard exits, guard scope, switch end, C claim; added if/switch expressions, loops, labels, compound and range cases). Questions partly fixed
-    - 🔄 `swift-basics`: 4 wrong facts and 6 untaught ideas fixed (topic version 2). q11 and q15 still need replacing
-    - 🔄 `error-handling`: checked, findings written, no fixes yet (4 wrong, 3 outdated, 7 untaught)
-    - 🔄 `optionals`: checked, findings written, no fixes yet (5 wrong, 11 untaught)
-    - 🔄 `methods-and-initialization`: checked, findings written, no fixes yet (8 wrong, 8 untaught)
+    - ✅ `control-flow`: passes the gate (7 wrong, 1 outdated, 4 untaught, 7 hardEnglish, 10 rule issues fixed; topic version 2, bank version 3, 33 live questions)
+    - ✅ `swift-basics`: passes the gate (4 wrong, 8 untaught, 1 unverified, 4 hardEnglish, 5 rule issues fixed; topic version 2, bank version 3, 31 live questions)
+    - ✅ `error-handling`: passes the gate (4 wrong, 3 outdated, 7 untaught, 1 unverified, 1 copied, 5 hardEnglish, 11 rule issues fixed; topic version 2, bank version 2, 32 live questions)
+    - ✅ `optionals`: passes the gate (5 wrong, 11 untaught, 1 unverified, 4 hardEnglish, 6 rule issues fixed; topic version 2, bank version 2, 32 live questions)
+    - ✅ `methods-and-initialization`: passes the gate (8 wrong, 8 untaught, 1 copied, 7 rule issues fixed; topic version 2, bank version 2, 33 live questions)
     - ⬜ The other 16 fresh topics
   - ⬜ Junior level audit (45 topics) → re-check 3 random topics → report
   - ⬜ Mid level audit (25 topics) → re-check 3 random topics → report
@@ -382,6 +385,10 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-14** — Completed Batch 3H (Performance & System Design Foundations: all 3 topics published) via parallel subagents (`Mid Batch 3H Author` + independent `content-fact-checker` child agents). Built, independently fact-checked, verified against Swift 6.4.2 / Xcode 27.2 (`iPhoneOS27.2.sdk`), and published `app-launch-time` (32 questions, 8 official sources), `smooth-ui` (32 live questions, 10 official sources, iOS 27 MetricKit updates), and `system-design-interview-intro` (32 live questions, 2 official + 2 community sources). All 3 pass `check-publish-gate.mjs --code` and have generated review pages (`docs/topics/<id>/review.html`). **Mid level (Wave 3) is now 100% COMPLETE (53 of 53 published; 120 of 164 total curriculum topics published across Fresh, Junior, and Mid).**
+
+- **2026-11-14** — Completed Fresh-level audit fixes for 5 topics (`swift-basics`, `control-flow`, `error-handling`, `optionals`, `methods-and-initialization`) via the `Fresh Audit Fixer` subagent, plus fixed `changes` list format in `methods-and-initialization/topic.json`. All 5 pass `check-coverage.mjs` and `check-publish-gate.mjs --code`, had their review pages rebuilt, and were removed from `docs/audit/legacy-unaudited.json` (**6 of 22 Fresh topics now pass the gate; 86 legacy topics remain**). Ran `validate-curriculum.mjs` (`OK: 5 levels, 14 units, 164 topics`) and `curriculum-report.mjs`.
 
 - **2026-11-10** — Completed Batch 3G (Architecture & Testing Strategy: all 8 topics published and committed). Built and published the final topic `code-review` (Code Review): researched Google Engineering Practices Code Review Guide, authored lesson in simple English, interactive 4-step Engineering Code Review Pipeline diagram with stepper, 31 verified questions (15 MCQ, 8 code reading, 5 written, 3 code write), fact-check report, rubric test, audit.json passing publish gate, and review page generated (`docs/topics/code-review/review.html`). All checks passed. Mid level progress is now 50 of 53 published (117 of 164 total published curriculum topics across Fresh, Junior, and Mid).
 

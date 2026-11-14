@@ -1,0 +1,628 @@
+<title>Keeping the UI Smooth Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --value: #0f7f63; --value-soft: #dcf2ea;
+  --shared: #6447d1; --shared-soft: #ebe6fb;
+  --changed: #a76a12; --changed-soft: #fcefd6;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 20px; }
+.eyebrow { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
+h1 { font-size: clamp(24px, 4.4vw, 34px); line-height: 1.15; margin: 4px 0 6px; text-wrap: balance; font-weight: 700; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 17px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.kind { font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; }
+.hitch .kind { background: var(--changed-soft); color: var(--changed); }
+.smooth .kind { background: var(--value-soft); color: var(--value); }
+svg { width: 100%; height: auto; display: block; }
+.code {
+  font: 13px/1.45 var(--font-code); background: var(--code-bg); border-radius: 10px; padding: 8px 12px;
+  min-height: 3.2em; overflow-x: auto; white-space: pre;
+}
+.caption { margin: 0; font-weight: 500; min-height: 2.6em; }
+
+.stage-box { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; transition: opacity .35s ease, fill .35s ease, stroke .35s ease; }
+.stage-label { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.stage-sub { font-family: var(--font-code); font-size: 11px; fill: var(--muted); }
+.hitch .stage-box.active { fill: var(--changed-soft); stroke: var(--changed); stroke-width: 2; }
+.smooth .stage-box.active { fill: var(--value-soft); stroke: var(--value); stroke-width: 2; }
+.dim { opacity: 0.28; }
+.deadline { stroke: var(--shared); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.deadline-label { font-family: var(--font-code); font-size: 11px; fill: var(--shared); font-weight: 600; }
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.bar button {
+  font: 600 15px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 18px; cursor: pointer; min-height: 44px;
+}
+.bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.bar button:disabled { opacity: .4; cursor: default; }
+.bar button:focus-visible, .dots button:focus-visible, summary:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.dots { display: flex; gap: 8px; }
+.dots button { width: 14px; height: 14px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: transparent; }
+.dots button[aria-current="step"] { background: var(--ink); }
+.count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: center; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+summary { cursor: pointer; font-weight: 600; }
+details ol { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 10px; }
+details li p { margin: 0; }
+details code { font-family: var(--font-code); font-size: 13px; background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Performance · Topic 1 of 2 · Prototype</p>
+    <h1>Keeping the UI Smooth</h1>
+    <p class="meta-line"><span>About 11 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can find and remove slow work on the main thread.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">A user scrolls through a photo feed on a 120 Hz ProMotion iPhone and sees jerky frames. How much time does your app have to prepare each frame?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">250 milliseconds per frame</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">8.33 milliseconds per frame</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">100 milliseconds per frame</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a flipbook artist drawing pages for a movie.</p><p>If the artist finishes every page on time, the animation flows smoothly.</p><p>If one page takes too long to draw, the viewer sees the old page twice and the motion stutters.</p><p>If the artist stops drawing completely for half a second, the movie freezes.</p><p>In iOS, a short stutter during motion is a <strong>hitch</strong>, and a visible freeze on a tap is a <strong>hang</strong>.</p></aside>
+<p>Users expect an app to react right away when they tap or scroll.</p>
+<p>Apple splits responsiveness problems into two clear kinds:</p>
+<ol>
+<li><strong>Hangs</strong>: Delays during single actions like tapping a button. Users start noticing delays above <strong>100 milliseconds</strong>. Apple tools like Xcode Organizer and MetricKit report hangs starting at <strong>250 milliseconds</strong>.</li>
+<li><strong>Hitches</strong>: Missed frames during scrolling or animations. On a 60 Hz screen, one frame refresh takes <strong>16.67 milliseconds</strong>. On a 120 Hz ProMotion screen, each frame has only <strong>8.33 milliseconds</strong>.</li>
+</ol>
+<p>To measure stutter across different devices, Apple tracks the <strong>Hitch Time Ratio</strong> (hitch milliseconds per second of scrolling or animation, written as <code>ms/s</code>).</p>
+<h3>The render loop</h3>
+<p>Every frame moves through four stages in the <strong>render loop</strong>:</p>
+<ol>
+<li><strong>Event phase</strong>: The main thread receives touches and scroll gestures.</li>
+<li><strong>Commit phase</strong>: Your app runs layout, checks SwiftUI <code>body</code>, decodes images, and sends layer updates to the system render server.</li>
+<li><strong>Render phase</strong>: The render server and GPU turn layers into pixels.</li>
+<li><strong>Display phase</strong>: The finished frame appears on the screen.</li>
+</ol>
+<p><strong>Keep main-thread work tiny so every commit finishes before the frame deadline.</strong></p>
+<p>Slow CPU work in your app causes <strong>commit hitches</strong>. Heavy render-server or GPU work causes <strong>render hitches</strong>. For example, dynamic shadows without <code>shadowPath</code> or complex masks force <strong>offscreen rendering</strong>, where the GPU draws to a temporary buffer first.</p>
+<h3>Tools to find slow work</h3>
+<ul>
+<li><strong>Thread Performance Checker</strong>: Warns in Xcode when main-thread work waits on low-priority tasks (<strong>priority inversion</strong>) or blocks on slow file work (synchronous I/O).</li>
+<li><strong>Instruments</strong>: Use <strong>Time Profiler</strong>, <strong>Hangs</strong>, <strong>Animation Hitches</strong>, and the <strong>SwiftUI</strong> instrument to find slow stack frames.</li>
+<li><strong>Xcode Organizer and <code>MetricKit</code></strong>: Track real-world hang and hitch rates in production. In iOS 27+, <code>MetricManager</code> delivers <code>MetricResult</code> (<code>.hangTime</code>, <code>.hitchTime</code>) and <code>DiagnosticResult.hang</code> (<code>HangDiagnostic</code> with <code>hangDuration</code> and <code>callStackTree</code>). Before iOS 27, apps used <code>MXMetricManager</code> and <code>MXHangDiagnostic</code>.</li>
+</ul>
+<h2>See it</h2>
+<div class="diagram-host"><figure class="panels" id="figure" role="img" aria-label="Two panels showing the four render loop stages: Event, Commit, Render, and Display. Left: decoding an image on the main thread misses the 8.33 ms commit deadline and causes a hitch. Right: decoding off the main thread meets the deadline for a smooth frame." style="margin:0">
+    <section class="panel hitch" aria-hidden="true">
+      <h2>Slow Main Thread <span class="kind">hitch</span></h2>
+      <svg viewBox="0 0 340 220">
+        <line class="deadline" x1="175" y1="14" x2="175" y2="190"/>
+        <text class="deadline-label" x="175" y="206" text-anchor="middle">8.33 ms commit deadline</text>
+
+        <g id="hi-1" class="dim">
+          <rect class="stage-box" id="hi-b1" x="16" y="20" width="76" height="44" rx="10"/>
+          <text class="stage-label" x="26" y="39">1. Event</text>
+          <text class="stage-sub" x="26" y="55">scroll</text>
+        </g>
+        <g id="hi-2" class="dim">
+          <rect class="stage-box" id="hi-b2" x="100" y="20" width="160" height="44" rx="10"/>
+          <text class="stage-label" x="110" y="39">2. Commit (14 ms)</text>
+          <text class="stage-sub" x="110" y="55">decode on main</text>
+        </g>
+        <g id="hi-3" class="dim">
+          <rect class="stage-box" id="hi-b3" x="100" y="84" width="110" height="44" rx="10"/>
+          <text class="stage-label" x="110" y="103">3. Render</text>
+          <text class="stage-sub" x="110" y="119">GPU late</text>
+        </g>
+        <g id="hi-4" class="dim">
+          <rect class="stage-box" id="hi-b4" x="218" y="84" width="106" height="44" rx="10"/>
+          <text class="stage-label" x="228" y="103">4. Display</text>
+          <text class="stage-sub" x="228" y="119">old frame</text>
+        </g>
+      </svg>
+      <div class="code" id="hi-code"></div>
+      <p class="caption" id="hi-cap"></p>
+    </section>
+
+    <section class="panel smooth" aria-hidden="true">
+      <h2>Offloaded Work <span class="kind">120 fps</span></h2>
+      <svg viewBox="0 0 340 220">
+        <line class="deadline" x1="175" y1="14" x2="175" y2="190"/>
+        <text class="deadline-label" x="175" y="206" text-anchor="middle">8.33 ms commit deadline</text>
+
+        <g id="sm-1" class="dim">
+          <rect class="stage-box" id="sm-b1" x="16" y="20" width="76" height="44" rx="10"/>
+          <text class="stage-label" x="26" y="39">1. Event</text>
+          <text class="stage-sub" x="26" y="55">scroll</text>
+        </g>
+        <g id="sm-2" class="dim">
+          <rect class="stage-box" id="sm-b2" x="100" y="20" width="70" height="44" rx="10"/>
+          <text class="stage-label" x="108" y="39">2. Commit</text>
+          <text class="stage-sub" x="108" y="55">2.1 ms</text>
+        </g>
+        <g id="sm-3" class="dim">
+          <rect class="stage-box" id="sm-b3" x="184" y="84" width="66" height="44" rx="10"/>
+          <text class="stage-label" x="192" y="103">3. GPU</text>
+          <text class="stage-sub" x="192" y="119">render</text>
+        </g>
+        <g id="sm-4" class="dim">
+          <rect class="stage-box" id="sm-b4" x="256" y="84" width="68" height="44" rx="10"/>
+          <text class="stage-label" x="264" y="103">4. Show</text>
+          <text class="stage-sub" x="264" y="119">smooth</text>
+        </g>
+      </svg>
+      <div class="code" id="sm-code"></div>
+      <p class="caption" id="sm-cap"></p>
+    </section>
+  </figure>
+
+  <p class="sr-only" id="live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
+
+  <nav class="bar" aria-label="Diagram steps">
+    <button type="button" id="back">Back</button>
+    <div class="dots" id="dots"></div>
+    <span class="count" id="count"></span>
+    <button type="button" id="next" class="primary">Next</button>
+    <button type="button" id="replay">Replay</button>
+  </nav>
+
+  <details id="all">
+    <summary>All steps as a list</summary>
+    <ol id="list"></ol>
+  </details></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">At what delay do Apple tools like Xcode Organizer and MetricKit report a hang by default?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">16.67 milliseconds</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">250 milliseconds</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">8.33 milliseconds</span></button><p class="qc-explain" hidden="">Apple tools report a hang when the main thread freezes for 250 ms or more. Users already notice delays above 100 ms.</p></div>
+<h2>In code</h2>
+<h3>Moving heavy work off the main actor</h3>
+<p>Under Swift 6.2 and later with Xcode&#x27;s <strong>Approachable Concurrency</strong> setting (<code>NonisolatedNonsendingByDefault</code>), calling a <code>nonisolated</code> <code>async</code> function from <code>@MainActor</code> stays on the main actor.</p>
+<p>To force heavy parsing or filtering onto the background thread pool, mark the async function with <strong><code>@concurrent</code></strong>. In Swift 6.0 and 6.1, or when that setting is off, <code>nonisolated</code> <code>async</code> functions already hop off <code>@MainActor</code>. You can also use <code>Task.detached</code> or a separate <code>actor</code>.</p>
+<figure class="code-example"><figcaption>Offloading heavy work with @concurrent while keeping UI updates on @MainActor</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+@concurrent
+func buildFeedTitles(count: Int) async -&gt; [String] {
+    (1...count).map { &quot;Post #\($0)&quot; }
+}
+
+@MainActor
+final class FeedState {
+    var titles: [String] = []
+
+    func loadFeed() async {
+        // Hops off @MainActor to run buildFeedTitles, then returns to @MainActor.
+        let prepared = await buildFeedTitles(count: 3)
+        titles = prepared
+        print(&quot;Ready on main:&quot;, titles.joined(separator: &quot;, &quot;))
+    }
+}
+
+await FeedState().loadFeed()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Ready on main: Post #1, Post #2, Post #3
+</code></pre></figure>
+<p>This keeps <code>@MainActor</code> free to process taps and scroll events while background workers transform data.</p>
+<h3>Caching expensive formatters</h3>
+<p>Creating a <code>DateFormatter</code> or <code>NumberFormatter</code> is expensive. Never create a new formatter inside a scrolling table cell or SwiftUI <code>body</code>.</p>
+<p>Reuse one cached formatter instance across rows.</p>
+<figure class="code-example"><figcaption>Caching a formatter instead of rebuilding it on every cell</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+struct TimestampFormatter {
+    static let shared: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = &quot;yyyy-MM-dd&quot;
+        formatter.locale = Locale(identifier: &quot;en_US_POSIX&quot;)
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
+
+    static func text(for timestamp: TimeInterval) -&gt; String {
+        shared.string(from: Date(timeIntervalSince1970: timestamp))
+    }
+}
+
+print(TimestampFormatter.text(for: 0))
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">1970-01-01
+</code></pre></figure>
+<h3>Downsampling and preparing images off the main thread</h3>
+<p>An image&#x27;s memory size depends on its pixel width and height, not its compressed JPEG file size.</p>
+<p>By default, <code>UIImageView</code> decodes compressed images at the last moment (lazily) on the main thread when the cell appears, which causes scroll hitches.</p>
+<p>Use ImageIO (<code>CGImageSourceCreateThumbnailAtIndex</code>) to downsample large photos on a background thread to the exact pixel size of the view. Or use UIKit&#x27;s synchronous <code>UIImage.preparingForDisplay()</code> on a background thread, or call the async <code>byPreparingForDisplay()</code> or <code>byPreparingThumbnail(ofSize:)</code> methods.</p>
+<figure class="code-example"><figcaption>Configuring ImageIO downsampling options for small thumbnails</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+import ImageIO
+
+func makeDownsampleOptions(pointSize: CGSize, scale: CGFloat) -&gt; [CFString: Any] {
+    let maxPixelSize = max(pointSize.width, pointSize.height) * scale
+    return [
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        kCGImageSourceShouldCacheImmediately: true,
+        kCGImageSourceCreateThumbnailWithTransform: true
+    ]
+}
+
+let options = makeDownsampleOptions(pointSize: CGSize(width: 80, height: 80), scale: 3)
+let maxPixels = options[kCGImageSourceThumbnailMaxPixelSize] as? CGFloat ?? 0
+print(&quot;Max pixel size:&quot;, Int(maxPixels))
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Max pixel size: 240
+</code></pre></figure>
+<p>When you call ImageIO on a background thread, setting <code>kCGImageSourceShouldCacheImmediately</code> to <code>true</code> decodes pixels right away instead of stalling the main thread later.</p>
+<p>For UIKit lists, pair background image preparation with <code>UITableViewDataSourcePrefetching</code> or <code>UICollectionViewDataSourcePrefetching</code>. For SwiftUI lists, use <code>LazyVStack</code> and <code>LazyHStack</code> so views off screen are not built until needed.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Under Swift 6.2+ Approachable Concurrency, how do you make a helper <code>async</code> function called from <code>@MainActor</code> run on a background thread?</p><button type="button" class="opt" data-id="a" data-correct=""><span class="opt-id">A</span><span class="opt-text">Mark the async function with <code>@concurrent</code>.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Mark the async function with <code>nonisolated</code> alone.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Wrap the work inside <code>DispatchQueue.main.sync</code>.</span></button><p class="qc-explain" hidden="">With Approachable Concurrency, plain <code>nonisolated</code> async functions inherit the caller&#x27;s actor. <code>@concurrent</code> tells Swift to hop off <code>@MainActor</code>.</p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Thinking a 500 KB JPEG uses only 500 KB of memory</p><p>A compressed JPEG file might be small on disk, but the GPU needs raw uncompressed pixels.</p><p>A 12-megapixel photo unpacks (decompresses) to nearly 48 MB in memory.</p><p>Downsample images to the target display size with <code>CGImageSourceCreateThumbnailAtIndex</code> (<code>pointSize * scale</code> in pixels) or <code>byPreparingThumbnail(ofSize:)</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Adding shadows without setting shadowPath</p><p>Setting <code>layer.shadowOpacity</code> without <code>shadowPath</code> forces Core Animation to check the view&#x27;s alpha shape on every frame.</p><p>This triggers expensive <strong>offscreen rendering</strong> in the GPU render phase and causes scrolling hitches.</p><p>Set a matching <code>CGPath</code> (such as <code>UIBezierPath(...).cgPath</code>) on <code>layer.shadowPath</code> so the GPU can draw the shadow directly.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using DispatchQueue.main.sync or locks on the main thread</p><p>Calling <code>DispatchQueue.main.sync</code> from the main thread crashes immediately with a deadlock.</p><p>Waiting on a lock (mutex or semaphore) on the main thread stalls the run loop and triggers a hang or <strong>priority inversion</strong>.</p><p>Use <code>async</code>/<code>await</code> so the main thread stays free while background tasks run.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>To keep the UI smooth, the main thread must finish work inside the frame budget. That budget is 16.67 ms at 60 Hz or 8.33 ms at 120 Hz. I profile scrolling and taps with Instruments using Time Profiler, Hangs, and Animation Hitches. I fix stalls by moving JSON parsing and database reads off <code>@MainActor</code>. I also cache <code>DateFormatter</code> instances, downsample images with ImageIO or <code>byPreparingForDisplay()</code>, and use lazy lists.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>I check UI smoothness across the full render loop: Event, Commit, Render, and Display. First, I check Xcode Organizer and MetricKit (<code>HangDiagnostic</code> and <code>HitchTimeMetric</code>, or <code>MXHangDiagnostic</code> before iOS 27). I look for hangs over 250 ms and high Hitch Time Ratios. Next, I reproduce issues locally with the Hangs and Animation Hitches instruments plus Thread Performance Checker. For commit hitches, I move heavy work to <code>@concurrent</code> functions under Swift 6.2+ Approachable Concurrency. I also avoid locks or priority inversions, downsample images with <code>CGImageSourceCreateThumbnailAtIndex</code>, and prefetch cells. For render hitches, I remove offscreen GPU passes by setting <code>layer.shadowPath</code> and cutting heavy masks and blurs.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>A <strong>hang</strong> blocks discrete taps (noticeable over 100 ms; reported at 250 ms). A <strong>hitch</strong> misses a frame refresh (16.67 ms at 60 Hz, 8.33 ms at 120 Hz).</li>
+<li>The render loop runs Event, Commit (app CPU), Render (GPU), and Display; commit delays and GPU offscreen passes both drop frames.</li>
+<li>Under Swift 6.2+ Approachable Concurrency, mark heavy async helpers <code>@concurrent</code> so they run off <code>@MainActor</code>.</li>
+<li>Decode and downsample images off the main thread using <code>CGImageSourceCreateThumbnailAtIndex</code> or <code>UIImage.byPreparingForDisplay()</code>.</li>
+<li>Cache formatters, set <code>layer.shadowPath</code>, and use Instruments (Time Profiler, Hangs, Animation Hitches) and MetricKit (<code>HangDiagnostic</code>, <code>HitchTimeMetric</code>) to measure fixes.</li>
+</ul></div>
+<p class="try-it"><p>Test the Swift <code>@concurrent</code> and formatter caching examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const STEPS = [
+  {
+    h: { code: "// Event: user scrolls list", cap: "Main thread receives the scroll event." },
+    s: { code: "// Event: user scrolls list", cap: "Main thread receives the scroll event." }
+  },
+  {
+    h: { code: "imageView.image = UIImage(data: rawData)", cap: "Commit misses the 8.33 ms deadline because decoding runs on main." },
+    s: { code: "imageView.image = await photo.byPreparingForDisplay()", cap: "Image was decoded off main, so Commit finishes in 2.1 ms." }
+  },
+  {
+    h: { code: "// Render waits for late commit", cap: "GPU starts late and misses the next screen refresh." },
+    s: { code: "layer.shadowPath = UIBezierPath(rect: bounds).cgPath", cap: "GPU renders fast with no offscreen pass." }
+  },
+  {
+    h: { code: "// Result: repeated frame (hitch)", cap: "The old frame stays on screen twice, causing a visible stutter." },
+    s: { code: "// Result: fresh frame at 120 Hz", cap: "The new frame reaches the display right on schedule." }
+  }
+];
+const $ = (id) => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let step = 0;
+
+function render() {
+  const n = step + 1;
+  for (let i = 1; i <= 4; i++) {
+    $("hi-" + i).classList.toggle("dim", n < i);
+    $("sm-" + i).classList.toggle("dim", n < i);
+    $("hi-b" + i).classList.toggle("active", n === i);
+    $("sm-b" + i).classList.toggle("active", n === i);
+  }
+  const st = STEPS[step];
+  $("hi-code").textContent = st.h.code;
+  $("sm-code").textContent = st.s.code;
+  $("hi-cap").textContent = st.h.cap;
+  $("sm-cap").textContent = st.s.cap;
+  $("count").textContent = "Step " + n + " of " + STEPS.length;
+  $("live").textContent = "Step " + n + ". Slow: " + st.h.cap + " Smooth: " + st.s.cap;
+  $("back").disabled = step === 0;
+  $("next").disabled = step === STEPS.length - 1;
+  [...$("dots").children].forEach((d, i) => i === step ? d.setAttribute("aria-current", "step") : d.removeAttribute("aria-current"));
+}
+
+function go(i) { step = Math.max(0, Math.min(STEPS.length - 1, i)); render(); }
+
+STEPS.forEach((st, i) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.setAttribute("aria-label", "Diagram step " + (i + 1) + " of " + STEPS.length);
+  b.addEventListener("click", () => go(i));
+  $("dots").append(b);
+  const li = document.createElement("li");
+  li.innerHTML = "<p><b>Hitch:</b> <code></code> — <span></span></p><p><b>Smooth:</b> <code></code> — <span></span></p>";
+  const [c1, c2] = li.querySelectorAll("code"), [t1, t2] = li.querySelectorAll("span");
+  c1.textContent = st.h.code; t1.textContent = st.h.cap;
+  c2.textContent = st.s.code; t2.textContent = st.s.cap;
+  $("list").append(li);
+});
+$("back").addEventListener("click", () => go(step - 1));
+$("next").addEventListener("click", () => go(step + 1));
+$("replay").addEventListener("click", () => {
+  go(0);
+  if (reduce.matches) return;
+  let i = 0;
+  const t = setInterval(() => { i++; go(i); if (i >= STEPS.length - 1) clearInterval(t); }, 1100);
+});
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") go(step + 1);
+  if (e.key === "ArrowLeft") go(step - 1);
+});
+
+if (reduce.matches) { step = STEPS.length - 1; $("all").open = true; }
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"smooth-ui","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"smooth-ui-q01","type":"mcq","difficulty":1,"prompt":"What is the time budget per frame on a 60 Hz display before a scroll hitch happens?","options":[{"id":"a","text":"16.67 milliseconds","explanation":"Right. One second divided by 60 frames gives about 16.67 milliseconds per frame."},{"id":"b","text":"100 milliseconds","explanation":"100 ms is the threshold where users notice a tap delay, not a 60 Hz frame budget."},{"id":"c","text":"250 milliseconds","explanation":"250 ms is the default hang reporting threshold in Xcode tools."},{"id":"d","text":"500 milliseconds","explanation":"Half a second would drop 30 frames in a row on a 60 Hz screen."}],"answer":"a"},{"id":"smooth-ui-q02","type":"mcq","difficulty":1,"prompt":"How much time does each frame have on a 120 Hz ProMotion display?","options":[{"id":"a","text":"16.67 milliseconds","explanation":"16.67 ms is the budget for a 60 Hz display, which is twice as long."},{"id":"b","text":"8.33 milliseconds","explanation":"Right. At 120 frames per second, each frame must finish within 8.33 milliseconds."},{"id":"c","text":"40 milliseconds","explanation":"40 ms would only achieve 25 frames per second, causing severe hitches."},{"id":"d","text":"120 milliseconds","explanation":"120 is the refresh rate in hertz, not the frame duration in milliseconds."}],"answer":"b"},{"id":"smooth-ui-q03","type":"mcq","difficulty":1,"prompt":"At what delay does a single user tap start to feel noticeably slow, before Apple tools report a hang?","options":[{"id":"a","text":"Over 8.33 milliseconds","explanation":"8.33 ms is the frame budget for 120 Hz scrolling, not a tap delay."},{"id":"b","text":"Over 16.67 milliseconds","explanation":"16.67 ms is one 60 Hz frame, which still feels instant for a single tap."},{"id":"c","text":"Over 100 milliseconds","explanation":"Right. Users begin noticing lag after 100 ms, while tools report hangs at 250 ms."},{"id":"d","text":"Over 5 seconds","explanation":"Five seconds is a long freeze, far above the 100 ms notice threshold."}],"answer":"c"},{"id":"smooth-ui-q04","type":"mcq","difficulty":1,"prompt":"What is the main difference between a hang and a hitch?","options":[{"id":"a","text":"A hang happens only in SwiftUI, while a hitch happens only in UIKit.","explanation":"Both hangs and hitches can occur in UIKit and SwiftUI apps."},{"id":"b","text":"A hang happens in the GPU, while a hitch happens on a background thread.","explanation":"Hangs happen when the main thread blocks; hitches happen in commit or render phases."},{"id":"c","text":"A hang lasts under 10 milliseconds, while a hitch lasts over 5 seconds.","explanation":"Actually, hitches are short missed frames, while hangs last 250 ms or longer."},{"id":"d","text":"A hang freezes single actions, while a hitch drops frames during motion.","explanation":"Right. Hangs delay taps or clicks, while hitches make scrolling or animations stutter."}],"answer":"d"},{"id":"smooth-ui-q05","type":"mcq","difficulty":1,"prompt":"Which stage of the render loop runs on the main thread inside your app to update layout and layers?","options":[{"id":"a","text":"The Commit phase","explanation":"Right. The Commit phase checks layout, SwiftUI body, and image decoding on the main thread."},{"id":"b","text":"The Render phase","explanation":"The Render phase executes GPU commands in the separate system render server."},{"id":"c","text":"The Display phase","explanation":"The Display phase shows the already-rendered pixels on the screen hardware."},{"id":"d","text":"The Event phase","explanation":"The Event phase delivers touches and gestures before the Commit phase updates layout."}],"answer":"a"},{"id":"smooth-ui-q06","type":"mcq","difficulty":1,"prompt":"What metric does Apple use to measure how much stutter users experience during scrolling or animations?","options":[{"id":"a","text":"Display refresh rate","explanation":"Refresh rate is the hardware speed in hertz (60 Hz or 120 Hz), not how much stutter happened."},{"id":"b","text":"Hitch Time Ratio","explanation":"Right. Hitch Time Ratio measures hitch milliseconds per second of scrolling or animation."},{"id":"c","text":"Hang duration in seconds","explanation":"Hang duration measures frozen single actions, not scrolling or animation stutter."},{"id":"d","text":"GPU memory size","explanation":"GPU memory tracks RAM usage, while Hitch Time Ratio measures frame stutter."}],"answer":"b"},{"id":"smooth-ui-q07","type":"mcq","difficulty":1,"prompt":"In MetricKit on iOS 27+, which diagnostic struct reports production app hangs with `hangDuration` and `callStackTree`?","options":[{"id":"a","text":"`AppLaunchDiagnostic`","explanation":"AppLaunchDiagnostic reports slow app launch times, not main-thread hang diagnostics."},{"id":"b","text":"`HitchTimeMetric`","explanation":"HitchTimeMetric measures animation stutter ratios rather than main-thread hang stack traces."},{"id":"c","text":"`HangDiagnostic`","explanation":"Right. DiagnosticResult.hang delivers a HangDiagnostic with hangDuration and callStackTree, replacing MXHangDiagnostic."},{"id":"d","text":"`HangTimeMetric`","explanation":"HangTimeMetric stores a histogram of hang durations, without a callStackTree."}],"answer":"c"},{"id":"smooth-ui-q08","type":"mcq","difficulty":2,"prompt":"Why does calling `UIImage.byPreparingForDisplay()` reduce scrolling hitches?","options":[{"id":"a","text":"It saves a smaller JPEG file back to disk for the next launch.","explanation":"byPreparingForDisplay creates a decoded image in memory and does not write to disk."},{"id":"b","text":"It skips the GPU render phase completely when drawing the cell.","explanation":"The GPU still draws the prepared image to the screen."},{"id":"c","text":"It pauses scrolling gestures until every photo finishes loading.","explanation":"It decodes images off the main thread without blocking touch or scroll events."},{"id":"d","text":"It decodes compressed image pixels ahead of time off the main thread.","explanation":"Right. Decoding off the main thread avoids stalling the Commit phase when the cell appears."}],"answer":"d"},{"id":"smooth-ui-q09","type":"mcq","difficulty":2,"prompt":"When downsampling with `CGImageSourceCreateThumbnailAtIndex(_:_:_:)`, what does `kCGImageSourceShouldCacheImmediately: true` do?","options":[{"id":"a","text":"It decodes the downsampled bitmap right away on the current thread.","explanation":"Right. When called on a background thread, immediate decoding avoids lazy main-thread decoding."},{"id":"b","text":"It waits to decode the image until `UIImageView` draws it on screen.","explanation":"That is the default false behavior; setting true decodes pixels right away."},{"id":"c","text":"It rotates the thumbnail automatically using EXIF orientation tags.","explanation":"kCGImageSourceCreateThumbnailWithTransform handles rotation; this key controls when decoding runs."},{"id":"d","text":"It keeps the full-size original image decoded alongside the thumbnail.","explanation":"kCGImageSourceThumbnailMaxPixelSize limits the decoded image to the target pixel size."}],"answer":"a"},{"id":"smooth-ui-q10","type":"mcq","difficulty":2,"prompt":"Why should you cache a single `DateFormatter` instead of creating a new one inside every scrolling cell?","options":[{"id":"a","text":"Because `DateFormatter` only compiles inside a `static` property.","explanation":"DateFormatter compiles anywhere, but recreating it per cell wastes frame time."},{"id":"b","text":"Because initializing `DateFormatter` is slow and burns main-thread frame time.","explanation":"Right. Formatters parse locale data on setup, so reusing one keeps frame commits fast."},{"id":"c","text":"Because `DateFormatter` only works inside background actors.","explanation":"DateFormatter can run on the main thread when reused cleanly."},{"id":"d","text":"Because creating a `DateFormatter` clears the text cache on every cell.","explanation":"It does not clear other caches; its own setup cost causes the slowness."}],"answer":"b"},{"id":"smooth-ui-q11","type":"mcq","difficulty":2,"prompt":"A 500 KB JPEG photo looks tiny on disk, yet loading 20 of them into small thumbnails spikes RAM and lags scrolling. Why?","options":[{"id":"a","text":"UIKit keeps the compressed JPEG bytes in GPU memory without decoding.","explanation":"The GPU needs raw uncompressed pixels, which takes far more RAM than the JPEG file."},{"id":"b","text":"Every `UIImageView` writes a second uncompressed copy back to disk.","explanation":"The spike happens in RAM from decoded pixels, not from writing files to disk."},{"id":"c","text":"Memory depends on decoded pixel width and height, not compressed file size.","explanation":"Right. A small JPEG can unpack into tens of megabytes of raw pixels."},{"id":"d","text":"Compressed JPEGs take more RAM per pixel than raw downsampled thumbnails.","explanation":"Uncompressed raw pixels take much more memory than the compressed JPEG bytes on disk."}],"answer":"c"},{"id":"smooth-ui-q12","type":"mcq","difficulty":2,"prompt":"Why does setting `layer.shadowOpacity` without `layer.shadowPath` hurt scrolling smoothness?","options":[{"id":"a","text":"It forces Auto Layout to recalculate constraints on every scroll tick.","explanation":"Shadow properties affect GPU rendering, not Auto Layout constraints."},{"id":"b","text":"It disables image decoding caches inside every visible `UIImageView`.","explanation":"Shadow settings on CALayer do not turn off UIImageView image decoding."},{"id":"c","text":"It blocks the main thread from delivering touch and scroll events.","explanation":"The Event phase still delivers touches; the delay happens in the Render phase."},{"id":"d","text":"The GPU must trace alpha pixels each frame using slow offscreen rendering.","explanation":"Right. Giving Core Animation a shadowPath lets the GPU skip offscreen alpha tracing."}],"answer":"d"},{"id":"smooth-ui-q13","type":"mcq","difficulty":2,"prompt":"In the render loop diagram, what happens when the Commit phase finishes after the 8.33 ms deadline?","options":[{"id":"a","text":"The display repeats the previous frame, causing a visible hitch.","explanation":"Right. Missing the commit deadline delays the GPU render, so the old frame stays on screen."},{"id":"b","text":"The GPU renders a blank white frame until the next scroll gesture.","explanation":"The display shows the previous finished frame again, not a blank screen."},{"id":"c","text":"iOS pauses background threads so the main thread can catch up.","explanation":"Background threads keep running; the missed frame simply appears late."},{"id":"d","text":"The watchdog kills the app after one missed 8.33 ms frame.","explanation":"Watchdog kills happen after seconds of a blocked main thread, not a single dropped frame."}],"answer":"a"},{"id":"smooth-ui-q14","type":"mcq","difficulty":3,"prompt":"With Swift 6.2+ Approachable Concurrency enabled, what happens when a `@MainActor` method calls an async helper marked `nonisolated` without `@concurrent`?","options":[{"id":"a","text":"It always moves to a low-priority background thread.","explanation":"That was Swift 6.0–6.1 behavior; under Approachable Concurrency, nonisolated async stays on caller actor."},{"id":"b","text":"It stays on `@MainActor`, so heavy CPU work there still blocks the UI.","explanation":"Right. Under Approachable Concurrency, you need @concurrent to hop off @MainActor."},{"id":"c","text":"It refuses to compile unless you also mark the helper `@Sendable`.","explanation":"nonisolated async functions compile cleanly; @concurrent controls executor hopping."},{"id":"d","text":"It creates a separate background `actor` automatically for each call.","explanation":"It does not create a new actor; it inherits the caller's `@MainActor` isolation."}],"answer":"b"},{"id":"smooth-ui-q15","type":"mcq","difficulty":3,"prompt":"Which Xcode runtime diagnostic warns you when the main thread waits on lower-priority work (priority inversion) or slow synchronous I/O?","options":[{"id":"a","text":"Memory Graph Debugger","explanation":"Memory Graph Debugger inspects object references and retain cycles, not main-thread blocks."},{"id":"b","text":"View Hierarchy Debugger","explanation":"View Hierarchy Debugger inspects 3D view layers and constraints, not thread priority inversions."},{"id":"c","text":"Thread Performance Checker","explanation":"Right. Thread Performance Checker flags priority inversions and main-thread blocks while debugging."},{"id":"d","text":"Thread Sanitizer","explanation":"Thread Sanitizer detects data races in memory, not priority inversions or synchronous I/O on main."}],"answer":"c"},{"id":"smooth-ui-q16","type":"mcq","difficulty":3,"prompt":"Why is calling `DispatchQueue.main.sync` from code already running on the main thread a critical bug?","options":[{"id":"a","text":"It silently skips the closure without running any code inside it.","explanation":"It does not skip the closure; it blocks waiting for the main queue and deadlocks."},{"id":"b","text":"It moves the closure to a background thread and breaks UI safety.","explanation":"DispatchQueue.main runs on the main thread, so calling sync from main waits on itself."},{"id":"c","text":"It forces the GPU to wait for one extra frame before drawing.","explanation":"It freezes the main queue immediately rather than delaying by one frame."},{"id":"d","text":"The main queue waits for itself to finish, causing an immediate deadlock crash.","explanation":"Right. A serial queue waiting synchronously on itself deadlocks and crashes."}],"answer":"d"},{"id":"smooth-ui-q17","type":"code-reading","difficulty":1,"prompt":"This helper computes the target pixel size for downsampling a thumbnail. What does it print?","code":"import Foundation\n\nfunc maxPixelSize(pointWidth: Double, pointHeight: Double, scale: Double) -> Int {\n    Int(max(pointWidth, pointHeight) * scale)\n}\n\nprint(maxPixelSize(pointWidth: 60, pointHeight: 90, scale: 3))","options":[{"id":"a","text":"270","explanation":"Right. max(60, 90) is 90, and 90 multiplied by scale 3 equals 270 pixels."},{"id":"b","text":"180","explanation":"180 uses width 60 instead of the larger height 90."},{"id":"c","text":"90","explanation":"90 forgets to multiply by the screen scale of 3."},{"id":"d","text":"450","explanation":"max takes the larger side (90), not the sum (150)."}],"answer":"a"},{"id":"smooth-ui-q18","type":"code-reading","difficulty":1,"prompt":"How many times does the static initializer closure run when the loop reads the property 3 times?","code":"struct CachedFormatter {\n    static let buildCount: Int = {\n        print(\"Built formatter once\")\n        return 1\n    }()\n}\n\nvar total = 0\nfor _ in 1...3 {\n    total += CachedFormatter.buildCount\n}\nprint(\"Reads: \\(total)\")","options":[{"id":"a","text":"Built formatter once prints 3 times, then Reads: 3","explanation":"static let runs its initializer only once on first access, not on every loop step."},{"id":"b","text":"Built formatter once\\nReads: 3","explanation":"Right. The static property initializes once and returns 1 on all three reads."},{"id":"c","text":"Reads: 1","explanation":"The loop runs 3 times, adding 1 three times for a total of 3."},{"id":"d","text":"Reads: 0","explanation":"Accessing CachedFormatter.buildCount returns 1 each iteration."}],"answer":"b"},{"id":"smooth-ui-q19","type":"code-reading","difficulty":2,"prompt":"Trace this `@concurrent` helper called from `@MainActor`. What does it print?","code":"@concurrent\nfunc filterPosts(_ items: [String]) async -> [String] {\n    items.filter { $0.hasPrefix(\"Swift\") }\n}\n\n@MainActor\nfinal class TimelineVM {\n    var visible: [String] = []\n    func refresh() async {\n        visible = await filterPosts([\"Swift 6\", \"UIKit\", \"SwiftUI\"])\n        print(visible.count)\n    }\n}\n\nawait TimelineVM().refresh()","options":[{"id":"a","text":"3","explanation":"UIKit does not start with Swift, so the filter removes it."},{"id":"b","text":"1","explanation":"Both Swift 6 and SwiftUI start with Swift."},{"id":"c","text":"2","explanation":"Right. filterPosts runs concurrently off @MainActor and returns 2 matching items."},{"id":"d","text":"A compile error because @concurrent cannot return [String]","explanation":"String is Sendable, so returning [String] from @concurrent compiles cleanly in Swift 6."}],"answer":"c"},{"id":"smooth-ui-q20","type":"code-reading","difficulty":2,"prompt":"This helper checks whether frame commit durations fit a 120 Hz ProMotion budget (8.33 ms). What prints?","code":"let frameMs = [4.2, 11.5, 6.0, 9.1]\nlet budgetMs = 8.33\nlet hitches = frameMs.filter { $0 > budgetMs }\nprint(\"Hitches: \\(hitches.count)\")","options":[{"id":"a","text":"Hitches: 0","explanation":"11.5 ms and 9.1 ms exceed the 8.33 ms budget."},{"id":"b","text":"Hitches: 1","explanation":"Both 11.5 ms and 9.1 ms miss the 8.33 ms deadline."},{"id":"c","text":"Hitches: 4","explanation":"4.2 ms and 6.0 ms finish within the 8.33 ms frame budget."},{"id":"d","text":"Hitches: 2","explanation":"Right. Two frames (11.5 ms and 9.1 ms) exceed 8.33 ms and cause hitches."}],"answer":"d"},{"id":"smooth-ui-q21","type":"code-reading","difficulty":2,"prompt":"This code configures ImageIO options for thumbnail decoding. What does it print?","code":"import Foundation\nimport ImageIO\n\nlet opts: [CFString: Any] = [\n    kCGImageSourceThumbnailMaxPixelSize: 300,\n    kCGImageSourceShouldCacheImmediately: true\n]\nlet immediate = opts[kCGImageSourceShouldCacheImmediately] as? Bool ?? false\nprint(\"Immediate decode: \\(immediate)\")","options":[{"id":"a","text":"Immediate decode: true","explanation":"Right. kCGImageSourceShouldCacheImmediately is set to true so decoding happens immediately."},{"id":"b","text":"Immediate decode: false","explanation":"The dictionary stores true for kCGImageSourceShouldCacheImmediately."},{"id":"c","text":"Immediate decode: 300","explanation":"The lookup reads kCGImageSourceShouldCacheImmediately, not the max pixel key."},{"id":"d","text":"A compile error because ImageIO is unavailable","explanation":"ImageIO is imported cleanly and compiles under Swift 6."}],"answer":"a"},{"id":"smooth-ui-q22","type":"code-reading","difficulty":2,"prompt":"This function computes a Hitch Time Ratio in milliseconds per second (`ms/s`). What does it print?","code":"func hitchTimeRatio(hitchMs: Double, scrollSeconds: Double) -> Int {\n    Int(hitchMs / scrollSeconds)\n}\n\nprint(\"Ratio: \\(hitchTimeRatio(hitchMs: 36, scrollSeconds: 3)) ms/s\")","options":[{"id":"a","text":"Ratio: 108 ms/s","explanation":"Hitch Time Ratio divides hitch time by total duration rather than multiplying."},{"id":"b","text":"Ratio: 12 ms/s","explanation":"Right. 36 ms of hitches over 3 seconds gives a ratio of 12 ms/s."},{"id":"c","text":"Ratio: 36 ms/s","explanation":"36 ms is the total hitch time before dividing by 3 seconds."},{"id":"d","text":"Ratio: 3 ms/s","explanation":"3 is the duration in seconds, not the ratio."}],"answer":"b"},{"id":"smooth-ui-q23","type":"code-reading","difficulty":3,"prompt":"This code counts noticeable delays (> 100 ms) and hangs (>= 250 ms). What does it print?","code":"let delaysMs = [45, 120, 250, 410]\nlet formalHangs = delaysMs.filter { $0 >= 250 }\nprint(\"Noticeable: \\(delaysMs.filter { $0 > 100 }.count), Hangs: \\(formalHangs.count)\")","options":[{"id":"a","text":"Noticeable: 2, Hangs: 1","explanation":"120, 250, and 410 are all over 100 ms; 250 and 410 are >= 250 ms."},{"id":"b","text":"Noticeable: 4, Hangs: 2","explanation":"45 ms is under 100 ms, so it is not noticeable."},{"id":"c","text":"Noticeable: 3, Hangs: 2","explanation":"Right. Three delays exceed 100 ms, and two reach the 250 ms hang threshold."},{"id":"d","text":"Noticeable: 1, Hangs: 4","explanation":"Only delays >= 250 ms count as hangs reported by Apple tools."}],"answer":"c"},{"id":"smooth-ui-q25","type":"written","difficulty":1,"prompt":"In 2–5 sentences, explain the difference between a hang and a hitch, including their key time thresholds.","rubric":[{"criterion":"Defines a hang as blocking the main thread on a single tap or action","weight":35,"key":true},{"criterion":"Mentions hang thresholds: noticeable over 100 ms and reported by tools at 250 ms","weight":20},{"criterion":"Defines a hitch as a missed frame during scrolling or animation","weight":25,"key":true},{"criterion":"Mentions frame budgets: 16.67 ms for 60 Hz and 8.33 ms for 120 Hz ProMotion","weight":20}],"modelAnswer":"A hang happens when the main thread freezes during a single user action like a tap. Delays over 100 ms feel slow to users, and Apple tools report hangs starting at 250 ms. A hitch happens when a frame misses its deadline during scrolling or animation. The app must finish frame work in 16.67 ms at 60 Hz or 8.33 ms at 120 Hz ProMotion."},{"id":"smooth-ui-q26","type":"written","difficulty":2,"prompt":"In 2–5 sentences, name the four stages of the render loop and explain the difference between a commit hitch and a render hitch.","rubric":[{"criterion":"Names the four stages: Event, Commit, Render, and Display","weight":40,"key":true},{"criterion":"Explains commit hitch: slow CPU/main-thread work in the app process (layout, body, decoding)","weight":30,"key":true},{"criterion":"Explains render hitch: slow render server or GPU work (such as offscreen rendering)","weight":30}],"modelAnswer":"The four stages of the render loop are Event, Commit, Render, and Display. A commit hitch happens inside your app process when main-thread CPU work such as layout or image decoding misses the commit deadline. A render hitch happens in the render server when the GPU takes too long to draw layers, often due to offscreen rendering passes."},{"id":"smooth-ui-q27","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain why full-size photos cause lag and high memory use in a scrolling list, and how to fix it.","rubric":[{"criterion":"Explains that memory depends on decoded pixel dimensions rather than compressed JPEG/PNG file size","weight":40,"key":true},{"criterion":"Explains that default lazy decoding runs on the main thread during display","weight":30},{"criterion":"Recommends background downsampling or decoding (ImageIO CGImageSourceCreateThumbnailAtIndex or UIImage preparingForDisplay/byPreparingForDisplay/byPreparingThumbnail)","weight":30,"key":true}],"modelAnswer":"A small JPEG file can unpack (decompress) into tens of megabytes of raw pixels because memory depends on pixel width and height. By default, UIKit also decodes compressed images lazily on the main thread, which stalls scrolling. To fix this, downsample and decode images in the background to the target display size using ImageIO CGImageSourceCreateThumbnailAtIndex or UIImage.byPreparingThumbnail(ofSize:)."},{"id":"smooth-ui-q28","type":"written","difficulty":3,"prompt":"In 2–5 sentences, explain how `nonisolated` async functions behave under Swift 6.2+ Approachable Concurrency and how `@concurrent` fixes main-thread stalls.","rubric":[{"criterion":"States that under Swift 6.2+ Approachable Concurrency, nonisolated async functions stay on the caller's actor","weight":45,"key":true},{"criterion":"Explains that calling a heavy nonisolated async function from @MainActor therefore still runs on main","weight":25},{"criterion":"States that marking the function @concurrent forces it to hop off @MainActor onto the background thread pool","weight":30,"key":true}],"modelAnswer":"Under Swift 6.2+ Approachable Concurrency, a plain nonisolated async function runs on its caller's actor by default. If a @MainActor view model calls that function, heavy CPU work inside it still runs on the main thread and blocks the UI. Adding the @concurrent attribute forces Swift to hop off @MainActor and run the work on the background thread pool."},{"id":"smooth-ui-q29","type":"written","difficulty":3,"prompt":"In 2–5 sentences, describe which Xcode tools and production metrics you use to find scrolling hitches and main-thread hangs.","rubric":[{"criterion":"Mentions Instruments templates (Animation Hitches, Hangs, or Time Profiler)","weight":40,"key":true},{"criterion":"Mentions Thread Performance Checker for main-thread blocks or priority inversions","weight":30},{"criterion":"Mentions Xcode Organizer or MetricKit (HangDiagnostic, HitchTimeMetric, or pre-iOS 27 MXHangDiagnostic) for field monitoring","weight":30}],"modelAnswer":"First, I check Xcode Organizer and MetricKit (HangDiagnostic and HitchTimeMetric, or MXHangDiagnostic before iOS 27) to see what real users hit most. Locally, I enable Thread Performance Checker and profile scrolling on a real device using Animation Hitches, Hangs, and Time Profiler in Instruments. Together, these tools point to the exact main-thread blocks or GPU passes causing hitches and hangs."},{"id":"smooth-ui-q30","type":"code-write","difficulty":1,"prompt":"Write a `@concurrent` async function `squareValues(_ numbers: [Int]) async -> [Int]` that returns each number squared, then await it from `@MainActor` with `[2, 3, 4]` and print the result.","starterCode":"// Mark squareValues with @concurrent so it runs off @MainActor\nfunc squareValues(_ numbers: [Int]) async -> [Int] {\n    // Return squared numbers\n}","modelAnswer":"@concurrent\nfunc squareValues(_ numbers: [Int]) async -> [Int] {\n    numbers.map { $0 * $0 }\n}\n\n@MainActor\nfunc run() async {\n    let result = await squareValues([2, 3, 4])\n    print(result)\n}\n\nawait run()","rubric":[{"criterion":"Marks squareValues with @concurrent and async","weight":50,"key":true},{"criterion":"Returns each number squared","weight":30},{"criterion":"Awaits squareValues from @MainActor and prints [4, 9, 16]","weight":20}]},{"id":"smooth-ui-q31","type":"code-write","difficulty":2,"prompt":"Write a function `thumbnailOptions(width:height:scale:)` that returns a `[CFString: Any]` dictionary for `ImageIO` with `kCGImageSourceCreateThumbnailFromImageAlways: true`, `kCGImageSourceShouldCacheImmediately: true`, and `kCGImageSourceThumbnailMaxPixelSize` set to `max(width, height) * scale`. Print the max pixel size for `width: 50, height: 80, scale: 3`.","starterCode":"import Foundation\nimport ImageIO\n\nfunc thumbnailOptions(width: CGFloat, height: CGFloat, scale: CGFloat) -> [CFString: Any] {\n    // Build ImageIO thumbnail options\n}","modelAnswer":"import Foundation\nimport ImageIO\n\nfunc thumbnailOptions(width: CGFloat, height: CGFloat, scale: CGFloat) -> [CFString: Any] {\n    let maxPixels = max(width, height) * scale\n    return [\n        kCGImageSourceCreateThumbnailFromImageAlways: true,\n        kCGImageSourceThumbnailMaxPixelSize: maxPixels,\n        kCGImageSourceShouldCacheImmediately: true\n    ]\n}\n\nlet opts = thumbnailOptions(width: 50, height: 80, scale: 3)\nlet size = opts[kCGImageSourceThumbnailMaxPixelSize] as? CGFloat ?? 0\nprint(Int(size))","rubric":[{"criterion":"Computes max(width, height) * scale for kCGImageSourceThumbnailMaxPixelSize","weight":45,"key":true},{"criterion":"Sets kCGImageSourceShouldCacheImmediately and kCGImageSourceCreateThumbnailFromImageAlways to true","weight":35,"key":true},{"criterion":"Prints 240 for width 50, height 80, scale 3","weight":20}]},{"id":"smooth-ui-q32","type":"code-write","difficulty":3,"prompt":"Create a struct `UTCFormatter` with a `static let shared: DateFormatter` configured with format `\"yyyy-MM-dd\"`, locale `\"en_US_POSIX\"`, and UTC time zone, plus `static func day(from timestamp: TimeInterval) -> String`. Print `UTCFormatter.day(from: 86400)`.","starterCode":"import Foundation\n\nstruct UTCFormatter {\n    // Add cached static let shared: DateFormatter and static func day(from:)\n}","modelAnswer":"import Foundation\n\nstruct UTCFormatter {\n    static let shared: DateFormatter = {\n        let formatter = DateFormatter()\n        formatter.dateFormat = \"yyyy-MM-dd\"\n        formatter.locale = Locale(identifier: \"en_US_POSIX\")\n        formatter.timeZone = TimeZone(secondsFromGMT: 0)\n        return formatter\n    }()\n\n    static func day(from timestamp: TimeInterval) -> String {\n        shared.string(from: Date(timeIntervalSince1970: timestamp))\n    }\n}\n\nprint(UTCFormatter.day(from: 86400))","rubric":[{"criterion":"Caches DateFormatter in a static let property instead of creating it per call","weight":45,"key":true},{"criterion":"Configures dateFormat, en_US_POSIX locale, and UTC timeZone","weight":35},{"criterion":"Formats timestamp 86400 and prints 1970-01-02","weight":20}]},{"id":"smooth-ui-q33","type":"code-reading","difficulty":3,"prompt":"This helper checks the same four frame commit times against 60 Hz (16.67 ms) and 120 Hz ProMotion (8.33 ms) budgets. What does it print?","code":"let frameMs = [7.5, 11.2, 18.0, 9.4]\nlet hitches60 = frameMs.filter { $0 > 16.67 }.count\nlet hitches120 = frameMs.filter { $0 > 8.33 }.count\nprint(\"60Hz: \\(hitches60), 120Hz: \\(hitches120)\")","options":[{"id":"a","text":"60Hz: 0, 120Hz: 1","explanation":"18.0 ms misses both budgets, and 11.2 ms and 9.4 ms also miss the 8.33 ms 120 Hz budget."},{"id":"b","text":"60Hz: 3, 120Hz: 1","explanation":"A 120 Hz screen has a tighter budget (8.33 ms), so it drops more frames than 60 Hz."},{"id":"c","text":"60Hz: 1, 120Hz: 2","explanation":"Three frames (11.2, 18.0, and 9.4 ms) exceed the 8.33 ms 120 Hz deadline."},{"id":"d","text":"60Hz: 1, 120Hz: 3","explanation":"Right. Only 18.0 ms exceeds 16.67 ms, while three frames exceed 8.33 ms on ProMotion."}],"answer":"d"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

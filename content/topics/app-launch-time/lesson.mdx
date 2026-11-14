@@ -1,0 +1,280 @@
+export const meta = {
+  id: "app-launch-time",
+  summary: "Measure cold, warm, and resume launches and speed up pre-main and post-main startup work.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-14",
+  sources: [
+    { title: "Reducing your app’s launch time (Xcode)", url: "https://developer.apple.com/documentation/xcode/reducing-your-app-s-launch-time", kind: "official" },
+    { title: "About the app launch sequence (Xcode)", url: "https://developer.apple.com/documentation/xcode/about-the-app-launch-sequence", kind: "official" },
+    { title: "Configuring your project to use mergeable libraries (Xcode)", url: "https://developer.apple.com/documentation/xcode/configuring-your-project-to-use-mergeable-libraries", kind: "official" },
+    { title: "OSSignposter (os)", url: "https://developer.apple.com/documentation/os/ossignposter", kind: "official" },
+    { title: "XCTApplicationLaunchMetric (XCTest)", url: "https://developer.apple.com/documentation/xctest/xctapplicationlaunchmetric", kind: "official" },
+    { title: "MXAppLaunchMetric (MetricKit)", url: "https://developer.apple.com/documentation/metrickit/mxapplaunchmetric", kind: "official" },
+    { title: "MetricResult (MetricKit)", url: "https://developer.apple.com/documentation/metrickit/metricresult", kind: "official" },
+    { title: "TimeToFirstDrawMetric (MetricKit)", url: "https://developer.apple.com/documentation/metrickit/timetofirstdrawmetric", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>You open a slow app and want to cut its cold launch time in half. What is the first thing you should check, and how do you measure it?</Question>
+  <Guess>
+    <Option id="a">Run a Debug build in the iOS Simulator and time `viewDidLoad` with `Date()`.</Option>
+    <Option id="b" correct>Profile a Release build on a real device with the App Launch template in Instruments.</Option>
+    <Option id="c">Move all setup code from `SceneDelegate` into `application(_:didFinishLaunchingWithOptions:)`.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of opening a coffee shop in the morning.
+
+You do not bake every pastry for the whole day before unlocking the front door.
+
+You unlock the door, turn on the espresso machine, and greet the first customer fast.
+
+Other prep work happens after the shop is open.
+
+An iOS app works the same way. Show the **first frame** fast, and delay extra work until after the screen appears.
+</Analogy>
+
+Every time a user taps your app icon, iOS starts the app in one of three ways.
+
+1. **Cold launch**: The app is not in memory or cached by the system. iOS must create a new process and load everything from disk.
+2. **Warm launch**: The process is not running, but parts of the app binary remain cached in memory. Warm launches are faster than cold launches.
+3. **Resume**: The app is already suspended in memory. iOS brings it back to the foreground without launching a new process.
+
+Sometimes iOS also uses **prewarming**. The system starts your app process early, loads linked libraries, and pauses the process before user code runs.
+
+A cold launch has two main parts: **pre-main** and **post-main**.
+
+### Pre-main work
+
+Before your Swift `main` entry point runs, the dynamic linker (`dyld`) prepares your app binary.
+
+- `dyld` loads your app executable and every **dynamic library** (separate code frameworks linked at launch).
+- `dyld` resolves symbols and fixes memory addresses across libraries.
+- The system runs **static initializers**, such as Objective-C `+load` methods and C++ static constructors.
+
+In Swift, global variables and `static let` properties initialize lazily (only when your code reads them for the first time), not before `main`.
+
+To speed up pre-main time, remove unused frameworks and avoid `+load` or C++ static constructors.
+
+You can also use **mergeable libraries** in Xcode. Set `MERGEABLE_LIBRARY` to Yes on framework targets and `MERGED_BINARY_TYPE` on your app target.
+
+In Debug builds, frameworks stay dynamic so builds stay fast. In Release builds, Xcode merges them into one binary so `dyld` has less work at launch.
+
+### Post-main work to the first frame
+
+After `main` runs, SwiftUI or UIKit creates your app object (`@main` or `UIApplicationMain`) and connects a scene.
+
+In UIKit, the system calls `application(_:willFinishLaunchingWithOptions:)`, `application(_:didFinishLaunchingWithOptions:)`, and `scene(_:willConnectTo:options:)`.
+
+Then the app builds its initial views, calculates layout, and draws the **first frame** on screen.
+
+**Keep startup light until the first frame appears.** Aim for a fast first frame (around 400 milliseconds is a common target for instant feel).
+
+If your app blocks the main thread for too long at launch, the system **watchdog** stops it with crash code `0x8badf00d`.
+
+### Measuring launch time
+
+Do not guess where startup time goes. Measure it with Apple tools:
+
+- **Instruments (App Launch template)**: Shows pre-main `dyld` work, main-thread hangs, and time to the first frame.
+- **`OSSignposter`**: Marks custom startup intervals (such as loading config) so they appear in Instruments.
+- **`XCTApplicationLaunchMetric`**: Measures launch time inside automated XCTest UI tests. It replaces the deprecated `XCTOSSignpostMetric.applicationLaunch`.
+- **Xcode Organizer and MetricKit (`MetricManager` / `MetricResult`)**: Reports real-world launch histograms from users in production. In iOS 27, `MetricResult` provides `TimeToFirstDrawMetric` (standard launch to first draw) and `OptimizedTimeToFirstDrawMetric` (launches sped up by system prewarming). It also includes `ExtendedLaunchMetric` for extended startup tasks. Before iOS 27, apps used the now-deprecated `MXAppLaunchMetric` (`histogrammedTimeToFirstDraw`, `histogrammedOptimizedTimeToFirstDraw`, and `histogrammedExtendedLaunch`).
+
+## See it
+
+<Diagram id="app-launch-time-main" caption="Comparing a slow cold launch against a fast cold launch with merged libraries and deferred work.">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Left panel: Slow Launch timeline (many dynamic libraries in dyld, static initializer, heavy analytics SDK in didFinishLaunching, late first frame).
+    2. Right panel: Fast Launch timeline (merged binary in dyld, no heavy pre-main initializers, fast first frame, deferred analytics afterward).
+  - Steps:
+    Step 1: dyld starts loading libraries before main().
+    Step 2: Pre-main finishes and application(_:didFinishLaunchingWithOptions:) begins.
+    Step 3: First frame renders on screen (Fast Launch finishes early; Slow Launch is still setting up SDKs).
+    Step 4: Deferred work runs after the first frame without blocking the user.
+  - Static version (reduced motion):
+    Two-column comparison showing all 4 launch stages and why deferring work speeds up first frame.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which launch type forces iOS to create a new process and load the app binary from disk with no cached pages?</Question>
+  <Option id="a" correct>Cold launch</Option>
+  <Option id="b">Warm launch</Option>
+  <Option id="c">Resume</Option>
+  <Explanation>A cold launch happens when the app is not in memory or system cache, so the OS must build the process from scratch.</Explanation>
+</QuickCheck>
+
+## In code
+
+Never block `application(_:didFinishLaunchingWithOptions:)` or your root `@main` initializer with analytics setup or heavy file reads.
+
+Load only what the first screen needs. Defer optional work until after the first frame is ready.
+
+<CodeExample title="Deferring non-essential startup work until after the first frame">
+
+```swift
+import Foundation
+
+@MainActor
+final class StartupManager {
+    private(set) var didRenderFirstFrame = false
+    private(set) var analyticsReady = false
+    private var deferredTasks: [() -> Void] = []
+
+    func runCriticalSetup() {
+        print("1. Load minimal UI state")
+    }
+
+    func scheduleAfterFirstFrame(_ task: @escaping () -> Void) {
+        deferredTasks.append(task)
+    }
+
+    func markFirstFrameVisible() {
+        didRenderFirstFrame = true
+        print("2. First frame visible")
+        for task in deferredTasks {
+            task()
+        }
+        deferredTasks.removeAll()
+    }
+
+    func startAnalytics() {
+        analyticsReady = true
+        print("3. Start optional analytics after first frame")
+    }
+}
+
+@MainActor
+func testLaunch() {
+    let startup = StartupManager()
+    startup.scheduleAfterFirstFrame { startup.startAnalytics() }
+    startup.runCriticalSetup()
+    startup.markFirstFrameVisible()
+    print("Analytics ready:", startup.analyticsReady)
+}
+
+testLaunch()
+```
+
+```output
+1. Load minimal UI state
+2. First frame visible
+3. Start optional analytics after first frame
+Analytics ready: true
+```
+
+</CodeExample>
+
+This pattern keeps critical launch steps tiny. Heavy services like analytics or crash reporting start only after the user sees the screen.
+
+Swift also helps you avoid pre-main work through lazy `static let` initialization. The property initializes only when your code reads it.
+
+<CodeExample title="Measuring a startup step with OSSignposter">
+
+```swift
+import Foundation
+import os
+
+struct LaunchProfiler {
+    static let signposter = OSSignposter(
+        subsystem: "com.example.app",
+        category: "Launch"
+    )
+
+    static func measure<T>(_ label: StaticString, task: () -> T) -> T {
+        let signpostID = signposter.makeSignpostID()
+        let state = signposter.beginInterval(label, id: signpostID)
+        defer { signposter.endInterval(label, state) }
+        return task()
+    }
+}
+
+let theme = LaunchProfiler.measure("LoadTheme") {
+    return "Light"
+}
+print("Loaded theme:", theme)
+```
+
+```output
+Loaded theme: Light
+```
+
+</CodeExample>
+
+Using `OSSignposter` lets you see exact start and end times for custom launch tasks inside Instruments.
+
+<QuickCheck>
+  <Question>How do Xcode mergeable libraries speed up cold launches without slowing down daily development builds?</Question>
+  <Option id="a">They delete unused Swift structs during Debug builds.</Option>
+  <Option id="b">They force all network calls to run before main.</Option>
+  <Option id="c" correct>They link dynamically in Debug builds for fast builds, and merge into the binary in Release builds to reduce dyld work.</Option>
+  <Explanation>Mergeable libraries act as dynamic frameworks in Debug builds and merge into the app binary in Release builds, cutting dynamic linker work.</Explanation>
+</QuickCheck>
+
+<DeepDive title="Monitoring launch regressions in XCTest and MetricKit">
+
+You can automate cold launch tests in UI test targets using `XCTApplicationLaunchMetric`.
+
+In production on iOS 27, `MetricManager` delivers `MetricResult` entries with `TimeToFirstDrawMetric`, `OptimizedTimeToFirstDrawMetric`, and `ExtendedLaunchMetric` (replacing older `MXAppLaunchMetric` histograms).
+
+</DeepDive>
+
+## Interview traps
+
+<Trap title="Measuring launch time in Debug mode on the Simulator">
+Many developers time app launch in the Xcode Simulator using a Debug build.
+
+Debug builds turn off compiler optimizations and add extra runtime checks. The Simulator also uses your Mac processor and disk, which are much faster than an iPhone.
+
+Always measure launch time using a **Release build on a real physical device**.
+</Trap>
+
+<Trap title="Assuming protected user data is ready during prewarming">
+After a device reboot, iOS can prewarm or start an app in the background before the user unlocks the phone.
+
+Files with `completeUntilFirstUserAuthentication` protection and many Keychain items stay locked until that first unlock.
+
+If early launch code reads protected storage right away, those reads can fail or return `nil`.
+
+Check `UIApplication.shared.isProtectedDataAvailable` and delay reading user secrets until the scene becomes active or protected data is ready.
+</Trap>
+
+<Trap title="Initializing every SDK inside didFinishLaunchingWithOptions">
+Teams often paste five or ten third-party SDK setup calls into `application(_:didFinishLaunchingWithOptions:)`.
+
+Those calls add dynamic framework load time and run work before the first frame.
+
+Initialize optional SDKs lazily when a feature opens, or schedule them after the first frame renders.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+To improve app launch time, I first measure a Release build on a real device using the App Launch template in Instruments. I split the trace into pre-main work and post-main work up to the first frame. For pre-main, I reduce dynamic frameworks, merge libraries where possible, and remove static initializers like Objective-C `+load`. For post-main, I move analytics, disk I/O, and network calls out of `didFinishLaunchingWithOptions` so the first frame appears quickly without risking a watchdog crash.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+I treat launch time across three stages: pre-main, first frame, and extended launch. First, I profile a Release build on an older supported device with Instruments and `OSSignposter` intervals to separate `dyld` time from UI setup. In Xcode, I use mergeable libraries (`MERGEABLE_LIBRARY` and `MERGED_BINARY_TYPE`) so Debug builds stay fast while Release builds avoid dynamic linking work. I defer non-critical SDKs past the first frame. I also guard against prewarming before first unlock so protected reads do not fail silently. Finally, I add `XCTApplicationLaunchMetric` tests in CI and monitor `MetricResult` launch histograms (`TimeToFirstDrawMetric` and `OptimizedTimeToFirstDrawMetric`, or `MXAppLaunchMetric` on older OS versions) in Xcode Organizer.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Cold launches are the slowest because iOS creates a new process and loads binaries from disk.
+- Pre-main time is dominated by `dyld` loading dynamic libraries and running static initializers.
+- Mergeable libraries keep fast Debug builds while removing `dyld` launch overhead in Release builds.
+- Keep `didFinishLaunchingWithOptions` minimal and defer optional setup until after the first frame.
+- Always profile launch time on a real device in Release configuration with Instruments, `OSSignposter`, and `XCTApplicationLaunchMetric`.
+</Recap>
+
+<TryIt>
+Test the Swift launch profiling examples in Swift Playground, free for iPad and Mac.
+</TryIt>

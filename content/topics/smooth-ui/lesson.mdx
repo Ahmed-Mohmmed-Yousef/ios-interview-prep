@@ -1,0 +1,268 @@
+export const meta = {
+  id: "smooth-ui",
+  summary: "Keep scrolling and taps responsive by removing slow main-thread work, hitches, and hangs.",
+  estimatedMinutes: 11,
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27" },
+  lastVerified: "2026-11-14",
+  sources: [
+    { title: "Improving app responsiveness (Xcode)", url: "https://developer.apple.com/documentation/xcode/improving-app-responsiveness", kind: "official" },
+    { title: "Understanding hangs in your app (Xcode)", url: "https://developer.apple.com/documentation/xcode/understanding-hangs-in-your-app", kind: "official" },
+    { title: "Understanding hitches in your app (Xcode)", url: "https://developer.apple.com/documentation/xcode/understanding-hitches-in-your-app", kind: "official" },
+    { title: "Tech Talks: Explore UI animation hitches and the render loop", url: "https://developer.apple.com/videos/play/tech-talks/10855/", kind: "official" },
+    { title: "UIImage.preparingForDisplay() (UIKit)", url: "https://developer.apple.com/documentation/uikit/uiimage/preparingfordisplay()", kind: "official" },
+    { title: "CGImageSourceCreateThumbnailAtIndex(_:_:_:) (ImageIO)", url: "https://developer.apple.com/documentation/imageio/cgimagesourcecreatethumbnailatindex(_:_:_:)", kind: "official" },
+    { title: "MetricManager (MetricKit)", url: "https://developer.apple.com/documentation/metrickit/metricmanager", kind: "official" },
+    { title: "HangDiagnostic (MetricKit)", url: "https://developer.apple.com/documentation/metrickit/hangdiagnostic", kind: "official" },
+    { title: "HitchTimeMetric (MetricKit)", url: "https://developer.apple.com/documentation/metrickit/hitchtimemetric", kind: "official" },
+    { title: "Swift 6.2 Released (Swift.org)", url: "https://www.swift.org/blog/swift-6.2-released/", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>A user scrolls through a photo feed on a 120 Hz ProMotion iPhone and sees jerky frames. How much time does your app have to prepare each frame?</Question>
+  <Guess>
+    <Option id="a">250 milliseconds per frame</Option>
+    <Option id="b" correct>8.33 milliseconds per frame</Option>
+    <Option id="c">100 milliseconds per frame</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a flipbook artist drawing pages for a movie.
+
+If the artist finishes every page on time, the animation flows smoothly.
+
+If one page takes too long to draw, the viewer sees the old page twice and the motion stutters.
+
+If the artist stops drawing completely for half a second, the movie freezes.
+
+In iOS, a short stutter during motion is a **hitch**, and a visible freeze on a tap is a **hang**.
+</Analogy>
+
+Users expect an app to react right away when they tap or scroll.
+
+Apple splits responsiveness problems into two clear kinds:
+
+1. **Hangs**: Delays during single actions like tapping a button. Users start noticing delays above **100 milliseconds**. Apple tools like Xcode Organizer and MetricKit report hangs starting at **250 milliseconds**.
+2. **Hitches**: Missed frames during scrolling or animations. On a 60 Hz screen, one frame refresh takes **16.67 milliseconds**. On a 120 Hz ProMotion screen, each frame has only **8.33 milliseconds**.
+
+To measure stutter across different devices, Apple tracks the **Hitch Time Ratio** (hitch milliseconds per second of scrolling or animation, written as `ms/s`).
+
+### The render loop
+
+Every frame moves through four stages in the **render loop**:
+
+1. **Event phase**: The main thread receives touches and scroll gestures.
+2. **Commit phase**: Your app runs layout, checks SwiftUI `body`, decodes images, and sends layer updates to the system render server.
+3. **Render phase**: The render server and GPU turn layers into pixels.
+4. **Display phase**: The finished frame appears on the screen.
+
+**Keep main-thread work tiny so every commit finishes before the frame deadline.**
+
+Slow CPU work in your app causes **commit hitches**. Heavy render-server or GPU work causes **render hitches**. For example, dynamic shadows without `shadowPath` or complex masks force **offscreen rendering**, where the GPU draws to a temporary buffer first.
+
+### Tools to find slow work
+
+- **Thread Performance Checker**: Warns in Xcode when main-thread work waits on low-priority tasks (**priority inversion**) or blocks on slow file work (synchronous I/O).
+- **Instruments**: Use **Time Profiler**, **Hangs**, **Animation Hitches**, and the **SwiftUI** instrument to find slow stack frames.
+- **Xcode Organizer and `MetricKit`**: Track real-world hang and hitch rates in production. In iOS 27+, `MetricManager` delivers `MetricResult` (`.hangTime`, `.hitchTime`) and `DiagnosticResult.hang` (`HangDiagnostic` with `hangDuration` and `callStackTree`). Before iOS 27, apps used `MXMetricManager` and `MXHangDiagnostic`.
+
+## See it
+
+<Diagram id="smooth-ui-main" caption="Tracing the render loop to see how slow commit work causes a hitch while background work keeps frames smooth.">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Top row: Render loop with slow main-thread JSON/image decode missing the 8.33 ms commit deadline (hitch).
+    2. Bottom row: Render loop with @concurrent background decode and fast main-thread commit hitting the 8.33 ms deadline (smooth).
+  - Steps:
+    Step 1: Event phase receives scroll gesture on main thread.
+    Step 2: Commit phase runs on main thread (top blocks on image decode; bottom reads prepared result).
+    Step 3: Render phase executes on GPU before display refresh.
+    Step 4: Display phase shows either a repeated stale frame (hitch) or a fresh smooth frame.
+  - Static version (reduced motion):
+    Two-row render loop diagram comparing missed commit deadline vs smooth frame delivery.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>At what delay do Apple tools like Xcode Organizer and MetricKit report a hang by default?</Question>
+  <Option id="a">16.67 milliseconds</Option>
+  <Option id="b" correct>250 milliseconds</Option>
+  <Option id="c">8.33 milliseconds</Option>
+  <Explanation>Apple tools report a hang when the main thread freezes for 250 ms or more. Users already notice delays above 100 ms.</Explanation>
+</QuickCheck>
+
+## In code
+
+### Moving heavy work off the main actor
+
+Under Swift 6.2 and later with Xcode's **Approachable Concurrency** setting (`NonisolatedNonsendingByDefault`), calling a `nonisolated` `async` function from `@MainActor` stays on the main actor.
+
+To force heavy parsing or filtering onto the background thread pool, mark the async function with **`@concurrent`**. In Swift 6.0 and 6.1, or when that setting is off, `nonisolated` `async` functions already hop off `@MainActor`. You can also use `Task.detached` or a separate `actor`.
+
+<CodeExample title="Offloading heavy work with @concurrent while keeping UI updates on @MainActor">
+
+```swift
+import Foundation
+
+@concurrent
+func buildFeedTitles(count: Int) async -> [String] {
+    (1...count).map { "Post #\($0)" }
+}
+
+@MainActor
+final class FeedState {
+    var titles: [String] = []
+
+    func loadFeed() async {
+        // Hops off @MainActor to run buildFeedTitles, then returns to @MainActor.
+        let prepared = await buildFeedTitles(count: 3)
+        titles = prepared
+        print("Ready on main:", titles.joined(separator: ", "))
+    }
+}
+
+await FeedState().loadFeed()
+```
+
+```output
+Ready on main: Post #1, Post #2, Post #3
+```
+
+</CodeExample>
+
+This keeps `@MainActor` free to process taps and scroll events while background workers transform data.
+
+### Caching expensive formatters
+
+Creating a `DateFormatter` or `NumberFormatter` is expensive. Never create a new formatter inside a scrolling table cell or SwiftUI `body`.
+
+Reuse one cached formatter instance across rows.
+
+<CodeExample title="Caching a formatter instead of rebuilding it on every cell">
+
+```swift
+import Foundation
+
+struct TimestampFormatter {
+    static let shared: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
+
+    static func text(for timestamp: TimeInterval) -> String {
+        shared.string(from: Date(timeIntervalSince1970: timestamp))
+    }
+}
+
+print(TimestampFormatter.text(for: 0))
+```
+
+```output
+1970-01-01
+```
+
+</CodeExample>
+
+### Downsampling and preparing images off the main thread
+
+An image's memory size depends on its pixel width and height, not its compressed JPEG file size.
+
+By default, `UIImageView` decodes compressed images at the last moment (lazily) on the main thread when the cell appears, which causes scroll hitches.
+
+Use ImageIO (`CGImageSourceCreateThumbnailAtIndex`) to downsample large photos on a background thread to the exact pixel size of the view. Or use UIKit's synchronous `UIImage.preparingForDisplay()` on a background thread, or call the async `byPreparingForDisplay()` or `byPreparingThumbnail(ofSize:)` methods.
+
+<CodeExample title="Configuring ImageIO downsampling options for small thumbnails">
+
+```swift
+import Foundation
+import ImageIO
+
+func makeDownsampleOptions(pointSize: CGSize, scale: CGFloat) -> [CFString: Any] {
+    let maxPixelSize = max(pointSize.width, pointSize.height) * scale
+    return [
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        kCGImageSourceShouldCacheImmediately: true,
+        kCGImageSourceCreateThumbnailWithTransform: true
+    ]
+}
+
+let options = makeDownsampleOptions(pointSize: CGSize(width: 80, height: 80), scale: 3)
+let maxPixels = options[kCGImageSourceThumbnailMaxPixelSize] as? CGFloat ?? 0
+print("Max pixel size:", Int(maxPixels))
+```
+
+```output
+Max pixel size: 240
+```
+
+</CodeExample>
+
+When you call ImageIO on a background thread, setting `kCGImageSourceShouldCacheImmediately` to `true` decodes pixels right away instead of stalling the main thread later.
+
+For UIKit lists, pair background image preparation with `UITableViewDataSourcePrefetching` or `UICollectionViewDataSourcePrefetching`. For SwiftUI lists, use `LazyVStack` and `LazyHStack` so views off screen are not built until needed.
+
+<QuickCheck>
+  <Question>Under Swift 6.2+ Approachable Concurrency, how do you make a helper `async` function called from `@MainActor` run on a background thread?</Question>
+  <Option id="a" correct>Mark the async function with `@concurrent`.</Option>
+  <Option id="b">Mark the async function with `nonisolated` alone.</Option>
+  <Option id="c">Wrap the work inside `DispatchQueue.main.sync`.</Option>
+  <Explanation>With Approachable Concurrency, plain `nonisolated` async functions inherit the caller's actor. `@concurrent` tells Swift to hop off `@MainActor`.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Thinking a 500 KB JPEG uses only 500 KB of memory">
+A compressed JPEG file might be small on disk, but the GPU needs raw uncompressed pixels.
+
+A 12-megapixel photo unpacks (decompresses) to nearly 48 MB in memory.
+
+Downsample images to the target display size with `CGImageSourceCreateThumbnailAtIndex` (`pointSize * scale` in pixels) or `byPreparingThumbnail(ofSize:)`.
+</Trap>
+
+<Trap title="Adding shadows without setting shadowPath">
+Setting `layer.shadowOpacity` without `shadowPath` forces Core Animation to check the view's alpha shape on every frame.
+
+This triggers expensive **offscreen rendering** in the GPU render phase and causes scrolling hitches.
+
+Set a matching `CGPath` (such as `UIBezierPath(...).cgPath`) on `layer.shadowPath` so the GPU can draw the shadow directly.
+</Trap>
+
+<Trap title="Using DispatchQueue.main.sync or locks on the main thread">
+Calling `DispatchQueue.main.sync` from the main thread crashes immediately with a deadlock.
+
+Waiting on a lock (mutex or semaphore) on the main thread stalls the run loop and triggers a hang or **priority inversion**.
+
+Use `async`/`await` so the main thread stays free while background tasks run.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+To keep the UI smooth, the main thread must finish work inside the frame budget. That budget is 16.67 ms at 60 Hz or 8.33 ms at 120 Hz. I profile scrolling and taps with Instruments using Time Profiler, Hangs, and Animation Hitches. I fix stalls by moving JSON parsing and database reads off `@MainActor`. I also cache `DateFormatter` instances, downsample images with ImageIO or `byPreparingForDisplay()`, and use lazy lists.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+I check UI smoothness across the full render loop: Event, Commit, Render, and Display. First, I check Xcode Organizer and MetricKit (`HangDiagnostic` and `HitchTimeMetric`, or `MXHangDiagnostic` before iOS 27). I look for hangs over 250 ms and high Hitch Time Ratios. Next, I reproduce issues locally with the Hangs and Animation Hitches instruments plus Thread Performance Checker. For commit hitches, I move heavy work to `@concurrent` functions under Swift 6.2+ Approachable Concurrency. I also avoid locks or priority inversions, downsample images with `CGImageSourceCreateThumbnailAtIndex`, and prefetch cells. For render hitches, I remove offscreen GPU passes by setting `layer.shadowPath` and cutting heavy masks and blurs.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- A **hang** blocks discrete taps (noticeable over 100 ms; reported at 250 ms). A **hitch** misses a frame refresh (16.67 ms at 60 Hz, 8.33 ms at 120 Hz).
+- The render loop runs Event, Commit (app CPU), Render (GPU), and Display; commit delays and GPU offscreen passes both drop frames.
+- Under Swift 6.2+ Approachable Concurrency, mark heavy async helpers `@concurrent` so they run off `@MainActor`.
+- Decode and downsample images off the main thread using `CGImageSourceCreateThumbnailAtIndex` or `UIImage.byPreparingForDisplay()`.
+- Cache formatters, set `layer.shadowPath`, and use Instruments (Time Profiler, Hangs, Animation Hitches) and MetricKit (`HangDiagnostic`, `HitchTimeMetric`) to measure fixes.
+</Recap>
+
+<TryIt>
+Test the Swift `@concurrent` and formatter caching examples in Swift Playground, free for iPad and Mac.
+</TryIt>

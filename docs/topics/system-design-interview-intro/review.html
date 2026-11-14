@@ -1,0 +1,615 @@
+<title>How a Mobile System Design Interview Works Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --value: #0f7f63; --value-soft: #dcf2ea;
+  --shared: #6447d1; --shared-soft: #ebe6fb;
+  --changed: #a76a12; --changed-soft: #fcefd6;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 20px; }
+.eyebrow { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
+h1 { font-size: clamp(24px, 4.4vw, 34px); line-height: 1.15; margin: 4px 0 6px; text-wrap: balance; font-weight: 700; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 17px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.kind { font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; }
+.rush .kind { background: var(--changed-soft); color: var(--changed); }
+.plan .kind { background: var(--value-soft); color: var(--value); }
+svg { width: 100%; height: auto; display: block; }
+.code {
+  font: 13px/1.45 var(--font-code); background: var(--code-bg); border-radius: 10px; padding: 8px 12px;
+  min-height: 3.2em; overflow-x: auto; white-space: pre;
+}
+.caption { margin: 0; font-weight: 500; min-height: 2.6em; }
+
+.stage-box { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; transition: opacity .35s ease, fill .35s ease, stroke .35s ease; }
+.stage-label { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.stage-sub { font-family: var(--font-code); font-size: 11px; fill: var(--muted); }
+.rush .stage-box.active { fill: var(--changed-soft); stroke: var(--changed); stroke-width: 2; }
+.plan .stage-box.active { fill: var(--value-soft); stroke: var(--value); stroke-width: 2; }
+.dim { opacity: 0.28; }
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.bar button {
+  font: 600 15px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 18px; cursor: pointer; min-height: 44px;
+}
+.bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.bar button:disabled { opacity: .4; cursor: default; }
+.bar button:focus-visible, .dots button:focus-visible, summary:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.dots { display: flex; gap: 8px; }
+.dots button { width: 14px; height: 14px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: transparent; }
+.dots button[aria-current="step"] { background: var(--ink); }
+.count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: center; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+summary { cursor: pointer; font-weight: 600; }
+details ol { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 10px; }
+details li p { margin: 0; }
+details code { font-family: var(--font-code); font-size: 13px; background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mid · Mobile System Design · Topic 1 of 1 · Prototype</p>
+    <h1>How a Mobile System Design Interview Works</h1>
+    <p class="meta-line"><span>About 10 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain the steps of a mobile system design interview.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">An interviewer says: &quot;Design an Instagram-style photo feed app for iOS. You have 45 minutes.&quot; What should you do first?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Start drawing backend server clusters and database shards on the whiteboard.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Ask clarifying questions to agree on core features, out-of-scope items, and mobile constraints.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Write SwiftUI cell views and pick third-party networking libraries right away.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of an architect meeting a family to design a house.</p><p>The architect does not start pouring concrete in the first minute.</p><p>First, the architect asks how many rooms the family needs, what budget matters, and which rooms can wait.</p><p>Only then does the architect draw the floor plan, inspect the plumbing, and explain material trade-offs.</p><p>A mobile system design interview works the same way. <strong>Scope the problem first, then design in clear steps.</strong></p></aside>
+<p>A mobile system design interview is an open-ended 45-minute conversation.</p>
+<p>Unlike a backend interview about servers and load balancers, a <strong>mobile system design</strong> interview focuses on the phone client.</p>
+<p>Interviewers check how you handle unstable cellular networks, limited battery, tight device memory, offline use, and modular code.</p>
+<p>There is no single right answer. You lead the discussion using a repeatable five-step plan:</p>
+<ol>
+<li><strong>Clarify requirements and scope (5 to 8 minutes)</strong>:
+<ul>
+<li>List <strong>functional requirements</strong> (core user actions, such as viewing a feed and liking posts).</li>
+<li>Agree on what is <strong>out of scope</strong> (for example, skip direct messaging or video editing).</li>
+<li>List <strong>non-functional requirements</strong> (offline reading, smooth 60 or 120 frames per second scrolling, low battery and memory use).</li>
+</ul>
+</li>
+<li><strong>High-level client architecture and API design (10 to 15 minutes)</strong>:
+<ul>
+<li>Pick an API style (REST, GraphQL, or WebSockets for live updates) and pagination style.</li>
+<li>Draw the client layers: View, ViewModel, <strong>Repository</strong> (a single source of truth), Network client, and Local cache.</li>
+</ul>
+</li>
+<li><strong>Deep dives (15 to 20 minutes)</strong>:
+<ul>
+<li>Zoom into two or three hard mobile problems, such as cursor pagination or offline sync queues. Another common topic is image caching and downsampling (shrinking large photos to fit the screen).</li>
+</ul>
+</li>
+<li><strong>Key code contracts (about 5 minutes when asked)</strong>:
+<ul>
+<li>Sketch clean Swift protocols and <code>Sendable</code> data models so layers stay testable and decoupled (kept separate).</li>
+</ul>
+</li>
+<li><strong>Wrap-up and trade-offs (3 to 5 minutes)</strong>:
+<ul>
+<li>Check that the design meets Step 1 goals.</li>
+<li>Name clear <strong>trade-offs</strong> (such as battery versus live freshness) and production monitoring (crashes, launch time, hang rates).</li>
+</ul>
+</li>
+</ol>
+<p><strong>Drive the clock and check in after each step.</strong> Ask the interviewer if they want to go deeper on caching, networking, or UI state.</p>
+<h2>See it</h2>
+<div class="diagram-host"><figure class="panels" id="figure" role="img" aria-label="Two panels comparing a rushed interview and a structured five-step interview over 45 minutes. Left: jumping into code without scoping wastes time and misses trade-offs. Right: clarifying scope, designing client layers, deep diving, and reviewing trade-offs finishes cleanly." style="margin:0">
+    <section class="panel rush" aria-hidden="true">
+      <h2>Unstructured <span class="kind">runs out of time</span></h2>
+      <svg viewBox="0 0 340 230">
+        <g id="ru-1" class="dim">
+          <rect class="stage-box" id="ru-b1" x="16" y="16" width="308" height="42" rx="10"/>
+          <text class="stage-label" x="28" y="34">0–15 min: Jump straight to UI boxes</text>
+          <text class="stage-sub" x="28" y="49">Wrong scope; missed offline need</text>
+        </g>
+        <g id="ru-2" class="dim">
+          <rect class="stage-box" id="ru-b2" x="16" y="70" width="308" height="42" rx="10"/>
+          <text class="stage-label" x="28" y="88">15–32 min: Talk only about backend servers</text>
+          <text class="stage-sub" x="28" y="103">Skips client cache and memory limits</text>
+        </g>
+        <g id="ru-3" class="dim">
+          <rect class="stage-box" id="ru-b3" x="16" y="124" width="308" height="42" rx="10"/>
+          <text class="stage-label" x="28" y="142">32–44 min: Rush pagination details</text>
+          <text class="stage-sub" x="28" y="157">No clear protocol boundaries</text>
+        </g>
+        <g id="ru-4" class="dim">
+          <rect class="stage-box" id="ru-b4" x="16" y="178" width="308" height="42" rx="10"/>
+          <text class="stage-label" x="28" y="196">45 min: Time runs out</text>
+          <text class="stage-sub" x="28" y="211">No trade-offs or monitoring</text>
+        </g>
+      </svg>
+      <div class="code" id="ru-code"></div>
+      <p class="caption" id="ru-cap"></p>
+    </section>
+
+    <section class="panel plan" aria-hidden="true">
+      <h2>5-Step Plan <span class="kind">clear &amp; complete</span></h2>
+      <svg viewBox="0 0 340 230">
+        <g id="pl-1" class="dim">
+          <rect class="stage-box" id="pl-b1" x="16" y="16" width="308" height="42" rx="10"/>
+          <text class="stage-label" x="28" y="34">1. Scope (0–8 min)</text>
+          <text class="stage-sub" x="28" y="49">Functional + offline + frame goals</text>
+        </g>
+        <g id="pl-2" class="dim">
+          <rect class="stage-box" id="pl-b2" x="16" y="70" width="308" height="42" rx="10"/>
+          <text class="stage-label" x="28" y="88">2. Architecture &amp; API (8–22 min)</text>
+          <text class="stage-sub" x="28" y="103">View -&gt; ViewModel -&gt; Repository -&gt; Cache/API</text>
+        </g>
+        <g id="pl-3" class="dim">
+          <rect class="stage-box" id="pl-b3" x="16" y="124" width="308" height="42" rx="10"/>
+          <text class="stage-label" x="28" y="142">3–4. Deep Dives &amp; Contracts (22–40 min)</text>
+          <text class="stage-sub" x="28" y="157">Pagination, image cache, Swift protocols</text>
+        </g>
+        <g id="pl-4" class="dim">
+          <rect class="stage-box" id="pl-b4" x="16" y="178" width="308" height="42" rx="10"/>
+          <text class="stage-label" x="28" y="196">5. Wrap-up (40–45 min)</text>
+          <text class="stage-sub" x="28" y="211">Trade-offs + MetricKit &amp; crash metrics</text>
+        </g>
+      </svg>
+      <div class="code" id="pl-code"></div>
+      <p class="caption" id="pl-cap"></p>
+    </section>
+  </figure>
+
+  <p class="sr-only" id="live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
+
+  <nav class="bar" aria-label="Diagram steps">
+    <button type="button" id="back">Back</button>
+    <div class="dots" id="dots"></div>
+    <span class="count" id="count"></span>
+    <button type="button" id="next" class="primary">Next</button>
+    <button type="button" id="replay">Replay</button>
+  </nav>
+
+  <details id="all">
+    <summary>All steps as a list</summary>
+    <ol id="list"></ol>
+  </details></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Which requirement is a non-functional requirement in a mobile system design interview?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Users can tap a heart icon to like a post.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Users can pull down to refresh the feed.</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">The feed must scroll smoothly and keep recent posts readable offline.</span></button><p class="qc-explain" hidden="">Liking and refreshing are user features (functional). Smooth scrolling and offline availability describe system quality constraints (non-functional).</p></div>
+<h2>In practice</h2>
+<p>Imagine the prompt is: <strong>&quot;Design a mobile news feed app.&quot;</strong> Here is how you move through the steps with clear client boundaries.</p>
+<p>First, in Step 1, you confirm scope: users read text and image posts, scroll smoothly, and view cached posts offline. Video uploads and chat are out of scope.</p>
+<p>Second, in Step 2, you sketch a clean client architecture where the <strong>Repository</strong> acts as the <strong>Single Source of Truth</strong>. The View observes the ViewModel, and the Repository coordinates the Network client and Local store.</p>
+<p>Third, in Step 3 and Step 4, you model the API and repository contract in Swift. This keeps the UI away from <code>URLSession</code> or raw JSON.</p>
+<figure class="code-example"><figcaption>Modeling clean client API and repository contracts in Swift</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+struct FeedItem: Sendable, Equatable {
+    let id: String
+    let author: String
+    let title: String
+}
+
+struct FeedPage: Sendable {
+    let items: [FeedItem]
+    let nextCursor: String?
+}
+
+protocol FeedRepository: Sendable {
+    func loadPage(cursor: String?) async throws -&gt; FeedPage
+}
+
+struct StubFeedRepository: FeedRepository {
+    func loadPage(cursor: String?) async throws -&gt; FeedPage {
+        let items = [FeedItem(id: &quot;1&quot;, author: &quot;Sam&quot;, title: &quot;Offline Cache&quot;)]
+        return FeedPage(items: items, nextCursor: &quot;cursor-2&quot;)
+    }
+}
+
+let repo = StubFeedRepository()
+let page = try await repo.loadPage(cursor: nil)
+print(&quot;Loaded:&quot;, page.items.count, &quot;Next:&quot;, page.nextCursor ?? &quot;none&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Loaded: 1 Next: cursor-2
+</code></pre></figure>
+<p>Using a <code>FeedRepository</code> protocol lets you swap a live network-and-cache implementation with a stub in unit tests. Using <code>nextCursor</code> supports <strong>cursor-based pagination</strong>, which avoids duplicate posts when new items arrive at the top of a feed.</p>
+<p>Next, during a Step 3 deep dive, you can trace how data loads. Here is how the app picks between memory, disk, and network.</p>
+<figure class="code-example"><figcaption>Choosing between fresh cache and network in a feed loader</figcaption><pre class="block swift"><code class="language-swift">import Foundation
+
+enum DataSource: String {
+    case memoryCache = &quot;Memory&quot;
+    case diskCache = &quot;Disk&quot;
+    case remoteAPI = &quot;Network&quot;
+}
+
+func pickSource(hasMemoryHit: Bool, isOnline: Bool, hasDiskCache: Bool) -&gt; DataSource? {
+    if hasMemoryHit { return .memoryCache }
+    if isOnline { return .remoteAPI }
+    return hasDiskCache ? .diskCache : nil
+}
+
+let offlinePick = pickSource(hasMemoryHit: false, isOnline: false, hasDiskCache: true)
+print(&quot;Offline source:&quot;, offlinePick?.rawValue ?? &quot;Empty&quot;)
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Offline source: Disk
+</code></pre></figure>
+<p>Finally, in Step 5, you wrap up by explaining <strong>trade-offs</strong>. For example, polling REST every 30 seconds saves battery compared to holding an open WebSocket, at the cost of slower live updates.</p>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">In a mobile client architecture, why does a Repository sit between the ViewModel and both the Network and Local Storage layers?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because SwiftUI forbids ViewModels from holding arrays.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">To provide a single source of truth that coordinates caching, offline data, and remote fetches.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">To replace the need for REST or GraphQL APIs on the backend.</span></button><p class="qc-explain" hidden="">The Repository hides whether data comes from memory, disk, or network, giving the UI layer one consistent source of truth.</p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Jumping straight into drawing boxes or naming frameworks</p><p>Many candidates hear &quot;Design Twitter&quot; and immediately write &quot;Use Alamofire and Realm&quot; or draw ten boxes on the board.</p><p>Without agreeing on scope first, you might spend 20 minutes designing live video streaming when the interviewer wanted an offline text feed.</p><p>Always spend the first 5 to 8 minutes clarifying functional requirements, non-functional constraints, and out-of-scope items.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Treating mobile design like a backend interview</p><p>Some developers spend half the interview talking about Kubernetes, database sharding, and CDN edge servers.</p><p>Mobile interviewers care far more about client state, memory caches, image downsampling, battery life, offline sync, and clean Swift boundaries.</p><p>Mention backend endpoints briefly as contracts, then keep most of your focus on the iOS app.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Claiming one choice is best without stating trade-offs</p><p>Saying &quot;Always use WebSockets&quot; or &quot;Always cache everything in RAM&quot; sounds inflexible.</p><p>Every mobile choice trades something: freshness against battery, fast RAM reads against out-of-memory crashes, or simplicity against offline support.</p><p>State what you chose, why it fits the constraints, and what you gave up.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Mid answer</p><p>I structure a 45-minute mobile system design interview in five clear steps. First, I spend five minutes clarifying functional features, non-functional constraints like offline mode and smooth scrolling, and what is out of scope. Next, I design the API contract and high-level client layers using View, ViewModel, Repository, Network, and Local Cache. Then I dive deep into key mobile challenges like cursor pagination, image caching, and offline storage. Finally, I summarize trade-offs and mention monitoring crashes and performance.</p></div>
+<div class="answer"><p class="label">Senior answer</p><p>I treat a mobile system design interview as a guided conversation across five timed steps. I start by setting clear limits: functional flows, scale, and mobile constraints like flaky networks, battery, and low-end memory limits. Next, I sketch the API contract and client layers with a Repository as the single source of truth. I ask the interviewer which deep dives matter most, such as offline queues, pagination, or image downsampling. I also sketch key Swift protocol boundaries for testability. Finally, I close with explicit trade-offs and production monitoring like hang rates and crash reports.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>A mobile system design interview focuses on client concerns: flaky networks, battery, memory, offline mode, and modular layers.</li>
+<li>Follow five steps: clarify scope, design architecture and API, deep dive on mobile bottlenecks, sketch clean contracts, and review trade-offs.</li>
+<li>Separate <strong>functional requirements</strong> (features) from <strong>non-functional requirements</strong> (performance, offline support, battery, scale).</li>
+<li>Use a <strong>Repository</strong> as a single source of truth between your ViewModel, network client, and local cache.</li>
+<li>Drive the clock, check in with the interviewer, and state clear trade-offs for every choice.</li>
+</ul></div>
+<p class="try-it"><p>Test the Swift client contract and cache selection examples in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const STEPS = [
+  {
+    r: { code: "// Minute 1: \"Let's use SwiftUI and Alamofire!\"", cap: "Jumping into tools without asking questions risks solving the wrong problem." },
+    p: { code: "// Step 1: What is in scope and out of scope?", cap: "Agree on core features, offline needs, and performance goals first." }
+  },
+  {
+    r: { code: "// Minute 18: Drawing backend database shards", cap: "Spending too much time on server internals leaves no room for iOS layers." },
+    p: { code: "protocol FeedRepository: Sendable { ... }", cap: "Sketch API endpoints and client layers with a single source of truth." }
+  },
+  {
+    r: { code: "// Minute 35: Wait, how do images fit in RAM?", cap: "Late surprises force messy changes because caching was never planned." },
+    p: { code: "func loadPage(cursor: String?) async throws", cap: "Deep dive on cursor pagination, image caching, and clean Swift contracts." }
+  },
+  {
+    r: { code: "// Minute 45: Time is up!", cap: "The interview ends before discussing battery or memory trade-offs." },
+    p: { code: "// Step 5: Polling vs WebSockets trade-off", cap: "Finish with clear trade-offs and production monitoring checks." }
+  }
+];
+const $ = (id) => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let step = 0;
+
+function render() {
+  const n = step + 1;
+  for (let i = 1; i <= 4; i++) {
+    $("ru-" + i).classList.toggle("dim", n < i);
+    $("pl-" + i).classList.toggle("dim", n < i);
+    $("ru-b" + i).classList.toggle("active", n === i);
+    $("pl-b" + i).classList.toggle("active", n === i);
+  }
+  const st = STEPS[step];
+  $("ru-code").textContent = st.r.code;
+  $("pl-code").textContent = st.p.code;
+  $("ru-cap").textContent = st.r.cap;
+  $("pl-cap").textContent = st.p.cap;
+  $("count").textContent = "Step " + n + " of " + STEPS.length;
+  $("live").textContent = "Step " + n + ". Rushed: " + st.r.cap + " Structured: " + st.p.cap;
+  $("back").disabled = step === 0;
+  $("next").disabled = step === STEPS.length - 1;
+  [...$("dots").children].forEach((d, i) => i === step ? d.setAttribute("aria-current", "step") : d.removeAttribute("aria-current"));
+}
+
+function go(i) { step = Math.max(0, Math.min(STEPS.length - 1, i)); render(); }
+
+STEPS.forEach((st, i) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.setAttribute("aria-label", "Diagram step " + (i + 1) + " of " + STEPS.length);
+  b.addEventListener("click", () => go(i));
+  $("dots").append(b);
+  const li = document.createElement("li");
+  li.innerHTML = "<p><b>Rushed:</b> <code></code> — <span></span></p><p><b>Structured:</b> <code></code> — <span></span></p>";
+  const [c1, c2] = li.querySelectorAll("code"), [t1, t2] = li.querySelectorAll("span");
+  c1.textContent = st.r.code; t1.textContent = st.r.cap;
+  c2.textContent = st.p.code; t2.textContent = st.p.cap;
+  $("list").append(li);
+});
+$("back").addEventListener("click", () => go(step - 1));
+$("next").addEventListener("click", () => go(step + 1));
+$("replay").addEventListener("click", () => {
+  go(0);
+  if (reduce.matches) return;
+  let i = 0;
+  const t = setInterval(() => { i++; go(i); if (i >= STEPS.length - 1) clearInterval(t); }, 1100);
+});
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") go(step + 1);
+  if (e.key === "ArrowLeft") go(step - 1);
+});
+
+if (reduce.matches) { step = STEPS.length - 1; $("all").open = true; }
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"system-design-interview-intro","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"system-design-interview-intro-q01","type":"mcq","difficulty":1,"prompt":"What is the main focus of a mobile system design interview compared to a backend system design interview?","options":[{"id":"a","text":"Client architecture, offline support, memory, battery, and flaky mobile networks","explanation":"Right. Mobile interviews focus on client constraints, user experience, and modular iOS architecture."},{"id":"b","text":"Designing multi-region SQL database clusters and server load balancers","explanation":"Server clusters and database sharding belong to backend system design interviews."},{"id":"c","text":"Building CI pipelines and choosing third-party analytics dashboards","explanation":"Build pipelines and analytics tools are supporting setup, not the core client design."},{"id":"d","text":"Writing pixel-perfect SwiftUI animations for every screen layout","explanation":"Visual polish is secondary to client architecture, caching, and system constraints."}],"answer":"a"},{"id":"system-design-interview-intro-q02","type":"mcq","difficulty":1,"prompt":"What should you do during the first 5 to 8 minutes of a 45-minute mobile system design interview?","options":[{"id":"a","text":"Write full SwiftUI view layouts for every screen in the app.","explanation":"Writing full UI layouts first wastes time before you know which features are in scope."},{"id":"b","text":"Clarify functional features, non-functional goals, and out-of-scope items.","explanation":"Right. Scoping first makes sure you and the interviewer agree on what to design."},{"id":"c","text":"Pick third-party networking and database packages right away.","explanation":"Choosing third-party packages comes after agreeing on core features and constraints."},{"id":"d","text":"Draw server database tables for all future company features.","explanation":"Designing out-of-scope server tables uses up time needed for the mobile client."}],"answer":"b"},{"id":"system-design-interview-intro-q03","type":"mcq","difficulty":1,"prompt":"Which item is a functional requirement when designing a mobile news feed?","options":[{"id":"a","text":"The feed scrolls smoothly at 60 frames per second.","explanation":"Frame rate smoothness is a non-functional quality constraint."},{"id":"b","text":"The app limits disk cache usage to 100 megabytes.","explanation":"Cache size limits are non-functional resource constraints."},{"id":"c","text":"Users can view posts, like a post, and pull to refresh.","explanation":"Right. Functional requirements describe the core features and user actions in scope."},{"id":"d","text":"The app uses minimal battery during background sync.","explanation":"Battery efficiency is a non-functional system quality."}],"answer":"c"},{"id":"system-design-interview-intro-q04","type":"mcq","difficulty":1,"prompt":"Which item is a non-functional requirement in a mobile system design interview?","options":[{"id":"a","text":"Users can upload a new profile photo.","explanation":"Uploading a photo is a functional user feature."},{"id":"b","text":"Users can tap a button to bookmark a post.","explanation":"Bookmarking is a functional product feature."},{"id":"c","text":"Users can search posts by keyword.","explanation":"Keyword search is a functional feature."},{"id":"d","text":"Recent posts stay readable offline without draining battery.","explanation":"Right. Offline reliability and low battery drain are non-functional constraints."}],"answer":"d"},{"id":"system-design-interview-intro-q05","type":"mcq","difficulty":1,"prompt":"Why should you state out-of-scope features early in the interview?","options":[{"id":"a","text":"To keep the design realistic inside 45 minutes and focus on key parts.","explanation":"Right. Bounding scope prevents running out of time on secondary features like chat or video."},{"id":"b","text":"So you can skip explaining any non-functional requirements later.","explanation":"Non-functional goals like offline support and smooth scrolling remain critical."},{"id":"c","text":"So the interviewer writes the API contract for you instead.","explanation":"You still propose the API contract; scoping helps you focus on the right endpoints."},{"id":"d","text":"To avoid discussing caching, networking, or client architecture.","explanation":"Scoping clears time specifically so you can focus on architecture and deep dives."}],"answer":"a"},{"id":"system-design-interview-intro-q06","type":"mcq","difficulty":1,"prompt":"What role does the Repository layer play in a clean mobile client architecture?","options":[{"id":"a","text":"It renders SwiftUI animations on the GPU.","explanation":"UI views handle rendering, while the Repository manages data sources."},{"id":"b","text":"It acts as a single source of truth between network and cache.","explanation":"Right. The Repository hides whether data comes from memory, disk, or the API."},{"id":"c","text":"It replaces the ViewModel inside every screen.","explanation":"The ViewModel prepares UI state and asks the Repository for domain data."},{"id":"d","text":"It holds SwiftUI view layouts and button tap handlers.","explanation":"Views handle UI layout and taps, while the Repository manages data sources."}],"answer":"b"},{"id":"system-design-interview-intro-q07","type":"mcq","difficulty":1,"prompt":"Who is expected to pace the 45-minute mobile system design interview across the five steps?","options":[{"id":"a","text":"Only the candidate, without checking in or adjusting for feedback.","explanation":"You drive the pace, but you should check in so the interviewer can steer deep dives."},{"id":"b","text":"Only the interviewer, while the candidate waits silently for instructions.","explanation":"Waiting passively makes it hard to evaluate senior ownership and communication."},{"id":"c","text":"The candidate, while checking in with the interviewer at each step.","explanation":"Right. Good candidates drive the clock and confirm which deep dives the interviewer wants."},{"id":"d","text":"The interviewer alone, by grading a silent drawing at the end.","explanation":"Mobile system design is an interactive conversation, not a silent drawing test."}],"answer":"c"},{"id":"system-design-interview-intro-q08","type":"mcq","difficulty":2,"prompt":"Why does a mobile feed API design often prefer cursor-based pagination over simple page numbers?","options":[{"id":"a","text":"Cursor strings remove the need to cache any feed items locally.","explanation":"Pagination controls page loading; local caching is still needed for offline support."},{"id":"b","text":"Page numbers work only with GraphQL and fail with REST APIs.","explanation":"Both page numbers and cursors work over REST or GraphQL."},{"id":"c","text":"Cursors load the entire feed in one request without paging.","explanation":"Cursor pagination still loads one page at a time using the next cursor."},{"id":"d","text":"Cursors avoid duplicate or skipped items when new posts arrive at the top.","explanation":"Right. When new posts shift offsets, a cursor keeps the next page boundary accurate."}],"answer":"d"},{"id":"system-design-interview-intro-q09","type":"mcq","difficulty":2,"prompt":"Which step usually takes the most time (about 15 to 20 minutes) in a 45-minute mobile system design interview?","options":[{"id":"a","text":"Deep dives into mobile bottlenecks like caching, offline sync, and pagination","explanation":"Right. Deep dives show your real iOS engineering depth after scope and high-level design."},{"id":"b","text":"Listing functional requirements and out-of-scope features","explanation":"Scoping should take about 5 to 8 minutes so plenty of time stays for design."},{"id":"c","text":"Sketching Swift protocol contracts and data models","explanation":"Code contracts take about 5 minutes when asked."},{"id":"d","text":"Final wrap-up of trade-offs and production monitoring","explanation":"The final wrap-up and trade-offs take about 3 to 5 minutes."}],"answer":"a"},{"id":"system-design-interview-intro-q10","type":"mcq","difficulty":2,"prompt":"Why is jumping straight into naming third-party libraries in minute one an interview trap?","options":[{"id":"a","text":"Because third-party libraries never work in Release builds.","explanation":"Many apps ship with libraries, but choosing tools before scoping misses the problem."},{"id":"b","text":"You may solve the wrong features and skip core requirements and trade-offs.","explanation":"Right. Interviewers want to see how you scope constraints and reason about components first."},{"id":"c","text":"Because interviewers expect you to write your own HTTP engine first.","explanation":"You can mention URLSession or standard layers, after scoping the problem."},{"id":"d","text":"Because third-party tools hide all client caching and offline choices.","explanation":"Even with libraries, you must explain caching, pagination, and trade-offs first."}],"answer":"b"},{"id":"system-design-interview-intro-q11","type":"mcq","difficulty":2,"prompt":"When choosing between REST polling and WebSockets in Step 5, how should you present your choice?","options":[{"id":"a","text":"Claim that WebSockets are always better in every mobile app.","explanation":"WebSockets can drain battery faster when live updates are not required."},{"id":"b","text":"Avoid mentioning networking trade-offs completely.","explanation":"Discussing trade-offs is a key part of Step 5."},{"id":"c","text":"Explain the trade-off, such as battery life versus real-time message freshness.","explanation":"Right. Good answers state why a choice fits the constraints and what it gives up."},{"id":"d","text":"Say that REST and WebSockets have identical battery and server costs.","explanation":"Keeping a persistent socket open has different battery and connection costs than periodic polling."}],"answer":"c"},{"id":"system-design-interview-intro-q12","type":"mcq","difficulty":2,"prompt":"During Step 5 (wrap-up), what should you mention alongside trade-offs to show production readiness?","options":[{"id":"a","text":"Replacing every Swift protocol with a concrete class.","explanation":"Removing protocols reduces testability and does not show production health."},{"id":"b","text":"Listing every Swift compiler flag in your Xcode project.","explanation":"Compiler flags do not tell you how the app behaves for real users."},{"id":"c","text":"Disabling local caching on all user devices.","explanation":"Disabling caching hurts offline support and increases data usage."},{"id":"d","text":"Monitoring crashes, launch time, and hang rates in production.","explanation":"Right. Production monitoring shows how you check app health after shipping."}],"answer":"d"},{"id":"system-design-interview-intro-q13","type":"mcq","difficulty":2,"prompt":"In the 45-minute timeline diagram, what problem happens in the unstructured approach by minute 45?","options":[{"id":"a","text":"Time runs out before discussing client caching, trade-offs, and monitoring.","explanation":"Right. Without time-boxing, early tangents crowd out deep dives and trade-offs."},{"id":"b","text":"The candidate finishes in 5 minutes and skips drawing any diagram.","explanation":"In the diagram, jumping straight into UI and backend details uses up the full 45 minutes."},{"id":"c","text":"The candidate spends all 45 minutes writing production SwiftUI tests.","explanation":"In the diagram, jumping straight into UI boxes and backend servers uses up the time."},{"id":"d","text":"The candidate spends all 45 minutes on offline sync queues only.","explanation":"The unstructured trap spends too long on UI boxes and backend servers."}],"answer":"a"},{"id":"system-design-interview-intro-q14","type":"mcq","difficulty":3,"prompt":"Why should your client architecture keep UI views and ViewModels decoupled behind a `FeedRepository` protocol?","options":[{"id":"a","text":"Because `URLSession` cannot run inside async methods without a protocol.","explanation":"URLSession supports async methods directly, but protocols keep layers separate."},{"id":"b","text":"So you can test ViewModels with stubs and swap cache or network logic cleanly.","explanation":"Right. Protocol boundaries isolate UI state from storage and network details."},{"id":"c","text":"Because SwiftUI forbids ViewModels from holding arrays of model items.","explanation":"ViewModels can hold arrays directly; protocols keep data sources easy to swap."},{"id":"d","text":"So the app skips creating any local disk or memory cache.","explanation":"A Repository still uses memory and disk caches behind its protocol."}],"answer":"b"},{"id":"system-design-interview-intro-q15","type":"mcq","difficulty":3,"prompt":"An interviewer asks you to design an offline-capable chat app, and you spend 25 minutes on server database sharding. What went wrong?","options":[{"id":"a","text":"Offline chat apps do not use any local database on the phone.","explanation":"Offline chat apps rely heavily on local persistence on the phone."},{"id":"b","text":"You focused too much on SwiftUI views instead of API design.","explanation":"The problem was spending 25 minutes on server database sharding, not UI views."},{"id":"c","text":"You treated a mobile interview like a backend interview and skipped client design.","explanation":"Right. Mobile interviewers evaluate client sync, storage, battery, and UI state."},{"id":"d","text":"You asked clarifying questions before drawing the architecture.","explanation":"Asking clarifying questions is good; spending 25 minutes on server sharding is the trap."}],"answer":"c"},{"id":"system-design-interview-intro-q16","type":"mcq","difficulty":3,"prompt":"After sketching the high-level client architecture in Step 2, what is the best next move?","options":[{"id":"a","text":"Stay quiet until the interviewer writes the deep-dive questions.","explanation":"Waiting quietly breaks collaboration; you should lead the next transition."},{"id":"b","text":"Spend the remaining 30 minutes polishing SwiftUI colors and fonts.","explanation":"Visual styling is out of scope compared to caching, sync, and pagination."},{"id":"c","text":"Jump straight to Step 5 trade-offs and end the interview early.","explanation":"Deep dives (Step 3) are the biggest part of the interview and come before wrap-up."},{"id":"d","text":"Check in with the interviewer and ask which subsystem to deep-dive next.","explanation":"Right. Checking in aligns your deep dive with what the interviewer wants to test."}],"answer":"d"},{"id":"system-design-interview-intro-q17","type":"code-reading","difficulty":1,"prompt":"Look at this cache-selection helper from a mobile feed design. What does it print when the device is offline with a disk cache?","code":"enum DataSource: String {\n    case memoryCache = \"Memory\"\n    case diskCache = \"Disk\"\n    case remoteAPI = \"Network\"\n}\n\nfunc pickSource(hasMemory: Bool, isOnline: Bool, hasDisk: Bool) -> DataSource? {\n    if hasMemory { return .memoryCache }\n    if isOnline { return .remoteAPI }\n    return hasDisk ? .diskCache : nil\n}\n\nlet chosen = pickSource(hasMemory: false, isOnline: false, hasDisk: true)\nprint(chosen?.rawValue ?? \"Empty\")","options":[{"id":"a","text":"Disk","explanation":"Right. hasMemory is false and isOnline is false, so it falls back to diskCache."},{"id":"b","text":"Memory","explanation":"hasMemory is false, so it skips memoryCache."},{"id":"c","text":"Network","explanation":"isOnline is false, so it cannot use remoteAPI."},{"id":"d","text":"Empty","explanation":"hasDisk is true, so it returns diskCache rather than nil."}],"answer":"a"},{"id":"system-design-interview-intro-q18","type":"code-reading","difficulty":1,"prompt":"This Swift snippet models a cursor-based feed response. What does it print?","code":"struct FeedPage: Sendable {\n    let ids: [String]\n    let nextCursor: String?\n}\n\nlet page = FeedPage(ids: [\"p1\", \"p2\", \"p3\"], nextCursor: \"c_99\")\nprint(\"Count: \\(page.ids.count), Next: \\(page.nextCursor ?? \"end\")\")","options":[{"id":"a","text":"Count: 3, Next: end","explanation":"nextCursor is \"c_99\", not nil."},{"id":"b","text":"Count: 3, Next: c_99","explanation":"Right. The page holds 3 item IDs and returns cursor c_99 for the next request."},{"id":"c","text":"Count: 2, Next: c_99","explanation":"The ids array has 3 elements: p1, p2, and p3."},{"id":"d","text":"A compile error because nextCursor is optional","explanation":"Optional String properties work cleanly with ?? fallback values."}],"answer":"b"},{"id":"system-design-interview-intro-q19","type":"code-reading","difficulty":2,"prompt":"This stub implements a `FeedRepository` protocol for unit tests. What does it print?","code":"struct Post: Sendable { let id: String }\n\nprotocol FeedRepository: Sendable {\n    func fetch(cursor: String?) async -> [Post]\n}\n\nstruct StubRepo: FeedRepository {\n    func fetch(cursor: String?) async -> [Post] {\n        cursor == nil ? [Post(id: \"1\"), Post(id: \"2\")] : [Post(id: \"3\")]\n    }\n}\n\nlet repo = StubRepo()\nlet firstPage = await repo.fetch(cursor: nil)\nlet secondPage = await repo.fetch(cursor: \"page2\")\nprint(firstPage.count + secondPage.count)","options":[{"id":"a","text":"2","explanation":"firstPage has 2 posts and secondPage adds 1 more."},{"id":"b","text":"1","explanation":"secondPage has 1 post, while firstPage has 2."},{"id":"c","text":"3","explanation":"Right. The initial page returns 2 posts and the cursor page returns 1, totaling 3."},{"id":"d","text":"A compile error because StubRepo is a struct","explanation":"Structs can conform to Sendable protocols and implement async methods."}],"answer":"c"},{"id":"system-design-interview-intro-q20","type":"code-reading","difficulty":2,"prompt":"This time-budget planner allocates minutes across a 45-minute interview. What does it print?","code":"let minutesByStep = [\"Scope\": 7, \"Arch\": 13, \"DeepDive\": 17, \"Contracts\": 4, \"WrapUp\": 4]\nlet total = minutesByStep.values.reduce(0, +)\nlet mainDesign = (minutesByStep[\"Arch\"] ?? 0) + (minutesByStep[\"DeepDive\"] ?? 0)\nprint(\"Total: \\(total), Design: \\(mainDesign)\")","options":[{"id":"a","text":"Total: 45, Design: 20","explanation":"Arch (13) plus DeepDive (17) equals 30, not 20."},{"id":"b","text":"Total: 41, Design: 30","explanation":"All five steps sum to 45 minutes."},{"id":"c","text":"Total: 45, Design: 17","explanation":"mainDesign adds both Arch (13) and DeepDive (17)."},{"id":"d","text":"Total: 45, Design: 30","explanation":"Right. Total time is 45 minutes, with 30 minutes spent on architecture and deep dives."}],"answer":"d"},{"id":"system-design-interview-intro-q21","type":"code-reading","difficulty":2,"prompt":"This helper checks whether an offline action queue drops duplicate like requests for the same post ID. What prints?","code":"struct PendingLike: Hashable {\n    let postID: String\n}\n\nstruct MutationQueue {\n    var items: [PendingLike] = []\n    mutating func enqueue(_ item: PendingLike) {\n        if !items.contains(item) { items.append(item) }\n    }\n}\n\nvar queue = MutationQueue()\nqueue.enqueue(PendingLike(postID: \"a1\"))\nqueue.enqueue(PendingLike(postID: \"a1\"))\nqueue.enqueue(PendingLike(postID: \"b2\"))\nprint(queue.items.map(\\.postID).joined(separator: \",\"))","options":[{"id":"a","text":"a1,b2","explanation":"Right. Duplicate PendingLike(postID: \"a1\") is skipped, leaving a1,b2."},{"id":"b","text":"a1,a1,b2","explanation":"contains(item) prevents appending a duplicate postID."},{"id":"c","text":"b2,a1","explanation":"The array preserves insertion order, so a1 stays first."},{"id":"d","text":"b2","explanation":"The first a1 stays in the queue; only the second duplicate is skipped."}],"answer":"a"},{"id":"system-design-interview-intro-q22","type":"code-reading","difficulty":2,"prompt":"This ViewModel uses a `FeedRepository` protocol as its data dependency. What does it print?","code":"protocol QuoteRepo { func quote() -> String }\nstruct LiveQuoteRepo: QuoteRepo { func quote() -> String { \"Live\" } }\nstruct TestQuoteRepo: QuoteRepo { func quote() -> String { \"Cached\" } }\n\nfinal class QuoteVM {\n    private let repo: QuoteRepo\n    init(repo: QuoteRepo) { self.repo = repo }\n    func label() -> String { \"Source: \\(repo.quote())\" }\n}\n\nlet vm = QuoteVM(repo: TestQuoteRepo())\nprint(vm.label())","options":[{"id":"a","text":"Source: Live","explanation":"QuoteVM was initialized with TestQuoteRepo(), not LiveQuoteRepo()."},{"id":"b","text":"Source: Cached","explanation":"Right. Injecting a protocol lets tests swap TestQuoteRepo cleanly."},{"id":"c","text":"Cached","explanation":"label() prefixes the string with Source: ."},{"id":"d","text":"A compile error because QuoteRepo cannot be a stored property","explanation":"Protocol existential types are valid stored properties in Swift."}],"answer":"b"},{"id":"system-design-interview-intro-q23","type":"code-reading","difficulty":3,"prompt":"This cache budget helper counts how many thumbnails fit inside a 20 MB memory limit. What does it print?","code":"let maxCacheKB = 20 * 1024\nlet thumbnailKB = 256\nlet capacity = maxCacheKB / thumbnailKB\nprint(\"Max thumbnails: \\(capacity)\")","options":[{"id":"a","text":"Max thumbnails: 20","explanation":"20 * 1024 KB divided by 256 KB is 80, not 20."},{"id":"b","text":"Max thumbnails: 40","explanation":"1024 / 256 is 4, and 20 * 4 equals 80."},{"id":"c","text":"Max thumbnails: 80","explanation":"Right. 20,480 KB divided by 256 KB allows 80 thumbnails in memory."},{"id":"d","text":"Max thumbnails: 256","explanation":"256 KB is the size of one thumbnail, not the total capacity."}],"answer":"c"},{"id":"system-design-interview-intro-q25","type":"written","difficulty":1,"prompt":"In 2–5 sentences, list the five main steps of a mobile system design interview in order.","rubric":[{"criterion":"Step 1: Clarify functional and non-functional requirements and scope","weight":25,"key":true},{"criterion":"Step 2: Sketch high-level client architecture and API design","weight":25,"key":true},{"criterion":"Step 3 and 4: Deep dive into key mobile subsystems and model code contracts","weight":25},{"criterion":"Step 5: Wrap up with trade-offs and monitoring","weight":25}],"modelAnswer":"First, clarify functional features, non-functional constraints, and out-of-scope items. Second, sketch the high-level client architecture and API contract. Third, deep dive into hard mobile problems like caching, pagination, and offline sync. Fourth, model key code contracts if asked, and fifth, wrap up with explicit trade-offs and production monitoring."},{"id":"system-design-interview-intro-q26","type":"written","difficulty":1,"prompt":"In 2–5 sentences, explain the difference between functional and non-functional requirements, and give one mobile example of each.","rubric":[{"criterion":"Defines functional requirements as user features/actions and gives a valid example","weight":50,"key":true},{"criterion":"Defines non-functional requirements as quality/resource constraints and gives a valid mobile example","weight":50,"key":true}],"modelAnswer":"Functional requirements describe the core features and actions users can take, such as viewing a photo feed or liking a post. Non-functional requirements describe system quality and device constraints. For example, keeping scrolling smooth at 60 frames per second, supporting offline reading, or limiting battery and memory use are non-functional requirements."},{"id":"system-design-interview-intro-q27","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain how a mobile system design interview differs from a backend interview. Cover client focus, device constraints, and client layers.","rubric":[{"criterion":"Explains that backend focuses on servers/databases/scaling while mobile focuses on the phone client","weight":40,"key":true},{"criterion":"Names at least two concrete mobile constraints (unstable network, battery, memory/disk limits, offline support, smooth UI)","weight":40,"key":true},{"criterion":"Mentions client architecture or modular layers (View, ViewModel, Repository, Cache)","weight":20}],"modelAnswer":"A backend interview focuses on servers, load balancers, and database sharding, while a mobile interview focuses on the client app running on a user's phone. Mobile engineers must handle unstable cellular networks, offline reading, limited battery, and tight RAM limits. They also design clean client layers such as View, ViewModel, Repository, and local cache."},{"id":"system-design-interview-intro-q28","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain why jumping into boxes or libraries in minute one is risky, and what to do instead.","rubric":[{"criterion":"Explains the risk: designing the wrong features or running out of time on out-of-scope details","weight":50,"key":true},{"criterion":"States what to do instead: spend 5–8 minutes clarifying functional requirements, constraints, and out-of-scope items","weight":50,"key":true}],"modelAnswer":"Jumping straight into boxes or libraries is risky because you might design the wrong features. For example, you might design live video when the interviewer wanted an offline text feed. Instead, spend 5 to 8 minutes clarifying functional features, non-functional goals, and out-of-scope items."},{"id":"system-design-interview-intro-q29","type":"written","difficulty":3,"prompt":"In 2–5 sentences, explain what makes a strong Step 5 wrap-up in a mobile system design interview.","rubric":[{"criterion":"Checks the final design against the requirements agreed in Step 1","weight":30},{"criterion":"States explicit trade-offs (e.g., battery vs freshness, memory vs out-of-memory crashes)","weight":45,"key":true},{"criterion":"Mentions production monitoring (crash reports, launch time, or hang rates)","weight":25}],"modelAnswer":"A strong Step 5 wrap-up checks that the design meets all functional and non-functional goals from Step 1. You state explicit trade-offs, such as saving battery with REST polling instead of live WebSockets. You also explain how you monitor production health through crash reports, launch time, and hang rates."},{"id":"system-design-interview-intro-q30","type":"code-write","difficulty":1,"prompt":"Define a `Sendable` struct `Article` with `id: String` and `title: String`, plus a `Sendable` protocol `ArticleRepository` with `func loadArticles(cursor: String?) async throws -> [Article]`. Create a `MockArticleRepository` returning 1 article (`id: \"1\", title: \"Scope\"`), call it, and print the title.","starterCode":"struct Article: Sendable {\n    let id: String\n    let title: String\n}\n\n// Define ArticleRepository and MockArticleRepository","modelAnswer":"struct Article: Sendable {\n    let id: String\n    let title: String\n}\n\nprotocol ArticleRepository: Sendable {\n    func loadArticles(cursor: String?) async throws -> [Article]\n}\n\nstruct MockArticleRepository: ArticleRepository {\n    func loadArticles(cursor: String?) async throws -> [Article] {\n        [Article(id: \"1\", title: \"Scope\")]\n    }\n}\n\nlet repo = MockArticleRepository()\nlet list = try await repo.loadArticles(cursor: nil)\nprint(list[0].title)","rubric":[{"criterion":"Defines Sendable protocol ArticleRepository with async throws loadArticles(cursor:)","weight":50,"key":true},{"criterion":"Implements MockArticleRepository returning an Article with title \"Scope\"","weight":30,"key":true},{"criterion":"Awaits loadArticles and prints \"Scope\"","weight":20}]},{"id":"system-design-interview-intro-q31","type":"code-write","difficulty":2,"prompt":"Write a function `chooseSource(hasMemoryHit:isOnline:hasDiskCache:)` returning `String` (`\"Memory\"` if in memory, `\"Network\"` if online, `\"Disk\"` if offline with disk cache, or `\"Empty\"` otherwise). Print its output for `(false, false, true)`.","starterCode":"func chooseSource(hasMemoryHit: Bool, isOnline: Bool, hasDiskCache: Bool) -> String {\n    // Return \"Memory\", \"Network\", \"Disk\", or \"Empty\"\n}","modelAnswer":"func chooseSource(hasMemoryHit: Bool, isOnline: Bool, hasDiskCache: Bool) -> String {\n    if hasMemoryHit { return \"Memory\" }\n    if isOnline { return \"Network\" }\n    return hasDiskCache ? \"Disk\" : \"Empty\"\n}\n\nprint(chooseSource(hasMemoryHit: false, isOnline: false, hasDiskCache: true))","rubric":[{"criterion":"Checks memory first, then online network, then disk cache fallback","weight":60,"key":true},{"criterion":"Returns \"Empty\" when offline with no disk cache","weight":20},{"criterion":"Calls chooseSource(hasMemoryHit: false, isOnline: false, hasDiskCache: true) and prints \"Disk\"","weight":20}]},{"id":"system-design-interview-intro-q32","type":"code-write","difficulty":3,"prompt":"Write a struct `DesignBudget` with `totalMinutes: Int` and `stepMinutes: [String: Int]` plus a computed property `var remainingMinutes: Int` that returns `totalMinutes` minus the sum of `stepMinutes` values. Test it with `totalMinutes: 45` and `[\"Scope\": 7, \"Arch\": 13, \"DeepDive\": 17, \"WrapUp\": 4]` and print `remainingMinutes`.","starterCode":"struct DesignBudget {\n    let totalMinutes: Int\n    let stepMinutes: [String: Int]\n\n    var remainingMinutes: Int {\n        // Return remaining minutes\n    }\n}","modelAnswer":"struct DesignBudget {\n    let totalMinutes: Int\n    let stepMinutes: [String: Int]\n\n    var remainingMinutes: Int {\n        totalMinutes - stepMinutes.values.reduce(0, +)\n    }\n}\n\nlet budget = DesignBudget(\n    totalMinutes: 45,\n    stepMinutes: [\"Scope\": 7, \"Arch\": 13, \"DeepDive\": 17, \"WrapUp\": 4]\n)\nprint(budget.remainingMinutes)","rubric":[{"criterion":"Computes remainingMinutes by subtracting the sum of stepMinutes values from totalMinutes","weight":60,"key":true},{"criterion":"Creates DesignBudget with the given 45-minute steps","weight":20},{"criterion":"Prints 4","weight":20}]},{"id":"system-design-interview-intro-q33","type":"code-reading","difficulty":3,"prompt":"This offline-first feed loader reads from a `FeedRepo` cache when the phone is offline. What does it print?","code":"struct FeedPage: Sendable {\n    let items: [String]\n    let nextCursor: String?\n}\n\nprotocol FeedRepo: Sendable {\n    func load(cursor: String?) async -> FeedPage?\n}\n\nstruct LocalCacheRepo: FeedRepo {\n    func load(cursor: String?) async -> FeedPage? {\n        cursor == nil ? FeedPage(items: [\"p1\", \"p2\"], nextCursor: \"c2\") : nil\n    }\n}\n\nfunc fetchFeed(isOnline: Bool, cache: FeedRepo) async -> String {\n    if !isOnline, let cached = await cache.load(cursor: nil) {\n        return \"\\(cached.items.count):\\(cached.nextCursor ?? \"end\")\"\n    }\n    return isOnline ? \"remote\" : \"empty\"\n}\n\nlet repo = LocalCacheRepo()\nprint(await fetchFeed(isOnline: false, cache: repo))","options":[{"id":"a","text":"empty","explanation":"LocalCacheRepo returns a cached page when cursor is nil."},{"id":"b","text":"remote","explanation":"isOnline is false, so fetchFeed does not return remote."},{"id":"c","text":"2:end","explanation":"nextCursor is \"c2\", not nil, so it does not use the \"end\" fallback."},{"id":"d","text":"2:c2","explanation":"Right. When offline, fetchFeed reads the cached first page and prints its count and nextCursor."}],"answer":"d"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

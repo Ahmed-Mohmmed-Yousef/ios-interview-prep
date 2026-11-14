@@ -1,0 +1,226 @@
+export const meta = {
+  id: "system-design-interview-intro",
+  summary: "Drive a 45-minute mobile system design interview using a clear five-step framework.",
+  estimatedMinutes: 10,
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27" },
+  lastVerified: "2026-11-14",
+  sources: [
+    { title: "weeeBox/mobile-system-design (GitHub)", url: "https://github.com/weeeBox/mobile-system-design", kind: "community" },
+    { title: "ByteByteGo | Technical Interview Prep", url: "https://bytebytego.com/courses/mobile-system-design-interview/introduction", kind: "community" },
+    { title: "Managing model data in your app (SwiftUI)", url: "https://developer.apple.com/documentation/swiftui/managing-model-data-in-your-app", kind: "official" },
+    { title: "Improving app responsiveness (Xcode)", url: "https://developer.apple.com/documentation/xcode/improving-app-responsiveness", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>An interviewer says: "Design an Instagram-style photo feed app for iOS. You have 45 minutes." What should you do first?</Question>
+  <Guess>
+    <Option id="a">Start drawing backend server clusters and database shards on the whiteboard.</Option>
+    <Option id="b" correct>Ask clarifying questions to agree on core features, out-of-scope items, and mobile constraints.</Option>
+    <Option id="c">Write SwiftUI cell views and pick third-party networking libraries right away.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of an architect meeting a family to design a house.
+
+The architect does not start pouring concrete in the first minute.
+
+First, the architect asks how many rooms the family needs, what budget matters, and which rooms can wait.
+
+Only then does the architect draw the floor plan, inspect the plumbing, and explain material trade-offs.
+
+A mobile system design interview works the same way. **Scope the problem first, then design in clear steps.**
+</Analogy>
+
+A mobile system design interview is an open-ended 45-minute conversation.
+
+Unlike a backend interview about servers and load balancers, a **mobile system design** interview focuses on the phone client.
+
+Interviewers check how you handle unstable cellular networks, limited battery, tight device memory, offline use, and modular code.
+
+There is no single right answer. You lead the discussion using a repeatable five-step plan:
+
+1. **Clarify requirements and scope (5 to 8 minutes)**:
+   - List **functional requirements** (core user actions, such as viewing a feed and liking posts).
+   - Agree on what is **out of scope** (for example, skip direct messaging or video editing).
+   - List **non-functional requirements** (offline reading, smooth 60 or 120 frames per second scrolling, low battery and memory use).
+2. **High-level client architecture and API design (10 to 15 minutes)**:
+   - Pick an API style (REST, GraphQL, or WebSockets for live updates) and pagination style.
+   - Draw the client layers: View, ViewModel, **Repository** (a single source of truth), Network client, and Local cache.
+3. **Deep dives (15 to 20 minutes)**:
+   - Zoom into two or three hard mobile problems, such as cursor pagination or offline sync queues. Another common topic is image caching and downsampling (shrinking large photos to fit the screen).
+4. **Key code contracts (about 5 minutes when asked)**:
+   - Sketch clean Swift protocols and `Sendable` data models so layers stay testable and decoupled (kept separate).
+5. **Wrap-up and trade-offs (3 to 5 minutes)**:
+   - Check that the design meets Step 1 goals.
+   - Name clear **trade-offs** (such as battery versus live freshness) and production monitoring (crashes, launch time, hang rates).
+
+**Drive the clock and check in after each step.** Ask the interviewer if they want to go deeper on caching, networking, or UI state.
+
+## See it
+
+<Diagram id="system-design-interview-intro-main" caption="How a 45-minute mobile system design interview moves across five structured steps.">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Left panel: Unstructured Approach (jumping straight to code/libraries, running out of time, missing requirements).
+    2. Right panel: 5-Step Framework (1. Scope -> 2. Architecture & API -> 3. Deep Dives -> 4. Contracts -> 5. Trade-offs & Monitoring).
+  - Steps:
+    Step 1: Minutes 0-8 — Clarify functional and non-functional scope.
+    Step 2: Minutes 8-22 — Sketch high-level client layers and API contract.
+    Step 3: Minutes 22-40 — Deep dive into mobile bottlenecks and sketch key Swift contracts.
+    Step 4: Minutes 40-45 — Summarize trade-offs and production monitoring (Step 5 wrap-up).
+  - Static version (reduced motion):
+    Two-column timeline showing the unstructured trap vs the 5-step mobile system design flow.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which requirement is a non-functional requirement in a mobile system design interview?</Question>
+  <Option id="a">Users can tap a heart icon to like a post.</Option>
+  <Option id="b">Users can pull down to refresh the feed.</Option>
+  <Option id="c" correct>The feed must scroll smoothly and keep recent posts readable offline.</Option>
+  <Explanation>Liking and refreshing are user features (functional). Smooth scrolling and offline availability describe system quality constraints (non-functional).</Explanation>
+</QuickCheck>
+
+## In practice
+
+Imagine the prompt is: **"Design a mobile news feed app."** Here is how you move through the steps with clear client boundaries.
+
+First, in Step 1, you confirm scope: users read text and image posts, scroll smoothly, and view cached posts offline. Video uploads and chat are out of scope.
+
+Second, in Step 2, you sketch a clean client architecture where the **Repository** acts as the **Single Source of Truth**. The View observes the ViewModel, and the Repository coordinates the Network client and Local store.
+
+Third, in Step 3 and Step 4, you model the API and repository contract in Swift. This keeps the UI away from `URLSession` or raw JSON.
+
+<CodeExample title="Modeling clean client API and repository contracts in Swift">
+
+```swift
+import Foundation
+
+struct FeedItem: Sendable, Equatable {
+    let id: String
+    let author: String
+    let title: String
+}
+
+struct FeedPage: Sendable {
+    let items: [FeedItem]
+    let nextCursor: String?
+}
+
+protocol FeedRepository: Sendable {
+    func loadPage(cursor: String?) async throws -> FeedPage
+}
+
+struct StubFeedRepository: FeedRepository {
+    func loadPage(cursor: String?) async throws -> FeedPage {
+        let items = [FeedItem(id: "1", author: "Sam", title: "Offline Cache")]
+        return FeedPage(items: items, nextCursor: "cursor-2")
+    }
+}
+
+let repo = StubFeedRepository()
+let page = try await repo.loadPage(cursor: nil)
+print("Loaded:", page.items.count, "Next:", page.nextCursor ?? "none")
+```
+
+```output
+Loaded: 1 Next: cursor-2
+```
+
+</CodeExample>
+
+Using a `FeedRepository` protocol lets you swap a live network-and-cache implementation with a stub in unit tests. Using `nextCursor` supports **cursor-based pagination**, which avoids duplicate posts when new items arrive at the top of a feed.
+
+Next, during a Step 3 deep dive, you can trace how data loads. Here is how the app picks between memory, disk, and network.
+
+<CodeExample title="Choosing between fresh cache and network in a feed loader">
+
+```swift
+import Foundation
+
+enum DataSource: String {
+    case memoryCache = "Memory"
+    case diskCache = "Disk"
+    case remoteAPI = "Network"
+}
+
+func pickSource(hasMemoryHit: Bool, isOnline: Bool, hasDiskCache: Bool) -> DataSource? {
+    if hasMemoryHit { return .memoryCache }
+    if isOnline { return .remoteAPI }
+    return hasDiskCache ? .diskCache : nil
+}
+
+let offlinePick = pickSource(hasMemoryHit: false, isOnline: false, hasDiskCache: true)
+print("Offline source:", offlinePick?.rawValue ?? "Empty")
+```
+
+```output
+Offline source: Disk
+```
+
+</CodeExample>
+
+Finally, in Step 5, you wrap up by explaining **trade-offs**. For example, polling REST every 30 seconds saves battery compared to holding an open WebSocket, at the cost of slower live updates.
+
+<QuickCheck>
+  <Question>In a mobile client architecture, why does a Repository sit between the ViewModel and both the Network and Local Storage layers?</Question>
+  <Option id="a">Because SwiftUI forbids ViewModels from holding arrays.</Option>
+  <Option id="b" correct>To provide a single source of truth that coordinates caching, offline data, and remote fetches.</Option>
+  <Option id="c">To replace the need for REST or GraphQL APIs on the backend.</Option>
+  <Explanation>The Repository hides whether data comes from memory, disk, or network, giving the UI layer one consistent source of truth.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Jumping straight into drawing boxes or naming frameworks">
+Many candidates hear "Design Twitter" and immediately write "Use Alamofire and Realm" or draw ten boxes on the board.
+
+Without agreeing on scope first, you might spend 20 minutes designing live video streaming when the interviewer wanted an offline text feed.
+
+Always spend the first 5 to 8 minutes clarifying functional requirements, non-functional constraints, and out-of-scope items.
+</Trap>
+
+<Trap title="Treating mobile design like a backend interview">
+Some developers spend half the interview talking about Kubernetes, database sharding, and CDN edge servers.
+
+Mobile interviewers care far more about client state, memory caches, image downsampling, battery life, offline sync, and clean Swift boundaries.
+
+Mention backend endpoints briefly as contracts, then keep most of your focus on the iOS app.
+</Trap>
+
+<Trap title="Claiming one choice is best without stating trade-offs">
+Saying "Always use WebSockets" or "Always cache everything in RAM" sounds inflexible.
+
+Every mobile choice trades something: freshness against battery, fast RAM reads against out-of-memory crashes, or simplicity against offline support.
+
+State what you chose, why it fits the constraints, and what you gave up.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="mid">
+I structure a 45-minute mobile system design interview in five clear steps. First, I spend five minutes clarifying functional features, non-functional constraints like offline mode and smooth scrolling, and what is out of scope. Next, I design the API contract and high-level client layers using View, ViewModel, Repository, Network, and Local Cache. Then I dive deep into key mobile challenges like cursor pagination, image caching, and offline storage. Finally, I summarize trade-offs and mention monitoring crashes and performance.
+</InterviewAnswer>
+
+<InterviewAnswer level="senior">
+I treat a mobile system design interview as a guided conversation across five timed steps. I start by setting clear limits: functional flows, scale, and mobile constraints like flaky networks, battery, and low-end memory limits. Next, I sketch the API contract and client layers with a Repository as the single source of truth. I ask the interviewer which deep dives matter most, such as offline queues, pagination, or image downsampling. I also sketch key Swift protocol boundaries for testability. Finally, I close with explicit trade-offs and production monitoring like hang rates and crash reports.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- A mobile system design interview focuses on client concerns: flaky networks, battery, memory, offline mode, and modular layers.
+- Follow five steps: clarify scope, design architecture and API, deep dive on mobile bottlenecks, sketch clean contracts, and review trade-offs.
+- Separate **functional requirements** (features) from **non-functional requirements** (performance, offline support, battery, scale).
+- Use a **Repository** as a single source of truth between your ViewModel, network client, and local cache.
+- Drive the clock, check in with the interviewer, and state clear trade-offs for every choice.
+</Recap>
+
+<TryIt>
+Test the Swift client contract and cache selection examples in Swift Playground, free for iPad and Mac.
+</TryIt>
