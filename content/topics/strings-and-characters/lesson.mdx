@@ -1,40 +1,45 @@
 export const meta = {
   id: "strings-and-characters",
-  summary: "Understand Swift strings, Unicode grapheme clusters, string indexing, and substring memory behavior.",
+  summary: "Understand Swift strings, grapheme clusters, String.Index, and Substring memory.",
   estimatedMinutes: 10,
-  baseline: { swift: "6.4", xcode: "27", ios: "27" },
-  lastVerified: "2026-11-09",
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27.2" },
+  lastVerified: "2026-11-14",
   sources: [
-    { title: "The Swift Programming Language: Strings and Characters", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/stringsandcharacters", kind: "official" },
+    { title: "The Swift Programming Language: Strings and Characters", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/stringsandcharacters/", kind: "official" },
+    { title: "String (Swift)", url: "https://developer.apple.com/documentation/swift/string", kind: "official" },
   ],
 }
 
 <InterviewHook>
-  <Question>Why does Swift refuse to compile text[0] when subscripting a String with an integer?</Question>
+  <Question>Why does Swift refuse to compile `text[0]` when you try to look up a character with an integer?</Question>
   <Guess>
     <Option id="a">Swift strings use 1-based indexing instead of 0-based indexing.</Option>
-    <Option id="b" correct>Unicode characters take variable byte sizes, so Swift cannot find the nth character in constant time.</Option>
-    <Option id="c">Swift strings are linked lists stored across fragmented memory sectors.</Option>
+    <Option id="b" correct>Unicode characters take different byte sizes, so Swift cannot find the nth character in constant time.</Option>
+    <Option id="c">Swift strings are linked lists stored across separated memory blocks.</Option>
   </Guess>
 </InterviewHook>
 
 ## The simple idea
 
 <Analogy>
-Think of a string like a beaded necklace. Some beads are small and round. Other beads are large and complex, made of several parts glued together. You cannot measure distance on the necklace with a ruler because beads have different sizes. To reach the fourth bead, you must slide your fingers along the necklace bead by bead from the start.
+Think of a string like a beaded necklace. Some beads are small and round. Other beads are large and made of several parts joined together. You cannot find the fourth bead with a ruler because beads have different sizes. To reach the fourth bead, you must slide your fingers along the necklace bead by bead from the start.
 </Analogy>
 
-In Swift, a **`String`** is an ordered collection of **`Character`** values. Swift strings are fully Unicode compliant.
+In Swift, a **`String`** is a value type (a struct) that holds an ordered group of **`Character`** values. Because it is a value type, assigning or passing a string gives each variable its own independent text. Behind the scenes, Swift uses **Copy-on-Write (COW)**: copies share the same memory buffer until one of them changes, which avoids unneeded memory copies.
 
-In many older languages, each character has a fixed number of bytes in memory. But in modern international text, characters vary greatly in size:
+In older languages, each character often takes a fixed number of bytes. In modern Unicode text, characters vary in size:
 - An English letter like `"A"` needs 1 byte in UTF-8.
-- An accented letter like `"é"` can be made of the letter `"e"` plus a combining accent mark.
-- A flag emoji like `"🇺🇸"` combines two separate regional indicator symbols.
-- A complex family emoji like `"👨‍👩‍👧‍👦"` joins four people using invisible joiner characters, requiring 25 bytes.
+- An accented letter like `"é"` can be made of `"e"` plus a combining accent mark.
+- A flag emoji like `"🇺🇸"` joins two regional indicator symbols.
+- A family emoji like `"👨‍👩‍👧‍👦"` joins four people with invisible joiner characters and takes 25 bytes in UTF-8.
 
-To handle this, Swift measures text using **extended grapheme clusters**. An extended grapheme cluster is a sequence of Unicode scalars that produce a single human-readable character.
+Swift measures text using **extended grapheme clusters**. An extended grapheme cluster is one or more Unicode scalars that form one human-readable character.
 
-Because different characters take different amounts of memory, Swift cannot calculate where the $n$-th character lives in memory without inspecting previous characters. Therefore, Swift does not allow integer indexing like `text[0]`. Instead, you navigate strings using a dedicated type called **`String.Index`**.
+When you compare strings with `==`, Swift checks **canonical equivalence**. Two strings match if their visual characters have the same meaning, even when built from different Unicode scalars. For example, `"cafe\u{301}"` (decomposed `e` plus accent) equals `"café"` (precomposed `é`).
+
+Because characters take different byte sizes, Swift cannot jump to the nth character without walking from the start. So Swift blocks `text[0]` at compile time and uses **`String.Index`** instead.
+
+You can also write **multi-line string literals** inside three quotes (`"""`). The spaces before the closing `"""` set the base margin, so matching leading spaces are stripped from every line. Add a backslash `\` at the end of a line to join lines without adding a line break.
 
 ## See it
 
@@ -56,11 +61,11 @@ Because different characters take different amounts of memory, Swift cannot calc
 </Diagram>
 
 <QuickCheck>
-  <Question>How does Swift calculate the count property of a String?</Question>
-  <Option id="a">It counts the number of 8-bit memory bytes allocated for the string.</Option>
+  <Question>How does Swift calculate the `count` property of a `String`?</Question>
+  <Option id="a">It counts the number of 8-bit memory bytes used by the string.</Option>
   <Option id="b" correct>It counts the number of human-readable extended grapheme clusters.</Option>
   <Option id="c">It divides the total UTF-16 code units by four.</Option>
-  <Explanation>Swift counts extended grapheme clusters so that count reflects what human readers perceive as individual characters.</Explanation>
+  <Explanation>Swift counts extended grapheme clusters, so count matches what human readers see as individual characters.</Explanation>
 </QuickCheck>
 
 ## In code
@@ -69,97 +74,124 @@ Because different characters take different amounts of memory, Swift cannot calc
 
 ```swift
 let greeting = "Café ☕️"
-print("Character count: \(greeting.count)")
+print("Empty: \(greeting.isEmpty), count: \(greeting.count)")
 
 let firstIndex = greeting.startIndex
-let firstChar = greeting[firstIndex]
-print("First character: \(firstChar)")
+let secondIndex = greeting.index(after: firstIndex)
+let lastIndex = greeting.index(before: greeting.endIndex)
+print("First: \(greeting[firstIndex]), second: \(greeting[secondIndex]), last: \(greeting[lastIndex])")
 
 let thirdIndex = greeting.index(firstIndex, offsetBy: 2)
-print("Third character: \(greeting[thirdIndex])")
+print("Third: \(greeting[thirdIndex])")
 ```
 
 ```output
-Character count: 6
-First character: C
-Third character: f
+Empty: false, count: 6
+First: C, second: a, last: ☕️
+Third: f
 ```
 
 </CodeExample>
 
-This example shows how to inspect and navigate characters:
-- **`count`**: Returns the number of visual characters, even when emojis or accents use extra memory.
-- **`startIndex`**: Points to the position of the very first character in the string.
-- **`index(_:offsetBy:)`**: Safely calculates a new `String.Index` by traversing the specified number of characters from a starting position.
+This example shows how to check and move through characters:
+- **`isEmpty`**: Checks if a string has zero characters in fast `O(1)` time. Use `isEmpty` instead of `count == 0`, because `count` must walk every character in `O(n)` time.
+- **`startIndex`**: Points to the first character in a non-empty string.
+- **`endIndex`**: Points to the position **after** the last character. Reading `greeting[greeting.endIndex]` crashes at runtime, so use `greeting.index(before: greeting.endIndex)` for the last character.
+- **`index(after:)` and `index(_:offsetBy:)`**: Safely move a `String.Index` forward across characters of any byte size.
+
+<CodeExample title="Multi-line strings, interpolation, and canonical equivalence">
+
+```swift
+let level = 5
+let note = """
+    Level: \(level * 2), \
+    ready!
+    """
+print(note)
+print("cafe\u{301}" == "café")
+```
+
+```output
+Level: 10, ready!
+true
+```
+
+</CodeExample>
+
+This example shows three everyday string tools:
+- **String interpolation (`\(...)`)**: Runs an expression like `level * 2` and inserts its text right inside the string.
+- **Multi-line strings (`"""`)**: Strips the four leading spaces that match the closing `"""`. The trailing `\` removes the line break between the two lines.
+- **Canonical equivalence**: `"cafe\u{301}"` and `"café"` compare as `true` with `==` because they represent the same visual characters.
 
 <CodeExample title="Slicing strings and managing Substring memory">
 
 ```swift
-let logEntry = "ERROR: Network request timed out"
-let prefixEnd = logEntry.firstIndex(of: ":") ?? logEntry.endIndex
-let tagSubstring = logEntry[..<prefixEnd]
-print("Tag: \(tagSubstring)")
-
-let independentString = String(tagSubstring)
-print("Saved tag: \(independentString)")
+let logEntry = "ERROR: Network timed out"
+if let colonIndex = logEntry.firstIndex(of: ":") {
+    let tagSubstring = logEntry[..<colonIndex]
+    let afterColon = logEntry.index(after: colonIndex)
+    let messageSubstring = logEntry[afterColon...]
+    print("Tag: \(String(tagSubstring))")
+    print("Message:\(String(messageSubstring))")
+}
 ```
 
 ```output
 Tag: ERROR
-Saved tag: ERROR
+Message: Network timed out
 ```
 
 </CodeExample>
 
-When you slice a string, Swift returns a **`Substring`** rather than a new `String`.
-- A `Substring` shares the memory buffer of the original string to make slicing extremely fast.
-- If you store a `Substring` long-term, the entire original string remains in memory.
-- To free the original string buffer, convert the slice into a standalone `String` using `String(tagSubstring)`.
+When you slice a string with a range, Swift returns a **`Substring`** instead of a new `String`:
+- A `Substring` shares the memory buffer of the original string, so slicing is fast.
+- If you keep a `Substring` for a long time, the whole original string stays in memory.
+- Convert a slice into a standalone `String` with `String(tagSubstring)` before saving it long-term, so the original buffer can be freed.
 
 <QuickCheck>
-  <Question>Why should you convert a Substring to a String when saving it for long-term use?</Question>
-  <Option id="a">A Substring cannot be printed or formatted inside string interpolation.</Option>
-  <Option id="b" correct>A Substring holds the entire parent string in memory, preventing it from being freed.</Option>
-  <Option id="c">A Substring automatically expires and deletes its contents after thirty seconds.</Option>
-  <Explanation>Substrings share memory with their original parent strings. Converting to String creates independent storage and frees the parent.</Explanation>
+  <Question>Why should you convert a `Substring` to a `String` when saving it for long-term use?</Question>
+  <Option id="a">A Substring cannot be printed or used inside string interpolation.</Option>
+  <Option id="b" correct>A Substring keeps the whole parent string in memory, so it cannot be freed.</Option>
+  <Option id="c">A Substring loses its text after thirty seconds.</Option>
+  <Explanation>Substrings share memory with the original parent string. Converting to String makes independent storage so the parent can be freed.</Explanation>
 </QuickCheck>
-
-<TryIt>
-Try the examples in Swift Playground, free for iPad and Mac.
-</TryIt>
 
 ## Interview traps
 
-<Trap title="Attempting to subscript strings with integers like text[0]">
-Writing `text[0]` fails to compile. Swift strings do not support integer indices because characters have variable byte lengths. Always use `text.startIndex` or `text.index(after:)` to navigate safely.
+<Trap title="Subscripting strings with integers or endIndex">
+Writing `text[0]` fails to compile because characters have variable byte lengths. Writing `text[text.endIndex]` compiles, then crashes at runtime because `endIndex` points past the last character. Use `text.startIndex`, `text.index(after:)`, or `text.index(before: text.endIndex)`.
 </Trap>
 
 <Trap title="Holding Substrings in long-lived data models">
-Slicing a small 5-character word out of a 10-megabyte downloaded document keeps all 10 megabytes in memory. Always wrap the slice in `String(slice)` before saving it into a model property.
+Slicing a 5-character word from a 10-megabyte text file keeps all 10 megabytes in memory. Always convert the slice with `String(slice)` before storing it in a long-lived property.
 </Trap>
 
 <Trap title="Assuming string count equals byte count">
-A single emoji can take up to 25 bytes of UTF-8 memory, but `string.count` returns 1. Never assume character count matches byte length when allocating network or file buffers.
+A single emoji can take 25 bytes or more in UTF-8 memory, while `string.count` returns `1`. Never assume character count equals byte length when reading files or network data.
 </Trap>
 
 ## How to answer in the interview
 
 <InterviewAnswer level="fresh">
-In Swift, a String is a value type that represents an ordered collection of characters. Swift is designed with complete Unicode correctness, treating each character as an extended grapheme cluster. Because characters can vary in memory size, Swift does not permit integer indexing like `text[0]`. Instead, we navigate strings using `String.Index`. When slicing a string, Swift creates a `Substring` that shares memory with the parent string.
+In Swift, a `String` is a value type that holds an ordered group of `Character` values. Each `Character` is an extended grapheme cluster made of one or more Unicode scalars. Because characters take different byte sizes, Swift blocks `text[0]` and uses `String.Index` instead. When you slice a string, Swift returns a `Substring` that shares memory with the original string.
 </InterviewAnswer>
 
 <InterviewAnswer level="junior">
-Swift strings prioritize correctness over naive speed by measuring length in extended grapheme clusters rather than raw UTF-8 bytes. This means `count` requires $O(n)$ traversal, and random integer access is blocked at compile time to avoid deceptive performance bugs. When slicing strings, Swift returns a `Substring` to optimize performance by avoiding immediate memory allocations. However, long-lived slices should be converted back to `String` to prevent memory leaks from retained parent buffers.
+Swift strings focus on Unicode correctness. Length is measured in extended grapheme clusters rather than raw UTF-8 bytes, so `count` takes `O(n)` time and `isEmpty` is the fast `O(1)` check. Integer indexing is blocked at compile time to prevent hidden `O(n)` loops, and `String.Index` makes traversal explicit. Strings are value types optimized with Copy-on-Write, so copies share buffers until mutated. Slicing returns a `Substring` to avoid extra copying, and long-lived slices should be converted with `String(...)` so the large parent buffer can be freed.
 </InterviewAnswer>
 
 ## Recap
 
 <Recap>
-- Swift strings are value types that copy conceptually on assignment.
-- A Character represents an extended grapheme cluster of one or more Unicode scalars.
-- String length is measured in human-readable characters, not memory byte counts.
-- Integer indexing `text[0]` is rejected because characters take variable byte sizes.
-- Navigate strings using `startIndex`, `endIndex`, and `index(_:offsetBy:)`.
-- Slicing a string returns a `Substring` that shares the original memory buffer.
-- Convert a `Substring` into a new `String` when keeping it for long-term storage.
+- Swift strings are value types that use Copy-on-Write (COW) to share memory until mutated.
+- A `Character` is an extended grapheme cluster of one or more Unicode scalars, and `==` checks canonical equivalence.
+- `count` measures visual characters in `O(n)` time; use `isEmpty` for a fast `O(1)` empty check.
+- Integer indexing `text[0]` does not compile, and `text[text.endIndex]` crashes because `endIndex` is past the last character.
+- Navigate strings with `startIndex`, `endIndex`, `index(after:)`, `index(before:)`, and `index(_:offsetBy:)`.
+- Multi-line strings `"""` strip indentation matching the closing `"""`, and trailing `\` joins lines.
+- Slicing returns a `Substring` sharing the parent buffer; convert to `String(...)` for long-term storage.
 </Recap>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>

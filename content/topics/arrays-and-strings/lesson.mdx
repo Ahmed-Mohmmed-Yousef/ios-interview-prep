@@ -2,8 +2,8 @@ export const meta = {
   id: "arrays-and-strings",
   summary: "Master essential array and string interview patterns in Swift, including two pointers, sliding window, and in-place algorithms.",
   estimatedMinutes: 11,
-  baseline: { swift: "6.4", xcode: "27", ios: "27" },
-  lastVerified: "2026-11-09",
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27" },
+  lastVerified: "2026-11-14",
   sources: [
     { title: "Apple Developer Documentation: Array", url: "https://developer.apple.com/documentation/swift/array", kind: "official" },
     { title: "Apple Developer Documentation: String", url: "https://developer.apple.com/documentation/swift/string", kind: "official" },
@@ -33,18 +33,22 @@ In technical interviews, this pattern is called the **two-pointer technique**. I
 
 Arrays and strings are the most common data structures tested in coding interviews.
 
-While solving problems, you often want to avoid brute-force nested loops that take $O(n^2)$ time. Instead, interviewers look for two key algorithmic patterns:
+While solving problems, you often want to avoid brute-force nested loops that take $O(n^2)$ time. Instead, interviewers look for three key patterns:
 1. **Two pointers**:
    - **Opposing pointers**: One pointer starts at the beginning (`left = 0`) and one starts at the end (`right = count - 1`). They move toward each other to reverse collections, check palindromes, or find pair sums in a sorted array.
-   - **Fast and slow pointers**: Both pointers move in the same direction. A fast pointer explores ahead while a slow pointer writes unique or valid elements in place.
+   - **Fast and slow pointers**: Both pointers move in the same direction. A fast pointer scans ahead while a slow pointer writes valid items in place.
 2. **Sliding window**:
    - A window covers a contiguous range of elements.
    - As the window slides to the right, you add the incoming element and subtract the outgoing element.
-   - This technique evaluates ranges of size $k$ in $O(n)$ linear time instead of recalculating the whole sum each step.
+   - This evaluates ranges of size $k$ in $O(n)$ linear time instead of recalculating the whole sum each step.
+3. **Prefix sum array**:
+   - Build a running-total array starting with `prefix = [0]` in $O(n)$ time.
+   - Any range sum `nums[i...j]` is then computed in $O(1)$ time as `prefix[j + 1] - prefix[i]`.
 
 Swift also has unique language details you must remember during interviews:
-- **Strings are not integer-indexed**: You cannot write `string[0]`. Converting a string to an array of characters (`Array(string)`) allows instant integer indexing and in-place swaps.
-- **`ArraySlice` retains original indices**: Slicing an array does not reset the start index to zero.
+- **Strings are not integer-indexed**: You cannot write `string[0]`. Converting a string to `[Character]` with `Array(string)` allows integer indexing and in-place swaps.
+- **`ArraySlice` keeps original indices**: Slicing an array does not reset the start index to zero.
+- **`reverse()` vs `reversed()`**: `array.reverse()` mutates the array in place in $O(n)$ time. `array.reversed()` returns a lazy `ReversedCollection` view in $O(1)$ time without copying.
 
 ## See it
 
@@ -170,6 +174,34 @@ These patterns solve common interview challenges efficiently:
 - **Fast and slow pointers**: `fast` scans every item, while `slow` writes unique values. This modifies the array in place in $O(n)$ time and $O(1)$ space.
 - **Sliding window**: Adding `nums[i]` and subtracting `nums[i - k]` computes the next window sum in $O(1)$ time. This avoids recalculating the whole sum of $k$ items.
 
+<CodeExample title="Prefix sums for O(1) range queries and reverse() vs reversed()">
+
+```swift
+// 1. Prefix sum array: O(1) range sums after O(n) setup
+let scores = [3, 1, 4, 1, 5]
+var prefix = [0]
+for score in scores {
+    prefix.append((prefix.last ?? 0) + score)
+}
+let rangeSum = prefix[4] - prefix[1]
+print("Range sum [1...3]: \(rangeSum)")
+
+// 2. reverse() in place vs reversed() lazy view
+var letters = ["a", "b", "c"]
+let lazyView = letters.reversed()
+print("Lazy reversed: \(Array(lazyView))")
+letters.reverse()
+print("In-place reverse: \(letters)")
+```
+
+```output
+Range sum [1...3]: 6
+Lazy reversed: ["c", "b", "a"]
+In-place reverse: ["c", "b", "a"]
+```
+
+</CodeExample>
+
 <QuickCheck>
   <Question>How does a sliding window compute the sum of the next k elements in O(1) time?</Question>
   <Option id="a">By sorting the entire array before each step.</Option>
@@ -178,10 +210,6 @@ These patterns solve common interview challenges efficiently:
   <Explanation>A sliding window updates the running sum in O(1) time by adding the new element and removing the old one.</Explanation>
 </QuickCheck>
 
-<TryIt>
-Try the examples in Swift Playground, free for iPad and Mac.
-</TryIt>
-
 ## Interview traps
 
 <Trap title="Assuming ArraySlice starts at index 0">
@@ -189,7 +217,7 @@ When you create a slice with `let slice = numbers[2...4]`, Swift does not reset 
 
 The slice retains its original indices, meaning `slice.startIndex` is 2. Calling `slice[0]` will crash with a fatal out-of-bounds error.
 
-To safely access by zero-based index, convert the slice into a new array with `Array(slice)`.
+A small `ArraySlice` or `Substring` also keeps the whole parent buffer alive in memory. When storing results, convert the slice into a new `Array(slice)` or `String(substring)`.
 </Trap>
 
 <Trap title="Trying to index a Swift string with an integer">
@@ -201,11 +229,11 @@ In coding interviews, convert the string to `Array(string)` so you can use integ
 </Trap>
 
 <Trap title="Repeated string concatenation inside a loop">
-Using `result += text` inside a loop can be tempting.
+On a uniquely owned Swift `String`, `result += text` grows exponentially in amortized $O(n)$ total time.
 
-However, repeated string appending without preallocation can trigger frequent memory copies, degrading performance to $O(n^2)$.
+However, writing `result = result + text` or mutating a shared copy forces full buffer copies in $O(n^2)$ time.
 
-Instead, collect strings into an array and call `joined()`, or preallocate memory with `reserveCapacity`.
+To make intent clear and avoid extra reallocations, collect pieces into `[String]` and call `joined(separator:)`, or call `reserveCapacity` up front.
 </Trap>
 
 <Trap title="Modifying an array while iterating over it">
@@ -239,6 +267,10 @@ Use fast and slow pointers to overwrite elements in place, or use `filter` to cr
 - Swift strings cannot be indexed with integers; convert to `Array(string)` for easy two-pointer swaps in interviews.
 - **`ArraySlice` retains original indices**; accessing `slice[0]` on a slice that starts at index 2 causes a runtime crash.
 </Recap>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
 
 ## Go deeper
 

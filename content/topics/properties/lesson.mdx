@@ -1,9 +1,9 @@
 export const meta = {
   id: "properties",
-  summary: "Master Swift stored, computed, and lazy properties, as well as willSet and didSet property observers.",
-  estimatedMinutes: 10,
-  baseline: { swift: "6.4", xcode: "27", ios: "27" },
-  lastVerified: "2026-11-09",
+  summary: "Master Swift stored, computed, lazy, and static type properties, plus willSet and didSet property observers.",
+  estimatedMinutes: 11,
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27" },
+  lastVerified: "2026-11-14",
   sources: [
     { title: "The Swift Programming Language: Properties", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/properties", kind: "official" },
   ],
@@ -12,29 +12,35 @@ export const meta = {
 <InterviewHook>
   <Question>Why must a lazy property in Swift always be declared with var instead of let?</Question>
   <Guess>
-    <Option id="a">Because lazy properties can only store primitive integer values.</Option>
+    <Option id="a">Because lazy properties can only store integer values.</Option>
     <Option id="b" correct>Because its initial value is assigned on first access after instance initialization finishes.</Option>
-    <Option id="c">Because lazy properties are automatically deallocated when memory is low.</Option>
+    <Option id="c">Because lazy properties are freed automatically when memory is low.</Option>
   </Guess>
 </InterviewHook>
 
 ## The simple idea
 
 <Analogy>
-Think of your smartphone. The battery capacity is a stored value in hardware. The battery percentage on your screen is a computed value calculated from current voltage. A heavy app download is lazy because it only loads when you open it. A low battery alert is an observer that triggers when the charge drops.
+Think of your smartphone. The battery size is a stored value built into the phone. The battery percentage on screen is a computed value calculated when you look at it. A heavy app download is lazy because it only loads the first time you open it. A low battery alert is an observer that runs when the charge level is set.
 </Analogy>
 
-In Swift, **properties** connect values to a structure, class, or enumeration.
+In Swift, **properties** attach values to a structure, class, or enumeration.
 
-Swift provides three main kinds of properties:
+Swift has three main kinds of instance properties:
 
-1. **Stored properties**: Store constants (`let`) or variables (`var`) inside an instance. They allocate memory to hold data. Classes and structures support stored properties.
-2. **Computed properties**: Do not store values directly. Instead, they provide a getter and an optional setter to calculate values on demand. Classes, structures, and enumerations support computed properties.
-3. **Lazy stored properties**: Delay their initial calculation until the first time your code accesses them. This saves time and memory when work is expensive or not always needed.
+1. **Stored properties**: Save constants (`let`) or variables (`var`) in memory inside an instance. Classes and structs support stored properties, while enums do not.
+2. **Computed properties**: Do not store a value in memory. Instead, they use a getter (`get`) and an optional setter (`set`) to calculate values each time you access them. Classes, structs, and enums all support computed properties.
+3. **Lazy stored properties**: Wait to calculate their initial value until the first time your code reads them. This saves work when a value is slow to build or might never be needed.
 
-Swift also provides **property observers**:
-- **`willSet`**: Runs right before a stored property changes. It receives the upcoming value in `newValue`.
-- **`didSet`**: Runs immediately after a stored property changes. It receives the previous value in `oldValue`.
+Keep two important rules in mind for stored and lazy properties:
+- **`let` on structs vs classes**: On a `let` struct instance, you cannot change any stored properties, even `var` ones. On a `let` class instance, `let` only locks the reference, so you can still change `var` stored properties.
+- **Lazy properties are not thread-safe**: If several threads read an uninitialized `lazy var` at the same time, Swift does not guarantee it runs only once.
+
+Swift also has **type properties** (`static let` or `static var`) that belong to the type itself, not to any single instance.
+
+Finally, Swift provides **property observers** on stored properties:
+- **`willSet`**: Runs right before a value is stored. It gives you the incoming value as `newValue`.
+- **`didSet`**: Runs right after a value is stored. It gives you the previous value as `oldValue`.
 
 ## See it
 
@@ -45,12 +51,12 @@ Swift also provides **property observers**:
     1. Stored card: Allocated memory box storing value on creation (e.g., width = 10.0).
     2. Computed card: Calculation gear running on demand without stored memory (e.g., area = width * height).
     3. Lazy card: Uninitialized slot that calculates value only on first access (e.g., lazy var loader).
-    4. Observer card: willSet and didSet gates firing around property mutations.
+    4. Observer card: willSet and didSet gates firing around property assignments.
   - Steps:
-    Step 1: Stored property allocates memory immediately when instance is created.
-    Step 2: Computed property calculates result dynamically each time code reads it.
-    Step 3: Lazy property remains unallocated until accessed for the first time.
-    Step 4: Property observers trigger automatically before (willSet) and after (didSet) value changes.
+    Step 1: Stored property allocates memory right away when the instance is created.
+    Step 2: Computed property calculates its result dynamically each time code reads it.
+    Step 3: Lazy property stays uninitialized until accessed for the first time.
+    Step 4: Property observers run right before (willSet) and right after (didSet) a value is set.
   - Static version (reduced motion):
     A 4-card grid showing stored, computed, lazy, and observed properties with syntax and memory behavior.
 */}
@@ -61,24 +67,38 @@ Swift also provides **property observers**:
   <Option id="a">A stored constant property declared with let.</Option>
   <Option id="b" correct>A computed property with a getter expression.</Option>
   <Option id="c">A lazy stored property declared with lazy var.</Option>
-  <Explanation>Computed properties do not allocate storage. They evaluate their getter code dynamically every time they are accessed.</Explanation>
+  <Explanation>Computed properties do not allocate storage. They run their getter code every time you read them.</Explanation>
 </QuickCheck>
 
 ## In code
 
-<CodeExample title="Using computed properties and lazy stored properties">
+<CodeExample title="Computed getters, setters, lazy properties, and static type properties">
 
 ```swift
 struct Rectangle {
     var width: Double
     var height: Double
 
+    // Read-only computed property
     var area: Double {
         width * height
     }
 }
 
+struct Temperature {
+    var celsius: Double
+    var fahrenheit: Double {
+        get {
+            (celsius * 1.8) + 32.0
+        }
+        set {
+            celsius = (newValue - 32.0) / 1.8
+        }
+    }
+}
+
 class Document {
+    static let maxPages = 500
     lazy var content: String = {
         print("Loading heavy content...")
         return "Complete report data"
@@ -88,25 +108,34 @@ class Document {
 let box = Rectangle(width: 8.0, height: 5.0)
 print("Rectangle area: \(box.area)")
 
+var temp = Temperature(celsius: 0.0)
+temp.fahrenheit = 212.0
+print("Celsius: \(temp.celsius)")
+
+print("Max pages: \(Document.maxPages)")
 let doc = Document()
-print("Document instance created.")
-print("Document content: \(doc.content)")
+print("Document created.")
+print("Content: \(doc.content)")
 ```
 
 ```output
 Rectangle area: 40.0
-Document instance created.
+Celsius: 100.0
+Max pages: 500
+Document created.
 Loading heavy content...
-Document content: Complete report data
+Content: Complete report data
 ```
 
 </CodeExample>
 
-This example illustrates two core property patterns:
-- **Computed property**: `area` calculates `width * height` dynamically. It does not allocate memory for a stored number. Computed properties must always be declared with `var`.
-- **Lazy property**: `content` closure does not execute when `Document()` initializes. It runs only when `doc.content` is read for the first time.
+This example shows four core property patterns:
+- **Read-only computed property**: `area` calculates `width * height` on demand and skips `get` braces. Computed properties must always use `var`.
+- **Getter and setter**: `fahrenheit` defines `get` and `set`. When you write `temp.fahrenheit = 212.0`, Swift gives `set` an implicit `newValue` constant.
+- **Type property (`static let`)**: `Document.maxPages` belongs to the `Document` type, not an instance. Stored type properties are initialized lazily on first access and are guaranteed to be thread-safe.
+- **Lazy property**: `content` does not run when `Document()` is created. It runs only when `doc.content` is read for the first time.
 
-<CodeExample title="Observing value changes with willSet and didSet">
+<CodeExample title="Observing values with willSet and didSet">
 
 ```swift
 struct StepTracker {
@@ -115,75 +144,81 @@ struct StepTracker {
             print("About to set steps from \(totalSteps) to \(newValue)")
         }
         didSet {
+            if totalSteps > 500 {
+                totalSteps = 500
+            }
             let difference = totalSteps - oldValue
-            print("Added \(difference) new steps.")
+            print("Added \(difference) steps.")
         }
     }
 }
 
 var tracker = StepTracker()
 tracker.totalSteps = 150
-tracker.totalSteps = 400
+tracker.totalSteps = 600
 ```
 
 ```output
 About to set steps from 0 to 150
-Added 150 new steps.
-About to set steps from 150 to 400
-Added 250 new steps.
+Added 150 steps.
+About to set steps from 150 to 600
+Added 350 steps.
 ```
 
 </CodeExample>
 
-This example highlights how observers work:
-- **`willSet`**: Runs before the new value is stored. `newValue` provides the incoming value.
-- **`didSet`**: Runs after the assignment finishes. `oldValue` provides the previous value.
-- **Initializers**: Property observers do not run when an instance is initially created.
+This example shows how property observers work:
+- **`willSet`**: Runs right before the new value is stored and gives you `newValue`.
+- **`didSet`**: Runs right after the value is stored and gives you `oldValue`. Observers run every time the property is set, even if the new value equals the old one.
+- **Assigning inside `didSet`**: Setting `totalSteps = 500` inside `didSet` updates the value directly and does not trigger `didSet` again.
+- **Initializers**: Property observers do not run when an instance is first created in `init`.
 
 <QuickCheck>
   <Question>Do willSet and didSet observers run when a property is set inside an initializer?</Question>
-  <Option id="a">Yes, observers run during initializers to validate starter data.</Option>
+  <Option id="a">Yes, observers run during initializers to check starter data.</Option>
   <Option id="b" correct>No, Swift suppresses property observers during initialization.</Option>
   <Option id="c">Only didSet runs during init, while willSet is skipped.</Option>
-  <Explanation>Property observers only run when a property is mutated on an existing instance, not during initializers.</Explanation>
+  <Explanation>Property observers only run when a property is set on an existing instance, not during init.</Explanation>
 </QuickCheck>
-
-<TryIt>
-Try the examples in Swift Playground, free for iPad and Mac.
-</TryIt>
 
 ## Interview traps
 
 <Trap title="Declaring a lazy property with let">
-A lazy property cannot be declared with `let`. The compiler produces an error. Because the value is assigned after the instance finishes initialization, a lazy property must always be declared with `var`.
+A lazy property cannot use `let`. The compiler stops with an error (`'lazy' cannot be used on a let`). Because its value is assigned after initialization finishes, a lazy property must always use `var`.
 </Trap>
 
 <Trap title="Declaring a read-only computed property with let">
-Candidates often think that a read-only computed property is a constant, so they write `let area: Double { ... }`. This triggers a compile error. Computed properties must always be declared with `var` because their value is evaluated dynamically.
+Developers often think a read-only computed property is a constant, so they write `let area: Double { ... }`. This causes a compile error. Computed properties must always use `var` because their value is calculated each time and can change.
 </Trap>
 
 <Trap title="Expecting observers to fire during initializers">
-Property observers (`willSet` and `didSet`) do not execute when a property receives its initial value inside an `init` method. Swift suppresses observers during initialization to prevent accessing incomplete state.
+Property observers (`willSet` and `didSet`) do not run when a property gets its initial value inside an `init` method. Swift skips observers during initialization so they never read half-built state.
+</Trap>
+
+<Trap title="Adding willSet or didSet to a computed property">
+You cannot attach `willSet` or `didSet` to a computed property you define on a type. A computed property already controls reads and writes through its `get` and `set` blocks, so handle changes inside `set` instead.
 </Trap>
 
 ## How to answer in the interview
 
 <InterviewAnswer level="fresh">
-In Swift, stored properties hold values directly in memory for classes and structs, while computed properties calculate values dynamically using getters and setters. Lazy properties defer their initialization until first access and must always use var. Property observers like willSet and didSet let you respond to value changes, but they do not run during initialization.
+In Swift, stored properties save values in memory for classes and structs, while computed properties calculate values on demand with getters and setters. Lazy properties wait until first access to run their initializer and must always use var. Property observers like willSet and didSet react when a stored property is set, but they do not run during init.
 </InterviewAnswer>
 
 <InterviewAnswer level="junior">
-Swift properties separate storage from computation. Stored properties allocate instance memory, while computed properties execute code on demand and can be read-only or read-write. Lazy properties optimize memory and startup time by executing initializers on first access. Property observers provide clean hooks for state updates using implicit newValue and oldValue parameters without triggering during init.
+Swift properties separate storage from calculation. Stored properties allocate instance memory, while computed properties run code on demand and can be read-only or read-write with newValue in the setter. Lazy properties delay expensive setup until first access, though they are not thread-safe. By contrast, static stored type properties are lazily initialized once in a thread-safe way. Property observers provide willSet (newValue) and didSet (oldValue) hooks without running during init or looping when you reassign inside didSet.
 </InterviewAnswer>
 
 ## Recap
 
 <Recap>
-- Stored properties save values in memory; provided by classes and structs.
-- Computed properties calculate values on demand; provided by classes, structs, and enums.
-- Read-only computed properties omit set and must always be declared with `var`.
-- Lazy properties calculate their value only when first accessed; must always use `lazy var`.
-- Property observers (`willSet` and `didSet`) observe changes on stored properties.
-- `newValue` contains the upcoming value in `willSet`; `oldValue` contains the previous value in `didSet`.
-- Property observers do not run during `init`.
+- Stored properties save values in memory on classes and structs; computed properties calculate values on demand on classes, structs, and enums.
+- Read-only computed properties omit `get` and must still use `var`; read-write computed properties use `get` and `set` (with `newValue`).
+- `lazy var` properties compute their value on first access, must use `var`, and are not thread-safe.
+- `static` stored type properties belong to the type and initialize lazily once in a thread-safe way.
+- Property observers (`willSet` and `didSet`) run when a stored property is set, but not during `init` and not recursively inside `didSet`.
 </Recap>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>

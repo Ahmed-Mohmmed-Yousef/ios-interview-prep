@@ -1,19 +1,15 @@
 export const meta = {
   id: "swiftui-navigation",
-  summary: "Organize screen transitions with NavigationStack, navigate with type-safe NavigationLink and navigationDestination, and handle programmatic stacks with NavigationPath.",
+  summary: "Move between screens with NavigationStack, pass data with NavigationLink and navigationDestination, and manage programmatic stacks with NavigationPath.",
   estimatedMinutes: 12,
-  baseline: { swift: "6.4", xcode: "27", ios: "27" },
-  lastVerified: "2026-11-09",
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27" },
+  lastVerified: "2026-11-14",
   sources: [
     { title: "Apple Developer Documentation: NavigationStack", url: "https://developer.apple.com/documentation/swiftui/navigationstack", kind: "official" },
     { title: "Apple Developer Documentation: NavigationLink", url: "https://developer.apple.com/documentation/swiftui/navigationlink", kind: "official" },
     { title: "Apple Developer Documentation: NavigationPath", url: "https://developer.apple.com/documentation/swiftui/navigationpath", kind: "official" },
   ],
 }
-
-# Navigation
-
-How do users move from a master list to a detail screen and back again? In SwiftUI, `NavigationStack` manages screen transitions using a stack of data.
 
 <InterviewHook>
   <Question>Why did Apple introduce NavigationStack to replace NavigationView, and how does it prevent memory waste?</Question>
@@ -26,30 +22,33 @@ How do users move from a master list to a detail screen and back again? In Swift
 
 ## The simple idea
 
-Mobile apps often organize screens in a hierarchy. You start at a home screen, tap an item to push a detail screen, and tap back to return.
+Mobile apps often organize screens in layers. You start at a home screen, tap an item to push a detail screen, and tap back to return.
 
 In SwiftUI, `NavigationStack` holds your root view:
 1. **The Navigation Stack**:
    - `NavigationStack` manages a stack of screens.
    - When a user taps a navigation link, SwiftUI pushes a new screen on top.
-   - When the user taps the back button or swipes from the left, SwiftUI pops the top screen off.
+   - When the user taps Back or swipes from the left edge, SwiftUI pops the top screen off.
 2. **Data-Driven Navigation**:
    - Modern SwiftUI uses data values to drive navigation.
-   - `NavigationLink(value:)` sends a data item to the stack.
-   - The `.navigationDestination(for:destination:)` modifier defines what view to display for that data type.
+   - `NavigationLink(value:)` sends a `Hashable` data value to the stack.
+   - `.navigationDestination(for:destination:)` defines which view to show for that data type.
+   - Inside `NavigationStack`, attach `.navigationTitle(_:)` and `.navigationBarTitleDisplayMode(_:)` (`.inline` or `.large`) to the child view, not the stack itself.
 3. **Lazy Creation**:
    - Destination views are created only when the user taps a row.
-   - This prevents loading dozens of detail views into memory upfront.
+   - This avoids loading dozens of detail screens into memory before the user visits them.
 
 <Analogy>
-  Think of a stack of cafeteria trays.
-  The bottom tray is your home screen. When you tap an item, you place a new tray on top. You only see the top tray.
-  When you finish, you remove the top tray and reveal the screen underneath.
+Think of a stack of cafeteria trays.
+
+The bottom tray is your home screen. When you tap an item, you place a new tray on top, and you only see the top tray.
+
+When you finish, you lift off the top tray to reveal the screen below.
 </Analogy>
 
 ## See it
 
-<Diagram id="swiftui-navigation-flow" caption="How NavigationStack pushes destination views onto the navigation hierarchy">
+<Diagram id="swiftui-navigation-flow" caption="How NavigationStack pushes destination views onto the screen stack">
 {/*
   Spec for /diagram-animator:
   - Elements:
@@ -70,12 +69,12 @@ In SwiftUI, `NavigationStack` holds your root view:
   <Option id="a">Directly to the outer NavigationStack container.</Option>
   <Option id="b" correct>To the child content view inside the NavigationStack.</Option>
   <Option id="c">Inside the App scene struct definition.</Option>
-  <Explanation>The active child view configures the navigation bar, so .navigationTitle belongs on the inner view.</Explanation>
+  <Explanation>The active child view sets the navigation bar, so .navigationTitle belongs on the inner view.</Explanation>
 </QuickCheck>
 
 ## In code
 
-Here is a working `NavigationStack` using `NavigationLink(value:)` and `.navigationDestination(for:)`.
+Here is a `NavigationStack` using `NavigationLink(value:)` and `.navigationDestination(for:)`.
 
 <CodeExample title="Value-based navigation with NavigationStack">
 
@@ -108,7 +107,12 @@ Fruits count: 3
 
 </CodeExample>
 
-You can also control navigation programmatically using a `NavigationPath`. A `NavigationPath` stores the navigation state as an array of items.
+You can control navigation in code by binding a `NavigationPath` (or a typed array) to `NavigationStack(path: $path)`:
+- **Push a screen**: Call `path.append(value)` to push a matching destination onto the stack.
+- **Pop one screen**: Call `path.removeLast()` to remove the top screen from `path`.
+- **Pop to root**: Call `path.removeLast(path.count)` or assign `path = NavigationPath()` to clear all pushed screens.
+- **Check depth**: Use `path.count` (starts at `0`) and `path.isEmpty` (`true` when at the root screen).
+- **`NavigationPath` vs a typed array like `[Route]`**: A typed array like `[Route]` holds one single (`homogeneous`) type. `NavigationPath` is type-erased, so it can store mixed (`heterogeneous`) `Hashable` types such as `String`, `Int`, and custom structs in the same stack. If every item in `NavigationPath` also conforms to `Codable`, `path.codable` lets you save and restore the path.
 
 <CodeExample title="Programmatic navigation with NavigationPath">
 
@@ -150,54 +154,71 @@ Path depth: 1
 </CodeExample>
 
 <QuickCheck>
-  <Question>How do you pop all screens back to the root view programmatically?</Question>
-  <Option id="a">By terminating the application process in the AppDelegate.</Option>
+  <Question>How do you pop all screens back to the root view in code?</Question>
+  <Option id="a">By ending the app process in the AppDelegate.</Option>
   <Option id="b" correct>By resetting the NavigationPath bound to the NavigationStack to an empty path.</Option>
   <Option id="c">By recreating the main window scene in the App struct.</Option>
-  <Explanation>Resetting the bound NavigationPath to an empty state removes all stacked screens and reveals the root.</Explanation>
+  <Explanation>Resetting the bound NavigationPath to an empty path removes all stacked screens and reveals the root.</Explanation>
 </QuickCheck>
 
 <TryIt>
-  Open an Xcode playground. Create a `NavigationStack` with three rows. Add a button on the detail screen that resets the `NavigationPath` to empty.
+Open an Xcode playground. Create a `NavigationStack` with three rows, and add a button on the detail screen that resets `NavigationPath` to empty.
 </TryIt>
 
 ## Interview traps
 
 <Trap title="Using deprecated NavigationView">
-  `NavigationView` was deprecated in iOS 16. It had navigation bugs and poor performance. In modern Swift interviews, always use `NavigationStack` for single-column layouts or `NavigationSplitView` for multi-column layouts.
+`NavigationView` was deprecated in iOS 16 because it had navigation bugs and eager view creation.
+
+In modern SwiftUI interviews, use `NavigationStack` for single-column flows or `NavigationSplitView` for multi-column layouts (sidebar, content, and detail columns) on iPad and Mac.
 </Trap>
-<Trap title="Eager loading with NavigationLink(destination:)">
-  Passing a view directly into `NavigationLink(destination: DetailView())` creates `DetailView` structs immediately for every row in your list. Always use `NavigationLink(value:)` paired with `.navigationDestination(for:)` to load screens lazily.
+
+<Trap title="Loading views early with NavigationLink(destination:)">
+Passing a view directly into `NavigationLink(destination: DetailView())` creates `DetailView` structs immediately for every row in your list.
+
+Always use `NavigationLink(value:)` with `.navigationDestination(for:)` so destination screens are created lazily only when tapped.
 </Trap>
+
 <Trap title="Placing .navigationTitle on NavigationStack">
-  Attaching `.navigationTitle("Home")` directly to `NavigationStack` does not display a title. Always attach `.navigationTitle()` to the root child view inside the stack.
+Attaching `.navigationTitle("Home")` directly to `NavigationStack` does not show a title.
+
+Always attach `.navigationTitle()` and `.navigationBarTitleDisplayMode()` to the child view inside the stack.
 </Trap>
+
 <Trap title="Missing Hashable conformance on values">
-  `NavigationLink(value:)` requires data values to conform to `Hashable`. If your custom model struct does not conform to `Hashable`, the compiler will report an error.
+`NavigationLink(value:)` requires data values to conform to `Hashable`.
+
+If your custom struct or enum does not conform to `Hashable`, the Swift compiler reports an error.
+</Trap>
+
+<Trap title="Nesting NavigationStack inside another NavigationStack">
+Never put a `NavigationStack` inside another `NavigationStack`.
+
+Nested stacks create duplicate navigation bars and broken back gestures. Keep one `NavigationStack` at the root of each navigation flow.
 </Trap>
 
 ## How to answer in the interview
 
 <InterviewAnswer level="fresh">
-  "In SwiftUI, we use NavigationStack to present hierarchical screens. We wrap our root content in a NavigationStack and use NavigationLink to navigate. In iOS 16 and later, we pass a value to NavigationLink and resolve the screen using navigationDestination."
+"In SwiftUI, we use `NavigationStack` to move between screens in layers. We wrap the root view in `NavigationStack`, use `NavigationLink(value:)` to send a `Hashable` item, and resolve the destination screen lazily with `.navigationDestination(for:)`. We attach `.navigationTitle` to the child view inside the stack."
 </InterviewAnswer>
 
 <InterviewAnswer level="junior">
-  "Apple introduced NavigationStack in iOS 16 to replace the old NavigationView. It separates data values from view destinations, enabling lazy view creation. By binding a NavigationPath to the stack, we can navigate programmatically, support deep links, and pop back to root easily."
+"Apple introduced `NavigationStack` in iOS 16 to replace `NavigationView`. It separates data values from destination views so screens load lazily when tapped. By binding a `NavigationPath` with `NavigationStack(path: $path)`, we can push with `append`, pop with `removeLast`, support deep links, and pop to root cleanly."
 </InterviewAnswer>
 
 <InterviewAnswer level="senior">
-  "NavigationStack provides a robust data-driven navigation architecture. Decoupling routes from destination views prevents the eager instantiation bugs common in NavigationView. It simplifies state restoration and deep linking because navigation state is just a collection of Hashable models."
+"`NavigationStack` gives us data-driven navigation instead of tying views directly to links. Separating routes from destination views avoids eager view creation in large lists. For single-type stacks, a typed `[Route]` array works cleanly, while `NavigationPath` handles mixed `Hashable` types and supports saving state via `path.codable` when elements are `Codable`."
 </InterviewAnswer>
 
 ## Recap
 
 <Recap>
-  - Use `NavigationStack` to present a stack of hierarchical screens.
-  - Pair `NavigationLink(value:)` with `.navigationDestination(for:)` for lazy destination loading.
-  - Bind a `NavigationPath` to your stack for programmatic navigation and pop-to-root actions.
-  - Always place `.navigationTitle()` on the inner child view, not the `NavigationStack`.
-  - Values passed to `NavigationLink(value:)` must conform to `Hashable`.
+- Use `NavigationStack` to manage a stack of screens, and `NavigationSplitView` for multi-column iPad layouts.
+- Pair `NavigationLink(value:)` with `.navigationDestination(for:)` for lazy screen creation.
+- Bind a `NavigationPath` (or typed `[Route]` array) to push, pop with `removeLast()`, or reset to root.
+- Always attach `.navigationTitle()` and `.navigationBarTitleDisplayMode()` to the child view inside the stack.
+- Values passed to `NavigationLink(value:)` must conform to `Hashable`, and never nest a `NavigationStack` inside another.
 </Recap>
 
 ## Go deeper

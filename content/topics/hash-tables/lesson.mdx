@@ -2,8 +2,8 @@ export const meta = {
   id: "hash-tables",
   summary: "Master hash tables in Swift, including Dictionary, Set, Hashable, and key interview algorithms like Two Sum.",
   estimatedMinutes: 10,
-  baseline: { swift: "6.4", xcode: "27", ios: "27" },
-  lastVerified: "2026-11-09",
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27" },
+  lastVerified: "2026-11-14",
   sources: [
     { title: "Apple Developer Documentation: Dictionary", url: "https://developer.apple.com/documentation/swift/dictionary", kind: "official" },
     { title: "Apple Developer Documentation: Set", url: "https://developer.apple.com/documentation/swift/set", kind: "official" },
@@ -36,15 +36,15 @@ A **hash table** is a data structure that stores key-value pairs.
 In Swift, both `Dictionary` and `Set` use hash tables behind the scenes:
 1. **The Hash Function**:
    - The key must conform to the `Hashable` protocol.
-   - Swift passes the key into a hash function.
-   - The hash function turns the key into an integer hash value.
+   - For structs and enums whose stored properties all conform to `Hashable`, Swift synthesizes conformance automatically.
+   - For custom rules, implement `hash(into:)` with `hasher.combine(...)` to turn the key into a hash value.
 2. **Buckets**:
    - Swift converts the hash value into an internal storage index called a bucket.
    - Finding the bucket takes $O(1)$ constant time.
 3. **Collisions**:
    - When two different keys produce the same bucket index, a **collision** happens.
-   - Swift resolves collisions by finding an alternate open bucket or chaining entries.
-   - In the worst case, many collisions force Swift to check multiple entries, taking $O(n)$ linear time.
+   - Swift uses **open addressing** with **linear probing** to step to the next open slot.
+   - In the worst case, many collisions force Swift to check multiple slots, taking $O(n)$ linear time.
 
 Because hash tables provide $O(1)$ average lookups, they are essential in coding interviews. They allow you to replace slow nested loops with instant dictionary checks.
 
@@ -150,6 +150,42 @@ In Two Sum, a brute-force solution checks every pair with two nested loops. That
 
 By storing visited numbers in a dictionary, we check for the required complement in $O(1)$ time. This solves the problem in $O(n)$ time and $O(n)$ auxiliary space.
 
+<CodeExample title="Useful Dictionary and Set methods in Swift">
+
+```swift
+// Dictionary capacity, updates, removal, and duplicate keys
+var scores = ["Alice": 90, "Bob": 80]
+scores.reserveCapacity(10)
+let oldAlice = scores.updateValue(95, forKey: "Alice")
+let removedMissing = scores.removeValue(forKey: "Cara")
+print("Old Alice: \(oldAlice ?? 0), removed Cara: \(removedMissing == nil)")
+
+let pairs = [("a", 1), ("b", 2), ("a", 3)]
+let combined = Dictionary(pairs, uniquingKeysWith: { first, second in first + second })
+print("Combined a: \(combined["a"] ?? 0)")
+
+// Set insertion result and set intersection
+var ids: Set<Int> = [1, 2]
+let addedTwo = ids.insert(2).inserted
+let addedThree = ids.insert(3).inserted
+let common = ids.intersection([2, 3, 4])
+print("Added 2: \(addedTwo), added 3: \(addedThree), common count: \(common.count)")
+```
+
+```output
+Old Alice: 90, removed Cara: true
+Combined a: 4
+Added 2: false, added 3: true, common count: 2
+```
+
+</CodeExample>
+
+Here is what each helper does in practice:
+- **`reserveCapacity`** prepares bucket storage up front to avoid repeated rehashing, without changing `count`.
+- **`updateValue(_:forKey:)`** and **`removeValue(forKey:)`** return the old value, or `nil` if the key was absent.
+- **`Dictionary(_:uniquingKeysWith:)`** lets you merge duplicate keys with a closure instead of crashing.
+- **`Set.insert(_:).inserted`** returns `true` only when the item is new, and **`intersection`** keeps items present in both sets.
+
 <QuickCheck>
   <Question>Why must types conforming to Hashable also conform to Equatable?</Question>
   <Option id="a">To let Swift sort dictionary keys automatically.</Option>
@@ -157,10 +193,6 @@ By storing visited numbers in a dictionary, we check for the required complement
   <Option id="c">To convert keys into numbers for printing.</Option>
   <Explanation>Hash collisions can occur. When two keys produce the same hash, Swift uses == to check if they are the exact same key.</Explanation>
 </QuickCheck>
-
-<TryIt>
-Try the examples in Swift Playground, free for iPad and Mac.
-</TryIt>
 
 ## Interview traps
 
@@ -173,9 +205,9 @@ If an interview problem requires preserving insertion order, use an array alongs
 </Trap>
 
 <Trap title="Persisting hashValue to disk or network">
-Swift uses SipHash with a per-process random seed.
+Swift uses **SipHash** with a random per-process seed to stop collision denial-of-service attacks, where crafted inputs force slow $O(n)$ collisions.
 
-This random seed changes every time your application launches. The hash value of an object will not match across app restarts.
+Because this random seed changes every time your app launches, an object's `hashValue` changes across runs.
 
 Never save `hashValue` to UserDefaults, Core Data, SwiftData, or a server database.
 </Trap>
@@ -207,7 +239,7 @@ Always use immutable value types like structs for dictionary keys and set elemen
 </InterviewAnswer>
 
 <InterviewAnswer level="senior">
-"In production iOS apps, hash table performance depends on load factor, bucket allocation, and collision mitigation. Swift standard library uses flat hash tables with control bytes for high cache locality and SIMD probing. Because SipHash is randomized per process, `hashValue` is non-deterministic and must never be persisted. When optimizing high-throughput pipelines, I preallocate dictionary capacity using `reserveCapacity` to prevent expensive rehashing cycles."
+"In production apps, hash table speed depends on load factor, bucket layout, and collision safety. Swift's standard library uses open addressing with linear probing and an inline bitmap tracking occupied buckets. Keys and values sit in contiguous arrays sized to powers of two, with no tombstones and resizing around 75% load. Because SipHash uses a random seed per launch, `hashValue` must never be saved. In hot paths, I use `reserveCapacity` to prevent costly rehashing passes."
 </InterviewAnswer>
 
 ## Recap
@@ -219,6 +251,10 @@ Always use immutable value types like structs for dictionary keys and set elemen
 - Swift uses SipHash with random per-process seeds; never save `hashValue` to disk or network.
 - Hash tables solve interview problems like Two Sum and frequency counting by trading $O(n)$ space for $O(n)$ time.
 </Recap>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
 
 ## Go deeper
 

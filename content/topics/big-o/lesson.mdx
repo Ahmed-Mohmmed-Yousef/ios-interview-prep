@@ -2,8 +2,8 @@ export const meta = {
   id: "big-o",
   summary: "Learn Big-O notation to measure algorithm time and memory, compare common growth rates, and write efficient Swift code.",
   estimatedMinutes: 10,
-  baseline: { swift: "6.4", xcode: "27", ios: "27" },
-  lastVerified: "2026-11-09",
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27" },
+  lastVerified: "2026-11-14",
   sources: [
     { title: "Apple Developer Documentation: Array", url: "https://developer.apple.com/documentation/swift/array", kind: "official" },
     { title: "Apple Developer Documentation: String", url: "https://developer.apple.com/documentation/swift/string", kind: "official" },
@@ -33,13 +33,13 @@ If you must check every face one by one, your search time grows with the line. C
 Big-O notation gives us a shared language to describe how time and memory grow as the input gets larger.
 </Analogy>
 
-In computer science, **Big-O notation** measures how an algorithm scales as the input size $n$ increases toward infinity.
+In computer science, **Big-O notation** measures how an algorithm grows as the input size $n$ gets very large.
 
-We use Big-O to analyze two things:
-- **Time complexity**: How the number of operations grows as input size grows.
-- **Space complexity**: How much extra memory (auxiliary space) the algorithm allocates as input size grows.
+We use Big-O to check two things:
+- **Time complexity**: How the number of steps grows as input size grows.
+- **Space complexity**: How much extra memory (auxiliary space) the code creates as input size grows.
 
-Big-O focuses on the worst-case scenario. We ignore constant multipliers and smaller terms. For example, $O(2n + 5)$ simplifies to $O(n)$.
+In interviews, Big-O usually describes the worst case, though average-case costs (like hash lookups) also use Big-O. We drop constant multipliers and smaller terms. For example, $O(2n + 5)$ simplifies to $O(n)$ because the $2$ and $+ 5$ do not matter as $n$ grows huge.
 
 Here are the six most common time complexities, from fastest to slowest:
 1. **$O(1)$ — Constant time**: The work stays the same no matter how large $n$ becomes. Reading an array element with `array[0]` takes $O(1)$ time.
@@ -173,77 +173,79 @@ Blast off!
 
 </CodeExample>
 
-Space complexity measures the extra memory an algorithm allocates during execution:
-- **`calculateSum`**: Allocates only one integer variable `total`. Its auxiliary space complexity is $O(1)$.
-- **`squareAll`**: Allocates a new array storing $n$ integers. Its auxiliary space complexity is $O(n)$.
-- **`countdown`**: Each recursive call adds a stack frame to the system call stack. A depth of $n$ recursive calls uses $O(n)$ stack space.
+Space complexity measures the extra memory code allocates while running:
+- **`calculateSum`**: Uses only one integer variable `total`. Its extra space complexity is $O(1)$.
+- **`squareAll`**: Allocates a new array for $n$ integers, so its extra space is $O(n)$. Calling `result.reserveCapacity(numbers.count)` reserves space for all $n$ items once to avoid repeated resizing.
+- **`countdown`**: Each recursive call pushes a frame onto the system call stack. A depth of $n$ recursive calls uses $O(n)$ stack space.
 
 <QuickCheck>
-  <Question>Does recursion consume memory even if the function creates no local variables or arrays?</Question>
-  <Option id="a">No, recursion runs entirely in CPU registers without using memory.</Option>
-  <Option id="b" correct>Yes, each recursive call places a stack frame on the system call stack.</Option>
+  <Question>Does recursion use memory even if the function creates no local variables or arrays?</Question>
+  <Option id="a">No, recursion runs only in CPU registers without using memory.</Option>
+  <Option id="b" correct>Yes, each recursive call places a frame on the system call stack.</Option>
   <Option id="c">Only if the function is marked with the mutating keyword.</Option>
   <Explanation>Each function call pushes a frame onto the call stack. A depth of n recursive calls uses O(n) memory.</Explanation>
 </QuickCheck>
 
-<TryIt>
-Try the examples in Swift Playground, free for iPad and Mac.
-</TryIt>
-
 ## Interview traps
 
 <Trap title="Assuming string.count is O(1)">
-In many languages, string length is stored as an integer and checked in $O(1)$ time. In Swift, characters are **extended grapheme clusters** that can combine multiple Unicode code points.
+In many languages, string length is stored as a number and read in $O(1)$ time. In Swift, each `Character` is an **extended grapheme cluster** made from one or more Unicode parts.
 
-Swift must inspect Unicode scalar boundaries across the string to count characters. As a result, `string.count` takes **$O(n)$** linear time.
+Swift walks those Unicode boundaries across the string to count characters. As a result, `string.count` takes **$O(n)$** linear time.
 
-Do not write `string.count == 0` to test for an empty string. Always use **`string.isEmpty`**, which runs in guaranteed $O(1)$ constant time.
+Do not write `string.count == 0` to check for an empty string. Always use **`string.isEmpty`**, which only checks `startIndex == endIndex` in guaranteed $O(1)$ constant time.
 </Trap>
 
 <Trap title="Calling contains inside an array loop">
 Checking whether an array contains an item with `array.contains(x)` takes $O(n)$ linear time.
 
-If you call `array.contains` inside a loop that also runs $n$ times, your total runtime becomes **$O(n^2)$**.
+If you call `array.contains` inside a loop that also runs $n$ times, total runtime becomes **$O(n^2)$**.
 
-To fix this, convert the array into a **`Set`** before the loop. Building the set takes $O(n)$ time once, and set lookups take $O(1)$ average time. This reduces the total time to **$O(n)$**.
+To fix this, use a **`Set`** (an unordered collection of unique values with fast lookup). Writing `var seen = Set<Int>()` lets you check `seen.contains(x)` and call `seen.insert(x)` in $O(1)$ average time, dropping total time to **$O(n)$**.
 </Trap>
 
 <Trap title="Inserting elements at index 0 of an array">
-`array.append(element)` adds an item to the end of an array in amortized $O(1)$ time.
+`array.append(element)` adds an item to the end of an array in $O(1)$ average (amortized) time.
 
-However, calling `array.insert(element, at: 0)` forces Swift to shift all existing $n$ items one position to the right in memory. This turns your insert into an **$O(n)$** operation.
+However, calling `array.insert(element, at: 0)` forces Swift to shift all $n$ items one slot to the right in memory. This makes inserting at the front an **$O(n)$** operation.
 </Trap>
 
 <Trap title="Forgetting call stack space in recursion">
-Even when a recursive function creates no local arrays, each function call takes memory on the call stack.
+Even when a recursive function creates no local arrays, each call takes space on the call stack.
 
-If an algorithm recurses $n$ levels deep, its space complexity is **$O(n)$**, not $O(1)$. If $n$ is very large, this can cause a stack overflow crash.
+If a function recurses $n$ levels deep, its space cost is **$O(n)$**, not $O(1)$. Very deep inputs can crash with a stack overflow.
+
+When you only need a straight pass (like counting down), rewrite the recursion as a `for` or `while` loop. An iterative loop drops extra space to **$O(1)$**.
 </Trap>
 
 ## How to answer in the interview
 
 <InterviewAnswer level="fresh">
-"Big-O notation describes how an algorithm scales in time and memory as the input size $n$ grows. For example, reading an array element by index is $O(1)$ constant time. It takes the same step regardless of array size. Searching for an element with a loop is $O(n)$ linear time because we may need to inspect every item."
+"Big-O notation describes how an algorithm grows in time and memory as the input size $n$ grows. For example, reading an array item by index is $O(1)$ constant time. It takes one step no matter how big the array is. Searching with a loop is $O(n)$ linear time because we may check every item."
 </InterviewAnswer>
 
 <InterviewAnswer level="junior">
-"Big-O measures the upper bound of time and space growth. In Swift, understanding collection costs is critical. For example, `string.count` is $O(n)$ because Swift counts extended grapheme clusters, whereas `string.isEmpty` is $O(1)$. Similarly, `array.append` is amortized $O(1)$, while `array.insert(at: 0)` is $O(n)$ because all elements shift. When searching repeatedly, I convert arrays to sets to change lookup time from $O(n)$ to $O(1)$."
+"Big-O measures how time and space grow as input grows. In Swift, collection costs matter a lot. For example, `string.count` is $O(n)$ because Swift counts extended grapheme clusters, while `string.isEmpty` checks `startIndex == endIndex` in $O(1)$. Also, `array.append` is amortized $O(1)$, while `array.insert(at: 0)` is $O(n)$ because items shift. When searching often, I use a `Set` so lookups drop from $O(n)$ to $O(1)$."
 </InterviewAnswer>
 
 <InterviewAnswer level="senior">
-"Big-O guides architectural decisions around latency and memory footprint on mobile devices. Beyond asymptotic complexity, cache locality matters. Swift arrays store elements contiguously in memory, giving them superior cache line performance over pointer-based structures. In performance-critical paths, we also consider memory allocations. We use `reserveCapacity` on collections to prevent repeated reallocations, and favor iterative algorithms over deep recursion to protect the call stack."
+"Big-O guides choices around app speed and memory limits on mobile devices. Beyond Big-O growth, CPU cache speed matters too. Swift arrays store items side by side in memory, which makes sequential reads fast. In hot paths, we also watch memory allocations. We use `reserveCapacity` on collections to avoid repeated resizing, and prefer loops over deep recursion to keep call stack space at $O(1)$."
 </InterviewAnswer>
 
 ## Recap
 
 <Recap>
-- **Big-O notation** measures how an algorithm's time or memory usage scales as input size $n$ grows.
+- **Big-O notation** measures how time or memory usage grows as input size $n$ grows.
 - **$O(1)$** is constant time, **$O(\log n)$** is logarithmic, **$O(n)$** is linear, and **$O(n^2)$** is quadratic.
-- **Space complexity** includes auxiliary memory allocated on the heap and stack frames pushed to the call stack during recursion.
-- In Swift, **`string.isEmpty`** is $O(1)$, while **`string.count`** is $O(n)$ due to Unicode grapheme clusters.
+- **Space complexity** counts extra heap memory and call stack frames pushed during recursion.
+- In Swift, **`string.isEmpty`** checks `startIndex == endIndex` in $O(1)$, while **`string.count`** takes $O(n)$.
 - **`array[index]`** is $O(1)$, **`array.append`** is amortized $O(1)$, and **`array.insert(at: 0)`** is $O(n)$.
-- Use a **`Set`** for $O(1)$ average lookups instead of calling `array.contains` inside a loop.
+- Use a **`Set`** for $O(1)$ average lookups instead of `array.contains` inside a loop.
 </Recap>
+
+<TryIt>
+Try the examples in Swift Playground, free for iPad and Mac.
+</TryIt>
 
 ## Go deeper
 

@@ -2,8 +2,8 @@ export const meta = {
   id: "state-and-binding",
   summary: "Manage view data with @State as a local source of truth and share two-way connections with child views using @Binding.",
   estimatedMinutes: 10,
-  baseline: { swift: "6.4", xcode: "27", ios: "27" },
-  lastVerified: "2026-11-09",
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27" },
+  lastVerified: "2026-11-14",
   sources: [
     { title: "Apple Developer Documentation: State", url: "https://developer.apple.com/documentation/swiftui/state", kind: "official" },
     { title: "Apple Developer Documentation: Binding", url: "https://developer.apple.com/documentation/swiftui/binding", kind: "official" },
@@ -14,40 +14,43 @@ export const meta = {
 <InterviewHook>
   <Question>What happens to a view's @State property when SwiftUI destroys and recreates the view struct?</Question>
   <Guess>
-    <Option id="a">The value resets back to its initial default value on every redraw.</Option>
-    <Option id="b" correct>SwiftUI preserves the state value in separate persistent memory outside the struct.</Option>
-    <Option id="c">The app crashes unless the property is backed by UserDefaults.</Option>
+    <Option id="a">The value resets back to its starting value on every redraw.</Option>
+    <Option id="b" correct>SwiftUI keeps the state value in separate persistent memory outside the struct.</Option>
+    <Option id="c">The app crashes unless the value is saved in UserDefaults.</Option>
   </Guess>
 </InterviewHook>
 
 ## The simple idea
 
 <Analogy>
-Imagine a white sign in a shop window and a remote control held by the cashier.
+Imagine a sign in a shop window and a remote control held by a helper.
 
-The cashier owns the sign and keeps it inside the shop. That sign is the **source of truth** (`@State`).
+The shop owner keeps the sign inside the shop. That sign is the **source of truth** (`@State`).
 
-The cashier gives a remote control to an assistant outside. When the assistant presses a button on the remote, the sign in the window changes immediately.
+The owner hands a remote control to a helper outside. When the helper presses a button, the sign in the window changes right away.
 
-The remote control is a **binding** (`@Binding`). The remote holds no letters of its own. It only reads and updates the original sign.
+The remote control is a **binding** (`@Binding`). It stores no letters of its own. It only reads and updates the original sign.
 </Analogy>
 
-In SwiftUI, views are structs that get recreated constantly.
+In SwiftUI, views are structs that get recreated often.
 
-To store and share mutable data without losing it on every redraw, SwiftUI provides two essential property wrappers:
-1. **`@State` (The Source of Truth)**:
-   - `@State` creates a local piece of mutable data owned by the view.
-   - SwiftUI stores the value outside the struct in persistent memory.
-   - When the struct is recreated, SwiftUI reconnects the `@State` property to that persistent memory.
-   - When an `@State` value changes, SwiftUI invalidates the view and redraws the screen on the main thread.
-   - Always declare `@State` properties as `private`.
-2. **`@Binding` (The Two-Way Connection)**:
-   - `@Binding` creates a reference to data owned by another view.
-   - A binding does not store data of its own.
+To store and share changing data without losing it on each redraw, SwiftUI gives you two property wrappers:
+1. **`@State` (the source of truth)**:
+   - `@State` creates local data owned by one view.
+   - SwiftUI stores the real value outside the struct in persistent memory.
+   - When SwiftUI recreates the view struct, it reconnects `@State` to that saved memory.
+   - When an `@State` value changes, SwiftUI updates the views that read it on the main thread.
+   - Always mark `@State` properties `private` so outside views cannot change them directly.
+2. **`@Binding` (the two-way connection)**:
+   - `@Binding` is a value-type struct wrapper that connects to data owned by another view.
+   - A binding stores no data of its own.
    - Reading a binding reads the parent value. Writing to a binding updates the parent value.
-3. **The Projected Value (`$`)**:
-   - Prefixing an `@State` variable with a dollar sign (`$isOn`) accesses its projected value.
-   - The projected value creates a `Binding` that you can pass to child views or controls like `Toggle` and `TextField`.
+   - Unlike Swift `inout` parameters, which last only for one function call, `@Binding` works across many UI redraws.
+3. **The projected value (`$`)**:
+   - Writing `$` before an `@State` variable (like `$isOn`) reads its projected value.
+   - That gives you a `Binding` to pass to child views or controls like `Toggle` and `TextField`.
+
+**SwiftUI uses unidirectional (one-way) data flow.** State flows down from parent to child as plain values or bindings. User actions flow back up through bindings or closures to update the source of truth.
 
 ## See it
 
@@ -71,10 +74,10 @@ To store and share mutable data without losing it on every redraw, SwiftUI provi
 
 <QuickCheck>
   <Question>Why should @State properties always be marked private?</Question>
-  <Option id="a">To prevent background threads from accessing SwiftUI views.</Option>
-  <Option id="b" correct>To make sure only the owning view can mutate its own source of truth directly.</Option>
-  <Option id="c">To allow Xcode previews to override the property with fake data.</Option>
-  <Explanation>@State establishes a view-local source of truth. Marking it private enforces clean component encapsulation.</Explanation>
+  <Option id="a">To stop background threads from reading SwiftUI views.</Option>
+  <Option id="b" correct>To make sure only the owning view can change its own source of truth directly.</Option>
+  <Option id="c">To let Xcode previews replace the property with fake data.</Option>
+  <Explanation>@State holds view-local state. Marking it private keeps outside views from changing it behind the view's back.</Explanation>
 </QuickCheck>
 
 ## In code
@@ -86,7 +89,7 @@ import SwiftUI
 
 struct CounterView: View {
     @State private var count: Int = 0
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Text("Count: \(count)")
@@ -107,9 +110,7 @@ CounterView created: CounterView
 
 </CodeExample>
 
-In this example, tapping "Increment" modifies `count`.
-
-SwiftUI observes this change, invalidates `CounterView`, and runs `var body` to update the displayed text.
+In this example, tapping "Increment" changes `count`. SwiftUI sees the change and calls `var body` again to show the new number.
 
 <CodeExample title="Sharing state with a child view using @Binding">
 
@@ -118,7 +119,7 @@ import SwiftUI
 
 struct ToggleSwitch: View {
     @Binding var isEnabled: Bool
-    
+
     var body: some View {
         Button(isEnabled ? "Disable" : "Enable") {
             isEnabled.toggle()
@@ -128,7 +129,7 @@ struct ToggleSwitch: View {
 
 struct SettingsScreen: View {
     @State private var notificationsActive: Bool = false
-    
+
     var body: some View {
         VStack {
             Text("Notifications: \(notificationsActive ? "On" : "Off")")
@@ -147,16 +148,18 @@ SettingsScreen created: SettingsScreen
 
 </CodeExample>
 
-In this example, `SettingsScreen` owns the state property `notificationsActive`.
+Here, `SettingsScreen` owns `notificationsActive` with `@State`. It passes `$notificationsActive` into `ToggleSwitch` (or into built-in controls like `TextField("Enter name", text: $name)`), so the child updates the parent's state directly.
 
-It passes a binding using `$notificationsActive` into `ToggleSwitch`. When `ToggleSwitch` toggles `isEnabled`, it updates the state on `SettingsScreen` directly.
+When you write previews or custom adapters, SwiftUI also gives you two helpful ways to create a `Binding`:
+- **`Binding.constant(_:)`**: Creates a fixed binding (like `.constant(true)`) for `#Preview` blocks when there is no parent `@State`.
+- **`Binding(get:set:)`**: Creates a custom binding from getter and setter closures, and you can read or write its value directly with `.wrappedValue`.
 
 <QuickCheck>
   <Question>What does the dollar sign prefix ($) produce when used on an @State variable?</Question>
-  <Option id="a">It converts the value into an encrypted security token.</Option>
-  <Option id="b" correct>It accesses the projected value, returning a Binding to the property.</Option>
-  <Option id="c">It formats the number as a currency string.</Option>
-  <Explanation>The $ prefix accesses the projected value of a property wrapper. For @State, this returns a Binding.</Explanation>
+  <Option id="a">It turns the value into a secret security token.</Option>
+  <Option id="b" correct>It reads the projected value, returning a Binding to the property.</Option>
+  <Option id="c">It formats the number as a money string.</Option>
+  <Explanation>The $ prefix reads the projected value of a property wrapper. For @State, that returns a Binding.</Explanation>
 </QuickCheck>
 
 <TryIt>
@@ -168,60 +171,60 @@ Try the examples in Swift Playground, free for iPad and Mac.
 <Trap title="Initializing @State inside init from a parameter">
 Writing `_count = State(initialValue: incomingValue)` inside a view's `init` is a common mistake.
 
-SwiftUI allocates `@State` storage only once when the view enters the screen.
+SwiftUI sets up `@State` memory only once when the view first enters the screen.
 
-If the parent redraws with a new value, SwiftUI reuses the existing state and ignores the updated parameter.
+If the parent redraws and passes a new value to `init`, SwiftUI keeps the old `@State` value and ignores the new input.
 
-If a child view must respond to changing parent values, pass a normal `let` property or a `@Binding`.
+If a child must update when the parent passes a new value, use a plain `let` property or a `@Binding`.
 </Trap>
 
-<Trap title="Mutating @State directly inside var body">
-Never write `count += 1` directly inside the body evaluation pass.
+<Trap title="Changing @State directly inside var body">
+Never write `count += 1` directly inside `var body`.
 
-Mutating state while SwiftUI is evaluating `var body` triggers an immediate re-evaluation.
+Changing `@State` while SwiftUI is running `var body` forces another immediate redraw.
 
-This creates an infinite loop that crashes your app or triggers runtime warnings.
+This causes runtime warnings and repeated redraw loops that can freeze your app.
 </Trap>
 
-<Trap title="Believing @Binding stores a separate copy of data">
-A `@Binding` owns no storage. It is merely a two-way pointer to a source of truth.
+<Trap title="Thinking @Binding stores its own copy of data">
+A `@Binding` stores no value of its own. It only connects to a source of truth owned somewhere else.
 
-Mutating a binding changes the original data immediately.
+Changing a binding changes the original data right away.
 
-Never create a `@Binding` when you want a local, independent copy of data.
+Never use `@Binding` when a child needs its own separate copy of a value.
 </Trap>
 
-<Trap title="Using @State for global app architecture">
-`@State` is designed for view-local value-type data like button toggles, text input, and simple counters.
+<Trap title="Using @State for app-wide shared data">
+`@State` is built for view-local UI state like toggles, text input, and counters (and can also own a view-local `@Observable` class instance).
 
-Using `@State` for complex global network state or large database models leads to messy dependencies.
+Putting shared network or database models in `@State` across many screens makes data hard to track.
 
-For shared domain models, use `@Observable` classes or environment values.
+For shared app data, pass `@Observable` models down or store them in the environment.
 </Trap>
 
 ## How to answer in the interview
 
 <InterviewAnswer level="fresh">
-"`@State` creates a local source of truth owned by a specific view. Because SwiftUI views are structs that get recreated often, SwiftUI stores `@State` data in separate persistent memory. `@Binding` creates a two-way reference to data owned elsewhere without duplicating storage. We pass bindings to child views using the dollar sign prefix (`$`), allowing children to update parent state directly."
+"`@State` creates a local source of truth owned by one view. Because SwiftUI recreates view structs often, SwiftUI stores `@State` values in separate persistent memory. `@Binding` is a two-way connection to data owned by another view without copying storage. We pass bindings with the `$` prefix so child views can read and update parent state."
 </InterviewAnswer>
 
 <InterviewAnswer level="junior">
-"SwiftUI follows a unidirectional data flow pattern. Views are a function of state. When an `@State` property changes, SwiftUI invalidates the view and re-evaluates `var body` on the main thread. `@Binding` allows reusable child components to read and write parent state while preserving single-source-of-truth semantics. We mark `@State` private to enforce encapsulation, and we avoid initializing `@State` inside custom initializers."
+"SwiftUI uses unidirectional data flow: state flows down as values or bindings, and user actions flow back up. When an `@State` value changes, SwiftUI updates the affected views on the main thread. Using `@Binding` lets reusable child views edit parent data while keeping one source of truth. We mark `@State` private and avoid setting it from parameters in `init`."
 </InterviewAnswer>
 
 <InterviewAnswer level="senior">
-"In the SwiftUI runtime, `@State` allocates storage in a persistent attribute graph node associated with the view's structural identity rather than its temporary struct lifecycle. When state mutates, the dependency graph schedules a body invalidation pass, computing minimal tree diffs. For previews and testing, we use `Binding.constant(_:)` or functional `Binding(get:set:)` adapters. When scaling applications, `@State` handles transient UI states, while `@Observable` models manage complex domain logic."
+"SwiftUI ties `@State` storage to a view's identity in its persistent attribute graph, separate from the short-lived view struct. When state changes, SwiftUI marks dependent views dirty and computes minimal diffs on the next update pass. For previews and tests, `Binding.constant(_:)` supplies fixed values, while `Binding(get:set:)` adapts custom getters and setters. In larger apps, `@State` handles local UI state while `@Observable` models manage shared domain state."
 </InterviewAnswer>
 
 ## Recap
 
 <Recap>
-- **`@State`** creates a view-local source of truth stored outside the temporary struct.
-- Always mark `@State` properties as **`private`** to protect encapsulation.
-- **`@Binding`** creates a two-way reference to data owned by another view without storing data.
-- The **`$`** prefix accesses the projected value of `@State`, returning a `Binding`.
-- Never mutate `@State` inside `var body` because it triggers infinite redraw cycles.
-- Avoid initializing `@State` from view parameters in `init` because SwiftUI reuses existing state.
+- **`@State`** creates a view-local source of truth saved outside the temporary view struct.
+- Always mark `@State` properties as **`private`**.
+- **`@Binding`** is a value-type two-way connection to data owned elsewhere, with no storage of its own.
+- The **`$`** prefix reads the projected value of `@State` and returns a `Binding`.
+- Use `Binding.constant(_:)` for previews and `Binding(get:set:)` for custom read/write logic.
+- Never change `@State` inside `var body`, and avoid initializing `@State` from `init` parameters.
 </Recap>
 
 ## Go deeper
