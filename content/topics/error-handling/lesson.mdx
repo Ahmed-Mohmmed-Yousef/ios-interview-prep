@@ -1,43 +1,46 @@
 export const meta = {
   id: "error-handling",
-  summary: "Learn to model, throw, and handle errors in Swift using do-catch, try variants, defer cleanup, and the Result type.",
+  summary: "Create, throw, and handle errors in Swift using do-catch, try variants, typed throws, defer, and Result.",
   estimatedMinutes: 10,
-  baseline: { swift: "6.4", xcode: "27", ios: "27" },
-  lastVerified: "2026-11-09",
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27" },
+  lastVerified: "2026-11-14",
   sources: [
     { title: "The Swift Programming Language: Error Handling", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/errorhandling", kind: "official" },
+    { title: "The Swift Programming Language: Control Flow (Deferred Actions)", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/controlflow", kind: "official" },
+    { title: "The Swift Programming Language: Concurrency", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency", kind: "official" },
     { title: "Result (Swift)", url: "https://developer.apple.com/documentation/swift/result", kind: "official" },
+    { title: "SE-0413: Typed throws", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0413-typed-throws.md", kind: "official" },
   ],
 }
 
 <InterviewHook>
-  <Question>How does Swift error handling differ from traditional exception handling in languages like Java or C++?</Question>
+  <Question>How does Swift error handling differ from exception handling in languages like Java or C++?</Question>
   <Guess>
-    <Option id="a">Swift unwinds the call stack and allocates expensive heap memory for every catch block.</Option>
-    <Option id="b" correct>Swift does not unwind the stack; errors are passed as lightweight values with the speed of a return statement.</Option>
-    <Option id="c">Swift errors can only be caught if the application runs inside an Xcode debug session.</Option>
+    <Option id="a">Swift unwinds the call stack and creates expensive objects for every catch block.</Option>
+    <Option id="b" correct>Swift does not unwind the stack; throwing an error has a cost close to returning a value.</Option>
+    <Option id="c">Swift errors are unchecked, so the compiler does not ask you to write try at call sites.</Option>
   </Guess>
 </InterviewHook>
 
 ## The simple idea
 
 <Analogy>
-Think of ordering food at a restaurant counter. If an item is sold out, the cashier tells you immediately and gives you a clear reason. You can choose a backup item, cancel your order, or check another restaurant. Swift error handling works the same way by returning clean, expected error information instead of crashing the program.
+Think of ordering food at a counter. If an item is sold out, the worker tells you right away and gives a clear reason. You can pick another item or cancel your order. Swift error handling works the same way by returning clear failure information instead of crashing your app.
 </Analogy>
 
-In Swift, **error handling** is the process of responding to and recovering from error conditions in your program.
+In Swift, **error handling** lets your code notice when an action fails and recover cleanly.
 
-Errors are represented by values of any type that conforms to the **`Error`** protocol. Enums are especially popular because their cases can model distinct failure states with associated values.
+An error can be any type that conforms to the **`Error`** protocol. Enumerations are a popular choice because each case can name a failure and hold extra details as associated values.
 
-Swift provides four main ways to handle errors:
-1. **Propagate errors**: Mark a function with the **`throws`** keyword to pass errors up to the caller.
-2. **Handle errors with `do-catch`**: Use a `do` block with one or more `catch` clauses to respond to specific errors.
-3. **Convert errors to Optionals with `try?`**: If an error is thrown, the expression evaluates to `nil`.
-4. **Assert success with `try!`**: Disables error handling. If an error is thrown, the app crashes immediately.
+Swift gives you four main ways to handle errors:
+1. **Pass errors on**: Mark a function with **`throws`** to send errors back to the caller. Most functions use plain `throws`, which can throw any `Error` type. In Swift 6, you can also use **typed throws** like `throws(FileError)` to name one exact error type.
+2. **Catch errors with `do-catch`**: Put throwing calls inside a `do` block and match errors in `catch` clauses.
+3. **Turn errors into `nil` with `try?`**: If the call throws an error, the result becomes `nil` as an optional.
+4. **Disable error propagation with `try!`**: Tells Swift you are sure the call will not throw. If it throws anyway, the app crashes at runtime.
 
-Swift also provides two related features:
-- **`defer`**: Defers execution of cleanup code until the current scope exits, running even if an error is thrown.
-- **`Result`**: A built-in enum that represents either `.success` or `.failure`.
+Swift also offers two helpful tools:
+- **`defer`**: Runs cleanup code right before leaving the current scope, even if an error is thrown.
+- **`Result`**: A standard enum with `.success` and `.failure` cases. It stores an outcome for later or passes it to a completion handler, and **`get()`** turns it back into a throwing call.
 
 ## See it
 
@@ -51,25 +54,25 @@ Swift also provides two related features:
     4. try! path: asserts success; crashes on error.
   - Steps:
     Step 1: A throwing function throws an Error when a problem occurs.
-    Step 2: do-catch catches the error and executes recovery logic.
-    Step 3: try? converts the error into nil without throwing.
-    Step 4: defer executes cleanup actions before leaving the scope.
+    Step 2: do-catch catches the error and runs recovery code.
+    Step 3: try? turns the error into nil without throwing.
+    Step 4: defer runs cleanup actions before leaving the scope.
   - Static version (reduced motion):
-    A 4-box layout contrasting do-catch, try?, try!, and defer cleanup.
+    A 4-box layout comparing do-catch, try?, try!, and defer cleanup.
 */}
 </Diagram>
 
 <QuickCheck>
   <Question>What is the value of an expression using try? if the called function throws an error?</Question>
-  <Option id="a">A fatal crash on the current thread.</Option>
-  <Option id="b" correct>nil, wrapped in an Optional type.</Option>
-  <Option id="c">A default empty instance of the return type.</Option>
-  <Explanation>try? catches any thrown error and converts the entire expression into nil.</Explanation>
+  <Option id="a">A crash on the current thread.</Option>
+  <Option id="b" correct>nil, wrapped in an optional type.</Option>
+  <Option id="c">A default empty value of the return type.</Option>
+  <Explanation>try? catches any thrown error and turns the whole expression into nil.</Explanation>
 </QuickCheck>
 
 ## In code
 
-<CodeExample title="Throwing errors and handling them with do-catch and try?">
+<CodeExample title="Throwing errors and catching them with do-catch and try?">
 
 ```swift
 enum PrinterError: Error {
@@ -82,96 +85,138 @@ func printDocument(pages: Int) throws -> String {
     if pages <= 0 {
         throw PrinterError.outOfPaper
     }
-    return "Printed \(pages) pages successfully."
+    if pages > 100 {
+        throw PrinterError.paperJam(page: 101)
+    }
+    return "Printed \(pages) pages."
 }
 
 // 1. Handling with do-catch
 do {
-    let status = try printDocument(pages: 0)
+    let status = try printDocument(pages: 120)
     print(status)
 } catch PrinterError.outOfPaper {
-    print("Handled: Printer is out of paper.")
+    print("Handled: Out of paper.")
+} catch PrinterError.paperJam(let page) {
+    print("Handled: Paper jam on page \(page).")
 } catch {
     // Swift provides an implicit 'error' constant
     print("Unexpected error: \(error)")
 }
 
-// 2. Converting to an Optional with try?
-let successfulPrint = try? printDocument(pages: 5)
-let failedPrint = try? printDocument(pages: 0)
+// 2. Converting to an optional with try?
+let goodPrint = try? printDocument(pages: 5)
+let badPrint = try? printDocument(pages: 0)
 
-print("Success: \(successfulPrint ?? "nil")")
-print("Failed print is nil: \(failedPrint == nil)")
+print("Success: \(goodPrint ?? "nil")")
+print("Failed print is nil: \(badPrint == nil)")
 ```
 
 ```output
-Handled: Printer is out of paper.
-Success: Printed 5 pages successfully.
+Handled: Paper jam on page 101.
+Success: Printed 5 pages.
 Failed print is nil: true
 ```
 
 </CodeExample>
 
-This example shows the primary error handling workflows:
-- **`throws` keyword**: Indicates that `printDocument(pages:)` can throw an error.
-- **`try` keyword**: Required whenever calling a function marked with `throws`.
-- **`do-catch` statement**: Catches specific errors by pattern matching on enum cases.
-- **Implicit `error`**: A general `catch` clause automatically provides a constant named `error`.
-- **`try?`**: Evaluates to `nil` when an error is thrown, avoiding a full `do-catch` block.
+This example shows the main error-handling steps:
+- **`throws`**: Shows that `printDocument(pages:)` can throw an error.
+- **`try`**: Required before any call to a throwing function.
+- **`do-catch`**: Matches specific error cases and can bind associated values like `let page`.
+- **Implicit `error`**: A plain `catch` clause gives you a constant named `error`.
+- **`try?`**: Turns a thrown error into `nil` so you do not need a `do-catch` block.
 
-<CodeExample title="Using defer for cleanup and managing Result types">
+<CodeExample title="Typed throws in Swift 6">
 
 ```swift
 enum FileError: Error {
-    case readFailure
+    case notFound
+    case unreadable
 }
 
-func processFile() -> String {
-    print("1. Opening file resource.")
-    
-    defer {
-        print("4. Executing first defer (runs second).")
+func openFile(_ name: String) throws(FileError) -> String {
+    if name.isEmpty {
+        throw .notFound
     }
-    defer {
-        print("3. Executing second defer (runs first).")
-    }
-    
-    print("2. Reading file contents.")
-    return "File processed."
+    return "Data"
 }
 
-_ = processFile()
-
-// Using the Result type
-let result: Result<Int, FileError> = .success(100)
-switch result {
-case .success(let count):
-    print("Result succeeded with \(count) items.")
-case .failure(let err):
-    print("Result failed with error: \(err)")
+do {
+    let data = try openFile("")
+    print(data)
+} catch .notFound {
+    print("File not found")
+} catch .unreadable {
+    print("File unreadable")
 }
 ```
 
 ```output
-1. Opening file resource.
-2. Reading file contents.
-3. Executing second defer (runs first).
-4. Executing first defer (runs second).
-Result succeeded with 100 items.
+File not found
 ```
 
 </CodeExample>
 
-This example highlights two important patterns:
-- **`defer` reverse order**: Multiple `defer` statements run in reverse order (bottom-up), guaranteeing proper teardown of nested resources.
-- **`Result` enum**: Holds either `.success` with a value or `.failure` with an error, which is useful when storing results for later inspection.
+With **typed throws**, the compiler knows every error comes from `FileError`, so `do-catch` can cover every case without a fallback `catch`. The Swift book notes that most code should still use plain `throws`, because it lets functions change or wrap errors later without breaking callers.
+
+<CodeExample title="Using defer for cleanup and Result with get()">
+
+```swift
+enum LoadError: Error {
+    case readFailure
+}
+
+func processFile() -> String {
+    print("1. Opening file.")
+
+    defer {
+        print("4. First defer (runs second).")
+    }
+    defer {
+        print("3. Second defer (runs first).")
+    }
+
+    print("2. Reading file.")
+    return "Done"
+}
+
+_ = processFile()
+
+let result: Result<Int, LoadError> = .success(100)
+switch result {
+case .success(let count):
+    print("Result succeeded with \(count) items.")
+case .failure(let err):
+    print("Result failed: \(err)")
+}
+
+if let count = try? result.get() {
+    print("Value via get(): \(count)")
+}
+```
+
+```output
+1. Opening file.
+2. Reading file.
+3. Second defer (runs first).
+4. First defer (runs second).
+Result succeeded with 100 items.
+Value via get(): 100
+```
+
+</CodeExample>
+
+This example highlights two patterns:
+- **`defer` reverse order**: Multiple `defer` blocks run in reverse order when leaving the scope, even if an error is thrown.
+- **`Result` and `get()`**: `Result` holds `.success` or `.failure` as a value. Calling `try result.get()` returns the success value or throws the failure error.
 
 <QuickCheck>
-  <Question>In what order do multiple defer statements inside the same scope execute?</Question>
+  <Question>In what order do multiple defer blocks inside the same scope run?</Question>
   <Option id="a">In the exact order they were written from top to bottom.</Option>
-  <Option id="b" correct>In reverse order, running the last written defer statement first.</Option>
-  <Option id="c">Randomly depending on thread availability.</Option>
-  <Explanation>defer statements execute in reverse order (last in, first out). This makes sure nested resources close properly.</Explanation>
+  <Option id="b" correct>In reverse order, running the last written defer block first.</Option>
+  <Option id="c">In random order depending on which thread is free.</Option>
+  <Explanation>defer blocks run in reverse order (last in, first out). This closes nested resources in the right order.</Explanation>
 </QuickCheck>
 
 <TryIt>
@@ -180,36 +225,34 @@ Try the examples in Swift Playground, free for iPad and Mac.
 
 ## Interview traps
 
-<Trap title="Assuming Swift unwinds the call stack like Java or C++ exceptions">
-In languages like Java or C++, exception handling unwinds the call stack, which is computationally expensive. In Swift, error handling does not unwind the stack. Errors are returned as values using dedicated registers, matching the speed of a standard return statement.
+<Trap title="Assuming Swift unwinds the call stack like Java or C++">
+In Java or C++, throwing an exception unwinds the call stack, which is slow. Swift does not unwind the stack. Throwing an error has a cost close to returning a normal value, and `try` marks every throwing call clearly in your code.
 </Trap>
 
-<Trap title="Using try! in production app code">
-`try!` disables error propagation and asserts that no error will occur. If the function throws an error, the application crashes immediately. Reserve `try!` for unit tests or situations where an error is mathematically impossible.
+<Trap title="Using try! without being sure it cannot fail">
+`try!` disables error propagation and crashes your app at runtime if an error is thrown. Use `try!` only when you know the call will not fail, such as loading a file shipped inside your app bundle. Also remember that `defer` blocks do not run if `try!` crashes.
 </Trap>
 
-<Trap title="Forgetting that multiple defer statements execute in reverse order">
-When closing nested resources, candidates often assume `defer` statements run from top to bottom. They actually execute in reverse order. The last `defer` written runs first.
+<Trap title="Forgetting that multiple defer blocks run in reverse order">
+When closing resources, developers often assume `defer` blocks run from top to bottom. They run in reverse order instead. The last `defer` written runs first.
 </Trap>
 
 ## How to answer in the interview
 
 <InterviewAnswer level="fresh">
-In Swift, errors are values conforming to the Error protocol, often defined as enums with associated values. Functions that throw mark their signature with throws, and callers use try inside do-catch blocks. You can also use try? to convert errors into Optionals, or use defer to guarantee cleanup code runs when leaving scope.
+In Swift, errors conform to the `Error` protocol and are often enums with associated values. Functions that throw use `throws`, and callers mark calls with `try` inside a `do-catch` block. You can also use `try?` to turn errors into `nil`, or `defer` to run cleanup code when leaving a scope.
 </InterviewAnswer>
 
 <InterviewAnswer level="junior">
-Swift error handling is a compile-time checked mechanism that treats errors as typed values rather than unwinding the call stack. Callers handle errors with pattern-matching do-catch blocks, optional conversion via try?, or runtime assertions via try!. For asynchronous workflows or completion storage, Swift provides the Result enum with success and failure cases. Cleanup is handled with defer blocks, which execute in reverse order upon scope exit.
+Swift checks throwing calls at compile time instead of unwinding the call stack, so throwing costs about the same as returning a value. Callers handle errors with `do-catch` pattern matching, `try?` for optional values, or `try!` when failure is impossible. Modern async APIs use `async throws`, while `Result` is useful for storing outcomes or passing them to completion handlers and bridging back with `get()`. In Swift 6, typed throws like `throws(FileError)` exist too, though plain `throws` fits most code. Cleanup code goes in `defer` blocks, which run in reverse order before the scope exits.
 </InterviewAnswer>
 
 ## Recap
 
 <Recap>
-- Errors conform to the `Error` protocol, typically modeled with enums.
-- Throwing functions use the `throws` keyword before their return arrow.
-- Callers must precede throwing calls with `try`, `try?`, or `try!`.
-- `do-catch` blocks catch specific errors; general catch blocks provide an implicit `error` constant.
-- `try?` converts errors into `nil`; `try!` crashes if an error is thrown.
-- `defer` executes cleanup code upon scope exit, running in reverse order.
-- The `Result` type stores either `.success(Value)` or `.failure(Error)`.
+- Errors conform to `Error` (often enums with associated values), and functions mark failures with `throws` or typed `throws(MyError)`.
+- Callers mark throwing calls with `try` (inside `do-catch`), `try?` (returns `nil` on error), or `try!` (crashes on error).
+- `do-catch` matches specific cases, binds associated values, and provides an implicit `error` constant in a plain `catch`.
+- `defer` runs cleanup when leaving a scope in reverse order, even on throw, though not on a `try!` crash.
+- `Result` stores `.success` or `.failure` as a value and provides `get()` to return the value or throw the error.
 </Recap>
