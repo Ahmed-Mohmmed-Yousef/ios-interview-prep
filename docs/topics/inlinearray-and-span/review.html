@@ -1,0 +1,615 @@
+<title>InlineArray and Span Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --value: #0f7f63; --value-soft: #dcf2ea;
+  --shared: #6447d1; --shared-soft: #ebe6fb;
+  --changed: #a76a12; --changed-soft: #fcefd6;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 20px; }
+.eyebrow { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
+h1 { font-size: clamp(24px, 4.4vw, 34px); line-height: 1.15; margin: 4px 0 6px; text-wrap: balance; font-weight: 700; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 17px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.panel h2 code { font-family: var(--font-code); font-size: 15px; }
+.kind { font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; }
+.inl .kind { background: var(--value-soft); color: var(--value); }
+.spn .kind { background: var(--shared-soft); color: var(--shared); }
+svg { width: 100%; height: auto; display: block; }
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 10px; padding: 8px 12px;
+  min-height: 3.4em; overflow-x: auto; white-space: pre;
+}
+.caption { margin: 0; font-weight: 500; min-height: 2.8em; }
+
+.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.6; }
+.cell { fill: var(--value-soft); stroke: var(--value); stroke-width: 1.6; }
+.cell.mut { fill: var(--changed-soft); stroke: var(--changed); }
+.heap { fill: var(--shared-soft); stroke: var(--shared); stroke-width: 1.6; }
+.win { fill: none; stroke: var(--shared); stroke-width: 2.2; stroke-dasharray: 5 3; }
+.win.bad { stroke: var(--changed); }
+.lbl { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.sub { font-family: var(--font-code); font-size: 11px; fill: var(--muted); }
+.val { font-family: var(--font-code); font-size: 14px; font-weight: 600; fill: var(--ink); }
+.link { fill: none; stroke: var(--shared); stroke-width: 2; }
+.hidden { opacity: 0; }
+.on { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .hidden, .cell, .win { transition: opacity .35s ease, fill .3s ease, stroke .3s ease; }
+}
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.bar button {
+  font: 600 15px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 18px; cursor: pointer; min-height: 44px;
+}
+.bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.bar button:disabled { opacity: .4; cursor: default; }
+.bar button:focus-visible, .dots button:focus-visible, summary:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.dots { display: flex; gap: 8px; }
+.dots button { width: 14px; height: 14px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: transparent; }
+.dots button[aria-current="step"] { background: var(--ink); }
+.count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: center; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+summary { cursor: pointer; font-weight: 600; }
+details ol { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 10px; }
+details li p { margin: 0; }
+details code { font-family: var(--font-code); font-size: 14px; background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Senior · Swift Language · Topic 3 of 4 · Prototype</p>
+    <h1>InlineArray and Span</h1>
+    <p class="meta-line"><span>About 11 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain when InlineArray and Span help performance.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">How do <code>InlineArray</code> and <code>Span</code> improve performance without giving up Swift&#x27;s memory safety?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">They turn off bounds checking and ARC across your entire app target.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text"><code>InlineArray</code> removes heap allocations for fixed-size data, while <code>Span</code> provides bounds-checked and lifetime-checked views over contiguous memory.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">They automatically move every <code>Array</code> onto a background actor.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">They replace all structs with raw C pointers that never expire.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of <code>Array</code> like a rented storage locker across town: it can grow when you add boxes, but renting and resizing take extra trips. <code>InlineArray</code> is a fixed shelf right inside your room with zero trips. <code>Span</code> is a clear viewing window into any shelf. You can read items fast without copying them, and the window locks shut before the shelf moves.</p></aside>
+<p>A regular Swift <code>Array</code> stores its elements in a <strong>heap allocation</strong> (shared memory outside the stack) with reference counting and copy-on-write. That flexibility is great for general code, but heap allocations can slow down tight loops, audio, or graphics code.</p>
+<p><strong><code>InlineArray</code></strong> (introduced in Swift 6.2, iOS 26.0+) is a fixed-size array whose count is part of its type, written <code>InlineArray&lt;3, Int&gt;</code> or <strong><code>[3 of Int]</code></strong>. <strong>It stores elements inline on the stack or inside a parent type.</strong> That avoids a separate heap allocation. Because its size is fixed at compile time, you cannot <code>append</code> or remove elements. Unlike <code>Array</code>, assigning <code>var b = a</code> copies all elements eagerly (right away) instead of using copy-on-write. It can even hold <code>~Copyable</code> (noncopyable) elements. <code>InlineArray</code> does not conform to <code>Collection</code> or <code>Sequence</code>, so it has no <code>map</code> method. In Swift 6.4, it conforms to <code>Iterable</code>, so you can loop over it with <code>for-in</code> or <code>.indices</code>.</p>
+<p><strong><code>Span</code></strong> (Swift 6.2, iOS 26.0+) is a non-owning, read-only view (<code>Span&lt;Element&gt;</code>) over <strong>contiguous memory</strong> (elements side by side, as in <code>Array</code> or <code>InlineArray</code>). It replaces unsafe <code>withUnsafeBufferPointer</code> blocks with two compile-time and runtime guarantees:</p>
+<ul>
+<li><strong>Spatial safety</strong>: every subscript access on a <code>Span</code> is bounds-checked, preventing reads past the end of the buffer (buffer overflows). An out-of-bounds index traps safely at runtime.</li>
+<li><strong>Temporal safety</strong>: a <code>Span</code> is <strong><code>~Escapable</code></strong> (non-escapable), so the compiler proves it cannot outlive the container it borrows from.</li>
+</ul>
+<p>Swift also includes related span types for common tasks:</p>
+<ul>
+<li><strong><code>MutableSpan</code></strong>: a non-owning mutable view that checks exclusive write access.</li>
+<li><strong><code>RawSpan</code></strong>: a bounds-checked view of raw bytes, reached via <code>.bytes</code>.</li>
+<li><strong><code>OutputSpan</code></strong>: a safe helper for initializing new buffers (such as <code>Array(capacity:)</code>) without <code>Array.init(unsafeUninitializedCapacity:)</code> or unsafe pointers.</li>
+</ul>
+<h2>See it</h2>
+<div class="diagram-host"><figure class="panels" id="figure" role="img" aria-label="Two panels. Left compares Array using a heap buffer with InlineArray storing 3 integers directly on the stack. Right shows Span borrowing contiguous memory with bounds checks and lifetime safety." style="margin:0">
+    <section class="panel inl" aria-hidden="true">
+      <h2><code>[3 of Int]</code> <span class="kind">inline value</span></h2>
+      <svg viewBox="0 0 340 225">
+        <defs>
+          <marker id="arr-i" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" style="fill: var(--shared)"/></marker>
+        </defs>
+        <rect class="box" x="14" y="14" width="136" height="84" rx="10"/>
+        <text class="lbl" x="24" y="34">Array (stack header)</text>
+        <text class="sub" x="24" y="54">pointer + count</text>
+        <path class="link" d="M150 56 H184" marker-end="url(#arr-i)"/>
+        <rect class="heap" x="188" y="14" width="138" height="84" rx="10"/>
+        <text class="lbl" x="198" y="34">Heap buffer</text>
+        <text class="sub" x="198" y="52">ARC + CoW</text>
+        <text class="val" x="198" y="78">[10, 20, 30]</text>
+
+        <rect class="box" x="14" y="114" width="312" height="98" rx="12"/>
+        <text class="lbl" x="26" y="135">InlineArray (all inline on stack)</text>
+        <rect class="cell" id="i-c0" x="26" y="146" width="88" height="46" rx="8"/>
+        <rect class="cell" id="i-c1" x="126" y="146" width="88" height="46" rx="8"/>
+        <rect class="cell" id="i-c2" x="226" y="146" width="88" height="46" rx="8"/>
+        <text class="val" id="i-v0" x="70" y="174" text-anchor="middle">10</text>
+        <text class="val" id="i-v1" x="170" y="174" text-anchor="middle">20</text>
+        <text class="val" id="i-v2" x="270" y="174" text-anchor="middle">30</text>
+        <text class="sub" id="i-note" x="26" y="205">No heap allocation, no ARC</text>
+      </svg>
+      <div class="code" id="i-code"></div>
+      <p class="caption" id="i-cap"></p>
+    </section>
+
+    <section class="panel spn" aria-hidden="true">
+      <h2><code>Span&lt;Int&gt;</code> <span class="kind">~Escapable</span></h2>
+      <svg viewBox="0 0 340 225">
+        <rect class="box" x="14" y="14" width="312" height="92" rx="12"/>
+        <text class="lbl" x="26" y="35">Owner storage (Array or InlineArray)</text>
+        <rect class="cell" id="s-c0" x="26" y="46" width="88" height="46" rx="8"/>
+        <rect class="cell" id="s-c1" x="126" y="46" width="88" height="46" rx="8"/>
+        <rect class="cell" id="s-c2" x="226" y="46" width="88" height="46" rx="8"/>
+        <text class="val" id="s-v0" x="70" y="74" text-anchor="middle">10</text>
+        <text class="val" id="s-v1" x="170" y="74" text-anchor="middle">20</text>
+        <text class="val" id="s-v2" x="270" y="74" text-anchor="middle">30</text>
+
+        <rect class="win hidden" id="s-win" x="20" y="40" width="300" height="58" rx="10"/>
+
+        <rect class="box" x="14" y="124" width="312" height="88" rx="12"/>
+        <text class="lbl" x="26" y="146" id="s-mode">Span state</text>
+        <text class="sub" x="26" y="168" id="s-sub1">Bounds checked: indices 0..&lt;3</text>
+        <text class="sub" x="26" y="188" id="s-sub2">Lifetime tied to owner scope</text>
+      </svg>
+      <div class="code" id="s-code"></div>
+      <p class="caption" id="s-cap"></p>
+    </section>
+  </figure>
+
+  <p class="sr-only" id="live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
+
+  <nav class="bar" aria-label="Diagram steps">
+    <button type="button" id="back">Back</button>
+    <div class="dots" id="dots"></div>
+    <span class="count" id="count"></span>
+    <button type="button" id="next" class="primary">Next</button>
+    <button type="button" id="replay">Replay</button>
+  </nav>
+
+  <details id="all">
+    <summary>All steps as a list</summary>
+    <ol id="list"></ol>
+  </details></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What makes <code>Span</code> safer than <code>UnsafeBufferPointer</code>?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It allocates a fresh heap copy of the buffer on every read.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It checks index bounds and enforces lifetime rules so the view cannot outlive its source memory.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It disables compiler exclusivity checks when mutating elements.</span></button><p class="qc-explain" hidden="">Span combines bounds checking (spatial safety) with ~Escapable lifetime checking (temporal safety) without copying memory.</p></div>
+<h2>In code</h2>
+<p>Notice how <code>[3 of Int]</code> and <code>InlineArray&lt;4, Int&gt;(repeating:)</code> store values inline, and how <code>Span</code>, <code>MutableSpan</code>, <code>RawSpan</code>, and <code>OutputSpan</code> work together in Swift 6.2 and later.</p>
+<figure class="code-example"><figcaption>Using InlineArray, Span, and MutableSpan</figcaption><pre class="block swift"><code class="language-swift">func sumSpan(_ span: Span&lt;Int&gt;) -&gt; Int {
+    var total = 0
+    for i in span.indices {
+        total += span[i]
+    }
+    return total
+}
+
+func setFirst(_ span: inout MutableSpan&lt;Int&gt;, to value: Int) {
+    if !span.isEmpty {
+        span[0] = value
+    }
+}
+
+func run() {
+    var fixed: [3 of Int] = [10, 20, 30]
+    let repeated = InlineArray&lt;4, Int&gt;(repeating: 7)
+    print(fixed.count, repeated[3])
+
+    print(sumSpan(fixed.span))
+
+    do {
+        var edit = fixed.mutableSpan
+        setFirst(&amp;edit, to: 99)
+    }
+    var fixedSum = 0
+    for value in fixed {
+        fixedSum += value
+    }
+    print(fixed[0], fixedSum)
+
+    let list = [1, 2, 3, 4]
+    print(sumSpan(list.span))
+}
+
+run()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">3 7
+60
+99 149
+10
+</code></pre></figure>
+<p>Notice the <code>do { ... }</code> block around <code>fixed.mutableSpan</code>. If a <code>Span</code> and a <code>MutableSpan</code> on <code>fixed</code> overlap in the same scope, Swift stops compilation with an <strong>exclusivity violation</strong> because writing requires exclusive access.</p>
+<p>You can also read raw bytes safely with <code>RawSpan</code> (via <code>.bytes</code>), or initialize an <code>Array</code> with <code>OutputSpan</code>.</p>
+<figure class="code-example"><figcaption>Reading bytes with RawSpan and initializing with OutputSpan</figcaption><pre class="block swift"><code class="language-swift">func inspectBytesAndBuild() {
+    let header: [2 of UInt8] = [0x41, 0x42]
+    let raw: RawSpan = header.span.bytes
+    print(raw.byteCount)
+
+    let built = Array&lt;Int&gt;(capacity: 3) { output in
+        output.append(5)
+        output.append(6)
+    }
+    print(built)
+}
+
+inspectBytesAndBuild()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">2
+[5, 6]
+</code></pre></figure>
+<h3>Array vs InlineArray vs Span</h3>
+<table><thead><tr><th>Type</th><th>Owns memory?</th><th>Heap allocation</th><th>Resizable?</th><th>Best for</th></tr></thead><tbody><tr><td><code>Array</code></td><td>Yes (copy-on-write)</td><td>Yes</td><td>Yes</td><td>General lists whose size changes</td></tr><tr><td><code>InlineArray</code></td><td>Yes (inline value)</td><td>No</td><td>No</td><td>Small fixed-size buffers in hot paths</td></tr><tr><td><code>Span</code></td><td>No (borrows view)</td><td>No</td><td>No</td><td>Passing contiguous memory safely to functions</td></tr></tbody></table>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why does <code>InlineArray</code> use eager copying instead of copy-on-write?</p><button type="button" class="opt" data-id="a" data-correct=""><span class="opt-id">A</span><span class="opt-text">Because its elements live inline with no shared heap buffer to point to.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">Because copy-on-write only works on classes.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because InlineArray can only store one element.</span></button><p class="qc-explain" hidden="">Copy-on-write relies on sharing a heap buffer until mutated. Since InlineArray has no heap buffer, assigning it copies its elements directly.</p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Passing a huge InlineArray by value in a tight loop</p><p>Unlike <code>Array</code>, <code>InlineArray</code> does not use copy-on-write. Assigning <code>var b = a</code> or passing a large <code>[1024 of Int]</code> to a regular parameter copies all elements right away. Pass a <code>.span</code> or mark parameters <code>borrowing</code> (lending the value without copying) to avoid copying.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Trying to return a local Span from a function</p><p><code>Span</code> is <code>~Escapable</code>. Returning <code>local.span</code> from a function fails to compile because the local storage dies when the function exits, which would leave a dangling reference.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Using InlineArray everywhere instead of Array</p><p><code>InlineArray</code> fixes its size in the type (<code>[3 of Int]</code>), cannot grow with <code>append</code>, and increases stack or struct size. Keep <code>Array</code> as your default collection and reach for <code>InlineArray</code> only when profiling shows allocation or ARC overhead.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Senior answer</p><p><code>InlineArray</code> (<code>[3 of Int]</code>) is a fixed-size value array stored inline on the stack or inside a parent type. It avoids extra heap allocations and ARC overhead. <code>Span</code> is a non-owning, bounds-checked, and lifetime-bound (<code>~Escapable</code>) view over contiguous memory like <code>Array</code> or <code>InlineArray</code>. Together with <code>MutableSpan</code>, <code>RawSpan</code>, and <code>OutputSpan</code>, they let you write fast low-level code without <code>UnsafeBufferPointer</code> risks.</p></div>
+<div class="answer"><p class="label">Staff answer</p><p>Keep <code>Array</code> as the default for most app code because copy-on-write and dynamic sizing fit UI and networking workloads well. Reach for <code>InlineArray</code> when Instruments proves that small, fixed buffers create extra heap allocations or ARC overhead, such as math matrices, audio frames, or parsers. Expose <code>Span</code> and <code>MutableSpan</code> at internal API boundaries. That way, functions work across both <code>Array</code> and <code>InlineArray</code> with zero copies while keeping memory safety.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li><code>InlineArray</code> (<code>[count of Element]</code>) stores a compile-time fixed count of elements inline with no heap allocation or ARC.</li>
+<li>Unlike <code>Array</code>, <code>InlineArray</code> copies eagerly on assignment; pass <code>.span</code> or <code>borrowing</code> for large buffers.</li>
+<li><code>Span</code> is a safe, bounds-checked, <code>~Escapable</code> read-only view over contiguous memory that cannot outlive its owner.</li>
+<li><code>MutableSpan</code>, <code>RawSpan</code>, and <code>OutputSpan</code> replace unsafe pointer patterns for mutation, raw bytes, and buffer initialization.</li>
+</ul></div>
+<p class="try-it"><p>Try <code>[3 of Int]</code> and <code>.span</code> in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const STEPS = [
+  {
+    i: { code: "var fixed: [3 of Int] = [10, 20, 30]", cap: "Step 1: InlineArray stores 3 Int values inline with no heap buffer." },
+    s: { code: "// owner fixed lives in current scope", cap: "Step 1: The owner holds 3 contiguous Int values." }
+  },
+  {
+    i: { code: "var copy = fixed // eager value copy", cap: "Step 2: Copying InlineArray copies all elements right away." },
+    s: { code: "sumSpan(fixed.span) // read-only view", cap: "Step 2: Span borrows the memory with zero copies and bounds checks." }
+  },
+  {
+    i: { code: "fixed[0] = 99 // only fixed changes", cap: "Step 3: fixed mutates directly without copy-on-write checks." },
+    s: { code: "var m = fixed.mutableSpan; m[0] = 99", cap: "Step 3: MutableSpan gives exclusive write access in place." }
+  },
+  {
+    i: { code: "// fixed.count is fixed at 3", cap: "Step 4: Fixed size stays part of the type at compile time." },
+    s: { code: "return local.span // error: ~Escapable", cap: "Step 4: Returning a local Span fails compile checks (cannot escape)." }
+  }
+];
+
+const $ = (id) => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let step = 0;
+
+function render() {
+  const n = step + 1;
+  $("i-c0").classList.toggle("mut", n === 3);
+  $("i-v0").textContent = n >= 3 ? "99" : "10";
+  $("i-note").textContent = n === 2 ? "Assigning copies all 3 elements eagerly" : n === 4 ? "Size 3 is fixed in the type" : "No heap allocation, no ARC";
+
+  $("s-win").classList.toggle("on", n >= 2);
+  $("s-win").classList.toggle("bad", n >= 3);
+  $("s-c0").classList.toggle("mut", n === 3);
+  $("s-v0").textContent = n >= 3 ? "99" : "10";
+  $("s-mode").textContent = n === 4 ? "Blocked at compile time!" : n === 3 ? "MutableSpan (exclusive write)" : n === 2 ? "Span (read-only borrow)" : "Owner storage active";
+  $("s-sub1").textContent = n === 4 ? "Error: cannot return ~Escapable result" : "Bounds checked: indices 0..<3";
+  $("s-sub2").textContent = n === 3 ? "Overlapping read/write spans rejected" : "Lifetime locked to owner scope";
+
+  const st = STEPS[step];
+  $("i-code").textContent = st.i.code;
+  $("s-code").textContent = st.s.code;
+  $("i-cap").textContent = st.i.cap;
+  $("s-cap").textContent = st.s.cap;
+  $("count").textContent = "Step " + n + " of " + STEPS.length;
+  $("live").textContent = "Step " + n + ". InlineArray: " + st.i.cap + " Span: " + st.s.cap;
+  $("back").disabled = step === 0;
+  $("next").disabled = step === STEPS.length - 1;
+  [...$("dots").children].forEach((d, i) => i === step ? d.setAttribute("aria-current", "step") : d.removeAttribute("aria-current"));
+}
+
+function go(i) { step = Math.max(0, Math.min(STEPS.length - 1, i)); render(); }
+
+STEPS.forEach((st, i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.setAttribute("aria-label", "Diagram step " + (i + 1) + " of " + STEPS.length);
+  b.addEventListener("click", () => go(i));
+  $("dots").append(b);
+  const li = document.createElement("li");
+  li.innerHTML = "<p><b>InlineArray:</b> <code></code> — <span></span></p><p><b>Span:</b> <code></code> — <span></span></p>";
+  const [c1, c2] = li.querySelectorAll("code");
+  const [t1, t2] = li.querySelectorAll("span");
+  c1.textContent = st.i.code; t1.textContent = st.i.cap;
+  c2.textContent = st.s.code; t2.textContent = st.s.cap;
+  $("list").append(li);
+});
+
+$("back").addEventListener("click", () => go(step - 1));
+$("next").addEventListener("click", () => go(step + 1));
+$("replay").addEventListener("click", () => {
+  go(0);
+  if (reduce.matches) return;
+  let i = 0;
+  const t = setInterval(() => { i++; go(i); if (i >= STEPS.length - 1) clearInterval(t); }, 1100);
+});
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") go(step + 1);
+  if (e.key === "ArrowLeft") go(step - 1);
+});
+
+if (reduce.matches) { step = STEPS.length - 1; $("all").open = true; }
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"inlinearray-and-span","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"inlinearray-and-span-q1","type":"mcq","difficulty":1,"prompt":"Where does `InlineArray` store its elements?","options":[{"id":"a","text":"Inline on the stack or directly inside its parent type.","explanation":"Right. InlineArray stores elements inline without its own heap buffer or ARC overhead."},{"id":"b","text":"Always in a shared heap buffer with copy-on-write.","explanation":"Wrong. That describes standard Array, not InlineArray."},{"id":"c","text":"In a separate heap buffer managed by reference counting.","explanation":"Wrong. InlineArray does not allocate its own heap buffer or use ARC."},{"id":"d","text":"On the heap only when the count exceeds three items.","explanation":"Wrong. Every InlineArray stores its elements inline regardless of count."}],"answer":"a"},{"id":"inlinearray-and-span-q2","type":"mcq","difficulty":1,"prompt":"What is the shorthand type syntax for `InlineArray\u003c3, Int>` in Swift?","options":[{"id":"a","text":"[Int * 3]","explanation":"Wrong. Swift uses [3 of Int], not [Int * 3]."},{"id":"b","text":"[3 of Int]","explanation":"Right. [count of Element] is the shorthand syntax for InlineArray."},{"id":"c","text":"Array\u003cInt, 3>","explanation":"Wrong. Array only takes one generic Element parameter and grows dynamically."},{"id":"d","text":"(Int, Int, Int)[]","explanation":"Wrong. That is not valid Swift syntax."}],"answer":"b"},{"id":"inlinearray-and-span-q3","type":"mcq","difficulty":1,"prompt":"Can you call `append` to grow an `InlineArray` at runtime?","options":[{"id":"a","text":"Yes, if you declare it with var.","explanation":"Wrong. Even with var, the element count is fixed in the type."},{"id":"b","text":"Yes, up to twice its initial capacity.","explanation":"Wrong. InlineArray never resizes or reallocates."},{"id":"c","text":"No, its count is fixed at compile time.","explanation":"Right. [3 of Int] always holds exactly 3 elements and cannot grow or shrink."},{"id":"d","text":"Only when the element count is inferred with _.","explanation":"Wrong. Type inference still fixes the count at compile time, so append is not available."}],"answer":"c"},{"id":"inlinearray-and-span-q4","type":"mcq","difficulty":1,"prompt":"What is a `Span\u003cElement>` in Swift?","options":[{"id":"a","text":"An owning dynamic list that grows on the heap.","explanation":"Wrong. Span does not own memory and cannot resize."},{"id":"b","text":"An unsafe raw pointer with no bounds checks.","explanation":"Wrong. Span checks index bounds and enforces lifetime safety."},{"id":"c","text":"A copy-on-write slice that allocates when mutated.","explanation":"Wrong. Span does not own memory or use copy-on-write."},{"id":"d","text":"A non-owning, read-only, safe view over contiguous memory.","explanation":"Right. Span lets functions read contiguous elements without copying or unsafe pointers."}],"answer":"d"},{"id":"inlinearray-and-span-q5","type":"mcq","difficulty":1,"prompt":"What two safety guarantees does `Span` provide over `UnsafeBufferPointer`?","options":[{"id":"a","text":"Spatial bounds checking and temporal lifetime checking.","explanation":"Right. Span checks index bounds and prevents outliving the container it borrows."},{"id":"b","text":"Automatic heap allocation and copy-on-write buffering.","explanation":"Wrong. Span does not allocate heap memory or own buffers."},{"id":"c","text":"Automatic thread locking and optional index lookups.","explanation":"Wrong. Span does not lock threads, and subscripting returns an Element directly."},{"id":"d","text":"Implicit nil fallback on out-of-range subscripts.","explanation":"Wrong. Out-of-bounds subscripting traps safely rather than returning nil."}],"answer":"a"},{"id":"inlinearray-and-span-q6","type":"mcq","difficulty":1,"prompt":"Which property on a `Span` gives you a bounds-checked `RawSpan` over its bytes?","options":[{"id":"a","text":".unsafePointer","explanation":"Wrong. Span avoids exposing raw unsafe pointers by default."},{"id":"b","text":".bytes","explanation":"Right. Accessing span.bytes produces a RawSpan for safe byte inspection."},{"id":"c","text":".heapCopy","explanation":"Wrong. Span does not copy elements to the heap."},{"id":"d","text":".rawBuffer","explanation":"Wrong. The property on Span is named bytes."}],"answer":"b"},{"id":"inlinearray-and-span-q7","type":"mcq","difficulty":1,"prompt":"Which span type is used to safely initialize uninitialized elements when building a new `Array`?","options":[{"id":"a","text":"RawSpan","explanation":"Wrong. RawSpan provides read-only access to raw bytes."},{"id":"b","text":"MutableSpan","explanation":"Wrong. MutableSpan edits already-initialized elements in place."},{"id":"c","text":"OutputSpan","explanation":"Right. OutputSpan tracks initialized vs uninitialized slots safely via append."},{"id":"d","text":"MutableRawSpan","explanation":"Wrong. MutableRawSpan edits already-initialized raw bytes, not uninitialized Element slots."}],"answer":"c"},{"id":"inlinearray-and-span-q8","type":"mcq","difficulty":2,"prompt":"How does copying an `InlineArray` compare to copying a standard `Array`?","options":[{"id":"a","text":"InlineArray uses copy-on-write on the heap just like Array.","explanation":"Wrong. InlineArray has no heap buffer, so it cannot use copy-on-write."},{"id":"b","text":"InlineArray shares a reference so mutating the copy changes the original.","explanation":"Wrong. InlineArray is a value type; mutating the copy leaves the original unchanged."},{"id":"c","text":"InlineArray cannot be assigned to another variable at all.","explanation":"Wrong. When Element is Copyable, InlineArray can be copied on assignment."},{"id":"d","text":"InlineArray copies all elements eagerly on assignment instead of using copy-on-write.","explanation":"Right. Because elements sit inline, assigning var b = a copies every element right away."}],"answer":"d"},{"id":"inlinearray-and-span-q9","type":"mcq","difficulty":2,"prompt":"Can `InlineArray` store `~Copyable` (noncopyable) elements?","options":[{"id":"a","text":"Yes, InlineArray supports ~Copyable element types.","explanation":"Right. InlineArray supports noncopyable elements without forcing Copyable."},{"id":"b","text":"No, InlineArray requires Element to conform to Copyable.","explanation":"Wrong. InlineArray explicitly supports ~Copyable elements."},{"id":"c","text":"Only if the element count is 1.","explanation":"Wrong. Any fixed compile-time count works with ~Copyable elements."},{"id":"d","text":"Only inside an unsafe pointer block.","explanation":"Wrong. Structs and enums that are ~Copyable work directly inside InlineArray."}],"answer":"a"},{"id":"inlinearray-and-span-q10","type":"mcq","difficulty":2,"prompt":"What does `~Escapable` mean on `Span`?","options":[{"id":"a","text":"The Span cannot contain escaping closures.","explanation":"Wrong. ~Escapable refers to the Span value's own lifetime, not closures."},{"id":"b","text":"The Span cannot outlive the scope or owner it borrows memory from.","explanation":"Right. Non-escapable lifetime rules stop a Span from becoming a dangling view."},{"id":"c","text":"The Span automatically copies its elements when returned from a function.","explanation":"Wrong. Returning a Span from a local variable is a compile error."},{"id":"d","text":"The Span disables Swift 6 Sendable checking.","explanation":"Wrong. ~Escapable tracks lifetime bounds, not concurrency."}],"answer":"b"},{"id":"inlinearray-and-span-q11","type":"mcq","difficulty":2,"prompt":"Why does Swift reject keeping `fixed.span` alive while taking `fixed.mutableSpan` in the same scope?","options":[{"id":"a","text":"Because InlineArray allows only one span over its whole lifetime.","explanation":"Wrong. You can use both sequentially in separate scopes."},{"id":"b","text":"Because MutableSpan converts InlineArray into a class.","explanation":"Wrong. InlineArray remains a value type."},{"id":"c","text":"Mutating requires exclusive access, so Span and MutableSpan cannot overlap.","explanation":"Right. Swift enforces exclusive access so no reader observes mid-mutation memory."},{"id":"d","text":"Because Span is always heap-allocated and locks the main thread.","explanation":"Wrong. Span has no heap allocation or thread lock."}],"answer":"c"},{"id":"inlinearray-and-span-q12","type":"mcq","difficulty":2,"prompt":"Which parameter style avoids copying a huge `[1024 of Int]` when calling a read-only helper function?","options":[{"id":"a","text":"Pass it by value to a normal parameter.","explanation":"Wrong. Passing a large InlineArray by value can copy all 1024 integers."},{"id":"b","text":"Copy it into a standard Array before calling.","explanation":"Wrong. Converting to Array allocates on the heap and copies all elements."},{"id":"c","text":"Mark the parameter @escaping in the function.","explanation":"Wrong. @escaping applies to closures, not InlineArray parameters."},{"id":"d","text":"Pass .span (or mark the parameter borrowing).","explanation":"Right. Passing .span or borrowing avoids copying the inline elements."}],"answer":"d"},{"id":"inlinearray-and-span-q13","type":"mcq","difficulty":2,"prompt":"Why can a single function taking `Span\u003cInt>` work on both `Array\u003cInt>` and `[3 of Int]`?","options":[{"id":"a","text":"Both Array and InlineArray expose .span over their contiguous storage.","explanation":"Right. Span abstracts over contiguous memory without caring which container owns it."},{"id":"b","text":"Because InlineArray is a subclass of Array.","explanation":"Wrong. Both are structs and structs cannot inherit."},{"id":"c","text":"Because Span copies both inputs into a new Array.","explanation":"Wrong. Span borrows existing contiguous storage with zero copies."},{"id":"d","text":"Because Array and InlineArray conform to AnyObject.","explanation":"Wrong. Neither is a class."}],"answer":"a"},{"id":"inlinearray-and-span-q14","type":"mcq","difficulty":2,"prompt":"When should you stick with `Array` instead of switching to `InlineArray`?","options":[{"id":"a","text":"Only when targeting iOS 12.","explanation":"Wrong. Array is the default choice across all iOS versions."},{"id":"b","text":"For general code where the count varies or heap overhead is not a bottleneck.","explanation":"Right. Array handles dynamic sizes and copy-on-write well for normal app logic."},{"id":"c","text":"Never; InlineArray should replace every Array in Swift 6.","explanation":"Wrong. InlineArray has fixed size and eager copying, so it only fits specific hot paths."},{"id":"d","text":"Only when storing String values.","explanation":"Wrong. InlineArray can store String too, if count is fixed."}],"answer":"b"},{"id":"inlinearray-and-span-q15","type":"mcq","difficulty":3,"prompt":"What happens if you put a huge `[1024 of Int]` directly inside a `struct` that is copied often?","options":[{"id":"a","text":"Swift automatically moves it to the heap with copy-on-write.","explanation":"Wrong. InlineArray stays inline inside the parent struct."},{"id":"b","text":"Only a 1-word pointer is copied when the struct is assigned.","explanation":"Wrong. All inline elements live directly inside the struct layout."},{"id":"c","text":"Every copy of that struct copies all 1024 integers eagerly.","explanation":"Right. InlineArray grows the parent struct size and copies eagerly on every value copy."},{"id":"d","text":"The compiler turns the struct into a class automatically.","explanation":"Wrong. Swift never silently changes a struct into a class."}],"answer":"c"},{"id":"inlinearray-and-span-q16","type":"mcq","difficulty":3,"prompt":"Why is `OutputSpan` safer than `Array.init(unsafeUninitializedCapacity:)`?","options":[{"id":"a","text":"OutputSpan disables bounds checks for maximum speed.","explanation":"Wrong. OutputSpan tracks initialized elements safely with bounds checks."},{"id":"b","text":"OutputSpan fills every unused slot with nil automatically.","explanation":"Wrong. OutputSpan only initializes the elements you append."},{"id":"c","text":"OutputSpan lets you read uninitialized slots safely as zero.","explanation":"Wrong. OutputSpan separates initialized items from uninitialized space and tracks the count."},{"id":"d","text":"OutputSpan tracks initialized count automatically without raw pointer math.","explanation":"Right. You append safely instead of managing raw pointers and manual initializedCount integers."}],"answer":"d"},{"id":"inlinearray-and-span-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"func run() {\n    let scores: [3 of Int] = [4, 8, 12]\n    print(scores.count, scores[1])\n}\nrun()","options":[{"id":"a","text":"3 8","explanation":"Right. [3 of Int] has count 3 and index 1 holds 8."},{"id":"b","text":"3 4","explanation":"Wrong. Index 0 is 4; index 1 is 8."},{"id":"c","text":"2 8","explanation":"Wrong. There are 3 elements in scores."},{"id":"d","text":"A compile error because [3 of Int] is invalid syntax","explanation":"Wrong. [3 of Int] is valid InlineArray shorthand in Swift 6.2+."}],"answer":"a"},{"id":"inlinearray-and-span-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"func run() {\n    var a: [3 of Int] = [1, 2, 3]\n    var b = a\n    b[0] = 50\n    a[2] = 9\n    print(a[0], b[0], a[2])\n}\nrun()","options":[{"id":"a","text":"50 50 9","explanation":"Wrong. InlineArray is a value type, so changing b does not change a."},{"id":"b","text":"1 50 9","explanation":"Right. b is an independent eager copy, so a[0] stays 1 while b[0] becomes 50."},{"id":"c","text":"1 2 9","explanation":"Wrong. b[0] was set to 50."},{"id":"d","text":"A compile error because InlineArray cannot be copied","explanation":"Wrong. InlineArray\u003c3, Int> is Copyable because Int is Copyable."}],"answer":"b"},{"id":"inlinearray-and-span-q19","type":"code-reading","difficulty":2,"prompt":"What happens when you compile this code?","code":"func makeSpan() -> Span\u003cInt> {\n    let local: [3 of Int] = [1, 2, 3]\n    return local.span\n}","options":[{"id":"a","text":"It compiles and returns a Span of 3 integers.","explanation":"Wrong. local dies when makeSpan returns, so a Span cannot outlive it."},{"id":"b","text":"It compiles and crashes at runtime.","explanation":"Wrong. ~Escapable lifetime errors are caught at compile time."},{"id":"c","text":"It fails to compile because Span is ~Escapable.","explanation":"Right. Swift rejects returning a ~Escapable Span over a local variable."},{"id":"d","text":"It compiles only if local uses Array instead of InlineArray.","explanation":"Wrong. A Span from a local Array cannot escape either."}],"answer":"c"},{"id":"inlinearray-and-span-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"func sum(_ span: Span\u003cInt>) -> Int {\n    var total = 0\n    for i in span.indices {\n        total += span[i]\n    }\n    return total\n}\n\nfunc run() {\n    let fixed: [3 of Int] = [5, 10, 15]\n    let array = [2, 3]\n    print(sum(fixed.span), sum(array.span))\n}\nrun()","options":[{"id":"a","text":"15 5","explanation":"Wrong. 5 + 10 + 15 equals 30."},{"id":"b","text":"30 2","explanation":"Wrong. 2 + 3 equals 5."},{"id":"c","text":"A compile error because Array does not have a .span property","explanation":"Wrong. Standard Array exposes .span over its contiguous storage."},{"id":"d","text":"30 5","explanation":"Right. sum works with both fixed.span and array.span, printing 30 and 5."}],"answer":"d"},{"id":"inlinearray-and-span-q21","type":"code-reading","difficulty":2,"prompt":"What happens when you compile this code?","code":"func run() {\n    var fixed: [3 of Int] = [1, 2, 3]\n    let readView = fixed.span\n    var writeView = fixed.mutableSpan\n    writeView[0] = 9\n    print(readView[0])\n}","options":[{"id":"a","text":"It fails to compile with an overlapping exclusivity violation on fixed.","explanation":"Right. A read Span and a write MutableSpan cannot overlap on fixed in the same scope."},{"id":"b","text":"It prints 9.","explanation":"Wrong. The compiler blocks overlapping read and write spans."},{"id":"c","text":"It prints 1.","explanation":"Wrong. The code does not compile due to conflicting access."},{"id":"d","text":"It crashes at runtime when writeView[0] = 9 executes.","explanation":"Wrong. Swift catches this span overlap at compile time."}],"answer":"a"},{"id":"inlinearray-and-span-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"func run() {\n    let bytes: [4 of UInt8] = [1, 2, 3, 4]\n    let raw: RawSpan = bytes.span.bytes\n    print(raw.byteCount)\n}\nrun()","options":[{"id":"a","text":"1","explanation":"Wrong. Four UInt8 elements use 4 bytes."},{"id":"b","text":"4","explanation":"Right. Four UInt8 values have a byteCount of 4."},{"id":"c","text":"16","explanation":"Wrong. Each UInt8 is 1 byte, not 4 bytes."},{"id":"d","text":"32","explanation":"Wrong. byteCount counts bytes (4), not bits (32)."}],"answer":"b"},{"id":"inlinearray-and-span-q23","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"func doubleAll(_ span: inout MutableSpan\u003cInt>) {\n    for i in span.indices {\n        span[i] *= 2\n    }\n}\n\nfunc run() {\n    var nums: [3 of Int] = [3, 5, 7]\n    do {\n        var view = nums.mutableSpan\n        doubleAll(&view)\n    }\n    print(nums[0], nums[2])\n}\nrun()","options":[{"id":"a","text":"3 7","explanation":"Wrong. doubleAll mutates nums in place through MutableSpan."},{"id":"b","text":"6 10","explanation":"Wrong. nums[2] is 7 * 2 = 14, not nums[1]."},{"id":"c","text":"6 14","explanation":"Right. MutableSpan doubles every element in place, so index 0 is 6 and index 2 is 14."},{"id":"d","text":"A compile error because MutableSpan cannot be passed as inout","explanation":"Wrong. Passing MutableSpan as inout is the normal way to mutate through it."}],"answer":"c"},{"id":"inlinearray-and-span-q24","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"func run() {\n    let built = Array\u003cInt>(capacity: 4) { output in\n        output.append(10)\n        output.append(20)\n    }\n    print(built.count, built[1])\n}\nrun()","options":[{"id":"a","text":"4 20","explanation":"Wrong. Capacity was 4, but only 2 items were appended to output."},{"id":"b","text":"4 0","explanation":"Wrong. Uninitialized capacity slots are not filled with 0."},{"id":"c","text":"A compile error because only 2 items were added to capacity 4","explanation":"Wrong. OutputSpan tracks how many slots were actually initialized."},{"id":"d","text":"2 20","explanation":"Right. OutputSpan records 2 appended elements, so built.count is 2 and built[1] is 20."}],"answer":"d"},{"id":"inlinearray-and-span-q25","type":"written","difficulty":1,"prompt":"In 2–5 sentences, explain how `InlineArray` differs from a standard `Array` in storage and copying behavior.","rubric":[{"criterion":"States that InlineArray stores a compile-time fixed count inline without heap allocation or ARC","weight":40,"key":true},{"criterion":"States that Array allocates on the heap with copy-on-write and can resize","weight":30},{"criterion":"Explains that InlineArray copies all elements eagerly on assignment instead of using copy-on-write","weight":30,"key":true}],"modelAnswer":"Standard Array stores elements in a resizable heap buffer with reference counting and copy-on-write. InlineArray has a compile-time fixed size and stores its elements inline on the stack or inside a parent type with zero heap allocation. Because there is no shared heap buffer, InlineArray copies all elements eagerly on assignment."},{"id":"inlinearray-and-span-q26","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain what `Span` is and how it prevents both out-of-bounds reads and dangling-pointer bugs.","rubric":[{"criterion":"Explains spatial safety: every subscript access on Span is bounds-checked","weight":40,"key":true},{"criterion":"Explains temporal safety: Span is ~Escapable so the compiler makes sure it cannot outlive its owner","weight":40,"key":true},{"criterion":"Notes that Span is a non-owning view with zero heap allocation","weight":20}],"modelAnswer":"Span is a non-owning view over contiguous memory that adds zero heap allocations. For spatial safety, every subscript access checks bounds so code cannot read past the end of the buffer. For temporal safety, Span is ~Escapable, meaning the compiler prevents returning or storing it past the owner's lifetime."},{"id":"inlinearray-and-span-q27","type":"written","difficulty":2,"prompt":"In 2–5 sentences, describe the roles of `Span`, `MutableSpan`, `RawSpan`, and `OutputSpan`.","rubric":[{"criterion":"Identifies Span as read-only and MutableSpan as exclusive in-place mutable view","weight":40,"key":true},{"criterion":"Identifies RawSpan as a bounds-checked raw bytes view","weight":30},{"criterion":"Identifies OutputSpan as a safe helper for initializing uninitialized buffers","weight":30,"key":true}],"modelAnswer":"Span provides a read-only, bounds-checked view over typed contiguous elements, while MutableSpan gives exclusive write access to mutate elements in place. RawSpan (via .bytes) exposes a safe, bounds-checked view of raw bytes. OutputSpan safely initializes new memory slots, such as inside Array(capacity:), without raw pointer math."},{"id":"inlinearray-and-span-q28","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain the risk of passing a large `InlineArray` by value and two ways to avoid copying it.","rubric":[{"criterion":"Explains that InlineArray lacks copy-on-write, so passing by value copies all elements eagerly","weight":50,"key":true},{"criterion":"States passing .span or marking the parameter borrowing avoids copying","weight":50,"key":true}],"modelAnswer":"Because InlineArray stores elements inline with no copy-on-write buffer, passing a large InlineArray by value copies every element eagerly. To avoid those copies, pass its .span into functions that accept Span. You can also mark the function parameter as borrowing so Swift lends the value without copying."},{"id":"inlinearray-and-span-q29","type":"written","difficulty":3,"prompt":"In 2–5 sentences, explain when a team should choose `Array`, `InlineArray`, or `Span` in a real iOS app.","rubric":[{"criterion":"Recommends Array as the default when sizes vary or allocations are not a bottleneck","weight":35,"key":true},{"criterion":"Recommends InlineArray when profiling shows heap or ARC overhead for small fixed-size buffers","weight":35,"key":true},{"criterion":"Recommends Span at function or API boundaries so functions accept any contiguous storage with zero copies","weight":30}],"modelAnswer":"Use Array as your default collection for UI state and lists where size changes at runtime. Switch to InlineArray when Instruments shows heap or ARC overhead on small, fixed-size buffers like audio frames. Use Span in helper functions so one API can read Array or InlineArray data with zero copies."},{"id":"inlinearray-and-span-q30","type":"code-write","difficulty":1,"prompt":"Write a function `run()` that creates `var vec: [3 of Int] = [2, 4, 6]`, updates index 1 to `10`, and prints the sum of all three elements. Then call `run()`.","rubric":[{"criterion":"Declares var vec: [3 of Int] = [2, 4, 6]","weight":40,"key":true},{"criterion":"Updates vec[1] to 10 and sums all elements","weight":40,"key":true},{"criterion":"Calls run() and prints 18","weight":20}],"modelAnswer":"func run() {\n    var vec: [3 of Int] = [2, 4, 6]\n    vec[1] = 10\n    var total = 0\n    for x in vec {\n        total += x\n    }\n    print(total)\n}\nrun()"},{"id":"inlinearray-and-span-q31","type":"code-write","difficulty":2,"prompt":"Write a function `maxInSpan(_ span: Span\u003cInt>) -> Int?` that returns the largest element (or `nil` if empty). Call it inside `run()` on a `[3 of Int]` `[4, 19, 7]` and print the result (`19`). Then call `run()`.","rubric":[{"criterion":"Accepts Span\u003cInt> and handles empty spans by returning nil","weight":45,"key":true},{"criterion":"Finds the maximum value using span.indices","weight":35,"key":true},{"criterion":"Calls maxInSpan(values.span) inside run() and prints 19","weight":20}],"modelAnswer":"func maxInSpan(_ span: Span\u003cInt>) -> Int? {\n    guard !span.isEmpty else { return nil }\n    var best = span[0]\n    for i in span.indices {\n        if span[i] > best { best = span[i] }\n    }\n    return best\n}\n\nfunc run() {\n    let values: [3 of Int] = [4, 19, 7]\n    print(maxInSpan(values.span) ?? 0)\n}\nrun()"},{"id":"inlinearray-and-span-q32","type":"code-write","difficulty":3,"prompt":"Write a function `zeroOut(_ span: inout MutableSpan\u003cInt>)` that sets every element to `0`. Inside `run()`, create `var buffer: [3 of Int] = [5, 8, 11]`, mutate it via `buffer.mutableSpan` inside a `do` block, and print `buffer[0]` and `buffer[2]`. Then call `run()`.","rubric":[{"criterion":"Defines zeroOut(_ span: inout MutableSpan\u003cInt>) and loops over span.indices setting elements to 0","weight":50,"key":true},{"criterion":"Puts var view = buffer.mutableSpan inside a do block before reading buffer","weight":30,"key":true},{"criterion":"Prints 0 0","weight":20}],"modelAnswer":"func zeroOut(_ span: inout MutableSpan\u003cInt>) {\n    for i in span.indices {\n        span[i] = 0\n    }\n}\n\nfunc run() {\n    var buffer: [3 of Int] = [5, 8, 11]\n    do {\n        var view = buffer.mutableSpan\n        zeroOut(&view)\n    }\n    print(buffer[0], buffer[2])\n}\nrun()"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

@@ -1,0 +1,640 @@
+<title>Noncopyable Types and Ownership Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --value: #0f7f63; --value-soft: #dcf2ea;
+  --shared: #6447d1; --shared-soft: #ebe6fb;
+  --changed: #a76a12; --changed-soft: #fcefd6;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 20px; }
+.eyebrow { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
+h1 { font-size: clamp(24px, 4.4vw, 34px); line-height: 1.15; margin: 4px 0 6px; text-wrap: balance; font-weight: 700; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 17px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.panel h2 code { font-family: var(--font-code); font-size: 15px; }
+.kind { font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; }
+.borrow .kind { background: var(--value-soft); color: var(--value); }
+.consume .kind { background: var(--changed-soft); color: var(--changed); }
+svg { width: 100%; height: auto; display: block; }
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 10px; padding: 8px 12px;
+  min-height: 3.4em; overflow-x: auto; white-space: pre;
+}
+.caption { margin: 0; font-weight: 500; min-height: 2.8em; }
+
+.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.6; }
+.ticket { fill: var(--value-soft); stroke: var(--value); stroke-width: 2; }
+.ticket.moved { fill: var(--changed-soft); stroke: var(--changed); }
+.ticket.gone { opacity: 0.28; stroke-dasharray: 4 3; }
+.lbl { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.sub { font-family: var(--font-code); font-size: 11px; fill: var(--muted); }
+.link { fill: none; stroke: var(--value); stroke-width: 2; }
+.consume .link { stroke: var(--changed); }
+.hidden { opacity: 0; }
+.on { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .hidden, .ticket { transition: opacity .35s ease, fill .3s ease, stroke .3s ease; }
+}
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.bar button {
+  font: 600 15px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 18px; cursor: pointer; min-height: 44px;
+}
+.bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.bar button:disabled { opacity: .4; cursor: default; }
+.bar button:focus-visible, .dots button:focus-visible, summary:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.dots { display: flex; gap: 8px; }
+.dots button { width: 14px; height: 14px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: transparent; }
+.dots button[aria-current="step"] { background: var(--ink); }
+.count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: center; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+summary { cursor: pointer; font-weight: 600; }
+details ol { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 10px; }
+details li p { margin: 0; }
+details code { font-family: var(--font-code); font-size: 14px; background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Senior · Swift Language · Topic 2 of 4 · Prototype</p>
+    <h1>Noncopyable Types and Ownership</h1>
+    <p class="meta-line"><span>About 11 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain noncopyable types and the borrowing and consuming keywords.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">How do <code>~Copyable</code> types, <code>borrowing</code>, and <code>consuming</code> help prevent bugs like double-closing a file handle without using a class?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">They put the struct on the heap and count references with ARC at runtime.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">They enforce single ownership at compile time so a value can be moved or destroyed only once.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">They hide the struct inside an actor and copy it on every call.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">They disable <code>deinit</code> and force manual pointer freeing.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of a physical concert ticket with a barcode. You can let a friend look at the ticket (<code>borrowing</code>), and you still hold it. If you hand the ticket to the door guard (<code>consuming</code>), you no longer have it and cannot hand it over a second time.</p></aside>
+<p>In Swift, every <code>struct</code> and <code>enum</code> conforms to <strong><code>Copyable</code></strong> by default, which means Swift can copy values freely. When you write <strong><code>: ~Copyable</code></strong> (read as &quot;noncopyable&quot;), you turn off that default <code>Copyable</code> conformance. Assigning <code>let b = a</code> moves ownership from <code>a</code> to <code>b</code> instead of copying. <strong>A noncopyable value has exactly one owner at a time, enforced at compile time.</strong></p>
+<p>Because there is only one owner, a noncopyable <code>struct</code> can define a <strong><code>deinit</code></strong>. This cleanup block runs when the owner leaves scope. Regular copyable structs cannot have a <code>deinit</code> because copies would run cleanup multiple times. Noncopyable enums do not support <code>deinit</code> yet.</p>
+<p>Swift gives you clear ownership modifiers to control how functions and methods access values:</p>
+<ul>
+<li><strong><code>borrowing</code></strong>: gives temporary read-only access without taking ownership or making a copy. The caller can still use the value afterward.</li>
+<li><strong><code>consuming</code></strong>: transfers ownership into the function or method. For a noncopyable value, the caller cannot use that variable again.</li>
+<li><strong><code>inout</code></strong> (or <code>mutating</code> on a method): gives temporary write access and returns ownership when the call finishes.</li>
+</ul>
+<p>Three more keywords complete the picture:</p>
+<ul>
+<li><strong><code>consume</code></strong>: moves a local variable (copyable or noncopyable) to another binding or call and ends use of the old variable.</li>
+<li><strong><code>discard self</code></strong>: inside a <code>consuming</code> method, destroys <code>self</code> immediately and skips <code>deinit</code>. Use this after manual cleanup so <code>deinit</code> does not run twice.</li>
+<li><strong><code>copy</code></strong>: creates an explicit copy of a <code>Copyable</code> value, such as inside a <code>borrowing</code> or <code>consuming</code> parameter.</li>
+</ul>
+<p>By default, generic types <code>&lt;T&gt;</code> and protocols still require <code>Copyable</code>. Write <strong><code>&lt;T: ~Copyable&gt;</code></strong> or <strong><code>protocol Resource: ~Copyable</code></strong> to accept noncopyable types too. If a generic function uses such a protocol, write <code>&lt;T: ~Copyable &amp; Resource&gt;</code>. Standard types like <code>Optional</code> already support <code>~Copyable</code> values.</p>
+<h2>See it</h2>
+<div class="diagram-host"><figure class="panels" id="figure" role="img" aria-label="Two panels comparing borrowing and consuming calls on a noncopyable Ticket. Borrowing lets the caller keep and reuse Ticket before deinit runs once. Consuming moves Ticket to the method, ends caller access, and discard self skips deinit." style="margin:0">
+    <section class="panel borrow" aria-hidden="true">
+      <h2><code>borrowing</code> <span class="kind">temporary read</span></h2>
+      <svg viewBox="0 0 340 220">
+        <defs>
+          <marker id="arr-b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" style="fill: var(--value)"/></marker>
+        </defs>
+        <rect class="box" x="14" y="16" width="136" height="106" rx="12"/>
+        <text class="lbl" x="26" y="36">Caller scope</text>
+        <g id="b-caller-ticket">
+          <rect class="ticket" x="26" y="48" width="112" height="58" rx="8"/>
+          <text class="lbl" x="38" y="72">Ticket #42</text>
+          <text class="sub" id="b-c-state" x="38" y="92">Owner</text>
+        </g>
+        <rect class="box" x="190" y="16" width="136" height="106" rx="12"/>
+        <text class="lbl" x="202" y="36">inspect()</text>
+        <text class="sub" x="202" y="54">borrowing</text>
+        <path class="link hidden" id="b-arrow" d="M150 72 H188" marker-end="url(#arr-b)"/>
+        <text class="sub hidden" id="b-read" x="202" y="88">Reads #42</text>
+        <rect class="box" x="14" y="142" width="312" height="60" rx="10"/>
+        <text class="lbl" x="28" y="166" id="b-end-lbl">Scope status</text>
+        <text class="sub" x="28" y="186" id="b-end-sub">Ticket still valid in caller</text>
+      </svg>
+      <div class="code" id="b-code"></div>
+      <p class="caption" id="b-cap"></p>
+    </section>
+
+    <section class="panel consume" aria-hidden="true">
+      <h2><code>consuming</code> <span class="kind">moves owner</span></h2>
+      <svg viewBox="0 0 340 220">
+        <defs>
+          <marker id="arr-c" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" style="fill: var(--changed)"/></marker>
+        </defs>
+        <rect class="box" x="14" y="16" width="136" height="106" rx="12"/>
+        <text class="lbl" x="26" y="36">Caller scope</text>
+        <g id="c-caller-ticket">
+          <rect class="ticket" id="c-c-box" x="26" y="48" width="112" height="58" rx="8"/>
+          <text class="lbl" x="38" y="72">Ticket #42</text>
+          <text class="sub" id="c-c-state" x="38" y="92">Owner</text>
+        </g>
+        <rect class="box" x="190" y="16" width="136" height="106" rx="12"/>
+        <text class="lbl" x="202" y="36">redeem()</text>
+        <text class="sub" x="202" y="54">consuming</text>
+        <path class="link hidden" id="c-arrow" d="M150 72 H188" marker-end="url(#arr-c)"/>
+        <g class="hidden" id="c-callee-ticket">
+          <rect class="ticket moved" id="c-m-box" x="200" y="64" width="116" height="46" rx="8"/>
+          <text class="lbl" x="212" y="85">Ticket #42</text>
+          <text class="sub" id="c-m-state" x="212" y="101">New owner</text>
+        </g>
+        <rect class="box" x="14" y="142" width="312" height="60" rx="10"/>
+        <text class="lbl" x="28" y="166" id="c-end-lbl">Scope status</text>
+        <text class="sub" x="28" y="186" id="c-end-sub">Ticket owned by caller</text>
+      </svg>
+      <div class="code" id="c-code"></div>
+      <p class="caption" id="c-cap"></p>
+    </section>
+  </figure>
+
+  <p class="sr-only" id="live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
+
+  <nav class="bar" aria-label="Diagram steps">
+    <button type="button" id="back">Back</button>
+    <div class="dots" id="dots"></div>
+    <span class="count" id="count"></span>
+    <button type="button" id="next" class="primary">Next</button>
+    <button type="button" id="replay">Replay</button>
+  </nav>
+
+  <details id="all">
+    <summary>All steps as a list</summary>
+    <ol id="list"></ol>
+  </details></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Why can a <code>~Copyable</code> struct define a <code>deinit</code> while a normal <code>struct</code> cannot?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Because <code>~Copyable</code> structs are secretly stored as classes.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Because a <code>~Copyable</code> value has only one owner, so <code>deinit</code> runs once.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Because Swift skips <code>deinit</code> unless you call <code>consume</code>.</span></button><p class="qc-explain" hidden="">Single ownership guarantees that only one copy exists, so Swift knows exactly when to run <code>deinit</code> once.</p></div>
+<h2>In code</h2>
+<p>In the example below, <code>Ticket</code> is a noncopyable struct with a <code>deinit</code>. Notice that <code>inspect()</code> uses <code>borrowing</code>, while <code>redeem()</code> uses <code>consuming</code> and <code>discard self</code>.</p>
+<figure class="code-example"><figcaption>Borrowing, consuming, and discard self on a ~Copyable struct</figcaption><pre class="block swift"><code class="language-swift">protocol Pass: ~Copyable {
+    borrowing func inspect()
+}
+
+struct Ticket: ~Copyable, Pass {
+    let code: Int
+
+    borrowing func inspect() {
+        print(&quot;Inspect \(code)&quot;)
+    }
+
+    consuming func redeem() {
+        print(&quot;Redeemed \(code)&quot;)
+        discard self
+    }
+
+    deinit {
+        print(&quot;Expired \(code)&quot;)
+    }
+}
+
+func checkGeneric&lt;T: ~Copyable&gt;(_ item: borrowing T) {
+    print(&quot;Checked generic&quot;)
+}
+
+func run() {
+    let first = Ticket(code: 42)
+    first.inspect()
+    checkGeneric(first)
+    first.redeem()
+
+    let second = Ticket(code: 99)
+    second.inspect()
+}
+
+run()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Inspect 42
+Checked generic
+Redeemed 42
+Inspect 99
+Expired 99
+</code></pre></figure>
+<p>Look at the output carefully:</p>
+<ul>
+<li><code>first.redeem()</code> printed <code>&quot;Redeemed 42&quot;</code> and called <code>discard self</code>, so <code>deinit</code> did <strong>not</strong> print <code>&quot;Expired 42&quot;</code>.</li>
+<li><code>second</code> was never redeemed, so its <code>deinit</code> ran automatically at the end of <code>run()</code> and printed <code>&quot;Expired 99&quot;</code>.</li>
+<li><code>checkGeneric</code> accepted <code>first</code> because its type parameter used <code>&lt;T: ~Copyable&gt;</code>.</li>
+</ul>
+<p>You can also store a <code>~Copyable</code> type in an <code>Optional</code> or switch over a <code>~Copyable</code> enum while borrowing its associated values.</p>
+<figure class="code-example"><figcaption>Borrowing pattern matching and Optional with ~Copyable</figcaption><pre class="block swift"><code class="language-swift">enum VaultState: ~Copyable {
+    case locked(keyID: Int)
+    case open
+}
+
+func inspectVault(_ vault: borrowing VaultState) {
+    switch vault {
+    case .locked(let keyID):
+        print(&quot;Locked with key \(keyID)&quot;)
+    case .open:
+        print(&quot;Open&quot;)
+    }
+}
+
+func testVault() {
+    let maybeVault: VaultState? = .locked(keyID: 7)
+    if let vault = consume maybeVault {
+        inspectVault(vault)
+        inspectVault(vault)
+    }
+}
+
+testVault()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">Locked with key 7
+Locked with key 7
+</code></pre></figure>
+<p>Here <code>consume maybeVault</code> moved the value into <code>vault</code>, and <code>inspectVault</code> borrowed <code>vault</code> twice without copying or consuming it.</p>
+<h3>Ownership modifiers at a glance</h3>
+<table><thead><tr><th>Keyword</th><th>Meaning</th><th>Can caller use value after?</th></tr></thead><tbody><tr><td><code>borrowing</code></td><td>Temporary read-only access, no copy</td><td>Yes</td></tr><tr><td><code>consuming</code></td><td>Moves ownership into callee</td><td>No</td></tr><tr><td><code>inout</code> / <code>mutating</code></td><td>Temporary exclusive write access</td><td>Yes</td></tr><tr><td><code>discard self</code></td><td>Ends <code>self</code> inside <code>consuming</code> method without <code>deinit</code></td><td>No</td></tr><tr><td><code>copy</code></td><td>Explicitly copies a <code>Copyable</code> value</td><td>Yes</td></tr></tbody></table>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">Inside a <code>consuming</code> method, what does <code>discard self</code> do?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It returns ownership of <code>self</code> back to the caller.</span></button><button type="button" class="opt" data-id="b"><span class="opt-id">B</span><span class="opt-text">It makes a fresh copy of <code>self</code> before exiting.</span></button><button type="button" class="opt" data-id="c" data-correct=""><span class="opt-id">C</span><span class="opt-text">It destroys <code>self</code> immediately and skips running <code>deinit</code>.</span></button><p class="qc-explain" hidden=""><code>discard self</code> ends the lifetime of <code>self</code> without running <code>deinit</code>, which prevents double cleanup after manual closing.</p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Thinking ~Copyable turns a struct into a class</p><p>Noncopyable structs and enums stay value types with zero ARC reference-counting overhead. They enforce unique ownership at compile time rather than sharing a heap object.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Forgetting that generic &lt;T&gt; still requires Copyable</p><p>If you write <code>func log&lt;T&gt;(_ value: borrowing T)</code>, Swift rejects a <code>~Copyable</code> argument because <code>T</code> defaults to <code>Copyable</code>. You must write <code>&lt;T: ~Copyable&gt;</code> on generic types, functions, and protocols that accept noncopyable values.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Thinking borrowing and consuming only help ~Copyable types</p><p>You can also mark parameters <code>borrowing</code> or <code>consuming</code> on normal <code>Copyable</code> types, such as <code>String</code> or <code>Array</code>. This avoids extra retains or copies in hot loops. Note that inside a <code>borrowing</code> or <code>consuming</code> parameter, implicit copies are disabled. You must write <code>copy value</code> if you really want a copy.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Senior answer</p><p>A <code>~Copyable</code> type suppresses Swift&#x27;s default <code>Copyable</code> conformance so a struct or enum has exactly one owner at compile time. This enables value-type <code>deinit</code> for resources like file handles or locks without heap allocation or ARC overhead. <code>borrowing</code> gives temporary read access, <code>consuming</code> moves ownership and ends caller access, and <code>discard self</code> prevents <code>deinit</code> from running after manual cleanup.</p></div>
+<div class="answer"><p class="label">Staff answer</p><p>Noncopyable types and ownership modifiers let teams model strict resource lifetimes and zero-copy hot paths directly in Swift&#x27;s type system. You can design unique tokens, database transactions, or state machines where use-after-close becomes a compile error instead of a runtime crash. Generic parameters and protocols still default to <code>Copyable</code>. Library boundaries must opt in with <code>~Copyable</code> and explicit <code>borrowing</code>, <code>consuming</code>, or <code>inout</code> parameters.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Adding <code>: ~Copyable</code> to a <code>struct</code> or <code>enum</code> enforces single ownership at compile time. Noncopyable structs can also define a <code>deinit</code>.</li>
+<li><code>borrowing</code> lends temporary read access without copying; <code>consuming</code> transfers ownership and ends caller use.</li>
+<li><code>discard self</code> inside a <code>consuming</code> method destroys <code>self</code> without running <code>deinit</code>.</li>
+<li>Generic parameters and protocols default to <code>Copyable</code>; write <code>&lt;T: ~Copyable&gt;</code> to accept noncopyable types.</li>
+</ul></div>
+<p class="try-it"><p>Try <code>~Copyable</code>, <code>borrowing</code>, and <code>consuming</code> in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const STEPS = [
+  {
+    b: { code: "let t = Ticket(code: 42)", cap: "Step 1: Caller creates one unique Ticket." },
+    c: { code: "let t = Ticket(code: 42)", cap: "Step 1: Caller creates one unique Ticket." }
+  },
+  {
+    b: { code: "t.inspect() // borrowing", cap: "Step 2: inspect() borrows t temporarily without copying." },
+    c: { code: "t.redeem()  // consuming", cap: "Step 2: redeem() takes ownership of t from the caller." }
+  },
+  {
+    b: { code: "t.inspect() // still valid", cap: "Step 3: Caller still owns t and can borrow it again." },
+    c: { code: "discard self // inside redeem()", cap: "Step 3: discard self destroys Ticket and skips deinit." }
+  },
+  {
+    b: { code: "// scope ends -> deinit runs once", cap: "Step 4: Scope ends, so deinit runs once for Ticket #42." },
+    c: { code: "t.inspect() // compile error!", cap: "Step 4: Using t again fails at compile time (used after consume)." }
+  }
+];
+
+const $ = (id) => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let step = 0;
+
+function render() {
+  const n = step + 1;
+  $("b-arrow").classList.toggle("on", n === 2 || n === 3);
+  $("b-read").classList.toggle("on", n === 2 || n === 3);
+  $("b-c-state").textContent = n === 4 ? "Freed" : n >= 2 ? "Still owner" : "Owner";
+  $("b-caller-ticket").style.opacity = n === 4 ? "0.3" : "1";
+  $("b-end-lbl").textContent = n === 4 ? "deinit ran once" : "Scope status";
+  $("b-end-sub").textContent = n === 4 ? "Printed: Expired 42" : "Ticket remains valid in caller";
+
+  $("c-arrow").classList.toggle("on", n >= 2);
+  $("c-callee-ticket").classList.toggle("on", n >= 2);
+  $("c-c-box").classList.toggle("gone", n >= 2);
+  $("c-c-state").textContent = n >= 2 ? "Moved away" : "Owner";
+  $("c-m-box").classList.toggle("gone", n >= 3);
+  $("c-m-state").textContent = n >= 3 ? "Discarded" : "New owner";
+  $("c-end-lbl").textContent = n >= 3 ? "deinit skipped" : "Scope status";
+  $("c-end-sub").textContent = n === 4 ? "Error if used: used after consume" : n === 3 ? "discard self already cleaned up" : n === 2 ? "redeem() now owns Ticket #42" : "Ticket owned by caller";
+
+  const st = STEPS[step];
+  $("b-code").textContent = st.b.code;
+  $("c-code").textContent = st.c.code;
+  $("b-cap").textContent = st.b.cap;
+  $("c-cap").textContent = st.c.cap;
+  $("count").textContent = "Step " + n + " of " + STEPS.length;
+  $("live").textContent = "Step " + n + ". Borrowing: " + st.b.cap + " Consuming: " + st.c.cap;
+  $("back").disabled = step === 0;
+  $("next").disabled = step === STEPS.length - 1;
+  [...$("dots").children].forEach((d, i) => i === step ? d.setAttribute("aria-current", "step") : d.removeAttribute("aria-current"));
+}
+
+function go(i) { step = Math.max(0, Math.min(STEPS.length - 1, i)); render(); }
+
+STEPS.forEach((st, i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.setAttribute("aria-label", "Diagram step " + (i + 1) + " of " + STEPS.length);
+  b.addEventListener("click", () => go(i));
+  $("dots").append(b);
+  const li = document.createElement("li");
+  li.innerHTML = "<p><b>Borrowing:</b> <code></code> — <span></span></p><p><b>Consuming:</b> <code></code> — <span></span></p>";
+  const [c1, c2] = li.querySelectorAll("code");
+  const [t1, t2] = li.querySelectorAll("span");
+  c1.textContent = st.b.code; t1.textContent = st.b.cap;
+  c2.textContent = st.c.code; t2.textContent = st.c.cap;
+  $("list").append(li);
+});
+
+$("back").addEventListener("click", () => go(step - 1));
+$("next").addEventListener("click", () => go(step + 1));
+$("replay").addEventListener("click", () => {
+  go(0);
+  if (reduce.matches) return;
+  let i = 0;
+  const t = setInterval(() => { i++; go(i); if (i >= STEPS.length - 1) clearInterval(t); }, 1100);
+});
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") go(step + 1);
+  if (e.key === "ArrowLeft") go(step - 1);
+});
+
+if (reduce.matches) { step = STEPS.length - 1; $("all").open = true; }
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"noncopyable-types","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"noncopyable-types-q1","type":"mcq","difficulty":1,"prompt":"What does `: ~Copyable` mean on a Swift `struct` or `enum`?","options":[{"id":"a","text":"The type turns off Copyable and cannot be copied implicitly.","explanation":"Right. A ~Copyable type enforces unique ownership so values move instead of copying."},{"id":"b","text":"The type is allocated on the heap and managed by ARC.","explanation":"Wrong. ~Copyable structs and enums stay value types with no reference counting."},{"id":"c","text":"The type cannot define any stored properties or methods.","explanation":"Wrong. ~Copyable structs can have stored properties, methods, and deinit."},{"id":"d","text":"The type disables Swift 6 strict concurrency checks.","explanation":"Wrong. ~Copyable controls copying and ownership, not concurrency isolation."}],"answer":"a"},{"id":"noncopyable-types-q2","type":"mcq","difficulty":1,"prompt":"Which two Swift types can be declared as noncopyable with `: ~Copyable`?","options":[{"id":"a","text":"Classes and actors","explanation":"Wrong. Reference types use ARC and are shared, not noncopyable value types."},{"id":"b","text":"Structs and enums","explanation":"Right. Only structs and enums can be declared as noncopyable with ~Copyable."},{"id":"c","text":"Protocols and classes","explanation":"Wrong. Classes cannot use ~Copyable; protocols only let ~Copyable types conform."},{"id":"d","text":"Actors and tuples","explanation":"Wrong. Actors are reference types and tuples cannot use : ~Copyable."}],"answer":"b"},{"id":"noncopyable-types-q3","type":"mcq","difficulty":1,"prompt":"Why can a `~Copyable` struct define a `deinit` while a regular struct cannot?","options":[{"id":"a","text":"Because ~Copyable structs always inherit from NSObject.","explanation":"Wrong. Structs never inherit from classes."},{"id":"b","text":"Because regular structs are immutable and never leave scope.","explanation":"Wrong. Regular structs leave scope too, but they can be copied freely."},{"id":"c","text":"Because a ~Copyable value has one unique owner, so deinit runs once.","explanation":"Right. Single ownership guarantees cleanup runs once when the unique value ends."},{"id":"d","text":"Because Swift automatically turns ~Copyable structs into classes.","explanation":"Wrong. Noncopyable structs remain value types."}],"answer":"c"},{"id":"noncopyable-types-q4","type":"mcq","difficulty":1,"prompt":"What does the `borrowing` keyword do on a function parameter?","options":[{"id":"a","text":"It moves ownership permanently into the function.","explanation":"Wrong. Moving ownership permanently is what consuming does."},{"id":"b","text":"It allows the function to mutate the caller's variable directly.","explanation":"Wrong. Exclusive write access uses inout or mutating."},{"id":"c","text":"It creates an automatic copy before entering the function.","explanation":"Wrong. borrowing avoids copying and disables implicit copies inside the body."},{"id":"d","text":"It grants temporary read-only access and lets the caller keep the value.","explanation":"Right. The callee reads the value temporarily without taking ownership."}],"answer":"d"},{"id":"noncopyable-types-q5","type":"mcq","difficulty":1,"prompt":"What happens to a caller's `~Copyable` variable after passing it to a `consuming` parameter or method?","options":[{"id":"a","text":"Ownership moves away and using the variable again is a compile error.","explanation":"Right. Consuming transfers ownership, so the caller cannot access the variable afterward."},{"id":"b","text":"The caller can still read it, but cannot mutate it.","explanation":"Wrong. The caller loses all access once the value is consumed."},{"id":"c","text":"Swift makes a deep copy so both caller and callee own separate copies.","explanation":"Wrong. A ~Copyable type cannot be copied; ownership transfers instead."},{"id":"d","text":"The variable becomes nil at runtime.","explanation":"Wrong. Unless it was Optional and set to nil, non-optional values cannot be used again."}],"answer":"a"},{"id":"noncopyable-types-q6","type":"mcq","difficulty":1,"prompt":"What does `discard self` do inside a `consuming` method on a `~Copyable` type?","options":[{"id":"a","text":"It returns self back to the caller.","explanation":"Wrong. A consuming method takes ownership and cannot return self via discard."},{"id":"b","text":"It destroys self immediately without running deinit.","explanation":"Right. discard self ends self and suppresses deinit after manual cleanup."},{"id":"c","text":"It calls deinit twice to flush buffers.","explanation":"Wrong. discard self prevents deinit from running at all."},{"id":"d","text":"It marks the method as mutating instead of consuming.","explanation":"Wrong. discard self is only valid inside consuming methods."}],"answer":"b"},{"id":"noncopyable-types-q7","type":"mcq","difficulty":1,"prompt":"Which ownership modifier gives temporary exclusive write access without permanently consuming the value?","options":[{"id":"a","text":"borrowing","explanation":"Wrong. borrowing only permits read-only access."},{"id":"b","text":"consuming","explanation":"Wrong. consuming transfers ownership permanently and ends caller use."},{"id":"c","text":"inout or mutating","explanation":"Right. inout and mutating lend exclusive write access and return ownership afterward."},{"id":"d","text":"discard self","explanation":"Wrong. discard self destroys self inside a consuming method."}],"answer":"c"},{"id":"noncopyable-types-q8","type":"mcq","difficulty":2,"prompt":"How do you allow a generic function `func log\u003cT>(_ value: borrowing T)` to accept a `~Copyable` type?","options":[{"id":"a","text":"Change the parameter type to Any.","explanation":"Wrong. Any requires Copyable by default and boxes values."},{"id":"b","text":"Mark the function with @Sendable.","explanation":"Wrong. Sendable relates to concurrency, not copyability."},{"id":"c","text":"Use \u003cT: Copyable> on the generic parameter.","explanation":"Wrong. T already defaults to Copyable; that keeps excluding ~Copyable types."},{"id":"d","text":"Write \u003cT: ~Copyable> on the generic parameter.","explanation":"Right. Suppressing Copyable lets the generic parameter accept both copyable and noncopyable types."}],"answer":"d"},{"id":"noncopyable-types-q9","type":"mcq","difficulty":2,"prompt":"What happens when you write `let b = a` where `a` is a `~Copyable` struct?","options":[{"id":"a","text":"Ownership moves from a to b, and a cannot be used afterward.","explanation":"Right. Assignment moves a noncopyable value instead of duplicating it."},{"id":"b","text":"Swift makes a shallow copy of a into b.","explanation":"Wrong. ~Copyable suppresses copying on assignment."},{"id":"c","text":"Both a and b share a heap reference.","explanation":"Wrong. A ~Copyable struct stays a value type with a single owner."},{"id":"d","text":"The assignment fails unless you mark b as weak.","explanation":"Wrong. weak applies to class references, not ~Copyable structs."}],"answer":"a"},{"id":"noncopyable-types-q10","type":"mcq","difficulty":2,"prompt":"Why does Swift disable implicit copies inside a `borrowing` parameter even for `Copyable` types?","options":[{"id":"a","text":"Because Copyable types cannot be copied inside functions.","explanation":"Wrong. You can still copy explicitly with the copy keyword."},{"id":"b","text":"To guarantee no hidden copies occur unless you explicitly write copy.","explanation":"Right. Writing borrowing or consuming stops accidental retains or copies in performance code."},{"id":"c","text":"Because borrowing turns a String into a pointer.","explanation":"Wrong. String stays a safe Swift value with borrowing semantics."},{"id":"d","text":"To force every parameter to use inout.","explanation":"Wrong. borrowing is read-only and separate from inout."}],"answer":"b"},{"id":"noncopyable-types-q11","type":"mcq","difficulty":2,"prompt":"Can a `~Copyable` type be wrapped in Swift's `Optional` type (like `VaultState?`)?","options":[{"id":"a","text":"No, Optional only works with Copyable types.","explanation":"Wrong. Swift 6 updated Optional (SE-0427 and SE-0437) so Wrapped can be ~Copyable."},{"id":"b","text":"Only if VaultState is a class.","explanation":"Wrong. VaultState is a noncopyable struct or enum."},{"id":"c","text":"Yes, Optional supports ~Copyable wrapped values.","explanation":"Right. You can wrap ~Copyable values in Optional and unwrap them with consume."},{"id":"d","text":"Only in Swift 5 mode, not Swift 6 mode.","explanation":"Wrong. Swift 6 fully supports Optional with ~Copyable values."}],"answer":"c"},{"id":"noncopyable-types-q12","type":"mcq","difficulty":2,"prompt":"What does `protocol Resource: ~Copyable` allow that `protocol Resource` does not?","options":[{"id":"a","text":"It lets classes skip implementing required methods.","explanation":"Wrong. Conforming types still implement all protocol requirements."},{"id":"b","text":"It makes every conforming type a singleton.","explanation":"Wrong. Multiple instances can exist, each with one owner."},{"id":"c","text":"It automatically adds deinit to every conforming type.","explanation":"Wrong. Types define their own deinit when needed."},{"id":"d","text":"It lets both Copyable and ~Copyable types conform to Resource.","explanation":"Right. Suppressing Copyable on a protocol allows noncopyable types to conform."}],"answer":"d"},{"id":"noncopyable-types-q13","type":"mcq","difficulty":2,"prompt":"What happens when you switch over a `borrowing` `~Copyable` enum in modern Swift?","options":[{"id":"a","text":"You can borrow associated values in patterns without consuming the enum.","explanation":"Right. Borrowing pattern matching lets you inspect enum cases and keep using the value."},{"id":"b","text":"The switch always destroys the enum immediately.","explanation":"Wrong. Borrowing switches inspect associated values without consuming the enum."},{"id":"c","text":"Enums cannot conform to ~Copyable at all.","explanation":"Wrong. Both structs and enums can be ~Copyable."},{"id":"d","text":"Each case automatically copies the associated payload.","explanation":"Wrong. Noncopyable payloads cannot be copied; they are borrowed or consumed."}],"answer":"a"},{"id":"noncopyable-types-q14","type":"mcq","difficulty":2,"prompt":"Why would you use `consume` on a normal `Copyable` value like a large `Array`?","options":[{"id":"a","text":"To convert the Array into a class reference.","explanation":"Wrong. consume does not change a type from struct to class."},{"id":"b","text":"To move ownership without copying and end use of the old binding.","explanation":"Right. consume ends the old binding and avoids an extra retain or copy."},{"id":"c","text":"To allow mutating a let constant in place.","explanation":"Wrong. consume moves the value out rather than mutating a let binding."},{"id":"d","text":"To run deinit on the Array elements immediately.","explanation":"Wrong. consume transfers ownership; elements stay alive in the new owner."}],"answer":"b"},{"id":"noncopyable-types-q15","type":"mcq","difficulty":3,"prompt":"What is a common real-world reason to choose a `~Copyable` struct over a `class` for a file handle?","options":[{"id":"a","text":"Classes cannot run code inside deinit.","explanation":"Wrong. Classes have had deinit since Swift 1."},{"id":"b","text":"Classes cannot hold integer file descriptors.","explanation":"Wrong. Classes can store any property type."},{"id":"c","text":"It prevents accidental sharing and catches double-close bugs.","explanation":"Right. You avoid ARC overhead and prevent double-close bugs at compile time."},{"id":"d","text":"A ~Copyable struct skips all Swift 6 type checking.","explanation":"Wrong. The compiler strictly checks ~Copyable ownership rules."}],"answer":"c"},{"id":"noncopyable-types-q16","type":"mcq","difficulty":3,"prompt":"What happens if a `consuming` method on a `~Copyable` struct has a `deinit` and does NOT call `discard self`?","options":[{"id":"a","text":"The code fails to compile because deinit is forbidden with consuming methods.","explanation":"Wrong. Consuming methods work fine with deinit."},{"id":"b","text":"Ownership automatically returns to the caller after the method ends.","explanation":"Wrong. Consuming never returns ownership to the caller."},{"id":"c","text":"deinit runs in the caller scope instead of the method.","explanation":"Wrong. Ownership moved into the consuming method."},{"id":"d","text":"deinit runs automatically when the consuming method finishes.","explanation":"Right. Since the method owns self and did not discard it, deinit runs as self leaves scope."}],"answer":"d"},{"id":"noncopyable-types-q17","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"struct Pass: ~Copyable {\n    let id: Int\n    borrowing func show() {\n        print(\"Pass \\(id)\")\n    }\n}\n\nfunc run() {\n    let p = Pass(id: 5)\n    p.show()\n    p.show()\n}\nrun()","options":[{"id":"a","text":"Pass 5\nPass 5","explanation":"Right. show() borrows p temporarily, so p stays valid for the second call."},{"id":"b","text":"Pass 5","explanation":"Wrong. Both borrowing calls execute."},{"id":"c","text":"A compile error because p is used twice","explanation":"Wrong. Borrowing does not consume p."},{"id":"d","text":"A compile error because ~Copyable cannot have a let property","explanation":"Wrong. ~Copyable structs can have let and var properties."}],"answer":"a"},{"id":"noncopyable-types-q18","type":"code-reading","difficulty":1,"prompt":"What happens when you compile this code?","code":"struct Token: ~Copyable {\n    let id: Int\n}\n\nfunc test() {\n    let a = Token(id: 1)\n    let b = a\n    print(a.id, b.id)\n}","options":[{"id":"a","text":"It prints 1 1.","explanation":"Wrong. Token is ~Copyable, so assigning a to b moves ownership."},{"id":"b","text":"It fails to compile because a was already moved to b.","explanation":"Right. Moving a into b ends a's lifetime, so reading a.id causes a compile error."},{"id":"c","text":"It prints 0 1.","explanation":"Wrong. Swift never zeroes out moved bindings at runtime."},{"id":"d","text":"It crashes at runtime when reading a.id.","explanation":"Wrong. Ownership errors are caught at compile time."}],"answer":"b"},{"id":"noncopyable-types-q19","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"struct Handle: ~Copyable {\n    let id: Int\n    consuming func close() {\n        print(\"Closed \\(id)\")\n        discard self\n    }\n    deinit {\n        print(\"Deinit \\(id)\")\n    }\n}\n\nfunc run() {\n    let h = Handle(id: 8)\n    h.close()\n}\nrun()","options":[{"id":"a","text":"Closed 8\nDeinit 8","explanation":"Wrong. discard self inside close() skips deinit."},{"id":"b","text":"Deinit 8","explanation":"Wrong. close() runs and prints Closed 8."},{"id":"c","text":"Closed 8","explanation":"Right. close() prints Closed 8 and discard self prevents deinit from running."},{"id":"d","text":"A compile error because discard self requires mutating","explanation":"Wrong. discard self requires consuming, which close() has."}],"answer":"c"},{"id":"noncopyable-types-q20","type":"code-reading","difficulty":2,"prompt":"What happens when you compile this code?","code":"struct Key: ~Copyable {\n    let code: Int\n    consuming func useKey() {\n        print(code)\n    }\n}\n\nfunc run() {\n    let k = Key(code: 3)\n    k.useKey()\n    print(k.code)\n}","options":[{"id":"a","text":"It prints 3 twice.","explanation":"Wrong. useKey() consumes k, so k cannot be read afterward."},{"id":"b","text":"It prints 3 once.","explanation":"Wrong. The compiler rejects reading k.code after useKey()."},{"id":"c","text":"It crashes at runtime on the second print.","explanation":"Wrong. Use-after-consume is a compile-time error."},{"id":"d","text":"It fails to compile because k was already consumed.","explanation":"Right. Calling a consuming method ends k's availability in run()."}],"answer":"d"},{"id":"noncopyable-types-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"struct Job: ~Copyable {\n    let name: String\n    deinit {\n        print(\"Done \\(name)\")\n    }\n}\n\nfunc run() {\n    let j = Job(name: \"Sync\")\n    print(\"Start \\(j.name)\")\n}\nrun()","options":[{"id":"a","text":"Start Sync\nDone Sync","explanation":"Right. print runs first, then j leaves scope and its deinit prints Done Sync."},{"id":"b","text":"Start Sync","explanation":"Wrong. Because j has a deinit and no discard self was called, deinit runs at scope end."},{"id":"c","text":"Done Sync\nStart Sync","explanation":"Wrong. deinit runs when j goes out of scope after print."},{"id":"d","text":"A compile error because structs cannot have deinit","explanation":"Wrong. ~Copyable structs can define deinit."}],"answer":"a"},{"id":"noncopyable-types-q22","type":"code-reading","difficulty":2,"prompt":"What happens when you compile this generic function call?","code":"struct Badge: ~Copyable {\n    let num: Int\n}\n\nfunc show\u003cT>(_ item: borrowing T) {\n    print(\"ok\")\n}\n\nfunc run() {\n    let b = Badge(num: 1)\n    show(b)\n}","options":[{"id":"a","text":"It compiles and prints ok.","explanation":"Wrong. Generic parameter T requires Copyable unless you write \u003cT: ~Copyable>."},{"id":"b","text":"It fails to compile because T requires Copyable.","explanation":"Right. Without \u003cT: ~Copyable>, generic functions reject noncopyable arguments."},{"id":"c","text":"It compiles only if Badge is an enum.","explanation":"Wrong. Noncopyable enums also require \u003cT: ~Copyable>."},{"id":"d","text":"It compiles with a runtime warning.","explanation":"Wrong. Missing ~Copyable on T is a compile error."}],"answer":"b"},{"id":"noncopyable-types-q23","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"struct CounterBox: ~Copyable {\n    var count = 1\n    mutating func bump() {\n        count += 4\n    }\n    borrowing func show() {\n        print(count)\n    }\n}\n\nfunc run() {\n    var box = CounterBox()\n    box.bump()\n    box.show()\n}\nrun()","options":[{"id":"a","text":"1","explanation":"Wrong. bump() mutates count in place before show() runs."},{"id":"b","text":"4","explanation":"Wrong. count starts at 1 and adds 4, making 5."},{"id":"c","text":"5","explanation":"Right. mutating borrows box with exclusive write access, returns it, and show() reads 5."},{"id":"d","text":"A compile error because mutating consumes box","explanation":"Wrong. mutating gives temporary write access and does not consume box."}],"answer":"c"},{"id":"noncopyable-types-q24","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"enum LockState: ~Copyable {\n    case locked(id: Int)\n    case unlocked\n}\n\nfunc readState(_ state: borrowing LockState) {\n    switch state {\n    case .locked(let id):\n        print(\"L\\(id)\")\n    case .unlocked:\n        print(\"U\")\n    }\n}\n\nfunc run() {\n    let s = LockState.locked(id: 9)\n    readState(s)\n    readState(s)\n}\nrun()","options":[{"id":"a","text":"L9","explanation":"Wrong. readState is called twice and prints on both calls."},{"id":"b","text":"A compile error because switch consumes s on the first call","explanation":"Wrong. readState takes borrowing LockState and borrows the associated value."},{"id":"c","text":"U\nU","explanation":"Wrong. s matches the .locked(id: 9) case."},{"id":"d","text":"L9\nL9","explanation":"Right. Borrowing pattern matching inspects id without consuming s."}],"answer":"d"},{"id":"noncopyable-types-q25","type":"written","difficulty":1,"prompt":"In 2–5 sentences, explain the difference between `borrowing` and `consuming` parameters on a `~Copyable` type in Swift.","rubric":[{"criterion":"States that borrowing grants temporary read-only access without copying or taking ownership","weight":40,"key":true},{"criterion":"States that consuming moves ownership into the function and ends caller access","weight":40,"key":true},{"criterion":"Notes that the caller can still use the value after a borrowing call","weight":20}],"modelAnswer":"A borrowing parameter gives a function temporary read-only access without copying or taking ownership, so the caller can keep using the value afterward. A consuming parameter moves ownership into the function. Once consumed, the caller cannot access that variable again."},{"id":"noncopyable-types-q26","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain why `~Copyable` structs can define `deinit` and when you should call `discard self`.","rubric":[{"criterion":"Explains that single ownership ensures deinit runs once on a ~Copyable struct","weight":40,"key":true},{"criterion":"Explains that discard self inside a consuming method destroys self without running deinit","weight":40,"key":true},{"criterion":"Gives a clear reason such as avoiding double cleanup after an explicit close","weight":20}],"modelAnswer":"A ~Copyable struct has only one owner, so Swift knows it can run deinit exactly once when the value leaves scope. Inside a consuming method like close(), you call discard self to destroy the value immediately and skip deinit. This prevents cleanup code from running twice."},{"id":"noncopyable-types-q27","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain how generics and protocols work with `~Copyable` types, and give a syntax example.","rubric":[{"criterion":"States that generic parameters and protocols require Copyable by default","weight":35,"key":true},{"criterion":"Explains writing \u003cT: ~Copyable> or protocol Name: ~Copyable to opt in","weight":45,"key":true},{"criterion":"Shows a valid syntax example such as func inspect\u003cT: ~Copyable>(_ x: borrowing T)","weight":20}],"modelAnswer":"By default, every Swift generic parameter and protocol requires Copyable. To accept noncopyable types, you suppress that default requirement with ~Copyable, such as protocol Resource: ~Copyable. For example, writing func inspect\u003cT: ~Copyable>(_ item: borrowing T) lets the function accept both copyable and noncopyable values."},{"id":"noncopyable-types-q28","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain why `borrowing` and `consuming` can be useful on regular `Copyable` types and how the `copy` keyword helps.","rubric":[{"criterion":"States that borrowing and consuming avoid extra copies or ARC retains in hot paths","weight":45,"key":true},{"criterion":"Explains that implicit copies are disabled inside those parameters","weight":30},{"criterion":"States that the copy keyword makes an explicit copy when needed","weight":25,"key":true}],"modelAnswer":"On normal Copyable types like String or Array, borrowing and consuming parameters stop Swift from making hidden copies or extra ARC retains. Because implicit copies are turned off inside those parameters, the compiler catches accidental copying. If you actually need a duplicate, you write copy value explicitly."},{"id":"noncopyable-types-q29","type":"written","difficulty":3,"prompt":"In 2–5 sentences, compare using a `~Copyable` struct versus a `class` when modeling a unique resource like a database transaction.","rubric":[{"criterion":"States that a ~Copyable struct stays a value type without heap allocation or ARC overhead","weight":35,"key":true},{"criterion":"Explains that ~Copyable enforces single ownership and catches use-after-consume at compile time","weight":45,"key":true},{"criterion":"Notes that a class allows shared references and relies on runtime checks to guard double commits","weight":20}],"modelAnswer":"A ~Copyable struct stays a value type with no heap allocation or ARC reference counting. The compiler enforces single ownership, so calling commit() as a consuming method prevents reusing or double-committing the transaction at compile time. A class allows shared references, so preventing double commits requires runtime state flags."},{"id":"noncopyable-types-q30","type":"code-write","difficulty":1,"prompt":"Create a `~Copyable` struct named `FileToken` with `let id: Int`, a `borrowing func read()` that prints `\"Read \\(id)\"`, and a `deinit` that prints `\"Closed \\(id)\"`. Inside a function `run()`, create `FileToken(id: 3)` and call `read()`.","rubric":[{"criterion":"Declares struct FileToken: ~Copyable with let id: Int","weight":35,"key":true},{"criterion":"Implements borrowing func read() printing Read 3","weight":35,"key":true},{"criterion":"Implements deinit printing Closed 3 and runs inside run()","weight":30}],"modelAnswer":"struct FileToken: ~Copyable {\n    let id: Int\n    borrowing func read() {\n        print(\"Read \\(id)\")\n    }\n    deinit {\n        print(\"Closed \\(id)\")\n    }\n}\n\nfunc run() {\n    let token = FileToken(id: 3)\n    token.read()\n}\nrun()"},{"id":"noncopyable-types-q31","type":"code-write","difficulty":2,"prompt":"Add a `consuming func close()` with `discard self` to `Session: ~Copyable` so calling `close()` prints `\"Closed \\(id)\"` and prevents `deinit` (`\"Dropped \\(id)\"`) from running. Run it inside `run()` for `id: 10`.","starterCode":"struct Session: ~Copyable {\n    let id: Int\n    deinit {\n        print(\"Dropped \\(id)\")\n    }\n}\n","rubric":[{"criterion":"Adds consuming func close() printing Closed 10","weight":40,"key":true},{"criterion":"Calls discard self inside close() so deinit does not run","weight":45,"key":true},{"criterion":"Creates Session(id: 10) inside run() and calls close()","weight":15}],"modelAnswer":"struct Session: ~Copyable {\n    let id: Int\n    consuming func close() {\n        print(\"Closed \\(id)\")\n        discard self\n    }\n    deinit {\n        print(\"Dropped \\(id)\")\n    }\n}\n\nfunc run() {\n    let s = Session(id: 10)\n    s.close()\n}\nrun()"},{"id":"noncopyable-types-q32","type":"code-write","difficulty":3,"prompt":"Define `protocol Labelable: ~Copyable` with `borrowing func label() -> String`. Conform `struct KeyCard: ~Copyable, Labelable` with `let id: Int` returning `\"Key \\(id)\"`. Write `func printLabel\u003cT: ~Copyable & Labelable>(_ item: borrowing T)` and call it in `run()` for `id: 7`.","rubric":[{"criterion":"Defines protocol Labelable: ~Copyable with borrowing func label() -> String","weight":35,"key":true},{"criterion":"Defines struct KeyCard: ~Copyable, Labelable and generic printLabel\u003cT: ~Copyable & Labelable>(_ item: borrowing T)","weight":45,"key":true},{"criterion":"Calls printLabel inside run() and prints Key 7","weight":20}],"modelAnswer":"protocol Labelable: ~Copyable {\n    borrowing func label() -> String\n}\n\nstruct KeyCard: ~Copyable, Labelable {\n    let id: Int\n    borrowing func label() -> String { \"Key \\(id)\" }\n}\n\nfunc printLabel\u003cT: ~Copyable & Labelable>(_ item: borrowing T) {\n    print(item.label())\n}\n\nfunc run() {\n    let card = KeyCard(id: 7)\n    printLabel(card)\n}\nrun()"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>

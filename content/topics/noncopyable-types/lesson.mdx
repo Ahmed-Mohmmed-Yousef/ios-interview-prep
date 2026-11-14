@@ -1,0 +1,228 @@
+export const meta = {
+  id: "noncopyable-types",
+  summary: "Model unique resources with ~Copyable types and control value ownership with borrowing, consuming, and discard.",
+  estimatedMinutes: 11,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-14",
+  sources: [
+    { title: "WWDC24: Consume noncopyable types in Swift", url: "https://developer.apple.com/videos/play/wwdc2024/10170/", kind: "official" },
+    { title: "SE-0390: Noncopyable structs and enums", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0390-noncopyable-structs-and-enums.md", kind: "official" },
+    { title: "SE-0377: Parameter Ownership Modifiers", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0377-parameter-ownership-modifiers.md", kind: "official" },
+    { title: "SE-0427: Noncopyable Generics", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0427-noncopyable-generics.md", kind: "official" },
+    { title: "SE-0432: Borrowing and consuming pattern matching for noncopyable types", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0432-noncopyable-switch.md", kind: "official" },
+    { title: "SE-0437: Noncopyable Standard Library Primitives", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0437-noncopyable-stdlib-primitives.md", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How do `~Copyable` types, `borrowing`, and `consuming` help prevent bugs like double-closing a file handle without using a class?</Question>
+  <Guess>
+    <Option id="a">They put the struct on the heap and count references with ARC at runtime.</Option>
+    <Option id="b" correct>They enforce single ownership at compile time so a value can be moved or destroyed only once.</Option>
+    <Option id="c">They hide the struct inside an actor and copy it on every call.</Option>
+    <Option id="d">They disable `deinit` and force manual pointer freeing.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a physical concert ticket with a barcode. You can let a friend look at the ticket (`borrowing`), and you still hold it. If you hand the ticket to the door guard (`consuming`), you no longer have it and cannot hand it over a second time.
+</Analogy>
+
+In Swift, every `struct` and `enum` conforms to **`Copyable`** by default, which means Swift can copy values freely. When you write **`: ~Copyable`** (read as "noncopyable"), you turn off that default `Copyable` conformance. Assigning `let b = a` moves ownership from `a` to `b` instead of copying. **A noncopyable value has exactly one owner at a time, enforced at compile time.**
+
+Because there is only one owner, a noncopyable `struct` can define a **`deinit`**. This cleanup block runs when the owner leaves scope. Regular copyable structs cannot have a `deinit` because copies would run cleanup multiple times. Noncopyable enums do not support `deinit` yet.
+
+Swift gives you clear ownership modifiers to control how functions and methods access values:
+
+- **`borrowing`**: gives temporary read-only access without taking ownership or making a copy. The caller can still use the value afterward.
+- **`consuming`**: transfers ownership into the function or method. For a noncopyable value, the caller cannot use that variable again.
+- **`inout`** (or `mutating` on a method): gives temporary write access and returns ownership when the call finishes.
+
+Three more keywords complete the picture:
+- **`consume`**: moves a local variable (copyable or noncopyable) to another binding or call and ends use of the old variable.
+- **`discard self`**: inside a `consuming` method, destroys `self` immediately and skips `deinit`. Use this after manual cleanup so `deinit` does not run twice.
+- **`copy`**: creates an explicit copy of a `Copyable` value, such as inside a `borrowing` or `consuming` parameter.
+
+By default, generic types `<T>` and protocols still require `Copyable`. Write **`<T: ~Copyable>`** or **`protocol Resource: ~Copyable`** to accept noncopyable types too. If a generic function uses such a protocol, write `<T: ~Copyable & Resource>`. Standard types like `Optional` already support `~Copyable` values.
+
+## See it
+
+<Diagram id="noncopyable-types-main" caption="How borrowing keeps ownership while consuming transfers ownership and ends caller access">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Left panel: borrowing call — caller owns Ticket, callee borrows temporarily, caller keeps using Ticket, deinit runs at end of caller scope.
+    2. Right panel: consuming call — caller owns Ticket, callee consumes it (with discard self), caller access is crossed out after the move.
+  - Steps:
+    Step 1: Caller creates a unique Ticket in local scope.
+    Step 2: Left borrows Ticket (read-only); right consumes Ticket (ownership moves into method).
+    Step 3: Left caller still reads Ticket; right method runs discard self so deinit is skipped.
+    Step 4: Left caller exits scope and deinit runs once; right Ticket is already gone.
+  - Static version (reduced motion):
+    Two-panel comparison showing borrowing vs consuming ownership flow and deinit timing.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Why can a `~Copyable` struct define a `deinit` while a normal `struct` cannot?</Question>
+  <Option id="a">Because `~Copyable` structs are secretly stored as classes.</Option>
+  <Option id="b" correct>Because a `~Copyable` value has only one owner, so `deinit` runs once.</Option>
+  <Option id="c">Because Swift skips `deinit` unless you call `consume`.</Option>
+  <Explanation>Single ownership guarantees that only one copy exists, so Swift knows exactly when to run `deinit` once.</Explanation>
+</QuickCheck>
+
+## In code
+
+In the example below, `Ticket` is a noncopyable struct with a `deinit`. Notice that `inspect()` uses `borrowing`, while `redeem()` uses `consuming` and `discard self`.
+
+<CodeExample title="Borrowing, consuming, and discard self on a ~Copyable struct">
+
+```swift
+protocol Pass: ~Copyable {
+    borrowing func inspect()
+}
+
+struct Ticket: ~Copyable, Pass {
+    let code: Int
+
+    borrowing func inspect() {
+        print("Inspect \(code)")
+    }
+
+    consuming func redeem() {
+        print("Redeemed \(code)")
+        discard self
+    }
+
+    deinit {
+        print("Expired \(code)")
+    }
+}
+
+func checkGeneric<T: ~Copyable>(_ item: borrowing T) {
+    print("Checked generic")
+}
+
+func run() {
+    let first = Ticket(code: 42)
+    first.inspect()
+    checkGeneric(first)
+    first.redeem()
+
+    let second = Ticket(code: 99)
+    second.inspect()
+}
+
+run()
+```
+
+```output
+Inspect 42
+Checked generic
+Redeemed 42
+Inspect 99
+Expired 99
+```
+
+</CodeExample>
+
+Look at the output carefully:
+- `first.redeem()` printed `"Redeemed 42"` and called `discard self`, so `deinit` did **not** print `"Expired 42"`.
+- `second` was never redeemed, so its `deinit` ran automatically at the end of `run()` and printed `"Expired 99"`.
+- `checkGeneric` accepted `first` because its type parameter used `<T: ~Copyable>`.
+
+You can also store a `~Copyable` type in an `Optional` or switch over a `~Copyable` enum while borrowing its associated values.
+
+<CodeExample title="Borrowing pattern matching and Optional with ~Copyable">
+
+```swift
+enum VaultState: ~Copyable {
+    case locked(keyID: Int)
+    case open
+}
+
+func inspectVault(_ vault: borrowing VaultState) {
+    switch vault {
+    case .locked(let keyID):
+        print("Locked with key \(keyID)")
+    case .open:
+        print("Open")
+    }
+}
+
+func testVault() {
+    let maybeVault: VaultState? = .locked(keyID: 7)
+    if let vault = consume maybeVault {
+        inspectVault(vault)
+        inspectVault(vault)
+    }
+}
+
+testVault()
+```
+
+```output
+Locked with key 7
+Locked with key 7
+```
+
+</CodeExample>
+
+Here `consume maybeVault` moved the value into `vault`, and `inspectVault` borrowed `vault` twice without copying or consuming it.
+
+### Ownership modifiers at a glance
+
+| Keyword | Meaning | Can caller use value after? |
+|---|---|---|
+| `borrowing` | Temporary read-only access, no copy | Yes |
+| `consuming` | Moves ownership into callee | No |
+| `inout` / `mutating` | Temporary exclusive write access | Yes |
+| `discard self` | Ends `self` inside `consuming` method without `deinit` | No |
+| `copy` | Explicitly copies a `Copyable` value | Yes |
+
+<QuickCheck>
+  <Question>Inside a `consuming` method, what does `discard self` do?</Question>
+  <Option id="a">It returns ownership of `self` back to the caller.</Option>
+  <Option id="b">It makes a fresh copy of `self` before exiting.</Option>
+  <Option id="c" correct>It destroys `self` immediately and skips running `deinit`.</Option>
+  <Explanation>`discard self` ends the lifetime of `self` without running `deinit`, which prevents double cleanup after manual closing.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Thinking ~Copyable turns a struct into a class">
+Noncopyable structs and enums stay value types with zero ARC reference-counting overhead. They enforce unique ownership at compile time rather than sharing a heap object.
+</Trap>
+
+<Trap title="Forgetting that generic <T> still requires Copyable">
+If you write `func log<T>(_ value: borrowing T)`, Swift rejects a `~Copyable` argument because `T` defaults to `Copyable`. You must write `<T: ~Copyable>` on generic types, functions, and protocols that accept noncopyable values.
+</Trap>
+
+<Trap title="Thinking borrowing and consuming only help ~Copyable types">
+You can also mark parameters `borrowing` or `consuming` on normal `Copyable` types, such as `String` or `Array`. This avoids extra retains or copies in hot loops. Note that inside a `borrowing` or `consuming` parameter, implicit copies are disabled. You must write `copy value` if you really want a copy.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="senior">
+A `~Copyable` type suppresses Swift's default `Copyable` conformance so a struct or enum has exactly one owner at compile time. This enables value-type `deinit` for resources like file handles or locks without heap allocation or ARC overhead. `borrowing` gives temporary read access, `consuming` moves ownership and ends caller access, and `discard self` prevents `deinit` from running after manual cleanup.
+</InterviewAnswer>
+
+<InterviewAnswer level="staff">
+Noncopyable types and ownership modifiers let teams model strict resource lifetimes and zero-copy hot paths directly in Swift's type system. You can design unique tokens, database transactions, or state machines where use-after-close becomes a compile error instead of a runtime crash. Generic parameters and protocols still default to `Copyable`. Library boundaries must opt in with `~Copyable` and explicit `borrowing`, `consuming`, or `inout` parameters.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Adding `: ~Copyable` to a `struct` or `enum` enforces single ownership at compile time. Noncopyable structs can also define a `deinit`.
+- `borrowing` lends temporary read access without copying; `consuming` transfers ownership and ends caller use.
+- `discard self` inside a `consuming` method destroys `self` without running `deinit`.
+- Generic parameters and protocols default to `Copyable`; write `<T: ~Copyable>` to accept noncopyable types.
+</Recap>
+
+<TryIt>
+Try `~Copyable`, `borrowing`, and `consuming` in Swift Playground, free for iPad and Mac.
+</TryIt>

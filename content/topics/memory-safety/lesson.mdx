@@ -1,0 +1,193 @@
+export const meta = {
+  id: "memory-safety",
+  summary: "Understand Swift's exclusive access rules and how Strict Memory Safety checks unsafe pointer code.",
+  estimatedMinutes: 11,
+  baseline: { swift: "6.4", xcode: "27", ios: "27" },
+  lastVerified: "2026-11-14",
+  sources: [
+    { title: "The Swift Programming Language: Memory Safety", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/memorysafety", kind: "official" },
+    { title: "Swift 6.2 Released | Swift.org", url: "https://www.swift.org/blog/swift-6.2-released/", kind: "official" },
+    { title: "SE-0458: Opt-in Strict Memory Safety Checking", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0458-strict-memory-safety.md", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>What is Swift's Law of Exclusivity, and how does Strict Memory Safety in Swift 6.2+ build on top of it?</Question>
+  <Guess>
+    <Option id="a">Exclusivity only stops background threads from touching UIKit views.</Option>
+    <Option id="b" correct>Exclusivity forbids overlapping read/write accesses to the same memory even on one thread, while Strict Memory Safety flags unmarked unsafe pointer code.</Option>
+    <Option id="c">Exclusivity turns every class into a struct during release builds.</Option>
+    <Option id="d">Strict Memory Safety removes bounds checking from arrays to run faster.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of editing a shared paper form on a desk. Ten people can read the form at once with no trouble. While one person erases and writes a new number, nobody else can read or write that same line until they lift their pen.
+</Analogy>
+
+Swift prevents memory bugs using initialization checks, ARC, bounds checks, and **exclusive access** (also called the Law of Exclusivity). **Two accesses to the same variable cannot overlap if at least one of them is a write.**
+
+Most reads and writes are **instantaneous**, meaning they finish in one step and cannot overlap on a single thread. However, passing a variable as **`inout`** or calling a **`mutating`** method starts a **long-term access** that lasts for the whole function call.
+
+If another access touches that same memory while the long-term write is still open, you hit a **conflicting access**. Swift catches some conflicts at compile time, like passing `&score` twice to `inout` parameters or calling `oscar.shareHealth(with: &oscar)` on a `mutating` method. Others crash at runtime, like a closure or nested function reading `step` while `increment(&step)` runs.
+
+Starting in **Swift 6.2**, you can also turn on **Strict Memory Safety**. Enable it with `-strict-memory-safety` in compiler flags, `.strictMemorySafety()` in `Package.swift`, or the "Strict Memory Safety" Xcode build setting. Normally, Swift lets code use `UnsafePointer`, C pointer APIs, or `unowned(unsafe)` quietly. With Strict Memory Safety on, the compiler warns on any unmarked `@unsafe` API, unsafe pointer, or unsafe construct. Mark those expressions with the **`unsafe`** keyword.
+
+Just like `try` marks code that can throw, `unsafe` marks lines that need careful human review.
+
+## See it
+
+<Diagram id="memory-safety-main" caption="How long-term inout writes trigger exclusivity conflicts and how Strict Memory Safety audits unsafe code">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Left panel: Exclusive Access — variable score has an open long-term write lock during inout call; second access overlaps -> conflict.
+    2. Right panel: Strict Memory Safety — calling ptr.pointee without unsafe triggers warning; adding unsafe acknowledges the boundary.
+  - Steps:
+    Step 1: Instantaneous reads do not overlap, and multiple reads are safe.
+    Step 2: Passing &score as inout opens a long-term write lock for the whole call.
+    Step 3: A second access to score inside that call overlaps and triggers an exclusivity error (or crash).
+    Step 4: Under Strict Memory Safety, unsafe pointer operations warn unless marked with unsafe (or replaced by Span).
+  - Static version (reduced motion):
+    Two-panel visual showing long-term write lock conflict on the left and Strict Memory Safety @unsafe/unsafe auditing on the right.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>When do two accesses to the same memory conflict under Swift's exclusivity rules?</Question>
+  <Option id="a">Whenever two functions read the same variable at the same time.</Option>
+  <Option id="b" correct>Whenever two accesses overlap and at least one is a write access.</Option>
+  <Option id="c">Only when two different DispatchQueues run at the same time.</Option>
+  <Explanation>Multiple overlapping reads are safe, and exclusivity violations can happen on a single thread whenever a long-term write overlaps another read or write.</Explanation>
+</QuickCheck>
+
+## In code
+
+When two `inout` parameters point to different properties of a **local** `struct`, Swift proves they do not overlap. Passing the same variable twice (`balance(&score, &score)`) fails at compile time because the arguments **alias** (point to the same variable). Calling a `mutating` method and passing `self` as `inout` (`oscar.shareHealth(with: &oscar)`) also fails at compile time.
+
+<CodeExample title="Disjoint struct fields succeed while aliasing fails">
+
+```swift
+func balance(_ x: inout Int, _ y: inout Int) {
+    let sum = x + y
+    x = sum / 2
+    y = sum - x
+}
+
+struct Stats {
+    var health: Int
+    var energy: Int
+}
+
+func run() {
+    var player = Stats(health: 10, energy: 20)
+    balance(&player.health, &player.energy)
+    print(player.health, player.energy)
+}
+
+run()
+```
+
+```output
+15 15
+```
+
+</CodeExample>
+
+Be careful with two runtime traps:
+- If a closure or nested function captures `var step` and reads `step` inside `increment(&step)`, it compiles and crashes at runtime. Copy `let delta = step` first so `increment` reads `delta` instead of `step`.
+- If a `struct` is stored as a property on a **class** (`class Box { var pair = Pair(...) }`), passing `&pair.a` and `&pair.b` together crashes at runtime. Both accesses write to `Box.pair`. Copy `pair` to a local variable first, mutate it, and assign it back.
+
+Now look at how **Strict Memory Safety** (`SE-0458`) works with `@unsafe` and the `unsafe` keyword. You can check whether the flag is active with `#if hasFeature(StrictMemorySafety)`.
+
+<CodeExample title="Marking unsafe pointer calls with @unsafe and unsafe">
+
+```swift
+@unsafe
+func readPointee(_ ptr: UnsafePointer<Int>) -> Int {
+    unsafe ptr.pointee
+}
+
+func run() {
+    var value = 42
+    withUnsafePointer(to: &value) { ptr in
+        print(unsafe readPointee(ptr))
+    }
+    #if hasFeature(StrictMemorySafety)
+    print("strict enabled")
+    #else
+    print("default mode")
+    #endif
+}
+
+run()
+```
+
+```output
+42
+default mode
+```
+
+</CodeExample>
+
+Notice that `withUnsafePointer(to: &value)` itself is safe and does **not** take `unsafe`. Only calling `@unsafe` functions or reading `ptr.pointee` needs `unsafe`. Putting `unsafe` on an expression that has no unsafe operations produces an unnecessary `unsafe` warning.
+
+Mark your own helper function with `@unsafe` when it depends on memory-unsafe rules that the compiler cannot check. Then callers under Strict Memory Safety must mark calls with `unsafe`.
+
+In a large project, enable `.strictMemorySafety()` one package target or module at a time, starting with low-level code like parsers or C wrappers. Over time, replace raw pointer buffers with safe Swift 6.2 types. Use **`Span`** for a safe view over contiguous memory, and **`InlineArray`** for a fixed-size inline array.
+
+### Exclusivity and memory safety layers
+
+| Check | When it runs | What it stops |
+|---|---|---|
+| Aliasing `&x, &x` or `p.share(with: &p)` | Compile time | Passing the same variable twice as `inout` (or `mutating` `self` + `inout`) |
+| Closure capture or class-property struct overlap | Runtime trap | Hidden overlapping read/write on one thread |
+| Swift 6 strict concurrency | Compile time | Data races across concurrent tasks and actors |
+| Strict Memory Safety (`-strict-memory-safety`) | Compile time warning | Unmarked `@unsafe` and pointer usage |
+
+<QuickCheck>
+  <Question>What does the `unsafe` expression keyword do under Strict Memory Safety?</Question>
+  <Option id="a">It turns off array bounds checking inside that line.</Option>
+  <Option id="b" correct>It marks code that uses `@unsafe` APIs or pointers so reviewers can check it.</Option>
+  <Option id="c">It frees raw pointers automatically at the end of the line.</Option>
+  <Explanation>Like `try` for errors, `unsafe` adds no runtime safety checks. It makes unsafe operations visible for code review.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Thinking exclusivity violations only happen with multiple threads">
+Exclusivity conflicts happen on a **single thread** whenever a long-term `inout` or `mutating` write overlaps another read or write to the same variable. Multithreaded data races are a separate check handled by Swift 6 concurrency isolation.
+</Trap>
+
+<Trap title="Thinking local structs and class-stored structs behave the same for property inout">
+Passing two fields of a local struct (`balance(&player.health, &player.energy)`) compiles and runs cleanly. Doing the same on a struct stored inside a class property (`&box.pair.a, &box.pair.b`) triggers a runtime exclusivity crash because both write accesses overlap on `box.pair`.
+</Trap>
+
+<Trap title="Thinking the unsafe keyword makes pointers safe at runtime">
+Adding `unsafe` does not add bounds checks or lifetime checks. Whenever possible, replace raw pointers with safe types like `Span` or `InlineArray` instead of just marking unsafe code.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="senior">
+Swift's Law of Exclusivity says two accesses to the same memory cannot overlap if at least one is a write. Simple reads and writes are instantaneous, while `inout` parameters and `mutating` methods hold a long-term write lock for the call. Swift catches obvious aliasing like `&x, &x` at compile time and traps at runtime on overlapping closure captures or class-property struct fields. In Swift 6.2+, Strict Memory Safety also warns on unmarked pointers unless acknowledged with `unsafe`.
+</InterviewAnswer>
+
+<InterviewAnswer level="staff">
+Memory safety in Swift works in layers: definite initialization, ARC, exclusivity enforcement, Swift 6 data-race isolation, and opt-in Strict Memory Safety (`-strict-memory-safety`). When checking security-sensitive modules like parsers or crypto wrappers, I enable `.strictMemorySafety()` in `Package.swift` so every `@unsafe` boundary stands out with the `unsafe` keyword. From there, we replace raw pointer buffers step by step with `Span` and `InlineArray` to remove unsafe code.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Under the Law of Exclusivity, two accesses to the same variable cannot overlap if at least one is a write.
+- `inout` parameters and `mutating` methods create long-term write accesses that span the entire call.
+- Aliasing `&x, &x` fails at compile time. Overlapping closure captures and class-stored struct fields fail at runtime.
+- Strict Memory Safety (`-strict-memory-safety`) flags unmarked unsafe pointers and `@unsafe` APIs unless marked with `unsafe`.
+</Recap>
+
+<TryIt>
+Try `inout` exclusivity rules and `unsafe` markers in Swift Playground, free for iPad and Mac.
+</TryIt>

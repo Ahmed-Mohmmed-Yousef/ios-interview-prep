@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InlineArray and Span Diagram</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --value: #0f7f63; --value-soft: #dcf2ea;
+  --shared: #6447d1; --shared-soft: #ebe6fb;
+  --changed: #a76a12; --changed-soft: #fcefd6;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 20px; }
+.eyebrow { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
+h1 { font-size: clamp(24px, 4.4vw, 34px); line-height: 1.15; margin: 4px 0 6px; text-wrap: balance; font-weight: 700; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 17px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.panel h2 code { font-family: var(--font-code); font-size: 15px; }
+.kind { font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; }
+.inl .kind { background: var(--value-soft); color: var(--value); }
+.spn .kind { background: var(--shared-soft); color: var(--shared); }
+svg { width: 100%; height: auto; display: block; }
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 10px; padding: 8px 12px;
+  min-height: 3.4em; overflow-x: auto; white-space: pre;
+}
+.caption { margin: 0; font-weight: 500; min-height: 2.8em; }
+
+.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.6; }
+.cell { fill: var(--value-soft); stroke: var(--value); stroke-width: 1.6; }
+.cell.mut { fill: var(--changed-soft); stroke: var(--changed); }
+.heap { fill: var(--shared-soft); stroke: var(--shared); stroke-width: 1.6; }
+.win { fill: none; stroke: var(--shared); stroke-width: 2.2; stroke-dasharray: 5 3; }
+.win.bad { stroke: var(--changed); }
+.lbl { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.sub { font-family: var(--font-code); font-size: 11px; fill: var(--muted); }
+.val { font-family: var(--font-code); font-size: 14px; font-weight: 600; fill: var(--ink); }
+.link { fill: none; stroke: var(--shared); stroke-width: 2; }
+.hidden { opacity: 0; }
+.on { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .hidden, .cell, .win { transition: opacity .35s ease, fill .3s ease, stroke .3s ease; }
+}
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.bar button {
+  font: 600 15px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 18px; cursor: pointer; min-height: 44px;
+}
+.bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.bar button:disabled { opacity: .4; cursor: default; }
+.bar button:focus-visible, .dots button:focus-visible, summary:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.dots { display: flex; gap: 8px; }
+.dots button { width: 14px; height: 14px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: transparent; }
+.dots button[aria-current="step"] { background: var(--ink); }
+.count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: center; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+summary { cursor: pointer; font-weight: 600; }
+details ol { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 10px; }
+details li p { margin: 0; }
+details code { font-family: var(--font-code); font-size: 14px; background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Senior · Swift Language · InlineArray and Span</p>
+    <h1>Inline storage meets safe contiguous views</h1>
+    <p class="lede">Compare <code>Array</code> (heap) vs <code>InlineArray</code> (inline), then watch how <code>Span</code> borrows elements safely.</p>
+  </header>
+
+  <figure class="panels" id="figure" role="img" aria-label="Two panels. Left compares Array using a heap buffer with InlineArray storing 3 integers directly on the stack. Right shows Span borrowing contiguous memory with bounds checks and lifetime safety." style="margin:0">
+    <section class="panel inl" aria-hidden="true">
+      <h2><code>[3 of Int]</code> <span class="kind">inline value</span></h2>
+      <svg viewBox="0 0 340 225">
+        <defs>
+          <marker id="arr-i" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" style="fill: var(--shared)"/></marker>
+        </defs>
+        <rect class="box" x="14" y="14" width="136" height="84" rx="10"/>
+        <text class="lbl" x="24" y="34">Array (stack header)</text>
+        <text class="sub" x="24" y="54">pointer + count</text>
+        <path class="link" d="M150 56 H184" marker-end="url(#arr-i)"/>
+        <rect class="heap" x="188" y="14" width="138" height="84" rx="10"/>
+        <text class="lbl" x="198" y="34">Heap buffer</text>
+        <text class="sub" x="198" y="52">ARC + CoW</text>
+        <text class="val" x="198" y="78">[10, 20, 30]</text>
+
+        <rect class="box" x="14" y="114" width="312" height="98" rx="12"/>
+        <text class="lbl" x="26" y="135">InlineArray (all inline on stack)</text>
+        <rect class="cell" id="i-c0" x="26" y="146" width="88" height="46" rx="8"/>
+        <rect class="cell" id="i-c1" x="126" y="146" width="88" height="46" rx="8"/>
+        <rect class="cell" id="i-c2" x="226" y="146" width="88" height="46" rx="8"/>
+        <text class="val" id="i-v0" x="70" y="174" text-anchor="middle">10</text>
+        <text class="val" id="i-v1" x="170" y="174" text-anchor="middle">20</text>
+        <text class="val" id="i-v2" x="270" y="174" text-anchor="middle">30</text>
+        <text class="sub" id="i-note" x="26" y="205">No heap allocation, no ARC</text>
+      </svg>
+      <div class="code" id="i-code"></div>
+      <p class="caption" id="i-cap"></p>
+    </section>
+
+    <section class="panel spn" aria-hidden="true">
+      <h2><code>Span&lt;Int&gt;</code> <span class="kind">~Escapable</span></h2>
+      <svg viewBox="0 0 340 225">
+        <rect class="box" x="14" y="14" width="312" height="92" rx="12"/>
+        <text class="lbl" x="26" y="35">Owner storage (Array or InlineArray)</text>
+        <rect class="cell" id="s-c0" x="26" y="46" width="88" height="46" rx="8"/>
+        <rect class="cell" id="s-c1" x="126" y="46" width="88" height="46" rx="8"/>
+        <rect class="cell" id="s-c2" x="226" y="46" width="88" height="46" rx="8"/>
+        <text class="val" id="s-v0" x="70" y="74" text-anchor="middle">10</text>
+        <text class="val" id="s-v1" x="170" y="74" text-anchor="middle">20</text>
+        <text class="val" id="s-v2" x="270" y="74" text-anchor="middle">30</text>
+
+        <rect class="win hidden" id="s-win" x="20" y="40" width="300" height="58" rx="10"/>
+
+        <rect class="box" x="14" y="124" width="312" height="88" rx="12"/>
+        <text class="lbl" x="26" y="146" id="s-mode">Span state</text>
+        <text class="sub" x="26" y="168" id="s-sub1">Bounds checked: indices 0..&lt;3</text>
+        <text class="sub" x="26" y="188" id="s-sub2">Lifetime tied to owner scope</text>
+      </svg>
+      <div class="code" id="s-code"></div>
+      <p class="caption" id="s-cap"></p>
+    </section>
+  </figure>
+
+  <p class="sr-only" id="live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
+
+  <nav class="bar" aria-label="Diagram steps">
+    <button type="button" id="back">Back</button>
+    <div class="dots" id="dots"></div>
+    <span class="count" id="count"></span>
+    <button type="button" id="next" class="primary">Next</button>
+    <button type="button" id="replay">Replay</button>
+  </nav>
+
+  <details id="all">
+    <summary>All steps as a list</summary>
+    <ol id="list"></ol>
+  </details>
+  <p class="note">Use the arrow keys to move between steps.</p>
+</div>
+
+<script>
+const STEPS = [
+  {
+    i: { code: "var fixed: [3 of Int] = [10, 20, 30]", cap: "Step 1: InlineArray stores 3 Int values inline with no heap buffer." },
+    s: { code: "// owner fixed lives in current scope", cap: "Step 1: The owner holds 3 contiguous Int values." }
+  },
+  {
+    i: { code: "var copy = fixed // eager value copy", cap: "Step 2: Copying InlineArray copies all elements right away." },
+    s: { code: "sumSpan(fixed.span) // read-only view", cap: "Step 2: Span borrows the memory with zero copies and bounds checks." }
+  },
+  {
+    i: { code: "fixed[0] = 99 // only fixed changes", cap: "Step 3: fixed mutates directly without copy-on-write checks." },
+    s: { code: "var m = fixed.mutableSpan; m[0] = 99", cap: "Step 3: MutableSpan gives exclusive write access in place." }
+  },
+  {
+    i: { code: "// fixed.count is fixed at 3", cap: "Step 4: Fixed size stays part of the type at compile time." },
+    s: { code: "return local.span // error: ~Escapable", cap: "Step 4: Returning a local Span fails compile checks (cannot escape)." }
+  }
+];
+
+const $ = (id) => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let step = 0;
+
+function render() {
+  const n = step + 1;
+  $("i-c0").classList.toggle("mut", n === 3);
+  $("i-v0").textContent = n >= 3 ? "99" : "10";
+  $("i-note").textContent = n === 2 ? "Assigning copies all 3 elements eagerly" : n === 4 ? "Size 3 is fixed in the type" : "No heap allocation, no ARC";
+
+  $("s-win").classList.toggle("on", n >= 2);
+  $("s-win").classList.toggle("bad", n >= 3);
+  $("s-c0").classList.toggle("mut", n === 3);
+  $("s-v0").textContent = n >= 3 ? "99" : "10";
+  $("s-mode").textContent = n === 4 ? "Blocked at compile time!" : n === 3 ? "MutableSpan (exclusive write)" : n === 2 ? "Span (read-only borrow)" : "Owner storage active";
+  $("s-sub1").textContent = n === 4 ? "Error: cannot return ~Escapable result" : "Bounds checked: indices 0..<3";
+  $("s-sub2").textContent = n === 3 ? "Overlapping read/write spans rejected" : "Lifetime locked to owner scope";
+
+  const st = STEPS[step];
+  $("i-code").textContent = st.i.code;
+  $("s-code").textContent = st.s.code;
+  $("i-cap").textContent = st.i.cap;
+  $("s-cap").textContent = st.s.cap;
+  $("count").textContent = "Step " + n + " of " + STEPS.length;
+  $("live").textContent = "Step " + n + ". InlineArray: " + st.i.cap + " Span: " + st.s.cap;
+  $("back").disabled = step === 0;
+  $("next").disabled = step === STEPS.length - 1;
+  [...$("dots").children].forEach((d, i) => i === step ? d.setAttribute("aria-current", "step") : d.removeAttribute("aria-current"));
+}
+
+function go(i) { step = Math.max(0, Math.min(STEPS.length - 1, i)); render(); }
+
+STEPS.forEach((st, i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.setAttribute("aria-label", "Diagram step " + (i + 1) + " of " + STEPS.length);
+  b.addEventListener("click", () => go(i));
+  $("dots").append(b);
+  const li = document.createElement("li");
+  li.innerHTML = "<p><b>InlineArray:</b> <code></code> — <span></span></p><p><b>Span:</b> <code></code> — <span></span></p>";
+  const [c1, c2] = li.querySelectorAll("code");
+  const [t1, t2] = li.querySelectorAll("span");
+  c1.textContent = st.i.code; t1.textContent = st.i.cap;
+  c2.textContent = st.s.code; t2.textContent = st.s.cap;
+  $("list").append(li);
+});
+
+$("back").addEventListener("click", () => go(step - 1));
+$("next").addEventListener("click", () => go(step + 1));
+$("replay").addEventListener("click", () => {
+  go(0);
+  if (reduce.matches) return;
+  let i = 0;
+  const t = setInterval(() => { i++; go(i); if (i >= STEPS.length - 1) clearInterval(t); }, 1100);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") go(step + 1);
+  if (e.key === "ArrowLeft") go(step - 1);
+});
+
+if (reduce.matches) { step = STEPS.length - 1; $("all").open = true; }
+render();
+</script>
+</body>
+</html>

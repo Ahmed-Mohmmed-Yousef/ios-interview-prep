@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Noncopyable Ownership Diagram</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --value: #0f7f63; --value-soft: #dcf2ea;
+  --shared: #6447d1; --shared-soft: #ebe6fb;
+  --changed: #a76a12; --changed-soft: #fcefd6;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 20px; }
+.eyebrow { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
+h1 { font-size: clamp(24px, 4.4vw, 34px); line-height: 1.15; margin: 4px 0 6px; text-wrap: balance; font-weight: 700; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 17px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.panel h2 code { font-family: var(--font-code); font-size: 15px; }
+.kind { font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; }
+.borrow .kind { background: var(--value-soft); color: var(--value); }
+.consume .kind { background: var(--changed-soft); color: var(--changed); }
+svg { width: 100%; height: auto; display: block; }
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 10px; padding: 8px 12px;
+  min-height: 3.4em; overflow-x: auto; white-space: pre;
+}
+.caption { margin: 0; font-weight: 500; min-height: 2.8em; }
+
+.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.6; }
+.ticket { fill: var(--value-soft); stroke: var(--value); stroke-width: 2; }
+.ticket.moved { fill: var(--changed-soft); stroke: var(--changed); }
+.ticket.gone { opacity: 0.28; stroke-dasharray: 4 3; }
+.lbl { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.sub { font-family: var(--font-code); font-size: 11px; fill: var(--muted); }
+.link { fill: none; stroke: var(--value); stroke-width: 2; }
+.consume .link { stroke: var(--changed); }
+.hidden { opacity: 0; }
+.on { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .hidden, .ticket { transition: opacity .35s ease, fill .3s ease, stroke .3s ease; }
+}
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.bar button {
+  font: 600 15px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 18px; cursor: pointer; min-height: 44px;
+}
+.bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.bar button:disabled { opacity: .4; cursor: default; }
+.bar button:focus-visible, .dots button:focus-visible, summary:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.dots { display: flex; gap: 8px; }
+.dots button { width: 14px; height: 14px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: transparent; }
+.dots button[aria-current="step"] { background: var(--ink); }
+.count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: center; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+summary { cursor: pointer; font-weight: 600; }
+details ol { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 10px; }
+details li p { margin: 0; }
+details code { font-family: var(--font-code); font-size: 14px; background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Senior · Swift Language · Noncopyable Types</p>
+    <h1>Borrowing keeps ownership. Consuming moves it.</h1>
+    <p class="lede">Step through the same <code>Ticket: ~Copyable</code> value under <code>borrowing</code> and <code>consuming</code> calls.</p>
+  </header>
+
+  <figure class="panels" id="figure" role="img" aria-label="Two panels comparing borrowing and consuming calls on a noncopyable Ticket. Borrowing lets the caller keep and reuse Ticket before deinit runs once. Consuming moves Ticket to the method, ends caller access, and discard self skips deinit." style="margin:0">
+    <section class="panel borrow" aria-hidden="true">
+      <h2><code>borrowing</code> <span class="kind">temporary read</span></h2>
+      <svg viewBox="0 0 340 220">
+        <defs>
+          <marker id="arr-b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" style="fill: var(--value)"/></marker>
+        </defs>
+        <rect class="box" x="14" y="16" width="136" height="106" rx="12"/>
+        <text class="lbl" x="26" y="36">Caller scope</text>
+        <g id="b-caller-ticket">
+          <rect class="ticket" x="26" y="48" width="112" height="58" rx="8"/>
+          <text class="lbl" x="38" y="72">Ticket #42</text>
+          <text class="sub" id="b-c-state" x="38" y="92">Owner</text>
+        </g>
+        <rect class="box" x="190" y="16" width="136" height="106" rx="12"/>
+        <text class="lbl" x="202" y="36">inspect()</text>
+        <text class="sub" x="202" y="54">borrowing</text>
+        <path class="link hidden" id="b-arrow" d="M150 72 H188" marker-end="url(#arr-b)"/>
+        <text class="sub hidden" id="b-read" x="202" y="88">Reads #42</text>
+        <rect class="box" x="14" y="142" width="312" height="60" rx="10"/>
+        <text class="lbl" x="28" y="166" id="b-end-lbl">Scope status</text>
+        <text class="sub" x="28" y="186" id="b-end-sub">Ticket still valid in caller</text>
+      </svg>
+      <div class="code" id="b-code"></div>
+      <p class="caption" id="b-cap"></p>
+    </section>
+
+    <section class="panel consume" aria-hidden="true">
+      <h2><code>consuming</code> <span class="kind">moves owner</span></h2>
+      <svg viewBox="0 0 340 220">
+        <defs>
+          <marker id="arr-c" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" style="fill: var(--changed)"/></marker>
+        </defs>
+        <rect class="box" x="14" y="16" width="136" height="106" rx="12"/>
+        <text class="lbl" x="26" y="36">Caller scope</text>
+        <g id="c-caller-ticket">
+          <rect class="ticket" id="c-c-box" x="26" y="48" width="112" height="58" rx="8"/>
+          <text class="lbl" x="38" y="72">Ticket #42</text>
+          <text class="sub" id="c-c-state" x="38" y="92">Owner</text>
+        </g>
+        <rect class="box" x="190" y="16" width="136" height="106" rx="12"/>
+        <text class="lbl" x="202" y="36">redeem()</text>
+        <text class="sub" x="202" y="54">consuming</text>
+        <path class="link hidden" id="c-arrow" d="M150 72 H188" marker-end="url(#arr-c)"/>
+        <g class="hidden" id="c-callee-ticket">
+          <rect class="ticket moved" id="c-m-box" x="200" y="64" width="116" height="46" rx="8"/>
+          <text class="lbl" x="212" y="85">Ticket #42</text>
+          <text class="sub" id="c-m-state" x="212" y="101">New owner</text>
+        </g>
+        <rect class="box" x="14" y="142" width="312" height="60" rx="10"/>
+        <text class="lbl" x="28" y="166" id="c-end-lbl">Scope status</text>
+        <text class="sub" x="28" y="186" id="c-end-sub">Ticket owned by caller</text>
+      </svg>
+      <div class="code" id="c-code"></div>
+      <p class="caption" id="c-cap"></p>
+    </section>
+  </figure>
+
+  <p class="sr-only" id="live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
+
+  <nav class="bar" aria-label="Diagram steps">
+    <button type="button" id="back">Back</button>
+    <div class="dots" id="dots"></div>
+    <span class="count" id="count"></span>
+    <button type="button" id="next" class="primary">Next</button>
+    <button type="button" id="replay">Replay</button>
+  </nav>
+
+  <details id="all">
+    <summary>All steps as a list</summary>
+    <ol id="list"></ol>
+  </details>
+  <p class="note">Use the arrow keys to move between steps.</p>
+</div>
+
+<script>
+const STEPS = [
+  {
+    b: { code: "let t = Ticket(code: 42)", cap: "Step 1: Caller creates one unique Ticket." },
+    c: { code: "let t = Ticket(code: 42)", cap: "Step 1: Caller creates one unique Ticket." }
+  },
+  {
+    b: { code: "t.inspect() // borrowing", cap: "Step 2: inspect() borrows t temporarily without copying." },
+    c: { code: "t.redeem()  // consuming", cap: "Step 2: redeem() takes ownership of t from the caller." }
+  },
+  {
+    b: { code: "t.inspect() // still valid", cap: "Step 3: Caller still owns t and can borrow it again." },
+    c: { code: "discard self // inside redeem()", cap: "Step 3: discard self destroys Ticket and skips deinit." }
+  },
+  {
+    b: { code: "// scope ends -> deinit runs once", cap: "Step 4: Scope ends, so deinit runs once for Ticket #42." },
+    c: { code: "t.inspect() // compile error!", cap: "Step 4: Using t again fails at compile time (used after consume)." }
+  }
+];
+
+const $ = (id) => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let step = 0;
+
+function render() {
+  const n = step + 1;
+  $("b-arrow").classList.toggle("on", n === 2 || n === 3);
+  $("b-read").classList.toggle("on", n === 2 || n === 3);
+  $("b-c-state").textContent = n === 4 ? "Freed" : n >= 2 ? "Still owner" : "Owner";
+  $("b-caller-ticket").style.opacity = n === 4 ? "0.3" : "1";
+  $("b-end-lbl").textContent = n === 4 ? "deinit ran once" : "Scope status";
+  $("b-end-sub").textContent = n === 4 ? "Printed: Expired 42" : "Ticket remains valid in caller";
+
+  $("c-arrow").classList.toggle("on", n >= 2);
+  $("c-callee-ticket").classList.toggle("on", n >= 2);
+  $("c-c-box").classList.toggle("gone", n >= 2);
+  $("c-c-state").textContent = n >= 2 ? "Moved away" : "Owner";
+  $("c-m-box").classList.toggle("gone", n >= 3);
+  $("c-m-state").textContent = n >= 3 ? "Discarded" : "New owner";
+  $("c-end-lbl").textContent = n >= 3 ? "deinit skipped" : "Scope status";
+  $("c-end-sub").textContent = n === 4 ? "Error if used: used after consume" : n === 3 ? "discard self already cleaned up" : n === 2 ? "redeem() now owns Ticket #42" : "Ticket owned by caller";
+
+  const st = STEPS[step];
+  $("b-code").textContent = st.b.code;
+  $("c-code").textContent = st.c.code;
+  $("b-cap").textContent = st.b.cap;
+  $("c-cap").textContent = st.c.cap;
+  $("count").textContent = "Step " + n + " of " + STEPS.length;
+  $("live").textContent = "Step " + n + ". Borrowing: " + st.b.cap + " Consuming: " + st.c.cap;
+  $("back").disabled = step === 0;
+  $("next").disabled = step === STEPS.length - 1;
+  [...$("dots").children].forEach((d, i) => i === step ? d.setAttribute("aria-current", "step") : d.removeAttribute("aria-current"));
+}
+
+function go(i) { step = Math.max(0, Math.min(STEPS.length - 1, i)); render(); }
+
+STEPS.forEach((st, i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.setAttribute("aria-label", "Diagram step " + (i + 1) + " of " + STEPS.length);
+  b.addEventListener("click", () => go(i));
+  $("dots").append(b);
+  const li = document.createElement("li");
+  li.innerHTML = "<p><b>Borrowing:</b> <code></code> — <span></span></p><p><b>Consuming:</b> <code></code> — <span></span></p>";
+  const [c1, c2] = li.querySelectorAll("code");
+  const [t1, t2] = li.querySelectorAll("span");
+  c1.textContent = st.b.code; t1.textContent = st.b.cap;
+  c2.textContent = st.c.code; t2.textContent = st.c.cap;
+  $("list").append(li);
+});
+
+$("back").addEventListener("click", () => go(step - 1));
+$("next").addEventListener("click", () => go(step + 1));
+$("replay").addEventListener("click", () => {
+  go(0);
+  if (reduce.matches) return;
+  let i = 0;
+  const t = setInterval(() => { i++; go(i); if (i >= STEPS.length - 1) clearInterval(t); }, 1100);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") go(step + 1);
+  if (e.key === "ArrowLeft") go(step - 1);
+});
+
+if (reduce.matches) { step = STEPS.length - 1; $("all").open = true; }
+render();
+</script>
+</body>
+</html>

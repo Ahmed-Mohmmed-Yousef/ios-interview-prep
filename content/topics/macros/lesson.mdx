@@ -1,0 +1,218 @@
+export const meta = {
+  id: "macros",
+  summary: "Understand how Swift macros generate type-checked code at compile time and when to use each role.",
+  estimatedMinutes: 11,
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27" },
+  lastVerified: "2026-11-14",
+  sources: [
+    { title: "The Swift Programming Language: Macros", url: "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/macros", kind: "official" },
+    { title: "WWDC23: Write Swift macros", url: "https://developer.apple.com/videos/play/wwdc2023/10166/", kind: "official" },
+    { title: "WWDC23: Expand on Swift macros", url: "https://developer.apple.com/videos/play/wwdc2023/10167/", kind: "official" },
+    { title: "SE-0382: Expression Macros", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0382-expression-macros.md", kind: "official" },
+    { title: "SE-0389: Attached Macros", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0389-attached-macros.md", kind: "official" },
+    { title: "SE-0402: Extension Macros", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0402-extension-macros.md", kind: "official" },
+    { title: "SE-0415: Function Body Macros", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0415-function-body-macros.md", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How do Swift macros differ from C preprocessor macros and property wrappers, and what happens during macro expansion?</Question>
+  <Guess>
+    <Option id="a">Swift macros paste raw text before parsing, just like C macros.</Option>
+    <Option id="b" correct>Swift macros rewrite parsed syntax trees in a sandboxed compiler plugin and produce type-checked Swift code.</Option>
+    <Option id="c">Swift macros run at app launch using runtime reflection to generate classes.</Option>
+    <Option id="d">Swift macros are another name for property wrappers that store values in `_property` fields.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of a stamp maker at a post office. You give the stamp maker an envelope with a name on it. The stamp maker checks the format and stamps extra lines onto a card. They cannot erase your writing or call outside the office.
+</Analogy>
+
+A **Swift macro** generates Swift code for you at compile time so you write less repeated code. Unlike old C macros that paste raw text, Swift macros work on a **syntax tree** (a structured tree of your code, also called an AST). **The compiler checks types before and after macro expansion, so generated code stays type-safe.**
+
+Every custom macro lives in a separate **compiler plugin** target built with **SwiftSyntax** (the Swift library for reading and building syntax trees). Your macro declaration connects to that plugin with `#externalMacro(module:type:)`. The plugin runs inside a **sandbox**, so it has no network access and cannot read files on disk. This keeps builds safe and repeatable (deterministic).
+
+Macros are also **additive**. A macro can add new code or generate a function body, but it cannot delete declarations you already wrote.
+
+Swift splits macros into two groups based on how you write them:
+
+1. **Freestanding macros (`#`)** stand alone and do not attach to a declaration.
+   - **Expression role** (`@freestanding(expression)`): produces a value, like `#Predicate`, `#fileID`, `#line`, or `#function`.
+   - **Declaration role** (`@freestanding(declaration)`): generates new declarations in place, like `#Preview`.
+2. **Attached macros (`@`)** sit right in front of a declaration and expand it.
+   - **Member role** (`@attached(member)`): adds new properties or methods inside a type or extension.
+   - **Member attribute role** (`@attached(memberAttribute)`): adds attributes to members already inside a type.
+   - **Peer role** (`@attached(peer)`): adds new declarations next to the target in the same scope, like an async version of a function.
+   - **Accessor role** (`@attached(accessor)`): adds `get`, `set`, `willSet`, `didSet`, or `init` accessors to a property.
+   - **Extension role** (`@attached(extension, conformances: ...)`): adds an extension and protocol conformances to a type. This replaced the older `conformance` role.
+   - **Body role** (`@attached(body)`): generates or wraps the body of a function or accessor. At most one body macro can sit on a function.
+
+Macro declarations also list **name specifiers** using `names:`. Options include `named(...)`, `overloaded`, `prefixed(...)`, `suffixed(...)`, and `arbitrary`. These tell the compiler which symbol names the macro can create before running the plugin.
+
+## See it
+
+<Diagram id="macros-main" caption="How Swift compiles and expands freestanding and attached macros inside a sandboxed plugin">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Left panel: Freestanding Macro (#Predicate / #function) -> AST node -> Sandboxed SwiftSyntax Plugin -> Generated Expression.
+    2. Right panel: Attached Macro (@Observable class Cart) -> AST node -> Sandboxed SwiftSyntax Plugin -> Added members + @ObservationTracked + Observation.Observable extension.
+  - Steps:
+    Step 1: Compiler parses source code into a syntax tree and checks macro arguments.
+    Step 2: Compiler sends only the macro syntax node into the sandboxed plugin (no disk or network).
+    Step 3: Plugin returns new SwiftSyntax nodes: a value for # macros, or members and extensions for @ macros.
+    Step 4: Compiler pastes the generated Swift code back in and type-checks the whole file.
+  - Static version (reduced motion):
+    Two-panel summary showing all four compile-time stages for # freestanding and @ attached macros.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>Which macro role adds new declarations next to a function in the same scope, rather than inside a type?</Question>
+  <Option id="a">@attached(member)</Option>
+  <Option id="b" correct>@attached(peer)</Option>
+  <Option id="c">@attached(accessor)</Option>
+  <Explanation>@attached(peer) creates sibling declarations beside the target declaration in the same scope, such as an async overload next to a completion-handler method.</Explanation>
+</QuickCheck>
+
+## In code
+
+Let us look at built-in macros in Apple frameworks first. `@Observable` from the `Observation` framework combines multiple attached roles (`member`, `memberAttribute`, and `extension`) to track property changes without a `_property` wrapper struct. You can mark a property with `@ObservationIgnored` to skip tracking. `@Observable` works only on classes, not on structs.
+
+<CodeExample title="Using @Observable and freestanding standard library macros">
+
+```swift
+import Observation
+
+@Observable
+final class Cart {
+    var itemCount = 0
+    @ObservationIgnored var debugNote = "internal"
+}
+
+func inspectCart() {
+    let cart = Cart()
+    cart.itemCount = 3
+    print(cart.itemCount, cart.debugNote)
+    print(#function, #line > 0, #fileID.hasSuffix(".swift"))
+}
+
+inspectCart()
+```
+
+```output
+3 internal
+inspectCart() true true
+```
+
+</CodeExample>
+
+Here, `#function`, `#line`, and `#fileID` are freestanding expression macros in the Swift standard library. `@Observable` expands on `Cart` to add tracking storage, `@ObservationTracked` attributes on stored properties, and `Observable` conformance.
+
+Next, `#Predicate` in `Foundation` is a freestanding expression macro that turns a closure into a type-checked query object.
+
+<CodeExample title="Evaluating a type-checked #Predicate freestanding macro">
+
+```swift
+import Foundation
+
+nonisolated struct Product {
+    var price: Double
+    var inStock: Bool
+}
+
+let affordable = #Predicate<Product> { product in
+    product.inStock && product.price < 50.0
+}
+
+let item = Product(price: 25.0, inStock: true)
+print((try? affordable.evaluate(item)) ?? false)
+```
+
+```output
+true
+```
+
+</CodeExample>
+
+<VersionNote since="Xcode 27">
+New Xcode app targets isolate code to `@MainActor` by default. Because `#Predicate` builds `Sendable` key paths, mark structs passed to `#Predicate` with `nonisolated` (or turn off default main-actor isolation for the target).
+</VersionNote>
+
+When you declare your own macro, you state its category, role, name specifiers, and `#externalMacro(module:type:)` implementation. You can inspect what any macro generates in Xcode using **Expand Macro** in the editor menu.
+
+<CodeExample title="Declaring freestanding and attached macros">
+
+```swift no-output
+@freestanding(expression)
+public macro stringify<T>(_ value: T) -> (T, String) = #externalMacro(
+    module: "MyMacros",
+    type: "StringifyMacro"
+)
+
+@attached(member, names: named(init))
+@attached(extension, conformances: Equatable)
+public macro AutoModel() = #externalMacro(
+    module: "MyMacros",
+    type: "AutoModelMacro"
+)
+```
+
+</CodeExample>
+
+### Macros vs property wrappers
+
+| Feature | Property wrapper | Swift macro |
+|---|---|---|
+| How it works | Compiler adds `_prop` backing storage | Compiler plugin rewrites syntax tree at build time |
+| Applies to | Stored properties only | Expressions, functions, types, and properties |
+| Extra runtime storage | Creates a backing wrapper instance | None per property unless the macro adds fields |
+| Build cost | Standard Swift compilation | Needs `SwiftSyntax` plugin build |
+
+<QuickCheck>
+  <Question>What happens if you try to put @Observable on a Swift struct instead of a class?</Question>
+  <Option id="a">It compiles and tracks mutations with copy-on-write.</Option>
+  <Option id="b" correct>It fails to compile because @Observable rejects structs in its macro expansion.</Option>
+  <Option id="c">It silently ignores the attribute at runtime.</Option>
+  <Explanation>@Observable requires reference semantics and emits a compile-time error when applied to a struct.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Thinking macros can read build config files or call the web">
+Macro compiler plugins run in a strict sandbox. They only receive the syntax tree of the macro call and cannot read files on disk, inspect environment variables, or make network calls.
+</Trap>
+
+<Trap title="Using a macro when a protocol extension or generic function is enough">
+Every macro target pulls `SwiftSyntax` into your build graph, which increases clean build times. Reach for generics, protocol extensions, or property wrappers first. Choose macros only when Swift's type system cannot remove the repeated code cleanly.
+</Trap>
+
+<Trap title="Confusing @attached(member) with @attached(memberAttribute)">
+`@attached(member)` adds brand-new declarations inside a type, such as an `init`. `@attached(memberAttribute)` attaches attributes like `@ObservationTracked` to existing declarations inside that type.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="senior">
+Swift macros generate type-checked Swift code at compile time. They transform syntax trees with SwiftSyntax inside a sandboxed compiler plugin. Freestanding macros use `#` for standalone expressions or declarations. Attached macros use `@` with roles like `member`, `memberAttribute`, `peer`, `accessor`, `extension`, and `body`. Unlike property wrappers, macros work across whole types and functions without per-property wrapper storage. You can inspect generated code in Xcode using Expand Macro.
+</InterviewAnswer>
+
+<InterviewAnswer level="staff">
+At scale, macros remove repeated code like `@Observable` tracking or mock generation. Sandboxing keeps builds repeatable, and the compiler checks types before and after expansion. However, macros add a `SwiftSyntax` dependency, lengthen clean compile times, and can hide control flow if teams overuse them. I reserve custom macros for cases where generics or protocol extensions fall short. I also unit-test macro expansions and require clear compiler error messages for bad inputs.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- Swift macros run at compile time in a sandboxed `SwiftSyntax` plugin and produce additive, type-checked Swift code.
+- Freestanding macros (`#`) have `expression` and `declaration` roles; attached macros (`@`) use `member`, `memberAttribute`, `peer`, `accessor`, `extension`, and `body` roles.
+- Macro declarations declare symbol names with `names:` and point to their plugin via `#externalMacro(module:type:)`.
+- Prefer generics, protocol extensions, or property wrappers when they fit, because macros add `SwiftSyntax` build-time cost.
+</Recap>
+
+<TryIt>
+Try `@Observable`, `#Predicate`, and `#function` in Swift Playground, free for iPad and Mac.
+</TryIt>

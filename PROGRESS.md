@@ -218,7 +218,16 @@ Write all lessons and question banks, level by level, with fact checks.
     - ✅ **app-launch-time** (App Launch Time) — published (lesson, diagram, 32 questions, independent audit passed) → [docs/topics/app-launch-time/review.html](docs/topics/app-launch-time/review.html)
     - ✅ **smooth-ui** (Keeping the UI Smooth) — published (lesson, diagram, 32 questions, independent audit passed) → [docs/topics/smooth-ui/review.html](docs/topics/smooth-ui/review.html)
     - ✅ **system-design-interview-intro** (How a Mobile System Design Interview Works) — published (lesson, diagram, 32 questions, independent audit passed) → [docs/topics/system-design-interview-intro/review.html](docs/topics/system-design-interview-intro/review.html)
-- ⬜ **4.4 Senior level topics (Wave 4)** — 30 main + 5 bonus
+- 🔄 **4.4 Senior level topics (Wave 4)** — in progress (4 of 35 published: 1 main + 3 bonus)
+  - ✅ **Batch 4A-1: Swift Language Deep Dive (4 topics: 1 main + 3 bonus) — COMPLETE (4 of 4 published)**
+    - ✅ **macros** (Macros) — published (lesson, diagram, 32 questions, independent audit passed) → [docs/topics/macros/review.html](docs/topics/macros/review.html)
+    - ✅ **noncopyable-types** (Noncopyable Types ~Copyable) [bonus] — published (lesson, diagram, 32 questions, independent audit passed) → [docs/topics/noncopyable-types/review.html](docs/topics/noncopyable-types/review.html)
+    - ✅ **inlinearray-and-span** (InlineArray and Span) [bonus] — published (lesson, diagram, 32 questions, independent audit passed) → [docs/topics/inlinearray-and-span/review.html](docs/topics/inlinearray-and-span/review.html)
+    - ✅ **memory-safety** (Memory Safety and Exclusivity) [bonus] — published (lesson, diagram, 32 questions, independent audit passed) → [docs/topics/memory-safety/review.html](docs/topics/memory-safety/review.html)
+  - ⬜ **Batch 4A-2: Memory & Concurrency (4 topics: 3 main + 1 bonus)** (`memory-profiling-instruments`, `migrating-to-async-await`, `concurrent-system-design`, `concurrency-swift-6-4` [bonus])
+  - ⬜ **Batch 4B: Data, Architecture, Testing & Performance (11 topics: 10 main + 1 bonus)**
+  - ⬜ **Batch 4C: Mobile System Design (10 topics: 10 main)**
+  - ⬜ **Batch 4D: Behavior & Leadership (6 topics: 6 main)**
 - ⬜ **4.5 Staff level topics (Wave 5)** — 9 main
 - ⬜ **4.6 Phase 4 summary and final verification**
 - 🔄 **4.7 Content audit and publish gate** (started 2026-11-10) → [docs/audit/README.md](docs/audit/README.md)
@@ -226,15 +235,10 @@ Write all lessons and question banks, level by level, with fact checks.
   - ✅ Coverage script [scripts/check-coverage.mjs](scripts/check-coverage.mjs): real lesson headings, possibly untaught ideas, the 2–5 sentence rule, the mix, matching dates. First run on 92 published topics: 103 errors (90 written prompts ask for 2–4 sentences, 13 questions point at "Go deeper" or a missing heading) and 166 questions flagged as possibly untaught
   - ✅ Publish gate [scripts/check-publish-gate.mjs](scripts/check-publish-gate.mjs): coverage + an independent fact check (`docs/topics/<id>/audit.json`) + the code runner. The validator now blocks publishing without a passing audit. The 92 topics published before the gate are listed in [docs/audit/legacy-unaudited.json](docs/audit/legacy-unaudited.json)
   - ✅ Workflow, `new-topic` and `content-fact-checker` skills and `AGENTS.md` updated for the gate. New topics continue, but each must pass the gate
-  - 🔄 Fresh level audit (22 topics) → re-check 3 random topics → report. **6 of 22 pass the gate** (86 legacy topics remain across Fresh, Junior, and Mid). Findings for every audited topic are in `docs/topics/<id>/audit.md`
-    - ✅ `structs-vs-classes`: passes the gate (2 wrong facts, 2 untaught ideas and 10 rule problems fixed; topic version 3)
-    - ✅ `control-flow`: passes the gate (7 wrong, 1 outdated, 4 untaught, 7 hardEnglish, 10 rule issues fixed; topic version 2, bank version 3, 33 live questions)
-    - ✅ `swift-basics`: passes the gate (4 wrong, 8 untaught, 1 unverified, 4 hardEnglish, 5 rule issues fixed; topic version 2, bank version 3, 31 live questions)
-    - ✅ `error-handling`: passes the gate (4 wrong, 3 outdated, 7 untaught, 1 unverified, 1 copied, 5 hardEnglish, 11 rule issues fixed; topic version 2, bank version 2, 32 live questions)
-    - ✅ `optionals`: passes the gate (5 wrong, 11 untaught, 1 unverified, 4 hardEnglish, 6 rule issues fixed; topic version 2, bank version 2, 32 live questions)
-    - ✅ `methods-and-initialization`: passes the gate (8 wrong, 8 untaught, 1 copied, 7 rule issues fixed; topic version 2, bank version 2, 33 live questions)
-    - ⬜ The other 16 fresh topics
-  - ⬜ Junior level audit (45 topics) → re-check 3 random topics → report
+  - ✅ Fresh level audit (22 topics) → re-check 3 random topics → report. **22 of 22 pass the gate** (70 legacy topics remain across Junior and Mid). Findings for every audited topic are in `docs/topics/<id>/audit.md`
+    - ✅ All 22 Fresh topics pass `check-publish-gate.mjs --code` and are removed from `legacy-unaudited.json` (`structs-vs-classes`, `control-flow`, `swift-basics`, `error-handling`, `optionals`, `methods-and-initialization`, `enumerations`, `properties`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`, `state-and-binding`, `swiftui-lists`, `swiftui-navigation`, `xcode-and-git-basics`, `operators`, `strings-and-characters`, `collections`, `functions`, `closures-basics`)
+    - ✅ Second independent re-check (report only) on 3 random Fresh topics (`swift-basics`, `methods-and-initialization`, `functions`): **0 wrong, 0 outdated, 0 unverified, 0 copied, 0 untaught facts** across all 3 topics; polished 2 minor prompt-vs-rubric lines in `functions` (`q25`, `q27`) and 1 rubric phrase in `swift-basics` (`q26`) and re-verified `check-publish-gate.mjs --code`
+  - ⬜ Junior level audit (45 topics) → re-check 3 random topics → report (paused; Groups 1–3 subagents terminated before edits at ~0% progress)
   - ⬜ Mid level audit (25 topics) → re-check 3 random topics → report
 
 ## Phase 5 — Web app MVP ✅
@@ -385,6 +389,16 @@ New rules and changes you ask for are added here, with the date.
 ## Change log
 
 Newest first.
+
+- **2026-11-14** — Completed Senior Batch 4A-1 (Swift Language Deep Dive: all 4 topics published) via `Senior Batch 4A-1 Author` + independent `content-fact-checker` child agents: `macros` (32 questions, 7 official sources), `noncopyable-types` [bonus] (32 questions, 6 official sources), `inlinearray-and-span` [bonus] (32 questions, 5 official sources), and `memory-safety` [bonus] (32 questions, 3 official sources). All 4 pass `check-publish-gate.mjs --code` and `validate-curriculum.mjs` (`OK: 5 levels, 14 units, 164 topics`). **Total published: 124 of 164 topics** (Fresh `22/22`, Junior `45/45`, Mid `53/53`, Senior `4/35`, Staff `0/9`).
+
+- **2026-11-14** — Terminated `Junior Audit Fixer 1`, `Junior Audit Fixer 2`, and `Junior Audit Fixer 3` (all at ~0% progress, under the 70% threshold; no Junior topic files modified). Kept `Senior Batch 4A-1 Author` running (~90% complete: all 4 lessons/questions written and 3 of 4 independent audits passing).
+
+- **2026-11-14** — Fresh-level audit verified & complete: second independent re-check on 3 random Fresh topics (`swift-basics`, `methods-and-initialization`, `functions`) found **0 wrong, 0 outdated, 0 unverified, 0 copied, and 0 untaught facts**. Polished 2 prompt-vs-rubric lines in `functions` (`q25`, `q27`) and 1 rubric phrase in `swift-basics` (`q26`), rebuilt review pages, and re-passed `check-publish-gate.mjs --code`. Launched parallel Junior-level audit subagents (Groups 1–3, covering 15 topics across Swift Language Advanced and Coding Interview Algorithms).
+
+- **2026-11-14** — Completed Fresh-level audit fixes for all 16 remaining Fresh topics via parallel subagents A, B, and C (`enumerations`, `properties`, `big-o`, `arrays-and-strings`, `hash-tables`, `swiftui-views-modifiers`, `swiftui-layout`, `state-and-binding`, `swiftui-lists`, `swiftui-navigation`, `xcode-and-git-basics`, `operators`, `strings-and-characters`, `collections`, `functions`, `closures-basics`). All **22 of 22 Fresh topics** now pass `check-publish-gate.mjs --code` and have been removed from `docs/audit/legacy-unaudited.json` (70 legacy topics remain across Junior and Mid). Launched a second independent re-check (report only) on 3 random Fresh topics (`swift-basics`, `methods-and-initialization`, `functions`).
+
+- **2026-11-14** — Committed Fresh audit fixes (`7fd2792`) and Batch 3H (`df00c42`). Launched parallel subagents for the remaining 16 Fresh-level audits (Audit Fixers A, B, C) and started Wave 4 (Senior level) Batch 4A-1 (`macros`, `noncopyable-types`, `inlinearray-and-span`, `memory-safety`).
 
 - **2026-11-14** — Completed Batch 3H (Performance & System Design Foundations: all 3 topics published) via parallel subagents (`Mid Batch 3H Author` + independent `content-fact-checker` child agents). Built, independently fact-checked, verified against Swift 6.4.2 / Xcode 27.2 (`iPhoneOS27.2.sdk`), and published `app-launch-time` (32 questions, 8 official sources), `smooth-ui` (32 live questions, 10 official sources, iOS 27 MetricKit updates), and `system-design-interview-intro` (32 live questions, 2 official + 2 community sources). All 3 pass `check-publish-gate.mjs --code` and have generated review pages (`docs/topics/<id>/review.html`). **Mid level (Wave 3) is now 100% COMPLETE (53 of 53 published; 120 of 164 total curriculum topics published across Fresh, Junior, and Mid).**
 

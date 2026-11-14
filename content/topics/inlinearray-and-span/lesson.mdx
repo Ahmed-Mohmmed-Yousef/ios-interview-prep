@@ -1,0 +1,206 @@
+export const meta = {
+  id: "inlinearray-and-span",
+  summary: "Use InlineArray for fixed-size inline storage and Span for safe, zero-allocation memory views.",
+  estimatedMinutes: 11,
+  baseline: { swift: "6.4", xcode: "27.2", ios: "27.2" },
+  lastVerified: "2026-11-14",
+  sources: [
+    { title: "InlineArray (Swift)", url: "https://developer.apple.com/documentation/swift/inlinearray", kind: "official" },
+    { title: "Span (Swift)", url: "https://developer.apple.com/documentation/swift/span", kind: "official" },
+    { title: "Swift 6.2 Released | Swift.org", url: "https://www.swift.org/blog/swift-6.2-released/", kind: "official" },
+    { title: "SE-0453: InlineArray, a fixed-size array", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0453-vector.md", kind: "official" },
+    { title: "SE-0447: Span: Safe Access to Contiguous Storage", url: "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0447-span-access-shared-contiguous-storage.md", kind: "official" },
+  ],
+}
+
+<InterviewHook>
+  <Question>How do `InlineArray` and `Span` improve performance without giving up Swift's memory safety?</Question>
+  <Guess>
+    <Option id="a">They turn off bounds checking and ARC across your entire app target.</Option>
+    <Option id="b" correct>`InlineArray` removes heap allocations for fixed-size data, while `Span` provides bounds-checked and lifetime-checked views over contiguous memory.</Option>
+    <Option id="c">They automatically move every `Array` onto a background actor.</Option>
+    <Option id="d">They replace all structs with raw C pointers that never expire.</Option>
+  </Guess>
+</InterviewHook>
+
+## The simple idea
+
+<Analogy>
+Think of `Array` like a rented storage locker across town: it can grow when you add boxes, but renting and resizing take extra trips. `InlineArray` is a fixed shelf right inside your room with zero trips. `Span` is a clear viewing window into any shelf. You can read items fast without copying them, and the window locks shut before the shelf moves.
+</Analogy>
+
+A regular Swift `Array` stores its elements in a **heap allocation** (shared memory outside the stack) with reference counting and copy-on-write. That flexibility is great for general code, but heap allocations can slow down tight loops, audio, or graphics code.
+
+**`InlineArray`** (introduced in Swift 6.2, iOS 26.0+) is a fixed-size array whose count is part of its type, written `InlineArray<3, Int>` or **`[3 of Int]`**. **It stores elements inline on the stack or inside a parent type.** That avoids a separate heap allocation. Because its size is fixed at compile time, you cannot `append` or remove elements. Unlike `Array`, assigning `var b = a` copies all elements eagerly (right away) instead of using copy-on-write. It can even hold `~Copyable` (noncopyable) elements. `InlineArray` does not conform to `Collection` or `Sequence`, so it has no `map` method. In Swift 6.4, it conforms to `Iterable`, so you can loop over it with `for-in` or `.indices`.
+
+**`Span`** (Swift 6.2, iOS 26.0+) is a non-owning, read-only view (`Span<Element>`) over **contiguous memory** (elements side by side, as in `Array` or `InlineArray`). It replaces unsafe `withUnsafeBufferPointer` blocks with two compile-time and runtime guarantees:
+
+- **Spatial safety**: every subscript access on a `Span` is bounds-checked, preventing reads past the end of the buffer (buffer overflows). An out-of-bounds index traps safely at runtime.
+- **Temporal safety**: a `Span` is **`~Escapable`** (non-escapable), so the compiler proves it cannot outlive the container it borrows from.
+
+Swift also includes related span types for common tasks:
+- **`MutableSpan`**: a non-owning mutable view that checks exclusive write access.
+- **`RawSpan`**: a bounds-checked view of raw bytes, reached via `.bytes`.
+- **`OutputSpan`**: a safe helper for initializing new buffers (such as `Array(capacity:)`) without `Array.init(unsafeUninitializedCapacity:)` or unsafe pointers.
+
+## See it
+
+<Diagram id="inlinearray-and-span-main" caption="How InlineArray avoids heap allocation and how Span borrows contiguous memory safely">
+{/*
+  Spec for /diagram-animator:
+  - Elements:
+    1. Left panel: Array vs InlineArray — Array points to a heap buffer with refcount; [3 of Int] lives directly inside the stack frame.
+    2. Right panel: Span borrowing — Span window points to contiguous elements with bounds check and a lifetime lock tied to owner scope.
+  - Steps:
+    Step 1: Regular Array allocates a heap buffer; InlineArray [3 of Int] stores elements inline on the stack.
+    Step 2: Calling .span opens a read-only, bounds-checked Span window with zero copies.
+    Step 3: Calling .mutableSpan grants exclusive write access inside its scope.
+    Step 4: Returning or escaping a Span past the owner's scope is blocked at compile time (~Escapable).
+  - Static version (reduced motion):
+    Two-panel visual showing inline stack storage vs heap array and Span's lifetime-locked view.
+*/}
+</Diagram>
+
+<QuickCheck>
+  <Question>What makes `Span` safer than `UnsafeBufferPointer`?</Question>
+  <Option id="a">It allocates a fresh heap copy of the buffer on every read.</Option>
+  <Option id="b" correct>It checks index bounds and enforces lifetime rules so the view cannot outlive its source memory.</Option>
+  <Option id="c">It disables compiler exclusivity checks when mutating elements.</Option>
+  <Explanation>Span combines bounds checking (spatial safety) with ~Escapable lifetime checking (temporal safety) without copying memory.</Explanation>
+</QuickCheck>
+
+## In code
+
+Notice how `[3 of Int]` and `InlineArray<4, Int>(repeating:)` store values inline, and how `Span`, `MutableSpan`, `RawSpan`, and `OutputSpan` work together in Swift 6.2 and later.
+
+<CodeExample title="Using InlineArray, Span, and MutableSpan">
+
+```swift
+func sumSpan(_ span: Span<Int>) -> Int {
+    var total = 0
+    for i in span.indices {
+        total += span[i]
+    }
+    return total
+}
+
+func setFirst(_ span: inout MutableSpan<Int>, to value: Int) {
+    if !span.isEmpty {
+        span[0] = value
+    }
+}
+
+func run() {
+    var fixed: [3 of Int] = [10, 20, 30]
+    let repeated = InlineArray<4, Int>(repeating: 7)
+    print(fixed.count, repeated[3])
+
+    print(sumSpan(fixed.span))
+
+    do {
+        var edit = fixed.mutableSpan
+        setFirst(&edit, to: 99)
+    }
+    var fixedSum = 0
+    for value in fixed {
+        fixedSum += value
+    }
+    print(fixed[0], fixedSum)
+
+    let list = [1, 2, 3, 4]
+    print(sumSpan(list.span))
+}
+
+run()
+```
+
+```output
+3 7
+60
+99 149
+10
+```
+
+</CodeExample>
+
+Notice the `do { ... }` block around `fixed.mutableSpan`. If a `Span` and a `MutableSpan` on `fixed` overlap in the same scope, Swift stops compilation with an **exclusivity violation** because writing requires exclusive access.
+
+You can also read raw bytes safely with `RawSpan` (via `.bytes`), or initialize an `Array` with `OutputSpan`.
+
+<CodeExample title="Reading bytes with RawSpan and initializing with OutputSpan">
+
+```swift
+func inspectBytesAndBuild() {
+    let header: [2 of UInt8] = [0x41, 0x42]
+    let raw: RawSpan = header.span.bytes
+    print(raw.byteCount)
+
+    let built = Array<Int>(capacity: 3) { output in
+        output.append(5)
+        output.append(6)
+    }
+    print(built)
+}
+
+inspectBytesAndBuild()
+```
+
+```output
+2
+[5, 6]
+```
+
+</CodeExample>
+
+### Array vs InlineArray vs Span
+
+| Type | Owns memory? | Heap allocation | Resizable? | Best for |
+|---|---|---|---|---|
+| `Array` | Yes (copy-on-write) | Yes | Yes | General lists whose size changes |
+| `InlineArray` | Yes (inline value) | No | No | Small fixed-size buffers in hot paths |
+| `Span` | No (borrows view) | No | No | Passing contiguous memory safely to functions |
+
+<QuickCheck>
+  <Question>Why does `InlineArray` use eager copying instead of copy-on-write?</Question>
+  <Option id="a" correct>Because its elements live inline with no shared heap buffer to point to.</Option>
+  <Option id="b">Because copy-on-write only works on classes.</Option>
+  <Option id="c">Because InlineArray can only store one element.</Option>
+  <Explanation>Copy-on-write relies on sharing a heap buffer until mutated. Since InlineArray has no heap buffer, assigning it copies its elements directly.</Explanation>
+</QuickCheck>
+
+## Interview traps
+
+<Trap title="Passing a huge InlineArray by value in a tight loop">
+Unlike `Array`, `InlineArray` does not use copy-on-write. Assigning `var b = a` or passing a large `[1024 of Int]` to a regular parameter copies all elements right away. Pass a `.span` or mark parameters `borrowing` (lending the value without copying) to avoid copying.
+</Trap>
+
+<Trap title="Trying to return a local Span from a function">
+`Span` is `~Escapable`. Returning `local.span` from a function fails to compile because the local storage dies when the function exits, which would leave a dangling reference.
+</Trap>
+
+<Trap title="Using InlineArray everywhere instead of Array">
+`InlineArray` fixes its size in the type (`[3 of Int]`), cannot grow with `append`, and increases stack or struct size. Keep `Array` as your default collection and reach for `InlineArray` only when profiling shows allocation or ARC overhead.
+</Trap>
+
+## How to answer in the interview
+
+<InterviewAnswer level="senior">
+`InlineArray` (`[3 of Int]`) is a fixed-size value array stored inline on the stack or inside a parent type. It avoids extra heap allocations and ARC overhead. `Span` is a non-owning, bounds-checked, and lifetime-bound (`~Escapable`) view over contiguous memory like `Array` or `InlineArray`. Together with `MutableSpan`, `RawSpan`, and `OutputSpan`, they let you write fast low-level code without `UnsafeBufferPointer` risks.
+</InterviewAnswer>
+
+<InterviewAnswer level="staff">
+Keep `Array` as the default for most app code because copy-on-write and dynamic sizing fit UI and networking workloads well. Reach for `InlineArray` when Instruments proves that small, fixed buffers create extra heap allocations or ARC overhead, such as math matrices, audio frames, or parsers. Expose `Span` and `MutableSpan` at internal API boundaries. That way, functions work across both `Array` and `InlineArray` with zero copies while keeping memory safety.
+</InterviewAnswer>
+
+## Recap
+
+<Recap>
+- `InlineArray` (`[count of Element]`) stores a compile-time fixed count of elements inline with no heap allocation or ARC.
+- Unlike `Array`, `InlineArray` copies eagerly on assignment; pass `.span` or `borrowing` for large buffers.
+- `Span` is a safe, bounds-checked, `~Escapable` read-only view over contiguous memory that cannot outlive its owner.
+- `MutableSpan`, `RawSpan`, and `OutputSpan` replace unsafe pointer patterns for mutation, raw bytes, and buffer initialization.
+</Recap>
+
+<TryIt>
+Try `[3 of Int]` and `.span` in Swift Playground, free for iPad and Mac.
+</TryIt>

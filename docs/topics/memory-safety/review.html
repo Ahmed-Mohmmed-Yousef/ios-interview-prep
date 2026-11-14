@@ -1,0 +1,582 @@
+<title>Memory Safety and Exclusive Access Lesson</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+
+:root {
+  --bg: #f5f7fb; --surface: #ffffff; --ink: #172033; --muted: #5a6478; --line: #c9d1df;
+  --value: #0f7f63; --value-soft: #dcf2ea;
+  --shared: #6447d1; --shared-soft: #ebe6fb;
+  --changed: #a76a12; --changed-soft: #fcefd6;
+  --code-bg: #eef1f7;
+  --font-body: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f141c; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b8;
+  --line: #3a4658; --value: #45cfa3; --value-soft: #13362c; --shared: #a690ff; --shared-soft: #251f42;
+  --changed: #f2c14e; --changed-soft: #3a2e12; --code-bg: #111821; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 20px; }
+.eyebrow { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
+h1 { font-size: clamp(24px, 4.4vw, 34px); line-height: 1.15; margin: 4px 0 6px; text-wrap: balance; font-weight: 700; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 17px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.panel h2 code { font-family: var(--font-code); font-size: 15px; }
+.kind { font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; }
+.excl .kind { background: var(--changed-soft); color: var(--changed); }
+.strict .kind { background: var(--value-soft); color: var(--value); }
+svg { width: 100%; height: auto; display: block; }
+.code {
+  font: 13px/1.5 var(--font-code); background: var(--code-bg); border-radius: 10px; padding: 8px 12px;
+  min-height: 3.4em; overflow-x: auto; white-space: pre;
+}
+.caption { margin: 0; font-weight: 500; min-height: 2.8em; }
+
+.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.6; }
+.bar-ok { fill: var(--value-soft); stroke: var(--value); stroke-width: 1.8; }
+.bar-wr { fill: var(--changed-soft); stroke: var(--changed); stroke-width: 2; }
+.bar-aud { fill: var(--shared-soft); stroke: var(--shared); stroke-width: 1.8; }
+.lbl { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.sub { font-family: var(--font-code); font-size: 11px; fill: var(--muted); }
+.warn { font-family: var(--font-body); font-size: 11px; font-weight: 600; fill: var(--changed); }
+.oktxt { font-family: var(--font-body); font-size: 11px; font-weight: 600; fill: var(--value); }
+.hidden { opacity: 0; }
+.on { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .hidden, rect { transition: opacity .35s ease, fill .3s ease, stroke .3s ease; }
+}
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.bar button {
+  font: 600 15px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 18px; cursor: pointer; min-height: 44px;
+}
+.bar button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.bar button:disabled { opacity: .4; cursor: default; }
+.bar button:focus-visible, .dots button:focus-visible, summary:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.dots { display: flex; gap: 8px; }
+.dots button { width: 14px; height: 14px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: transparent; }
+.dots button[aria-current="step"] { background: var(--ink); }
+.count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: center; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+summary { cursor: pointer; font-weight: 600; }
+details ol { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 10px; }
+details li p { margin: 0; }
+details code { font-family: var(--font-code); font-size: 14px; background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+
+/* --- Lesson page (prototype) --- */
+.page { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.lesson { display: grid; gap: 16px; }
+.lesson > * { margin: 0; }
+.lesson h2 { font-size: 24px; margin-top: 18px; text-wrap: balance; }
+.lesson h3 { font-size: 19px; margin-top: 6px; }
+.lesson p, .lesson li { max-width: 66ch; }
+.lesson code, .exam code { font-family: var(--font-code); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 6px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; margin: 0; }
+.goal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 0; }
+.hook { background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; }
+.q-text { font-size: 21px; font-weight: 600; margin: 0; text-wrap: balance; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 2em 1fr; gap: 8px; align-items: start; text-align: left; font: 15px/1.45 var(--font-body);
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt-id { font-weight: 700; color: var(--muted); }
+.opt.picked { border-color: var(--shared); background: var(--shared-soft); }
+.opt.right { border-color: var(--value); background: var(--value-soft); }
+.opt.wrong { border-color: var(--changed); background: var(--changed-soft); }
+.opt p, .answer p, .trap p { margin: 0; }
+.guess-msg, .guess-result { margin: 0; font-weight: 500; }
+.quick-check { border: 1.5px dashed var(--shared); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.quick-check .q-text { font-size: 17px; }
+.qc-explain { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.analogy { background: var(--value-soft); border-radius: 16px; padding: 14px 16px; }
+.analogy p { margin: 0; }
+.diagram-host { display: grid; gap: 14px; }
+.code-example { margin: 0; display: grid; gap: 0; }
+.code-example figcaption { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+pre.block { margin: 0; font: 14px/1.55 var(--font-code); background: var(--code-bg); padding: 12px 14px; border-radius: 12px; overflow-x: auto; }
+pre.block code { background: none; padding: 0; }
+pre.block.swift + pre.block.output { margin-top: -6px; border-top-left-radius: 0; border-top-right-radius: 0; }
+pre.block.swift:has(+ pre.block.output) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+pre.block.output { background: var(--surface); border: 1px solid var(--line); }
+.out-label { display: block; font: 600 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.table-wrap { overflow-x: auto; }
+.lesson table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.lesson th, .lesson td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lesson th { font-weight: 600; }
+.trap { border-left: 4px solid var(--changed); background: var(--surface); padding: 12px 14px; border-radius: 0 12px 12px 0; display: grid; gap: 8px; }
+.trap-title { font-weight: 600; }
+.trap-title .label { display: inline; color: var(--changed); }
+.version-note, .real-world { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.version-note p, .real-world p { margin: 0; }
+.deep-dive > div { display: grid; gap: 8px; margin-top: 8px; }
+.deep-dive p { margin: 0; }
+.answer { background: var(--surface); border-radius: 14px; padding: 12px 16px; border: 1px solid var(--line); }
+.recap { background: var(--surface); border: 2px solid var(--value); border-radius: 16px; padding: 14px 16px; }
+.recap ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.try-it { color: var(--muted); }
+.try-it a, .lesson a { color: var(--shared); }
+.cta { display: grid; gap: 10px; justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.btn { font: 600 16px var(--font-body); color: var(--surface); background: var(--ink); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; min-height: 44px; }
+.btn.secondary { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+.btn:focus-visible, .opt:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--shared); outline-offset: 2px; }
+.exam { display: grid; gap: 14px; }
+.exam[hidden], .results[hidden], .lesson-view[hidden] { display: none; }
+.progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--shared); width: 0; }
+.q-head { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.feedback { border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.feedback.ok { background: var(--value-soft); } .feedback.no { background: var(--changed-soft); }
+.feedback p { margin: 0; }
+textarea { width: 100%; min-height: 9em; font: 15px/1.5 var(--font-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+textarea.code-input { font-family: var(--font-code); font-size: 14px; }
+.rubric { display: grid; gap: 8px; }
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.crit legend { display: flex; gap: 10px; justify-content: space-between; width: 100%; padding: 0; float: left; margin-bottom: 4px; }
+.crit label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 32px; }
+.rubric .w { color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { color: var(--shared); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.self-score { margin: 0; }
+.score { font-size: 48px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.pass { color: var(--value); } .fail { color: var(--changed); }
+.review { display: grid; gap: 8px; padding: 0; list-style: none; margin: 0; }
+.review li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.review .tag { font-size: 12px; font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Senior · Swift Language · Topic 4 of 4 · Prototype</p>
+    <h1>Memory Safety and Exclusive Access</h1>
+    <p class="meta-line"><span>About 11 minutes</span><span>Then a 10-question exam</span><span>Pass mark 70%</span><span>Version 1</span></p>
+  </header>
+  
+  <div class="lesson-view" id="lessonView">
+    <p class="goal"><span class="label">Goal</span><br>After this topic, you can explain the exclusive access rules and strict memory safety.</p>
+    <article class="lesson"><section class="hook"><p class="label">Interview question</p><p class="q-text">What is Swift&#x27;s Law of Exclusivity, and how does Strict Memory Safety in Swift 6.2+ build on top of it?</p><div class="guess" data-guess=""><p class="label">Your guess first (not scored). We come back to it in the recap.</p><div class="opts"><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Exclusivity only stops background threads from touching UIKit views.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Exclusivity forbids overlapping read/write accesses to the same memory even on one thread, while Strict Memory Safety flags unmarked unsafe pointer code.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Exclusivity turns every class into a struct during release builds.</span></button><button type="button" class="opt" data-id="d"><span class="opt-id">D</span><span class="opt-text">Strict Memory Safety removes bounds checking from arrays to run faster.</span></button></div><p class="guess-msg" aria-live="polite"></p></div></section>
+<h2>The simple idea</h2>
+<aside class="analogy"><p class="label">Think of it like this</p><p>Think of editing a shared paper form on a desk. Ten people can read the form at once with no trouble. While one person erases and writes a new number, nobody else can read or write that same line until they lift their pen.</p></aside>
+<p>Swift prevents memory bugs using initialization checks, ARC, bounds checks, and <strong>exclusive access</strong> (also called the Law of Exclusivity). <strong>Two accesses to the same variable cannot overlap if at least one of them is a write.</strong></p>
+<p>Most reads and writes are <strong>instantaneous</strong>, meaning they finish in one step and cannot overlap on a single thread. However, passing a variable as <strong><code>inout</code></strong> or calling a <strong><code>mutating</code></strong> method starts a <strong>long-term access</strong> that lasts for the whole function call.</p>
+<p>If another access touches that same memory while the long-term write is still open, you hit a <strong>conflicting access</strong>. Swift catches some conflicts at compile time, like passing <code>&amp;score</code> twice to <code>inout</code> parameters or calling <code>oscar.shareHealth(with: &amp;oscar)</code> on a <code>mutating</code> method. Others crash at runtime, like a closure or nested function reading <code>step</code> while <code>increment(&amp;step)</code> runs.</p>
+<p>Starting in <strong>Swift 6.2</strong>, you can also turn on <strong>Strict Memory Safety</strong>. Enable it with <code>-strict-memory-safety</code> in compiler flags, <code>.strictMemorySafety()</code> in <code>Package.swift</code>, or the &quot;Strict Memory Safety&quot; Xcode build setting. Normally, Swift lets code use <code>UnsafePointer</code>, C pointer APIs, or <code>unowned(unsafe)</code> quietly. With Strict Memory Safety on, the compiler warns on any unmarked <code>@unsafe</code> API, unsafe pointer, or unsafe construct. Mark those expressions with the <strong><code>unsafe</code></strong> keyword.</p>
+<p>Just like <code>try</code> marks code that can throw, <code>unsafe</code> marks lines that need careful human review.</p>
+<h2>See it</h2>
+<div class="diagram-host"><figure class="panels" id="figure" role="img" aria-label="Two panels. Left shows exclusive access: multiple instantaneous reads are safe, while a long-term inout write locks a variable and conflicts with an overlapping read or write. Right shows Strict Memory Safety flagging unmarked unsafe pointer use until wrapped with unsafe." style="margin:0">
+    <section class="panel excl" aria-hidden="true">
+      <h2><code>inout</code> <span class="kind">exclusivity</span></h2>
+      <svg viewBox="0 0 340 220">
+        <rect class="box" x="14" y="14" width="312" height="48" rx="10"/>
+        <text class="lbl" x="26" y="34">Variable: step = 1</text>
+        <text class="sub" id="e-lock" x="26" y="51">Access: unlocked</text>
+
+        <rect class="bar-ok" id="e-read1" x="14" y="76" width="146" height="44" rx="10"/>
+        <text class="lbl" x="26" y="96">Instantaneous read</text>
+        <text class="oktxt" x="26" y="112">Safe (no overlap)</text>
+
+        <rect class="bar-wr hidden" id="e-write" x="14" y="132" width="312" height="72" rx="10"/>
+        <text class="lbl hidden" id="e-wt1" x="26" y="154">Long-term write: increment(&amp;step)</text>
+        <text class="warn hidden" id="e-wt2" x="26" y="174">Write lock open across entire call</text>
+        <text class="sub hidden" id="e-wt3" x="26" y="193">2nd access inside call -&gt; Conflict!</text>
+      </svg>
+      <div class="code" id="e-code"></div>
+      <p class="caption" id="e-cap"></p>
+    </section>
+
+    <section class="panel strict" aria-hidden="true">
+      <h2><code>-strict-memory-safety</code> <span class="kind">Swift 6.2+</span></h2>
+      <svg viewBox="0 0 340 220">
+        <rect class="box" x="14" y="14" width="312" height="58" rx="10"/>
+        <text class="lbl" x="26" y="36">Safe Swift boundary</text>
+        <text class="sub" x="26" y="56">withUnsafePointer(to: &amp;value) { ptr in</text>
+
+        <rect class="bar-wr hidden" id="s-unmarked" x="14" y="84" width="312" height="56" rx="10"/>
+        <text class="lbl hidden" id="s-u1" x="26" y="106">Unmarked: ptr.pointee</text>
+        <text class="warn hidden" id="s-u2" x="26" y="126">Warning: needs 'unsafe' keyword</text>
+
+        <rect class="bar-ok hidden" id="s-marked" x="14" y="152" width="312" height="56" rx="10"/>
+        <text class="lbl hidden" id="s-m1" x="26" y="174">Marked: unsafe ptr.pointee</text>
+        <text class="oktxt hidden" id="s-m2" x="26" y="194">Visible for code audit (or use Span)</text>
+      </svg>
+      <div class="code" id="s-code"></div>
+      <p class="caption" id="s-cap"></p>
+    </section>
+  </figure>
+
+  <p class="sr-only" id="live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
+
+  <nav class="bar" aria-label="Diagram steps">
+    <button type="button" id="back">Back</button>
+    <div class="dots" id="dots"></div>
+    <span class="count" id="count"></span>
+    <button type="button" id="next" class="primary">Next</button>
+    <button type="button" id="replay">Replay</button>
+  </nav>
+
+  <details id="all">
+    <summary>All steps as a list</summary>
+    <ol id="list"></ol>
+  </details></div>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">When do two accesses to the same memory conflict under Swift&#x27;s exclusivity rules?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">Whenever two functions read the same variable at the same time.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">Whenever two accesses overlap and at least one is a write access.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">Only when two different DispatchQueues run at the same time.</span></button><p class="qc-explain" hidden="">Multiple overlapping reads are safe, and exclusivity violations can happen on a single thread whenever a long-term write overlaps another read or write.</p></div>
+<h2>In code</h2>
+<p>When two <code>inout</code> parameters point to different properties of a <strong>local</strong> <code>struct</code>, Swift proves they do not overlap. Passing the same variable twice (<code>balance(&amp;score, &amp;score)</code>) fails at compile time because the arguments <strong>alias</strong> (point to the same variable). Calling a <code>mutating</code> method and passing <code>self</code> as <code>inout</code> (<code>oscar.shareHealth(with: &amp;oscar)</code>) also fails at compile time.</p>
+<figure class="code-example"><figcaption>Disjoint struct fields succeed while aliasing fails</figcaption><pre class="block swift"><code class="language-swift">func balance(_ x: inout Int, _ y: inout Int) {
+    let sum = x + y
+    x = sum / 2
+    y = sum - x
+}
+
+struct Stats {
+    var health: Int
+    var energy: Int
+}
+
+func run() {
+    var player = Stats(health: 10, energy: 20)
+    balance(&amp;player.health, &amp;player.energy)
+    print(player.health, player.energy)
+}
+
+run()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">15 15
+</code></pre></figure>
+<p>Be careful with two runtime traps:</p>
+<ul>
+<li>If a closure or nested function captures <code>var step</code> and reads <code>step</code> inside <code>increment(&amp;step)</code>, it compiles and crashes at runtime. Copy <code>let delta = step</code> first so <code>increment</code> reads <code>delta</code> instead of <code>step</code>.</li>
+<li>If a <code>struct</code> is stored as a property on a <strong>class</strong> (<code>class Box { var pair = Pair(...) }</code>), passing <code>&amp;pair.a</code> and <code>&amp;pair.b</code> together crashes at runtime. Both accesses write to <code>Box.pair</code>. Copy <code>pair</code> to a local variable first, mutate it, and assign it back.</li>
+</ul>
+<p>Now look at how <strong>Strict Memory Safety</strong> (<code>SE-0458</code>) works with <code>@unsafe</code> and the <code>unsafe</code> keyword. You can check whether the flag is active with <code>#if hasFeature(StrictMemorySafety)</code>.</p>
+<figure class="code-example"><figcaption>Marking unsafe pointer calls with @unsafe and unsafe</figcaption><pre class="block swift"><code class="language-swift">@unsafe
+func readPointee(_ ptr: UnsafePointer&lt;Int&gt;) -&gt; Int {
+    unsafe ptr.pointee
+}
+
+func run() {
+    var value = 42
+    withUnsafePointer(to: &amp;value) { ptr in
+        print(unsafe readPointee(ptr))
+    }
+    #if hasFeature(StrictMemorySafety)
+    print(&quot;strict enabled&quot;)
+    #else
+    print(&quot;default mode&quot;)
+    #endif
+}
+
+run()
+</code></pre><pre class="block output"><span class="out-label">Output</span><code class="language-output">42
+default mode
+</code></pre></figure>
+<p>Notice that <code>withUnsafePointer(to: &amp;value)</code> itself is safe and does <strong>not</strong> take <code>unsafe</code>. Only calling <code>@unsafe</code> functions or reading <code>ptr.pointee</code> needs <code>unsafe</code>. Putting <code>unsafe</code> on an expression that has no unsafe operations produces an unnecessary <code>unsafe</code> warning.</p>
+<p>Mark your own helper function with <code>@unsafe</code> when it depends on memory-unsafe rules that the compiler cannot check. Then callers under Strict Memory Safety must mark calls with <code>unsafe</code>.</p>
+<p>In a large project, enable <code>.strictMemorySafety()</code> one package target or module at a time, starting with low-level code like parsers or C wrappers. Over time, replace raw pointer buffers with safe Swift 6.2 types. Use <strong><code>Span</code></strong> for a safe view over contiguous memory, and <strong><code>InlineArray</code></strong> for a fixed-size inline array.</p>
+<h3>Exclusivity and memory safety layers</h3>
+<table><thead><tr><th>Check</th><th>When it runs</th><th>What it stops</th></tr></thead><tbody><tr><td>Aliasing <code>&amp;x, &amp;x</code> or <code>p.share(with: &amp;p)</code></td><td>Compile time</td><td>Passing the same variable twice as <code>inout</code> (or <code>mutating</code> <code>self</code> + <code>inout</code>)</td></tr><tr><td>Closure capture or class-property struct overlap</td><td>Runtime trap</td><td>Hidden overlapping read/write on one thread</td></tr><tr><td>Swift 6 strict concurrency</td><td>Compile time</td><td>Data races across concurrent tasks and actors</td></tr><tr><td>Strict Memory Safety (<code>-strict-memory-safety</code>)</td><td>Compile time warning</td><td>Unmarked <code>@unsafe</code> and pointer usage</td></tr></tbody></table>
+<div class="quick-check" data-qc=""><p class="label">Quick check (not scored)</p><p class="q-text">What does the <code>unsafe</code> expression keyword do under Strict Memory Safety?</p><button type="button" class="opt" data-id="a"><span class="opt-id">A</span><span class="opt-text">It turns off array bounds checking inside that line.</span></button><button type="button" class="opt" data-id="b" data-correct=""><span class="opt-id">B</span><span class="opt-text">It marks code that uses <code>@unsafe</code> APIs or pointers so reviewers can check it.</span></button><button type="button" class="opt" data-id="c"><span class="opt-id">C</span><span class="opt-text">It frees raw pointers automatically at the end of the line.</span></button><p class="qc-explain" hidden="">Like <code>try</code> for errors, <code>unsafe</code> adds no runtime safety checks. It makes unsafe operations visible for code review.</p></div>
+<h2>Interview traps</h2>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Thinking exclusivity violations only happen with multiple threads</p><p>Exclusivity conflicts happen on a <strong>single thread</strong> whenever a long-term <code>inout</code> or <code>mutating</code> write overlaps another read or write to the same variable. Multithreaded data races are a separate check handled by Swift 6 concurrency isolation.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Thinking local structs and class-stored structs behave the same for property inout</p><p>Passing two fields of a local struct (<code>balance(&amp;player.health, &amp;player.energy)</code>) compiles and runs cleanly. Doing the same on a struct stored inside a class property (<code>&amp;box.pair.a, &amp;box.pair.b</code>) triggers a runtime exclusivity crash because both write accesses overlap on <code>box.pair</code>.</p></div>
+<div class="trap"><p class="trap-title"><span class="label">Trap</span> Thinking the unsafe keyword makes pointers safe at runtime</p><p>Adding <code>unsafe</code> does not add bounds checks or lifetime checks. Whenever possible, replace raw pointers with safe types like <code>Span</code> or <code>InlineArray</code> instead of just marking unsafe code.</p></div>
+<h2>How to answer in the interview</h2>
+<div class="answer"><p class="label">Senior answer</p><p>Swift&#x27;s Law of Exclusivity says two accesses to the same memory cannot overlap if at least one is a write. Simple reads and writes are instantaneous, while <code>inout</code> parameters and <code>mutating</code> methods hold a long-term write lock for the call. Swift catches obvious aliasing like <code>&amp;x, &amp;x</code> at compile time and traps at runtime on overlapping closure captures or class-property struct fields. In Swift 6.2+, Strict Memory Safety also warns on unmarked pointers unless acknowledged with <code>unsafe</code>.</p></div>
+<div class="answer"><p class="label">Staff answer</p><p>Memory safety in Swift works in layers: definite initialization, ARC, exclusivity enforcement, Swift 6 data-race isolation, and opt-in Strict Memory Safety (<code>-strict-memory-safety</code>). When checking security-sensitive modules like parsers or crypto wrappers, I enable <code>.strictMemorySafety()</code> in <code>Package.swift</code> so every <code>@unsafe</code> boundary stands out with the <code>unsafe</code> keyword. From there, we replace raw pointer buffers step by step with <code>Span</code> and <code>InlineArray</code> to remove unsafe code.</p></div>
+<h2>Recap</h2>
+<div class="recap"><p class="guess-result" aria-live="polite"></p><ul>
+<li>Under the Law of Exclusivity, two accesses to the same variable cannot overlap if at least one is a write.</li>
+<li><code>inout</code> parameters and <code>mutating</code> methods create long-term write accesses that span the entire call.</li>
+<li>Aliasing <code>&amp;x, &amp;x</code> fails at compile time. Overlapping closure captures and class-stored struct fields fail at runtime.</li>
+<li>Strict Memory Safety (<code>-strict-memory-safety</code>) flags unmarked unsafe pointers and <code>@unsafe</code> APIs unless marked with <code>unsafe</code>.</li>
+</ul></div>
+<p class="try-it"><p>Try <code>inout</code> exclusivity rules and <code>unsafe</code> markers in Swift Playground, free for iPad and Mac.</p> <a href="https://developer.apple.com/swift-playground/" target="_blank" rel="noopener">Get Swift Playground</a></p></article>
+    <section class="cta">
+      <h2 style="margin:0">Ready for the exam?</h2>
+      <p style="margin:0">10 questions: 5 multiple choice, 3 code reading, 1 written answer and 1 code answer. You see the answer after each question.</p>
+      <button class="btn" type="button" id="startExam">Start the exam</button>
+    </section>
+  </div>
+  <section class="exam" id="exam" hidden aria-live="polite"></section>
+  <section class="results" id="results" hidden></section>
+  <p class="note">Prototype for review (Phase 2, step 2.7). Built from the real lesson.mdx and questions.json. Written and code answers use a self-check here; AI grading comes in Phase 6. Your best result is saved only in this browser.</p>
+</div>
+
+<script>
+{ // block scope: the diagram script keeps its own helpers
+
+const STEPS = [
+  {
+    e: { code: "let copy = step // instantaneous read", cap: "Step 1: Instantaneous reads finish at once and never conflict." },
+    s: { code: "withUnsafePointer(to: &value) { ptr in", cap: "Step 1: Calling withUnsafePointer itself is safe and needs no marker." }
+  },
+  {
+    e: { code: "increment(&step) // opens write lock", cap: "Step 2: Passing &step as inout holds a long-term write lock." },
+    s: { code: "  return ptr.pointee // warning!", cap: "Step 2: Using UnsafePointer without 'unsafe' triggers a StrictMemorySafety warning." }
+  },
+  {
+    e: { code: "number += step // overlaps -> conflict!", cap: "Step 3: Reading step during increment(&step) crashes at runtime." },
+    s: { code: "  return unsafe ptr.pointee // marked", cap: "Step 3: Prefixing with 'unsafe' marks the unsafe line for review." }
+  },
+  {
+    e: { code: "let delta = step; increment(&step) // ok", cap: "Step 4: Copying step to delta first ends the overlap safely." },
+    s: { code: "// Better: pass value.span (no unsafe!)", cap: "Step 4: Prefer Span or InlineArray to remove unsafe code completely." }
+  }
+];
+
+const $ = (id) => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let step = 0;
+
+function render() {
+  const n = step + 1;
+  $("e-lock").textContent = n === 1 ? "Access: instantaneous read" : n === 2 ? "Access: write lock open" : n === 3 ? "CONFLICT: write + read overlap!" : "Fixed: read finishes before write";
+  for (const id of ["e-write", "e-wt1", "e-wt2"]) $(id).classList.toggle("on", n >= 2);
+  $("e-wt3").classList.toggle("on", n >= 3);
+  $("e-wt3").textContent = n === 4 ? "Fix: read delta before call -> Safe!" : "2nd access inside call -> Conflict!";
+  $("e-write").classList.toggle("bar-ok", n === 4);
+  $("e-write").classList.toggle("bar-wr", n !== 4);
+
+  for (const id of ["s-unmarked", "s-u1", "s-u2"]) $(id).classList.toggle("on", n >= 2);
+  for (const id of ["s-marked", "s-m1", "s-m2"]) $(id).classList.toggle("on", n >= 3);
+  $("s-m2").textContent = n === 4 ? "Best fix: replace pointers with Span" : "Visible for code audit";
+
+  const st = STEPS[step];
+  $("e-code").textContent = st.e.code;
+  $("s-code").textContent = st.s.code;
+  $("e-cap").textContent = st.e.cap;
+  $("s-cap").textContent = st.s.cap;
+  $("count").textContent = "Step " + n + " of " + STEPS.length;
+  $("live").textContent = "Step " + n + ". Exclusivity: " + st.e.cap + " Strict Safety: " + st.s.cap;
+  $("back").disabled = step === 0;
+  $("next").disabled = step === STEPS.length - 1;
+  [...$("dots").children].forEach((d, i) => i === step ? d.setAttribute("aria-current", "step") : d.removeAttribute("aria-current"));
+}
+
+function go(i) { step = Math.max(0, Math.min(STEPS.length - 1, i)); render(); }
+
+STEPS.forEach((st, i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.setAttribute("aria-label", "Diagram step " + (i + 1) + " of " + STEPS.length);
+  b.addEventListener("click", () => go(i));
+  $("dots").append(b);
+  const li = document.createElement("li");
+  li.innerHTML = "<p><b>Exclusivity:</b> <code></code> — <span></span></p><p><b>Strict Safety:</b> <code></code> — <span></span></p>";
+  const [c1, c2] = li.querySelectorAll("code");
+  const [t1, t2] = li.querySelectorAll("span");
+  c1.textContent = st.e.code; t1.textContent = st.e.cap;
+  c2.textContent = st.s.code; t2.textContent = st.s.cap;
+  $("list").append(li);
+});
+
+$("back").addEventListener("click", () => go(step - 1));
+$("next").addEventListener("click", () => go(step + 1));
+$("replay").addEventListener("click", () => {
+  go(0);
+  if (reduce.matches) return;
+  let i = 0;
+  const t = setInterval(() => { i++; go(i); if (i >= STEPS.length - 1) clearInterval(t); }, 1100);
+});
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest || !e.target.closest(".diagram-host")) return;
+  if (e.key === "ArrowRight") go(step + 1);
+  if (e.key === "ArrowLeft") go(step - 1);
+});
+
+if (reduce.matches) { step = STEPS.length - 1; $("all").open = true; }
+render();
+
+}
+</script>
+<script>
+const DATA = {"topicId":"memory-safety","exam":{"passMark":70,"size":10,"scoring":{"met":1,"partlyMet":0.5,"notMet":0,"keyMissedCap":50},"mix":{"mcq":5,"code-reading":3,"written":1,"code-write":1},"questions":[{"id":"memory-safety-q1","type":"mcq","difficulty":1,"prompt":"What does Swift's Law of Exclusivity forbid?","options":[{"id":"a","text":"Two overlapping accesses to the same memory when at least one is a write.","explanation":"Right. Multiple reads can overlap, but any write requires exclusive access."},{"id":"b","text":"Any function that reads the same variable twice in a row.","explanation":"Wrong. Sequential and overlapping reads never conflict."},{"id":"c","text":"Creating two structs with the same property names.","explanation":"Wrong. Struct definitions do not share memory locations."},{"id":"d","text":"Using let constants across two functions.","explanation":"Wrong. Constants are read-only and never violate exclusive access."}],"answer":"a"},{"id":"memory-safety-q2","type":"mcq","difficulty":1,"prompt":"When are two overlapping accesses to the same variable allowed?","options":[{"id":"a","text":"When both accesses write different numbers.","explanation":"Wrong. Two overlapping writes always conflict."},{"id":"b","text":"When both accesses are reads.","explanation":"Right. Overlapping reads are safe because neither changes the value."},{"id":"c","text":"When one reads and one writes on the main thread.","explanation":"Wrong. Read-plus-write overlap conflicts even on one thread."},{"id":"d","text":"When the variable is passed twice as inout.","explanation":"Wrong. Passing the same variable twice as inout fails to compile."}],"answer":"b"},{"id":"memory-safety-q3","type":"mcq","difficulty":1,"prompt":"Which Swift feature starts a long-term write access that lasts for the entire function call?","options":[{"id":"a","text":"Reading a let constant.","explanation":"Wrong. Reading a constant is an instantaneous read."},{"id":"b","text":"Printing a local Int.","explanation":"Wrong. Passing a value by copy is an instantaneous read."},{"id":"c","text":"Passing a variable to an inout parameter.","explanation":"Right. An inout parameter holds exclusive write access for the whole call."},{"id":"d","text":"Checking an Optional with if let.","explanation":"Wrong. Unwrapping an optional is a short read, not a long-term write."}],"answer":"c"},{"id":"memory-safety-q4","type":"mcq","difficulty":1,"prompt":"Why do instantaneous reads and writes never conflict on a single thread?","options":[{"id":"a","text":"Because Swift runs instantaneous code on separate CPU cores.","explanation":"Wrong. Single-threaded code runs sequentially on one thread."},{"id":"b","text":"Because instantaneous accesses skip ARC completely.","explanation":"Wrong. Timing, not ARC, prevents instantaneous overlap."},{"id":"c","text":"Because instantaneous accesses ignore var declarations.","explanation":"Wrong. Instantaneous writes still change var variables."},{"id":"d","text":"Because no other code can run between the start and end of an instantaneous access.","explanation":"Right. The access finishes in one step before the next statement begins."}],"answer":"d"},{"id":"memory-safety-q5","type":"mcq","difficulty":1,"prompt":"What does Strict Memory Safety (`-strict-memory-safety`) check in Swift 6.2+?","options":[{"id":"a","text":"It flags unmarked uses of @unsafe APIs and unsafe pointer types.","explanation":"Right. Strict Memory Safety warns unless unsafe calls are marked with unsafe."},{"id":"b","text":"It disables inout parameters across your whole project.","explanation":"Wrong. inout parameters stay enabled and safe under exclusivity rules."},{"id":"c","text":"It replaces Swift 6 actor isolation checks.","explanation":"Wrong. Strict concurrency and Strict Memory Safety are separate layers."},{"id":"d","text":"It forbids all structs in a Swift package.","explanation":"Wrong. Structs are safe value types and fully allowed."}],"answer":"a"},{"id":"memory-safety-q6","type":"mcq","difficulty":1,"prompt":"Which keyword must prefix an unsafe pointer operation when Strict Memory Safety is turned on?","options":[{"id":"a","text":"try","explanation":"Wrong. try marks throwing calls."},{"id":"b","text":"unsafe","explanation":"Right. Prefixing the expression with unsafe acknowledges the unsafe operation."},{"id":"c","text":"await","explanation":"Wrong. await marks async suspension points."},{"id":"d","text":"inout","explanation":"Wrong. inout marks mutable parameters."}],"answer":"b"},{"id":"memory-safety-q7","type":"mcq","difficulty":1,"prompt":"How do you enable Strict Memory Safety for a target in `Package.swift`?","options":[{"id":"a","text":"Add .disableExclusivity() to swiftSettings.","explanation":"Wrong. There is no .disableExclusivity() setting."},{"id":"b","text":"Set Swift version to 5.0.","explanation":"Wrong. Strict Memory Safety arrived in Swift 6.2."},{"id":"c","text":"Add .strictMemorySafety() to swiftSettings.","explanation":"Right. .strictMemorySafety() turns on SE-0458 checks for the package target."},{"id":"d","text":"Import Foundation at the top of Package.swift.","explanation":"Wrong. Package manifests enable compiler flags via swiftSettings."}],"answer":"c"},{"id":"memory-safety-q8","type":"mcq","difficulty":2,"prompt":"Can an exclusivity violation happen inside a single-threaded app with zero background tasks?","options":[{"id":"a","text":"No, conflicts only occur across different threads.","explanation":"Wrong. Data races need threads, while exclusivity conflicts happen on one thread."},{"id":"b","text":"Only when using Objective-C classes.","explanation":"Wrong. Pure Swift inout and mutating calls can conflict on one thread."},{"id":"c","text":"Only when calling DispatchQueue.main.async.","explanation":"Wrong. A synchronous nested closure or mutating method can trigger it."},{"id":"d","text":"Yes, whenever a long-term inout or mutating write overlaps another access.","explanation":"Right. Long-term accesses span a whole call, allowing single-thread overlaps."}],"answer":"d"},{"id":"memory-safety-q9","type":"mcq","difficulty":2,"prompt":"What happens when a closure inside `increment(&step)` reads `step` directly on the same thread?","options":[{"id":"a","text":"It compiles and crashes at runtime with an exclusivity conflict.","explanation":"Right. increment holds a long-term write on step, so reading step inside it traps at runtime."},{"id":"b","text":"It prints the old value of step safely.","explanation":"Wrong. Overlapping write and read access to step triggers a fatal runtime error."},{"id":"c","text":"It skips updating step silently.","explanation":"Wrong. Swift halts execution rather than ignoring memory conflicts."},{"id":"d","text":"Swift copies step automatically when entering increment.","explanation":"Wrong. The closure captures step by reference and conflicts."}],"answer":"a"},{"id":"memory-safety-q10","type":"mcq","difficulty":2,"prompt":"How do you fix a runtime exclusivity crash caused by a closure reading `step` during `increment(&step)`?","options":[{"id":"a","text":"Mark increment with @MainActor.","explanation":"Wrong. Actor isolation does not remove single-thread inout overlap."},{"id":"b","text":"Read a local copy `let delta = step` before calling increment(&step).","explanation":"Right. Using delta avoids reading step while the inout write lock is open."},{"id":"c","text":"Prefix increment(&step) with the unsafe keyword.","explanation":"Wrong. unsafe only marks pointer code and never changes exclusivity checks."},{"id":"d","text":"Change var step to a computed property.","explanation":"Wrong. Storing and mutating step still requires exclusive access."}],"answer":"b"},{"id":"memory-safety-q11","type":"mcq","difficulty":2,"prompt":"What happens when you pass two properties of a `struct` stored inside a `class` property (`&box.pair.a, &box.pair.b`) to `inout` parameters?","options":[{"id":"a","text":"It compiles and runs cleanly just like a local struct.","explanation":"Wrong. Only local structs prove fields do not overlap. A class property locks the whole struct."},{"id":"b","text":"It fails at compile time with an aliasing error.","explanation":"Wrong. The compiler accepts it and inserts runtime exclusivity checks."},{"id":"c","text":"It compiles and traps at runtime because both writes overlap on box.pair.","explanation":"Right. Both accesses modify box.pair at the same time, triggering a runtime exclusivity crash."},{"id":"d","text":"Swift converts Box into a struct automatically.","explanation":"Wrong. Swift never changes class declarations to structs."}],"answer":"c"},{"id":"memory-safety-q12","type":"mcq","difficulty":2,"prompt":"What does `#if hasFeature(StrictMemorySafety)` check?","options":[{"id":"a","text":"Whether the device has at least 4 GB of RAM.","explanation":"Wrong. hasFeature checks compiler flags, not device hardware."},{"id":"b","text":"Whether ARC is disabled in release builds.","explanation":"Wrong. ARC stays enabled in Swift."},{"id":"c","text":"Whether the app runs on macOS instead of iOS.","explanation":"Wrong. Platform checks use #if os(iOS)."},{"id":"d","text":"Whether Strict Memory Safety checking is enabled at compile time.","explanation":"Right. It lets code conditionally compile based on -strict-memory-safety."}],"answer":"d"},{"id":"memory-safety-q13","type":"mcq","difficulty":2,"prompt":"Why does putting `unsafe` on `withUnsafePointer(to: &value) { ... }` trigger an unnecessary `unsafe` warning?","options":[{"id":"a","text":"withUnsafePointer is safe. Only using ptr inside needs unsafe.","explanation":"Right. Calling withUnsafePointer is safe, while reading ptr.pointee or calling @unsafe functions needs unsafe."},{"id":"b","text":"Because the unsafe keyword is invalid inside functions.","explanation":"Wrong. unsafe is meant for expressions inside functions."},{"id":"c","text":"Because Swift removed UnsafePointer in Swift 6.2.","explanation":"Wrong. UnsafePointer still exists for low-level and C interop code."},{"id":"d","text":"Because closures are always safe by default.","explanation":"Wrong. Operations inside the closure still need unsafe when touching pointers."}],"answer":"a"},{"id":"memory-safety-q14","type":"mcq","difficulty":2,"prompt":"Does wrapping a pointer call with the `unsafe` keyword add runtime bounds or lifetime checks?","options":[{"id":"a","text":"Yes, it automatically turns pointers into Span.","explanation":"Wrong. You must explicitly adopt Span or InlineArray to gain those checks."},{"id":"b","text":"No, it only marks the unsafe code for human review.","explanation":"Right. unsafe is a review marker like try and adds zero runtime safety checks."},{"id":"c","text":"Yes, it freezes memory until the app exits.","explanation":"Wrong. Memory lifetimes do not change."},{"id":"d","text":"Yes, it checks pointers on a background actor.","explanation":"Wrong. unsafe runs synchronously with no extra checks."}],"answer":"b"},{"id":"memory-safety-q15","type":"mcq","difficulty":3,"prompt":"When should you mark a custom Swift helper function with `@unsafe`?","options":[{"id":"a","text":"Whenever a function takes an inout parameter.","explanation":"Wrong. inout parameters are safe and checked by exclusivity rules."},{"id":"b","text":"Whenever a function runs inside an actor.","explanation":"Wrong. Actors protect mutable state safely without @unsafe."},{"id":"c","text":"When the function depends on memory-unsafe rules.","explanation":"Right. Marking a function @unsafe tells callers under Strict Memory Safety to review and prefix calls with unsafe."},{"id":"d","text":"Whenever a function throws an Error.","explanation":"Wrong. Throwing functions use throws and try, not @unsafe."}],"answer":"c"},{"id":"memory-safety-q16","type":"mcq","difficulty":3,"prompt":"After enabling Strict Memory Safety in a parser module, what is the best long-term fix for warnings on buffer pointer code?","options":[{"id":"a","text":"Turn off Strict Memory Safety before shipping.","explanation":"Wrong. Keeping it enabled catches future regressions."},{"id":"b","text":"Disable Swift 6 language mode.","explanation":"Wrong. Downgrading removes strict concurrency protection."},{"id":"c","text":"Wrap every function body in Objective-C.","explanation":"Wrong. Moving to Objective-C reduces memory safety further."},{"id":"d","text":"Replace raw pointer buffers with Span or InlineArray.","explanation":"Right. Adopting Span and InlineArray eliminates unsafe surfaces while keeping high speed."}],"answer":"d"},{"id":"memory-safety-q17","type":"code-reading","difficulty":1,"prompt":"What happens when you compile this code?","code":"func balance(_ x: inout Int, _ y: inout Int) {\n    let sum = x + y\n    x = sum / 2\n    y = sum - x\n}\n\nfunc run() {\n    var score = 10\n    balance(&score, &score)\n}","options":[{"id":"a","text":"It fails to compile because two inout arguments alias.","explanation":"Right. Passing &score twice opens two overlapping write accesses to score."},{"id":"b","text":"It compiles and sets score to 10.","explanation":"Wrong. Swift rejects aliasing inout arguments at compile time."},{"id":"c","text":"It compiles and prints 20.","explanation":"Wrong. The compiler stops the conflicting inout call."},{"id":"d","text":"It compiles and only fails if score is a class.","explanation":"Wrong. Aliasing &score, &score fails on Int structs too."}],"answer":"a"},{"id":"memory-safety-q18","type":"code-reading","difficulty":1,"prompt":"What does this code print?","code":"func balance(_ x: inout Int, _ y: inout Int) {\n    let sum = x + y\n    x = sum / 2\n    y = sum - x\n}\n\nstruct Stats {\n    var health: Int\n    var energy: Int\n}\n\nfunc run() {\n    var player = Stats(health: 10, energy: 20)\n    balance(&player.health, &player.energy)\n    print(player.health, player.energy)\n}\nrun()","options":[{"id":"a","text":"10 20","explanation":"Wrong. balance updates both properties to half of 30."},{"id":"b","text":"15 15","explanation":"Right. Because player is a local struct, Swift proves health and energy do not overlap."},{"id":"c","text":"A compile error because both arguments come from player","explanation":"Wrong. Disjoint stored properties of a local struct are safe to pass together."},{"id":"d","text":"A runtime exclusivity crash","explanation":"Wrong. Runtime traps occur when the struct lives inside a class property, not a local struct."}],"answer":"b"},{"id":"memory-safety-q19","type":"code-reading","difficulty":2,"prompt":"What happens when you compile this code?","code":"struct Player {\n    var health: Int\n    mutating func shareHealth(with teammate: inout Player) {\n        health += teammate.health\n    }\n}\n\nfunc run() {\n    var oscar = Player(health: 10)\n    oscar.shareHealth(with: &oscar)\n}","options":[{"id":"a","text":"It compiles and doubles oscar.health to 20.","explanation":"Wrong. Calling a mutating method starts a long-term write on self. That conflicts with &oscar."},{"id":"b","text":"It compiles and prints 10.","explanation":"Wrong. The compiler rejects overlapping writes to oscar."},{"id":"c","text":"It fails to compile because self and teammate alias oscar.","explanation":"Right. Both the mutating self access and &oscar require exclusive write access to oscar."},{"id":"d","text":"It compiles only if Player is a class.","explanation":"Wrong. Classes do not have mutating methods that take self as inout."}],"answer":"c"},{"id":"memory-safety-q20","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"func run() {\n    var step = 2\n    let delta = step\n    func increment(_ number: inout Int) {\n        number += delta\n    }\n    increment(&step)\n    print(step)\n}\nrun()","options":[{"id":"a","text":"2","explanation":"Wrong. increment adds delta (2) to step (2)."},{"id":"b","text":"A compile error because delta captures step","explanation":"Wrong. delta is an independent Int copy read before increment runs."},{"id":"c","text":"A runtime exclusivity crash","explanation":"Wrong. Reading delta avoids accessing step while increment(&step) holds the write lock."},{"id":"d","text":"4","explanation":"Right. Copying step to delta first prevents any overlap, so step becomes 4."}],"answer":"d"},{"id":"memory-safety-q21","type":"code-reading","difficulty":2,"prompt":"What does this code print?","code":"@unsafe\nfunc peek(_ ptr: UnsafePointer\u003cInt>) -> Int {\n    unsafe ptr.pointee\n}\n\nfunc run() {\n    var score = 77\n    withUnsafePointer(to: &score) { p in\n        print(unsafe peek(p))\n    }\n}\nrun()","options":[{"id":"a","text":"77","explanation":"Right. peek reads score through the pointer safely marked with unsafe and prints 77."},{"id":"b","text":"0","explanation":"Wrong. ptr.pointee reads the stored value 77."},{"id":"c","text":"A compile error because @unsafe cannot be used in Swift 6","explanation":"Wrong. @unsafe and unsafe are standard Swift 6.2+ features."},{"id":"d","text":"A compile error because withUnsafePointer needs unsafe before it","explanation":"Wrong. withUnsafePointer itself is safe. Only peek(p) and ptr.pointee use unsafe."}],"answer":"a"},{"id":"memory-safety-q22","type":"code-reading","difficulty":2,"prompt":"What does this code print when compiled with default Swift 6 flags (without `-strict-memory-safety`)?","code":"func run() {\n    #if hasFeature(StrictMemorySafety)\n    print(\"strict\")\n    #else\n    print(\"default\")\n    #endif\n}\nrun()","options":[{"id":"a","text":"strict","explanation":"Wrong. StrictMemorySafety is opt-in and off unless -strict-memory-safety is enabled."},{"id":"b","text":"default","explanation":"Right. Without -strict-memory-safety, hasFeature(StrictMemorySafety) is false."},{"id":"c","text":"Nothing","explanation":"Wrong. The #else branch executes and prints default."},{"id":"d","text":"A compile error because hasFeature is unknown","explanation":"Wrong. hasFeature(StrictMemorySafety) is valid in Swift 6.2+."}],"answer":"b"},{"id":"memory-safety-q23","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"struct Pair {\n    var a: Int\n    var b: Int\n}\n\nfunc swapValues(_ x: inout Int, _ y: inout Int) {\n    let temp = x\n    x = y\n    y = temp\n}\n\nclass Box {\n    var pair = Pair(a: 1, b: 2)\n    func safeSwap() {\n        var local = pair\n        swapValues(&local.a, &local.b)\n        pair = local\n        print(pair.a, pair.b)\n    }\n}\nBox().safeSwap()","options":[{"id":"a","text":"1 2","explanation":"Wrong. swapValues swaps a and b inside local before assigning back to pair."},{"id":"b","text":"A runtime exclusivity crash on Box.pair","explanation":"Wrong. Copying pair into local first avoids overlapping writes on Box.pair."},{"id":"c","text":"2 1","explanation":"Right. Mutating the local struct copy and writing it back swaps a and b cleanly."},{"id":"d","text":"A compile error because Box is a class","explanation":"Wrong. Classes can copy a struct property to a local var and mutate it."}],"answer":"c"},{"id":"memory-safety-q24","type":"code-reading","difficulty":3,"prompt":"What does this code print?","code":"func addTen(_ value: inout Int) {\n    value += 10\n}\n\nfunc run() {\n    var points = 5\n    let before = points\n    addTen(&points)\n    let after = points\n    print(before, after)\n}\nrun()","options":[{"id":"a","text":"15 15","explanation":"Wrong. before reads points before addTen(&points) mutates it."},{"id":"b","text":"A compile error because before and addTen(&points) overlap","explanation":"Wrong. let before = points is an instantaneous read that finishes before addTen begins."},{"id":"c","text":"5 5","explanation":"Wrong. addTen mutates points to 15."},{"id":"d","text":"5 15","explanation":"Right. Instantaneous reads before and after the inout call do not overlap the write lock."}],"answer":"d"},{"id":"memory-safety-q25","type":"written","difficulty":1,"prompt":"In 2–5 sentences, explain Swift's Law of Exclusivity, when overlapping accesses are safe, and why `inout` parameters can cause conflicts.","rubric":[{"criterion":"States that two accesses to the same memory cannot overlap if at least one is a write","weight":45,"key":true},{"criterion":"Explains that inout starts a long-term write access lasting for the whole function call","weight":40,"key":true},{"criterion":"Notes that overlapping reads alone do not conflict","weight":15}],"modelAnswer":"Swift's Law of Exclusivity says two accesses to the same memory location cannot overlap if at least one is a write. Multiple overlapping reads are safe. Passing a variable as inout starts a long-term write access for the whole call. Any other read or write during that call causes a conflict."},{"id":"memory-safety-q26","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain the difference between compile-time and runtime exclusivity checks with an example of each.","rubric":[{"criterion":"Gives a compile-time example such as passing &score twice to inout or p.shareHealth(with: &p)","weight":40,"key":true},{"criterion":"Gives a runtime trap example such as a closure capture overlap or class-stored struct field inout","weight":40,"key":true},{"criterion":"Explains that runtime conflicts trap with a fatal crash","weight":20}],"modelAnswer":"Swift rejects obvious aliasing at compile time, such as passing &score twice to inout parameters or calling p.shareHealth(with: &p). Other overlaps pass compilation and crash at runtime with a fatal exclusivity trap. For example, reading a captured variable inside increment(&step) or passing two fields of a class's struct property overlaps at runtime."},{"id":"memory-safety-q27","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain why `balance(&player.health, &player.energy)` works on a local `struct`, yet crashes on a `struct` stored in a `class` property. Also explain how to fix the crash.","rubric":[{"criterion":"States that on a local struct, Swift proves the two fields do not overlap","weight":40,"key":true},{"criterion":"States that on a class property, both accesses modify the whole struct property on the class","weight":40,"key":true},{"criterion":"Mentions copying the struct property to a local var as a fix","weight":20}],"modelAnswer":"On a local struct variable, the compiler proves that health and energy occupy separate parts of memory, so passing both as inout succeeds. When that struct is stored on a class property like Box.pair, both inout arguments access Box.pair as a whole and collide at runtime. Copying pair to a local variable before mutating fixes the crash."},{"id":"memory-safety-q28","type":"written","difficulty":2,"prompt":"In 2–5 sentences, explain what Strict Memory Safety (`-strict-memory-safety`) does and why `unsafe` does not make code safe by itself. Also name a safer alternative.","rubric":[{"criterion":"Explains that Strict Memory Safety warns on unmarked uses of @unsafe APIs and unsafe pointers","weight":45,"key":true},{"criterion":"Explains that the unsafe keyword only marks code for review and adds no runtime safety checks","weight":45,"key":true},{"criterion":"Notes preferring safe types like Span or InlineArray when possible","weight":10}],"modelAnswer":"Strict Memory Safety is an opt-in Swift 6.2+ check. It warns whenever code calls @unsafe APIs or uses unsafe pointers without marking them. Prefixing an expression with unsafe silences the warning by making the boundary visible for review, like try for errors. It adds zero runtime bounds or lifetime checks, so replacing pointers with Span or InlineArray is safer."},{"id":"memory-safety-q29","type":"written","difficulty":3,"prompt":"In 2–5 sentences, name Swift's memory safety layers and explain how to adopt Strict Memory Safety step by step in a large iOS codebase.","rubric":[{"criterion":"Names multiple Swift memory safety layers (such as initialization, ARC, exclusivity, Swift 6 concurrency, Strict Memory Safety)","weight":40,"key":true},{"criterion":"Recommends enabling .strictMemorySafety() per module or package target (especially parsers/C interop)","weight":35,"key":true},{"criterion":"Explains migrating marked unsafe blocks toward Span or InlineArray over time","weight":25}],"modelAnswer":"Swift protects memory in layers: definite initialization, ARC, bounds checking, exclusive access, Swift 6 concurrency isolation, and Strict Memory Safety. In a large codebase, I enable .strictMemorySafety() first on low-level Swift packages that touch C APIs or pointers. Teams mark valid code with unsafe for review, then replace raw buffers step by step with Span and InlineArray."},{"id":"memory-safety-q30","type":"code-write","difficulty":1,"prompt":"Fix `run()` so it copies `step` (`10`) into a local constant before calling `addStep(&step)`, avoiding the runtime exclusivity conflict and printing `20`.","starterCode":"func run() {\n    var step = 10\n    func addStep(_ x: inout Int) {\n        x += step\n    }\n    addStep(&step)\n    print(step)\n}\nrun()\n","rubric":[{"criterion":"Copies step to a separate local constant (such as let delta = step) before calling addStep(&step)","weight":60,"key":true},{"criterion":"Reads the local copy inside addStep instead of step, calls addStep(&step), and prints 20","weight":40,"key":true}],"modelAnswer":"func run() {\n    var step = 10\n    let delta = step\n    func addStep(_ x: inout Int) {\n        x += delta\n    }\n    addStep(&step)\n    print(step)\n}\nrun()"},{"id":"memory-safety-q31","type":"code-write","difficulty":2,"prompt":"Fix `AccountHolder.swapBalances()` so swapping `pair.checking` (`100`) and `pair.savings` (`250`) does not trigger a runtime exclusivity conflict on `AccountHolder.pair`, and prints `250 100`.","starterCode":"struct Balances { var checking: Int; var savings: Int }\nfunc swapInts(_ a: inout Int, _ b: inout Int) { let t = a; a = b; b = t }\nclass AccountHolder {\n    var pair = Balances(checking: 100, savings: 250)\n    func swapBalances() {\n        swapInts(&pair.checking, &pair.savings)\n        print(pair.checking, pair.savings)\n    }\n}\nAccountHolder().swapBalances()\n","rubric":[{"criterion":"Copies pair into a local var before calling swapInts on its fields","weight":55,"key":true},{"criterion":"Assigns the updated local struct back to pair and prints 250 100","weight":45,"key":true}],"modelAnswer":"struct Balances { var checking: Int; var savings: Int }\nfunc swapInts(_ a: inout Int, _ b: inout Int) { let t = a; a = b; b = t }\nclass AccountHolder {\n    var pair = Balances(checking: 100, savings: 250)\n    func swapBalances() {\n        var local = pair\n        swapInts(&local.checking, &local.savings)\n        pair = local\n        print(pair.checking, pair.savings)\n    }\n}\nAccountHolder().swapBalances()"},{"id":"memory-safety-q32","type":"code-write","difficulty":3,"prompt":"Write a function marked `@unsafe` named `readByte(_ ptr: UnsafePointer\u003cUInt8>) -> UInt8` that returns `unsafe ptr.pointee`. Inside `run()`, declare `var byte: UInt8 = 65`, call `readByte` via `withUnsafePointer(to: &byte)` using `unsafe`, and print `65`.","rubric":[{"criterion":"Marks readByte with @unsafe and uses unsafe ptr.pointee inside","weight":50,"key":true},{"criterion":"Calls unsafe readByte(ptr) inside withUnsafePointer(to: &byte) without putting unsafe on withUnsafePointer","weight":35,"key":true},{"criterion":"Prints 65","weight":15}],"modelAnswer":"@unsafe\nfunc readByte(_ ptr: UnsafePointer\u003cUInt8>) -> UInt8 {\n    unsafe ptr.pointee\n}\n\nfunc run() {\n    var byte: UInt8 = 65\n    withUnsafePointer(to: &byte) { ptr in\n        print(unsafe readByte(ptr))\n    }\n}\nrun()"}]}};
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const started = Date.now();
+let guess = null;
+
+// Wrap tables so they scroll on small screens.
+document.querySelectorAll(".lesson table").forEach((t) => { const w = document.createElement("div"); w.className = "table-wrap"; t.replaceWith(w); w.append(t); });
+
+// Guess first: save the pick, no feedback until the recap.
+const guessBox = $("[data-guess]");
+guessBox?.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+  guessBox.querySelectorAll(".opt").forEach((o) => o.classList.toggle("picked", o === b));
+  guess = { id: b.dataset.id, correct: b.hasAttribute("data-correct") };
+  $(".guess-msg", guessBox).textContent = "Saved. Read on, and check your guess in the recap.";
+  const r = $(".guess-result");
+  if (r) r.textContent = guess.correct
+    ? "Your guess (" + guess.id.toUpperCase() + ") was right. Well done."
+    : "Your guess was " + guess.id.toUpperCase() + ". The right answer was " + $("[data-correct]", guessBox).dataset.id.toUpperCase() + ". Now you know why.";
+}));
+
+// Quick checks: instant feedback, not scored.
+document.querySelectorAll("[data-qc]").forEach((qc) => {
+  qc.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    qc.querySelectorAll(".opt").forEach((o) => {
+      o.disabled = true;
+      if (o.hasAttribute("data-correct")) o.classList.add("right");
+      else if (o === b) o.classList.add("wrong");
+    });
+    const ex = $(".qc-explain", qc);
+    ex.hidden = false;
+    ex.prepend(document.createTextNode(b.hasAttribute("data-correct") ? "Right. " : "Not quite. "));
+  }));
+});
+
+// ---------- Exam ----------
+const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let lastExamIds = null; // kept in memory too, so retakes avoid repeats even when storage is blocked
+function pickQuestions() {
+  const last = new Set(lastExamIds ?? store.get("lastExam:" + DATA.topicId) ?? []);
+  const picked = [];
+  for (const [type, n] of Object.entries(DATA.exam.mix)) {
+    const pool = shuffle(DATA.exam.questions.filter((q) => q.type === type));
+    const fresh = pool.filter((q) => !last.has(q.id)), seen = pool.filter((q) => last.has(q.id));
+    picked.push(...[...fresh, ...seen].slice(0, n));
+  }
+  const auto = shuffle(picked.filter((q) => q.options)), open = picked.filter((q) => !q.options);
+  const list = [...auto, ...open];
+  lastExamIds = list.map((q) => q.id);
+  store.set("lastExam:" + DATA.topicId, lastExamIds);
+  return list;
+}
+
+let run;
+function startExam() {
+  run = { questions: pickQuestions(), i: 0, answers: [], lessonMinutes: Math.max(1, Math.round((Date.now() - started) / 60000)) };
+  $("#lessonView").hidden = true; $("#results").hidden = true; $("#exam").hidden = false;
+  showQuestion(); window.scrollTo(0, 0);
+}
+$("#startExam").addEventListener("click", startExam);
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+function showQuestion() {
+  const q = run.questions[run.i], n = run.questions.length;
+  const kind = { mcq: "Multiple choice", "code-reading": "Read the code", written: "Written answer", "code-write": "Write code" }[q.type];
+  const ex = $("#exam");
+  ex.innerHTML =
+    '<div class="progress" aria-hidden="true"><span style="width:' + (run.i / n * 100) + '%"></span></div>' +
+    '<div class="q-head"><span>Question ' + (run.i + 1) + ' of ' + n + '</span><span>' + kind + '</span></div>' +
+    '<p class="q-text">' + md(q.prompt) + '</p>' +
+    (q.code ? '<pre class="block swift"><code>' + esc(q.code) + '</code></pre>' : '') +
+    (q.options
+      ? '<div class="opts">' + q.options.map((o) => '<button type="button" class="opt" data-id="' + o.id + '"><span class="opt-id">' + o.id.toUpperCase() + '</span><span class="opt-text">' + md(o.text) + '</span></button>').join("") + '</div>'
+      : '<label for="answer" class="label">' + (q.type === "written" ? "Your answer (2–5 sentences)" : "Your code") + '</label>' +
+        '<textarea id="answer" class="' + (q.type === "code-write" ? "code-input" : "") + '" spellcheck="' + (q.type === "written") + '">' + esc(q.starterCode ?? "") + '</textarea>' +
+        '<button class="btn" type="button" id="submitOpen">Check my answer</button>') +
+    '<div id="fb"></div>';
+  if (q.options) ex.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => answerChoice(q, b.dataset.id)));
+  else $("#submitOpen").addEventListener("click", () => answerOpen(q));
+  (ex.querySelector(".opt") || ex.querySelector("textarea"))?.focus({ preventScroll: true });
+}
+
+function nextButton() {
+  const last = run.i === run.questions.length - 1;
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button"; b.textContent = last ? "See my results" : "Next question";
+  b.addEventListener("click", () => { if (last) showResults(); else { run.i++; showQuestion(); window.scrollTo(0, 0); } });
+  return b;
+}
+
+function answerChoice(q, picked) {
+  const right = picked === q.answer;
+  run.answers.push({ q, picked, right });
+  $("#exam").querySelectorAll(".opt").forEach((o) => {
+    o.disabled = true;
+    if (o.dataset.id === q.answer) o.classList.add("right"); else if (o.dataset.id === picked) o.classList.add("wrong");
+  });
+  const chosen = q.options.find((o) => o.id === picked), correct = q.options.find((o) => o.id === q.answer);
+  const fb = $("#fb");
+  fb.className = "feedback " + (right ? "ok" : "no");
+  fb.innerHTML = '<p><b>' + (right ? "Right." : "Not quite.") + '</b> ' + md(chosen.explanation) + '</p>' +
+    (right ? "" : '<p><b>The right answer is ' + q.answer.toUpperCase() + '.</b> ' + md(correct.explanation.replace(/^Right.s*/, "")) + '</p>');
+  fb.append(nextButton()); fb.lastChild.focus({ preventScroll: true });
+}
+
+// Rubric scoring (rules.json → rubricScoring): met = full weight, partly = half, not met = 0.
+// If any key criterion is not met, the total is capped below the pass mark.
+function rubricScore(rubric, marks) {
+  const s = DATA.exam.scoring;
+  let total = 0, keyMissed = false;
+  rubric.forEach((r, i) => {
+    const m = marks[i] === 1 ? s.met : marks[i] === 0.5 ? s.partlyMet : s.notMet;
+    total += r.weight * m;
+    if (r.key && m === s.notMet) keyMissed = true;
+  });
+  total = Math.round(total);
+  return { self: keyMissed ? Math.min(total, s.keyMissedCap) : total, capped: keyMissed && total > s.keyMissedCap };
+}
+
+function answerOpen(q) {
+  const text = $("#answer").value;
+  $("#answer").readOnly = true; $("#submitOpen").remove();
+  const fb = $("#fb");
+  fb.className = "feedback";
+  fb.innerHTML = '<p class="label">Model answer</p>' +
+    (q.type === "code-write" ? '<pre class="block swift"><code>' + esc(q.modelAnswer) + '</code></pre>' : '<p>' + md(q.modelAnswer) + '</p>') +
+    '<p class="label" style="margin-top:8px">Self-check: how well does your answer cover each point? In the app, AI does this.</p>' +
+    '<div class="rubric">' + q.rubric.map((r, i) =>
+      '<fieldset class="crit"><legend><span>' + (r.key ? '<b class="key">Key point</b> ' : '') + md(r.criterion) + '</span><span class="w">' + r.weight + '</span></legend>' +
+      [["1", "Yes"], ["0.5", "Partly"], ["0", "No"]].map(([v, t]) => '<label><input type="radio" name="r' + i + '" value="' + v + '"' + (v === "0" ? " checked" : "") + '> ' + t + '</label>').join("") +
+      '</fieldset>').join("") + '</div>' +
+    '<p class="self-score" aria-live="polite"></p>';
+  const entry = { q, text, self: 0, capped: false };
+  run.answers.push(entry);
+  const update = () => {
+    const marks = q.rubric.map((r, i) => Number(fb.querySelector('input[name="r' + i + '"]:checked').value));
+    Object.assign(entry, rubricScore(q.rubric, marks));
+    fb.querySelector(".self-score").innerHTML = "Self-check score: <b>" + entry.self + "/100</b>" + (entry.capped ? " (capped at " + DATA.exam.scoring.keyMissedCap + ": a key point is missing)" : "");
+  };
+  fb.querySelectorAll("input").forEach((c) => c.addEventListener("change", update));
+  update();
+  fb.append(nextButton());
+}
+
+function showResults() {
+  const auto = run.answers.filter((a) => a.q.options), open = run.answers.filter((a) => !a.q.options);
+  const correct = auto.filter((a) => a.right).length, pct = Math.round(correct / auto.length * 100);
+  const passed = pct >= DATA.exam.passMark;
+  const best = Math.max(pct, store.get("best:" + DATA.topicId) ?? 0);
+  store.set("best:" + DATA.topicId, best);
+  const r = $("#results");
+  r.innerHTML =
+    '<p class="label">Your result</p>' +
+    '<p class="score ' + (passed ? "pass" : "fail") + '">' + pct + '%</p>' +
+    '<p style="margin:0"><b>' + (passed ? "Passed." : "Not passed yet.") + '</b> ' + correct + ' of ' + auto.length + ' scored questions right. You need ' + DATA.exam.passMark + '% to unlock the next topic. Best so far: ' + best + '%.</p>' +
+    open.map((a) => '<p style="margin:0">Self-check, ' + (a.q.type === "written" ? "written answer" : "code answer") + ': <b>' + a.self + '/100</b> (not in the score in this prototype).</p>').join("") +
+    '<p class="note">Time on the lesson: about ' + run.lessonMinutes + ' min.</p>' +
+    '<h2 style="margin:8px 0 0;font-size:20px">Review</h2>' +
+    '<ol class="review">' + run.answers.map((a, i) => '<li><span class="tag ' + (a.q.options ? (a.right ? "pass" : "fail") : "") + '">' + (i + 1) + '. ' + (a.q.options ? (a.right ? "Right" : "Wrong") : "Self-check " + a.self + "/100") + '</span><span>' + md(a.q.prompt) + '</span>' +
+      (a.q.options && !a.right ? '<span class="note">Right answer: ' + md(a.q.options.find((o) => o.id === a.q.answer).text) + '</span>' : '') + '</li>').join("") + '</ol>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px"><button class="btn" type="button" id="retake">Retake with new questions</button><button class="btn secondary" type="button" id="back">Back to the lesson</button></div>';
+  $("#exam").hidden = true; r.hidden = false; window.scrollTo(0, 0);
+  $("#retake").addEventListener("click", startExam);
+  $("#back").addEventListener("click", () => { r.hidden = true; $("#lessonView").hidden = false; window.scrollTo(0, 0); });
+}
+</script>
